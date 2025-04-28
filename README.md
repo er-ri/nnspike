@@ -6,6 +6,11 @@ A LEGO SPIKE Robot using Neural Network
 
 The project integrates a LEGO SPIKE Prime Hub and a Raspberry Pi to implement a line follower using a image model which was inspired by Nvidia in 2016[1]. The model predicts the x-coordinate of the line that is going to follow. The output power is then derived from the offset to the centroid of the robot with regard to the following line. For the straight lines and the curves, the training data were collected by an OpenCV function that calculates the biggest contour's moments in the image, while the other training data (at the intersection) were labeled manually. By feeding the model with about _22,000_ images and training the model in _1.0_ hours, the loss value eventually converged to around _0.001_. The project is used for a robot contest[2] in Japan.
 
+
+<p align="center">
+  <img width="500" height="400" src="./docs/img/demo.png">
+</p>
+
 ## Environment
 
 - OS: Raspberry Pi OS Bookworm 64-bit
@@ -45,7 +50,7 @@ The project integrates a LEGO SPIKE Prime Hub and a Raspberry Pi to implement a 
     │   │   └── preprocess.py       # Data preprocessing(labeling, balancing, etc.)
     │   ├── models/
     │   │   ├── nvidia.py           # Model implementation [1]
-    │   │   └── mobilenetv2.py      # Model implementation(Modified for regression task) [3]
+    │   │   └── mobilenetv2.py      # Model implementation(Modified for regression task)[3]
     │   ├── unit/
     │   │   └── etrobot.py          # Interface for controlling the Robot
     │   ├── utils/
@@ -64,7 +69,11 @@ The project integrates a LEGO SPIKE Prime Hub and a Raspberry Pi to implement a 
 
 ## Training Process
 
-A full training process is described in the jupyter notebook `./notebooks/train.ipynb`.
+A full training process is described in the jupyter notebook `./notebooks/train.ipynb`. A sample dataset (approximately 170 MB, containing 1,282 images in PNG format and a corresponding CSV file with labels) can be downloaded at [here](https://drive.google.com/file/d/1WcnCQO3Swiak34lt4FFdnqNONbPkF9jC/view?usp=drive_link).
+
+<p align="center">
+ <img src="./docs/img/train_process.png" />
+</p>
 
 ### Data Collection
 
@@ -130,7 +139,7 @@ The dataframe of training data contains the image path, the offset to x-coordina
 
 > - By _horizontally flipping_ the image, the data can be used to train a model for the opposite course.
 > - The **image_path** is the _X_ value, while the _Y_ value will be mapped to the order of **adjusted_x** > **predicted_x** > **mx** if > the column is not null.
-> - Because the CNN architecture does not have the ability to retain the previous memories, so it is necessary to divide the contest course into multiple intervals to ensure that each interval does not contain any similar images that require the robot to turn in a different direction. In the contest [2], the value of **interval** includes `1.0`, `1.2`, `2`, `2.3` and `3`, where the data of `1.2` and `2.3` can be both trained for **interval** `1.0`, `2.0` and `2.0`, `3.0` represents the period to switch models.
+> - Because the CNN architecture does not have the ability to retain the previous memories, so it is necessary to divide the contest course into multiple intervals to ensure that each interval does not contain any similar images that require the robot to turn in a different direction. In the contest[2], the value of **interval** includes `1.0`, `1.2`, `2`, `2.3` and `3`, where the data of `1.2` and `2.3` can be both trained for **interval** `1.0`, `2.0` and `2.0`, `3.0` represents the period to switch models.
 
 ## License
 
@@ -138,7 +147,7 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 
 ## References
 
-[1]. [End to End Learning for Self-Driving Cars](https://arxiv.org/abs/1604.07316)  
-[2]. [ET Robocon Github Repository](https://github.com/ETrobocon)  
-[3]. [MobileNetV2: Inverted Residuals and Linear Bottlenecks](https://arxiv.org/abs/1801.04381)  
-[4]. [Albumentations: Fast and flexible image augmentation library](https://github.com/albumentations-team/albumentations)
+[1]: [End to End Learning for Self-Driving Cars](https://arxiv.org/abs/1604.07316)  
+[2]: [ET Robocon Github Repository](https://github.com/ETrobocon)  
+[3]: [MobileNetV2: Inverted Residuals and Linear Bottlenecks](https://arxiv.org/abs/1801.04381)  
+[4]: [Albumentations: Fast and flexible image augmentation library](https://github.com/albumentations-team/albumentations)
