@@ -45,7 +45,9 @@ class ETRobot(
 
         Note:
             The update rate should be less than the rate of sending sensor data in LEGO Prime Hub (0.0005 seconds).        """
-        received_data = self.__serial_port.read_until(expected=b"\r")        # Skip empty data
+        received_data = self.__serial_port.read_until(expected=b"\r")
+        
+        # Skip empty data
         if not received_data or len(received_data.strip()) == 0:
             return
 
@@ -55,6 +57,9 @@ class ETRobot(
                 self.spike_status.update(received_data)
                 # Update last_spike_status with valid sensor readings
                 self._update_last_spike_status()
+                
+                # Debug: Print update confirmation (uncomment for debugging)
+                # print(f"Updated spike_status - Distance: {self.spike_status.sensors.distance}, Color: {self.spike_status.sensors.color}")
 
             except Exception as e:
                 print(f"JSON parsing error: {e}")
@@ -62,15 +67,18 @@ class ETRobot(
                 print(f"Data length: {len(received_data)}")
                 print(f"Data type: {type(received_data)}")
 
-        time.sleep(0.0001)  # Value should be less than '0.0005' seconds
-
-    def _update_last_spike_status(self) -> None:
+        time.sleep(0.0001)  # Value should be less than '0.0005' seconds    def _update_last_spike_status(self) -> None:
         """
         Update last_spike_status with current valid sensor readings.
         Only updates values that are not None to preserve last known good values.
         """
         current = self.spike_status
         last = self.last_spike_status
+
+        # Always update timestamp and message type
+        last.timestamp = current.timestamp
+        last.message_type = current.message_type
+        last.raw_data = current.raw_data
 
         # Update sensors with valid readings
         if current.sensors.distance is not None:
@@ -82,7 +90,6 @@ class ETRobot(
         if current.sensors.color:
             if not last.sensors.color:
                 from .spike_status import ColorSensorStatus
-
                 last.sensors.color = ColorSensorStatus()
             if current.sensors.color.reflected is not None:
                 last.sensors.color.reflected = current.sensors.color.reflected
@@ -95,51 +102,46 @@ class ETRobot(
         if current.sensors.gyro:
             if not last.sensors.gyro:
                 from .spike_status import VectorStatus
-
                 last.sensors.gyro = VectorStatus()
-            if current.sensors.gyro.x is not None:
-                last.sensors.gyro.x = current.sensors.gyro.x
-            if current.sensors.gyro.y is not None:
-                last.sensors.gyro.y = current.sensors.gyro.y
-            if current.sensors.gyro.z is not None:
-                last.sensors.gyro.z = current.sensors.gyro.z
+            last.sensors.gyro.x = current.sensors.gyro.x
+            last.sensors.gyro.y = current.sensors.gyro.y
+            last.sensors.gyro.z = current.sensors.gyro.z
 
         # Update accelerometer data
         if current.sensors.accelerometer:
             if not last.sensors.accelerometer:
                 from .spike_status import VectorStatus
-
                 last.sensors.accelerometer = VectorStatus()
-            if current.sensors.accelerometer.x is not None:
-                last.sensors.accelerometer.x = current.sensors.accelerometer.x
-            if current.sensors.accelerometer.y is not None:
-                last.sensors.accelerometer.y = current.sensors.accelerometer.y
-            if current.sensors.accelerometer.z is not None:
-                last.sensors.accelerometer.z = current.sensors.accelerometer.z
+            last.sensors.accelerometer.x = current.sensors.accelerometer.x
+            last.sensors.accelerometer.y = current.sensors.accelerometer.y
+            last.sensors.accelerometer.z = current.sensors.accelerometer.z
 
         # Update position data
         if current.sensors.position:
             if not last.sensors.position:
                 from .spike_status import Position
-
                 last.sensors.position = Position()
-            if current.sensors.position.x is not None:
-                last.sensors.position.x = current.sensors.position.x
-            if current.sensors.position.y is not None:
-                last.sensors.position.y = current.sensors.position.y
+            last.sensors.position.x = current.sensors.position.x
+            last.sensors.position.y = current.sensors.position.y
 
         # Update motor data (always update as these are more reliable)
         for motor_id in ["A", "B", "C"]:
-            if current.motors[motor_id].position is not None:
-                last.motors[motor_id].position = current.motors[motor_id].position
-            if current.motors[motor_id].relative_position is not None:
-                last.motors[motor_id].relative_position = current.motors[
-                    motor_id
-                ].relative_position
-            if current.motors[motor_id].speed is not None:
-                last.motors[motor_id].speed = current.motors[motor_id].speed
-            if current.motors[motor_id].power is not None:
-                last.motors[motor_id].power = current.motors[motor_id].power
+            if motor_id in current.motors and motor_id in last.motors:
+                if current.motors[motor_id].position is not None:
+                    last.motors[motor_id].position = current.motors[motor_id].position
+                if current.motors[motor_id].relative_position is not None:
+                    last.motors[motor_id].relative_position = current.motors[motor_id].relative_position
+                if current.motors[motor_id].speed is not None:
+                    last.motors[motor_id].speed = current.motors[motor_id].speed
+                if current.motors[motor_id].power is not None:
+                    last.motors[motor_id].power = current.motors[motor_id].power
+
+        # Update battery data
+        if current.battery:
+            if current.battery.voltage is not None:
+                last.battery.voltage = current.battery.voltage
+            if current.battery.percent is not None:
+                last.battery.percent = current.battery.percent
 
     def get_spike_status(self):
         """
