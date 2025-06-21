@@ -46,8 +46,7 @@ class ETRobot(
         Note:
             The update rate should be less than the rate of sending sensor data in LEGO Prime Hub (0.0005 seconds).        """
         received_data = self.__serial_port.read_until(expected=b"\r")
-        
-        # Skip empty data
+          # Skip empty data
         if not received_data or len(received_data.strip()) == 0:
             return
 
@@ -62,10 +61,15 @@ class ETRobot(
                 # print(f"Updated spike_status - Distance: {self.spike_status.sensors.distance}, Color: {self.spike_status.sensors.color}")
 
             except Exception as e:
-                print(f"JSON parsing error: {e}")
-                print(f"Raw data: {received_data}")
-                print(f"Data length: {len(received_data)}")
-                print(f"Data type: {type(received_data)}")
+                # Only print error if it's not a simple JSON parsing issue
+                if "syntax error in JSON" not in str(e):
+                    print(f"JSON parsing error: {e}")
+                    print(f"Raw data: {received_data}")
+                    print(f"Data length: {len(received_data)}")
+                    print(f"Data type: {type(received_data)}")
+        elif received_data.startswith(b'{"i":null,"e":'):
+            # Handle error messages from Spike (ignore these for now)
+            pass
 
         time.sleep(0.0001)  # Value should be less than '0.0005' seconds
 
@@ -80,43 +84,53 @@ class ETRobot(
         # Always update timestamp and message type
         last.timestamp = current.timestamp
         last.message_type = current.message_type
-        last.raw_data = current.raw_data
-
-        # Update sensors with valid readings
-        if current.sensors.distance is not None:
+        last.raw_data = current.raw_data        # Update sensors with valid readings
+        if current.sensors.distance is not None and isinstance(current.sensors.distance, (int, float)):
             last.sensors.distance = current.sensors.distance
-        if current.sensors.force is not None:
-            last.sensors.force = current.sensors.force
-
-        # Update color sensor data
+        if current.sensors.force is not None and isinstance(current.sensors.force, (int, float)):
+            last.sensors.force = current.sensors.force        # Update color sensor data
         if current.sensors.color:
             if not last.sensors.color:
                 from .spike_status import ColorSensorStatus
                 last.sensors.color = ColorSensorStatus()
-            if current.sensors.color.reflected is not None:
-                last.sensors.color.reflected = current.sensors.color.reflected
-            if current.sensors.color.ambient is not None:
-                last.sensors.color.ambient = current.sensors.color.ambient
-            if current.sensors.color.color is not None:
-                last.sensors.color.color = current.sensors.color.color
-
-        # Update gyro data
+            try:
+                if current.sensors.color.reflected is not None and isinstance(current.sensors.color.reflected, (int, float)):
+                    last.sensors.color.reflected = current.sensors.color.reflected
+                if current.sensors.color.ambient is not None and isinstance(current.sensors.color.ambient, (int, float)):
+                    last.sensors.color.ambient = current.sensors.color.ambient
+                if current.sensors.color.color is not None and isinstance(current.sensors.color.color, (int, float)):
+                    last.sensors.color.color = current.sensors.color.color
+            except AttributeError:
+                # Skip update if color sensor data is malformed
+                pass        # Update gyro data
         if current.sensors.gyro:
             if not last.sensors.gyro:
                 from .spike_status import VectorStatus
                 last.sensors.gyro = VectorStatus()
-            last.sensors.gyro.x = current.sensors.gyro.x
-            last.sensors.gyro.y = current.sensors.gyro.y
-            last.sensors.gyro.z = current.sensors.gyro.z
+            try:
+                if isinstance(current.sensors.gyro.x, (int, float)):
+                    last.sensors.gyro.x = current.sensors.gyro.x
+                if isinstance(current.sensors.gyro.y, (int, float)):
+                    last.sensors.gyro.y = current.sensors.gyro.y
+                if isinstance(current.sensors.gyro.z, (int, float)):
+                    last.sensors.gyro.z = current.sensors.gyro.z
+            except AttributeError:
+                pass
 
         # Update accelerometer data
         if current.sensors.accelerometer:
             if not last.sensors.accelerometer:
                 from .spike_status import VectorStatus
                 last.sensors.accelerometer = VectorStatus()
-            last.sensors.accelerometer.x = current.sensors.accelerometer.x
-            last.sensors.accelerometer.y = current.sensors.accelerometer.y
-            last.sensors.accelerometer.z = current.sensors.accelerometer.z
+            try:
+                if isinstance(current.sensors.accelerometer.x, (int, float)):
+                    last.sensors.accelerometer.x = current.sensors.accelerometer.x
+                if isinstance(current.sensors.accelerometer.y, (int, float)):
+                    last.sensors.accelerometer.y = current.sensors.accelerometer.y
+                if isinstance(current.sensors.accelerometer.z, (int, float)):
+                    last.sensors.accelerometer.z = current.sensors.accelerometer.z
+            except AttributeError:
+                pass
 
         # Update position data
         if current.sensors.position:

@@ -144,19 +144,50 @@ def main(record_sensor_data=False, save_camera_video=False):
 
             # Apply PID control to theta for smooth steering correction
             pid_corrected_theta = pid.update(theta)
-            
-            # pid_corrected_theta is in radians, convert to power adjustment
+              # pid_corrected_theta is in radians, convert to power adjustment
             power_adjustment = int(pid_corrected_theta * STEERING_SCALE_FACTOR)
             left_power = int(current_base_power - power_adjustment)
             right_power = int(current_base_power + power_adjustment)
 
             et.set_motor_forward_power(
                 left_power=left_power,
-                right_power=right_power,            )
+                right_power=right_power,
+            )
             
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
                 sensor_recorder.log_frame_data(et.get_spike_status())
+                
+            # Get spike status once for efficiency and consistency
+            spike_status = et.get_spike_status()
+            
+            # Safe color sensor formatting
+            def format_color_sensor(status):
+                try:
+                    if status and status.sensors and status.sensors.color:
+                        color = status.sensors.color
+                        reflected = color.reflected if color.reflected is not None else 'N/A'
+                        ambient = color.ambient if color.ambient is not None else 'N/A'
+                        color_id = color.color if color.color is not None else 'N/A'
+                        return f"R:{reflected} A:{ambient} C:{color_id}"
+                    else:
+                        return "R:N/A A:N/A C:N/A"
+                except Exception:
+                    return "R:N/A A:N/A C:N/A"
+            
+            # Safe ultrasonic sensor formatting
+            def format_ultrasonic_sensor(status):
+                try:
+                    if status and status.sensors and status.sensors.distance is not None:
+                        distance = status.sensors.distance
+                        if isinstance(distance, (int, float)) and distance >= 0:
+                            return f"{distance}cm"
+                        else:
+                            return "N/A cm"
+                    else:
+                        return "N/A cm"
+                except Exception:
+                    return "N/A cm"
             
             # Prepare driving information for visualization
             info = dict()
@@ -168,16 +199,13 @@ def main(record_sensor_data=False, save_camera_video=False):
                 "current_power": f"{round(current_base_power, 1)}%",
                 "curve_detected": ("OFF_LINE" if theta == 0 else 
                                  "YES" if abs_theta > CURVE_THRESHOLD else "NO"),
-                "acceleration_time": f"{(round(current_time - straight_line_start_time, 1) if straight_line_start_time is not None else 0.0)}s",                "left_power": f"{left_power}%",
+                "acceleration_time": f"{(round(current_time - straight_line_start_time, 1) if straight_line_start_time is not None else 0.0)}s",
+                "left_power": f"{left_power}%",
                 "right_power": f"{right_power}%",
-                "color_sensor": (f"R:{et.get_spike_status().sensors.color.reflected if et.get_spike_status().sensors.color else 'N/A'} "
-                               f"A:{et.get_spike_status().sensors.color.ambient if et.get_spike_status().sensors.color else 'N/A'} "
-                               f"C:{et.get_spike_status().sensors.color.color if et.get_spike_status().sensors.color else 'N/A'}"),
-                "ultrasonic_sensor": f"{et.get_spike_status().sensors.distance if et.get_spike_status().sensors.distance is not None else 'N/A'}cm",
-                "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
-            }
+                "color_sensor": format_color_sensor(spike_status),
+                "ultrasonic_sensor": format_ultrasonic_sensor(spike_status),
+                "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",            }
 
-            # 仮更新
             # Create visualization frame
             gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
             gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
