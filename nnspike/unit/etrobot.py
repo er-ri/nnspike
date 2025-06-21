@@ -79,12 +79,12 @@ class ETRobot(
         Only updates values that are not None to preserve last known good values.
         """
         current = self.spike_status
-        last = self.last_spike_status
-
-        # Always update timestamp and message type
+        last = self.last_spike_status        # Always update timestamp and message type
         last.timestamp = current.timestamp
         last.message_type = current.message_type
-        last.raw_data = current.raw_data        # Update sensors with valid readings
+        last.raw_data = current.raw_data
+
+        # Update sensors with valid readings
         if current.sensors.distance is not None and isinstance(current.sensors.distance, (int, float)):
             last.sensors.distance = current.sensors.distance
         if current.sensors.force is not None and isinstance(current.sensors.force, (int, float)):
@@ -102,7 +102,9 @@ class ETRobot(
                     last.sensors.color.color = current.sensors.color.color
             except AttributeError:
                 # Skip update if color sensor data is malformed
-                pass        # Update gyro data
+                pass
+
+        # Update gyro data
         if current.sensors.gyro:
             if not last.sensors.gyro:
                 from .spike_status import VectorStatus
@@ -130,9 +132,7 @@ class ETRobot(
                 if isinstance(current.sensors.accelerometer.z, (int, float)):
                     last.sensors.accelerometer.z = current.sensors.accelerometer.z
             except AttributeError:
-                pass
-
-        # Update position data
+                pass        # Update position data
         if current.sensors.position:
             if not last.sensors.position:
                 from .spike_status import Position
@@ -153,8 +153,8 @@ class ETRobot(
                     last.motors[motor_id].power = current.motors[motor_id].power
 
         # Update battery data
-        if current.battery:o
-            if current.battery.voltage is not Nne:
+        if current.battery:
+            if current.battery.voltage is not None:
                 last.battery.voltage = current.battery.voltage
             if current.battery.percent is not None:
                 last.battery.percent = current.battery.percent
