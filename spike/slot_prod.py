@@ -75,7 +75,9 @@ class LegoSpike(object):
         time.sleep(1)
 
         # Set motors mode to measure its relative position on boot
-        self._set_motor_relative_position(left_position=0, right_position=0)        # Millisecond counter for record the latest command executed time, maximum idle time
+        self._set_motor_relative_position(left_position=0, right_position=0)
+        
+        # Millisecond counter for record the latest command executed time, maximum idle time
         self.command_counter = time.ticks_ms()
         
         # モーター制御タイムアウトタイマーをリセット
@@ -266,11 +268,13 @@ class LegoSpike(object):
             
             # USB経由でJSON文字列を送信
             bytes_written = self.usb.write(json_string + '\r\n')
-              # 書き込みに失敗した場合は例外を発生
+            
+            # 書き込みに失敗した場合は例外を発生
             if bytes_written is None or bytes_written == 0:
                 raise Exception("USB write failed")
                 
-        except Exception as e:            # エラーを再発生させてsensor_broadcasterで検知できるようにする
+        except Exception as e:
+            # エラーを再発生させてsensor_broadcasterで検知できるようにする
             raise e
     
     def _emergency_stop_callback(self):
@@ -300,7 +304,8 @@ class LegoSpike(object):
                 hub.speaker.beep(60, 500)
             except:
                 pass
-              # 非同期タスクに停止を強制通知
+            
+            # 非同期タスクに停止を強制通知
             print("EMERGENCY STOP ACTIVATED!")
             
         except Exception as e:
@@ -321,7 +326,7 @@ class LegoSpike(object):
         
         if time_since_last_command > self.motor_command_timeout:
             if not self.timeout_emergency_stop:
-                print(f"MOTOR COMMAND TIMEOUT! {time_since_last_command}ms since last command")
+                print("MOTOR COMMAND TIMEOUT! " + str(time_since_last_command) + "ms since last command")
                 self.timeout_emergency_stop = True
                 self.emergency_stop = True
                 self.stop_requested = True
@@ -430,7 +435,7 @@ async def receiver():
         except Exception as e:
             # エラー時は停止フラグを設定してループを抜ける
             lego_spike.stop_requested = True
-            print(f"receiver: Exception occurred - {e}")
+            print("receiver: Exception occurred - " + str(e))
             break
 
 
@@ -485,18 +490,17 @@ async def main_task():
                 break
                 
     except Exception as e:
-        print(f"main_task: Exception - {e}")
+        print("main_task: Exception - " + str(e))
     finally:
         print("main_task: Cleaning up tasks...")
         # すべてのタスクをキャンセル
         for task in tasks:
             if not task.done():
                 task.cancel()
-        
-        # タスクの完了を待つ（最大1秒）
+          # タスクの完了を待つ（最大1秒）
         for task in tasks:
             try:
-                await uasyncio.wait_for(task, timeout=1.0)
+                await task
             except:
                 pass
 
@@ -510,7 +514,7 @@ try:
     lego_spike = LegoSpike()
     print("LEGO Spike initialized.")
     print("Center button = EMERGENCY STOP")
-    print(f"Motor command timeout = {lego_spike.motor_command_timeout/1000}s")
+    print("Motor command timeout = " + str(lego_spike.motor_command_timeout/1000) + "s")
     uasyncio.run(main_task())
 except KeyboardInterrupt:
     print("KeyboardInterrupt: Emergency stop!")
