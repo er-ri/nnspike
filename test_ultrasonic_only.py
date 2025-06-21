@@ -11,7 +11,7 @@ import argparse
 from nnspike.unit import ETRobot
 
 
-async def display_spike_status_async(et, interval=0.05, duration=5.0):
+async def display_spike_status_async(et, interval=0.02, duration=5.0):
     """Asynchronously display spike status at regular intervals for specified duration"""
     status_count = 0
     start_time = time.time()
@@ -47,7 +47,7 @@ async def main_async():
     print("=== Ultrasonic Sensor Only Test (Async Version) ===")
     print("This program ONLY reads ultrasonic sensor values via spike_status")
     print("Continuous reading for 5 seconds with async processing")
-    print("Displaying values from spike_status every 0.05 seconds")
+    print("Displaying values from spike_status every 0.02 seconds (20ms)")
     print()
     
     # Initialize robot with retry logic
@@ -63,15 +63,14 @@ async def main_async():
             print(f"Connection attempt {attempt + 1} failed: {e}")
             if attempt == 2:
                 print("Failed to connect after 3 attempts. Exiting.")
-                return            await asyncio.sleep(2.0)  # Async sleep    
-    print("Starting 5-second async continuous reading from spike_status...")
-    print("Status will be displayed every 0.05 seconds (50ms)")
+                return            await asyncio.sleep(2.0)  # Async sleep      print("Starting 5-second async continuous reading from spike_status...")
+    print("Status will be displayed every 0.02 seconds (20ms)")
     print()
     
     try:
         # Record start time
         start_time = time.time()        # Only run spike status display task (no separate sensor reading)
-        status_task = asyncio.create_task(display_spike_status_async(et, interval=0.05, duration=5.0))
+        status_task = asyncio.create_task(display_spike_status_async(et, interval=0.02, duration=5.0))
         
         # Wait for the status task to complete
         await status_task
@@ -79,7 +78,7 @@ async def main_async():
         elapsed_time = time.time() - start_time
         print(f"\n✓ Async test completed in {elapsed_time:.3f} seconds")
         print(f"✓ Used spike_status for ultrasonic sensor reading")
-        print(f"✓ Interval: 0.05 seconds (50ms)")
+        print(f"✓ Interval: 0.02 seconds (20ms)")
         
     except KeyboardInterrupt:
         print("\nTest stopped by user")
