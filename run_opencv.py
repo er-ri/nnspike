@@ -61,130 +61,7 @@ cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
 
-class AsyncSensorReader:
-    """非同期でセンサー値を取得するクラス"""
-    
-    def __init__(self, et_robot):
-        self.et_robot = et_robot
-        self.color_sensor_data = "R:N/A A:N/A C:N/A"
-        self.ultrasonic_sensor_data = "N/A cm"
-        self.running = False
-        self.thread = None
-        
-    def start(self):
-        """センサー読み取りを開始"""
-        self.running = True
-        self.thread = threading.Thread(target=self._sensor_loop, daemon=True)
-        self.thread.start()
-        
-    def stop(self):
-        """センサー読み取りを停止"""
-        self.running = False
-        if self.thread:
-            self.thread.join(timeout=1.0)
-            
-    def _sensor_loop(self):
-        """0.03秒間隔でセンサー値を取得するループ"""
-        print("AsyncSensorReader: センサー読み取りループを開始しました")
-        
-        loop_count = 0
-        previous_color = self.color_sensor_data
-        previous_ultrasonic = self.ultrasonic_sensor_data
-        last_change_time = time.time()
-        
-        while self.running:
-            try:
-                current_time = time.time()
-                # spike_statusを一度取得
-                spike_status = self.et_robot.get_spike_status()
-                
-                # カラーセンサーデータを更新
-                if spike_status and spike_status.sensors and spike_status.sensors.color:
-                    color = spike_status.sensors.color
-                    new_color_data = f"R:{color.reflected} A:{color.ambient} C:{color.color}"
-                    
-                    # より詳細な値変化も検知
-                    if new_color_data != self.color_sensor_data:
-                        print(f"AsyncSensorReader: カラーセンサー変化 - {self.color_sensor_data} → {new_color_data}")
-                        last_change_time = current_time
-                    
-                    self.color_sensor_data = new_color_data
-                else:
-                    self.color_sensor_data = "R:N/A A:N/A C:N/A"                # 超音波センサーデータを更新
-                if spike_status and spike_status.sensors and spike_status.sensors.distance is not None:
-                    new_ultrasonic_data = f"{spike_status.sensors.distance} cm"
-                    
-                    # より詳細な値変化も検知
-                    if new_ultrasonic_data != self.ultrasonic_sensor_data:
-                        print(f"AsyncSensorReader: 超音波センサー変化 - {self.ultrasonic_sensor_data} → {new_ultrasonic_data}")
-                        print(f"AsyncSensorReader: spike_status.sensors.distance生値 = {spike_status.sensors.distance}")
-                        last_change_time = current_time
-                    
-                    self.ultrasonic_sensor_data = new_ultrasonic_data
-                else:
-                    # 超音波センサーが無効な場合：ログ頻度を下げる
-                    if not hasattr(self, '_ultrasonic_invalid_log_counter'):
-                        self._ultrasonic_invalid_log_counter = 0
-                    self._ultrasonic_invalid_log_counter += 1
-                    
-                    # 30回に1回（約1秒ごと）のみログ出力
-                    if self._ultrasonic_invalid_log_counter % 30 == 0:
-                        if spike_status and spike_status.sensors:
-                            print(f"AsyncSensorReader: 超音波センサー無効（1秒間隔ログ） - spike_status.sensors.distance = {spike_status.sensors.distance}")
-                        elif spike_status:
-                            print(f"AsyncSensorReader: spike_status.sensorsが無効")
-                        else:
-                            print(f"AsyncSensorReader: spike_statusが無効")
-                    
-                    self.ultrasonic_sensor_data = "N/A cm"
-                
-                # センサー値が変化したときの統合ログ出力
-                if (self.color_sensor_data != previous_color or 
-                    self.ultrasonic_sensor_data != previous_ultrasonic):
-                    print(f"AsyncSensorReader: 値変化検知 - Color: {previous_color} → {self.color_sensor_data}, Ultrasonic: {previous_ultrasonic} → {self.ultrasonic_sensor_data}")
-                    previous_color = self.color_sensor_data
-                    previous_ultrasonic = self.ultrasonic_sensor_data
-
-                loop_count += 1
-                
-                # 3秒ごと（100ループごと）に詳細ログ出力
-                if loop_count % 100 == 0:
-                    # spike_statusの詳細情報も出力
-                    if spike_status and spike_status.sensors:
-                        if spike_status.sensors.color:
-                            color = spike_status.sensors.color
-                            print(f"AsyncSensorReader: 生データ確認 - カラー reflected={color.reflected}, ambient={color.ambient}, color={color.color}")
-                        if spike_status.sensors.distance is not None:
-                            print(f"AsyncSensorReader: 生データ確認 - 超音波 distance={spike_status.sensors.distance}")
-                    print(f"AsyncSensorReader: 定期更新 - Color={self.color_sensor_data}, Ultrasonic={self.ultrasonic_sensor_data}")
-                    print(f"AsyncSensorReader: ループカウント={loop_count}, spike_status取得成功={spike_status is not None}")
-                    print(f"AsyncSensorReader: 最後の変化から経過時間={current_time - last_change_time:.1f}秒")
-                    
-                    # 値が長時間変化しない場合の警告
-                    if current_time - last_change_time > 10:  # 10秒間変化なし
-                        print("AsyncSensorReader: 警告 - センサー値が10秒以上変化していません。物理的な接続や環境を確認してください。")
-                
-                # 30ループごと（約1秒ごと）に動作確認ログ
-                if loop_count % 30 == 0:
-                    print(f"AsyncSensorReader: 動作中 - ループ{loop_count}, 最新値: Color={self.color_sensor_data}, Ultrasonic={self.ultrasonic_sensor_data}")
-                    
-            except Exception as e:
-                # エラー時はデフォルト値を設定
-                print(f"AsyncSensorReader: エラー - {e}")
-                self.color_sensor_data = "R:N/A A:N/A C:N/A"
-                self.ultrasonic_sensor_data = "N/A cm"
-                
-            time.sleep(0.03)  # 0.03秒間隔（30ms）
-        
-        print("AsyncSensorReader: センサー読み取りループを終了しました")
-            
-    def get_color_sensor_data(self):
-        """現在のカラーセンサーデータを取得"""
-        return self.color_sensor_data
-        
-    def get_ultrasonic_sensor_data(self):
-        """現在の超音波センサーデータを取得"""
-        return self.ultrasonic_sensor_data
+# AsyncSensorReader クラスを削除 - メインループで直接センサー値を取得するように変更
 
 
 def main(record_sensor_data=False, save_camera_video=False):
@@ -225,10 +102,8 @@ def main(record_sensor_data=False, save_camera_video=False):
         Kd=0.2,  # Increased derivative term to reduce oscillation
         setpoint=0,
         output_limits=(-0.25, 0.25),  # Direct radian limits for steering correction
-    )    # 非同期センサーリーダーを初期化して開始
-    sensor_reader = AsyncSensorReader(et)
-    sensor_reader.start()
-    print("AsyncSensorReader started")
+    )    # センサーデータ取得をメインループで直接行うため、AsyncSensorReaderは削除
+    print("メインループで直接センサー値を取得します")
     
     # 初期センサーテスト
     print("初期センサーテストを実行中...")
@@ -249,6 +124,11 @@ def main(record_sensor_data=False, save_camera_video=False):
             print(f"テスト{i+1}: spike_status取得失敗")
         time.sleep(0.2)
     print("初期センサーテスト完了")
+    
+    # センサー値変化追跡用の変数を初期化
+    previous_color_data = "R:N/A A:N/A C:N/A"
+    previous_ultrasonic_data = "N/A cm"
+    sensor_debug_counter = 0
     
     # Time-based acceleration tracking
     straight_line_start_time = None
@@ -302,16 +182,50 @@ def main(record_sensor_data=False, save_camera_video=False):
             et.set_motor_forward_power(
                 left_power=left_power,
                 right_power=right_power,
-            )
-              # Log sensor data using the recorder if enabled
+            )            # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
-                sensor_recorder.log_frame_data(et.get_spike_status())
+                sensor_recorder.log_frame_data(spike_status)  # 既に取得したspike_statusを再利用
             
             # Prepare driving information for visualization
             info = dict()
-            info["offset_x"], info["offset_y"] = x1 + mx, y1 + my            # センサーデータを取得して表示
-            color_data = sensor_reader.get_color_sensor_data()
-            ultrasonic_data = sensor_reader.get_ultrasonic_sensor_data()
+            info["offset_x"], info["offset_y"] = x1 + mx, y1 + my            # メインループで直接センサーデータを取得
+            spike_status = et.get_spike_status()
+            sensor_debug_counter += 1
+            
+            # カラーセンサーデータの生成
+            if spike_status and spike_status.sensors and spike_status.sensors.color:
+                color = spike_status.sensors.color
+                color_data = f"R:{color.reflected} A:{color.ambient} C:{color.color}"
+            else:
+                color_data = "R:N/A A:N/A C:N/A"
+            
+            # 超音波センサーデータの生成
+            if spike_status and spike_status.sensors and spike_status.sensors.distance is not None:
+                ultrasonic_data = f"{spike_status.sensors.distance} cm"
+            else:
+                ultrasonic_data = "N/A cm"
+            
+            # センサー値変化の詳細ログ（test_ultrasonic_only.pyと同様）
+            if color_data != previous_color_data:
+                print(f"MainLoop: カラーセンサー変化 - {previous_color_data} → {color_data}")
+                previous_color_data = color_data
+            
+            if ultrasonic_data != previous_ultrasonic_data:
+                print(f"MainLoop: 超音波センサー変化 - {previous_ultrasonic_data} → {ultrasonic_data}")
+                if spike_status and spike_status.sensors and spike_status.sensors.distance is not None:
+                    print(f"MainLoop: spike_status.sensors.distance生値 = {spike_status.sensors.distance}")
+                previous_ultrasonic_data = ultrasonic_data
+            
+            # 定期的なセンサー状況確認（150フレームごと、約5秒）
+            if sensor_debug_counter % 150 == 0:
+                print(f"MainLoop: フレーム#{sensor_debug_counter} - Color={color_data}, Ultrasonic={ultrasonic_data}")
+                if spike_status and spike_status.sensors:
+                    print(f"MainLoop: spike_status取得成功, distance生値={spike_status.sensors.distance}")
+                    if spike_status.sensors.color:
+                        color = spike_status.sensors.color
+                        print(f"MainLoop: color生値 - reflected={color.reflected}, ambient={color.ambient}, color={color.color}")
+                else:
+                    print(f"MainLoop: spike_status取得失敗またはsensorsなし")
               # デバッグ用: センサー値をコンソールに出力（頻度を下げる）
             current_second = int(time.time())
             if not hasattr(main, 'last_debug_second') or main.last_debug_second != current_second:
@@ -374,8 +288,7 @@ def main(record_sensor_data=False, save_camera_video=False):
     except Exception as e:
         print(f"Error: {e}")
         print("Sending stop signals to Spike for 10 seconds...")
-        
-        # エラー時も10秒間停止信号を送信
+          # エラー時も10秒間停止信号を送信
         stop_start_time = time.time()
         while time.time() - stop_start_time < 10.0:
             try:
@@ -388,8 +301,7 @@ def main(record_sensor_data=False, save_camera_video=False):
         print("Stop signal transmission completed")
         
     finally:
-        # センサーリーダーを停止
-        sensor_reader.stop()
+        # センサーリーダーはメインループで直接処理するため削除
         
         # Cleanup
         et.stop()
