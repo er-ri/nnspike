@@ -110,14 +110,21 @@ class LegoSpike(object):
         elif command_id == COMMAND_STOP_MOTOR_ID:
             # 停止フラグを設定してすべてのモーターを停止
             self.stop_requested = True
+            self.emergency_stop = True
             
-            # 即座にモーター停止を実行
-            self.motor_left.brake()
-            self.motor_right.brake()
-            self.motor_arm.brake()
-            self.motor_left.stop()
-            self.motor_right.stop()
-            self.motor_arm.stop()
+            # 強制的にモーター停止を実行（複数回試行）
+            for i in range(5):
+                try:
+                    self.motor_left.brake()
+                    self.motor_right.brake()
+                    self.motor_arm.brake()
+                    self.motor_left.stop()
+                    self.motor_right.stop()
+                    self.motor_arm.stop()
+                    # 短い待機を入れて確実に停止
+                    time.sleep(0.01)
+                except:
+                    pass
             
             # ディスプレイに停止状態を表示
             try:
@@ -134,6 +141,20 @@ class LegoSpike(object):
             left_speed: Left wheel speed(0~100)
             right_speed: Right wheel speed(0~100)
         """
+        # 停止要求チェック - 新しいモーターコマンドを無視し、即座にモーター出力値を0に
+        if self.stop_requested or self.emergency_stop:
+            # 強制的にモーター出力を0にして停止
+            try:
+                self.motor_left.run_at_speed(0)
+                self.motor_right.run_at_speed(0)
+                self.motor_left.brake()
+                self.motor_right.brake()
+                self.motor_left.stop()
+                self.motor_right.stop()
+            except:
+                pass
+            return
+            
         self.command_counter = time.ticks_ms()
 
         self.motor_left.run_at_speed(-int(left_speed))
@@ -153,6 +174,17 @@ class LegoSpike(object):
         Args:
             action: Action to perform (0 = move down, 1 = move up)
         """
+        # 停止要求チェック - 新しいアームコマンドを無視し、即座にアーム出力値を0に
+        if self.stop_requested or self.emergency_stop:
+            # 強制的にアーム出力を0にして停止
+            try:
+                self.motor_arm.run_at_speed(0)
+                self.motor_arm.brake()
+                self.motor_arm.stop()
+            except:
+                pass
+            return
+            
         self.command_counter = time.ticks_ms()
 
         if action == 0:  # Move down
@@ -315,8 +347,7 @@ def main_loop():
             # 緊急停止チェック
             if lego_spike.emergency_stop or lego_spike.stop_requested:
                 break
-            
-            # コマンド受信処理
+              # コマンド受信処理
             command_id, command_parameter1, command_parameter2 = lego_spike.read_command()
             if command_id != None:
                 lego_spike.execute_command(
@@ -325,6 +356,17 @@ def main_loop():
                 
                 # STOPコマンド受信時は即座に全処理を停止
                 if command_id == COMMAND_STOP_MOTOR_ID:
+                    # 追加の強制停止処理
+                    for i in range(3):
+                        try:
+                            lego_spike.motor_left.brake()
+                            lego_spike.motor_right.brake()
+                            lego_spike.motor_arm.brake()
+                            lego_spike.motor_left.stop()
+                            lego_spike.motor_right.stop()
+                            lego_spike.motor_arm.stop()
+                        except:
+                            pass
                     lego_spike.stop_requested = True
                     lego_spike.emergency_stop = True
                     break
