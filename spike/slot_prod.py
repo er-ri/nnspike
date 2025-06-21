@@ -40,15 +40,11 @@ class LegoSpike(object):
     | Motor | 0 | Power: 0~180 | Steering: -90 ~ 90|
 
     """
+    
     def __init__(self) -> None:
         # 停止フラグを追加
         self.stop_requested = False
         self.emergency_stop = False
-        
-        # モーター制御タイムアウト監視用
-        self.last_motor_command_time = time.ticks_ms()
-        self.motor_command_timeout = 5000  # 5秒（ミリ秒）
-        self.timeout_emergency_stop = False
         
         # 電源ボタンコールバックの設定
         hub.button.center.callback(self._emergency_stop_callback)
@@ -76,12 +72,8 @@ class LegoSpike(object):
 
         # Set motors mode to measure its relative position on boot
         self._set_motor_relative_position(left_position=0, right_position=0)
-        
-        # Millisecond counter for record the latest command executed time, maximum idle time
+          # Millisecond counter for record the latest command executed time, maximum idle time
         self.command_counter = time.ticks_ms()
-        
-        # モーター制御タイムアウトタイマーをリセット
-        self.last_motor_command_time = time.ticks_ms()
 
         hub.display.show(hub.Image.YES)
 
@@ -133,8 +125,6 @@ class LegoSpike(object):
             right_speed: Right wheel speed(0~100)
         """
         self.command_counter = time.ticks_ms()
-        # モーター制御コマンド受信時刻を更新
-        self.last_motor_command_time = time.ticks_ms()
 
         self.motor_left.run_at_speed(-int(left_speed))
         self.motor_right.run_at_speed(int(right_speed))
@@ -154,8 +144,6 @@ class LegoSpike(object):
             action: Action to perform (0 = move down, 1 = move up)
         """
         self.command_counter = time.ticks_ms()
-        # モーター制御コマンド受信時刻を更新
-        self.last_motor_command_time = time.ticks_ms()
 
         if action == 0:  # Move down
             # Move arm down at constant speed
@@ -276,95 +264,42 @@ class LegoSpike(object):
         except Exception as e:
             # エラーを再発生させてsensor_broadcasterで検知できるようにする
             raise e
-    
     def _emergency_stop_callback(self):
         """センターボタン押下時の緊急停止コールバック"""
-        try:
-            # 緊急停止フラグを即座に設定
-            self.emergency_stop = True
-            self.stop_requested = True
-            
-            # すべてのモーターを強制停止（複数回実行で確実に停止）
-            for _ in range(3):
-                try:
-                    self.motor_left.brake()
-                    self.motor_right.brake()
-                    self.motor_arm.brake()
-                    self.motor_left.stop()
-                    self.motor_right.stop()
-                    self.motor_arm.stop()
-                except:
-                    pass
-            
-            # ディスプレイに緊急停止表示
-            hub.display.show(hub.Image.ASLEEP)
-            
-            # 緊急停止確認用の長いビープ音
-            try:
-                hub.speaker.beep(60, 500)
-            except:
-                pass
-            
-            # 非同期タスクに停止を強制通知
-            print("EMERGENCY STOP ACTIVATED!")
-            
-        except Exception as e:
-            # エラーが発生してもフラグは確実に設定
-            self.emergency_stop = True
-            self.stop_requested = True
-            try:
-                self.motor_left.brake()
-                self.motor_right.brake() 
-                self.motor_arm.brake()
-            except:
-                pass
-
-    def check_motor_command_timeout(self):
-        """モーター制御コマンドのタイムアウトをチェック"""
-        current_time = time.ticks_ms()
-        time_since_last_command = time.ticks_diff(current_time, self.last_motor_command_time)
+        # 緊急停止フラグを即座に設定
+        self.emergency_stop = True
+        self.stop_requested = True
         
-        if time_since_last_command > self.motor_command_timeout:
-            if not self.timeout_emergency_stop:
-                print("MOTOR COMMAND TIMEOUT! " + str(time_since_last_command) + "ms since last command")
-                self.timeout_emergency_stop = True
-                self.emergency_stop = True
-                self.stop_requested = True
-                
-                # タイムアウト時のモーター強制停止
-                try:
-                    for _ in range(3):
-                        self.motor_left.brake()
-                        self.motor_right.brake()
-                        self.motor_arm.brake()
-                        self.motor_left.stop()
-                        self.motor_right.stop()
-                        self.motor_arm.stop()
-                except:
-                    pass
-                
-                # タイムアウト警告表示
-                try:
-                    hub.display.show(hub.Image.ASLEEP)
-                    hub.speaker.beep(80, 300)  # 高い音でタイムアウト警告
-                except:
-                    pass
-                
-                return True
-        return False
-
+        # すべてのモーターを強制停止
+        try:
+            self.motor_left.brake()
+            self.motor_right.brake()
+            self.motor_arm.brake()
+        except:
+            pass
+        
+        # ディスプレイに緊急停止表示
+        try:
+            hub.display.show(hub.Image.ASLEEP)
+        except:
+            pass
+        
+        # 緊急停止確認音
+        try:
+            hub.speaker.beep(60, 200)
+        except:
+            pass
+        
+        # 停止メッセージ
+        print("EMERGENCY STOP!")
 
 async def sensor_broadcaster():
     """20ms間隔でセンサーデータを送信する非同期タスク"""
     consecutive_errors = 0
     max_consecutive_errors = 10  # 連続エラー10回で終了
+    
     while not lego_spike.stop_requested and not lego_spike.emergency_stop:
         try:
-            # モーター制御タイムアウトチェック
-            if lego_spike.check_motor_command_timeout():
-                print("sensor_broadcaster: Motor command timeout detected!")
-                break
-                
             # 緊急停止チェックを送信前に実行
             if lego_spike.emergency_stop or lego_spike.stop_requested:
                 print("sensor_broadcaster: Emergency stop detected!")
@@ -391,13 +326,9 @@ async def sensor_broadcaster():
 async def receiver():
     usb_check_counter = 0
     usb_check_interval = 50  # 50回ループごとにUSB接続をチェック
+    
     while not lego_spike.stop_requested and not lego_spike.emergency_stop:
         try:
-            # モーター制御タイムアウトチェック
-            if lego_spike.check_motor_command_timeout():
-                print("receiver: Motor command timeout detected!")
-                break
-                
             # 緊急停止チェックをループ開始時に実行
             if lego_spike.emergency_stop or lego_spike.stop_requested:
                 print("receiver: Emergency stop detected!")
@@ -454,11 +385,6 @@ async def main_task():
         start_time = time.time()
         while not lego_spike.stop_requested and not lego_spike.emergency_stop and (time.time() - start_time) < MAX_RUN_TIME:
             
-            # モーター制御タイムアウトチェック
-            if lego_spike.check_motor_command_timeout():
-                print("main_task: Motor command timeout detected!")
-                break
-            
             # 緊急停止の即座チェック（100ms間隔）
             for _ in range(10):  # 100msを10ms x 10回に分割
                 if lego_spike.emergency_stop:
@@ -514,7 +440,6 @@ try:
     lego_spike = LegoSpike()
     print("LEGO Spike initialized.")
     print("Center button = EMERGENCY STOP")
-    print("Motor command timeout = " + str(lego_spike.motor_command_timeout/1000) + "s")
     uasyncio.run(main_task())
 except KeyboardInterrupt:
     print("KeyboardInterrupt: Emergency stop!")
