@@ -231,8 +231,7 @@ class LegoSpike(object):
                     [61, [0, 0, 0, 0, 0]], # カラーセンサー
                     [62, [0]],           # 超音波センサー
                     [0, 0, 0],           # 加速度センサー
-                    [0, 0, 0],           # ジャイロセンサー                    [0, 0, 0],           # 位置情報
-                    "",                  # 予備
+                    [0, 0, 0],           # ジャイロセンサー                    [0, 0, 0],           # 位置情報                    "",                  # 予備
                     0                    # 予備
                 ]
             }
@@ -240,41 +239,74 @@ class LegoSpike(object):
     def send_sensor_data(self):
         """センサーデータをJSON形式でUSB経由で送信"""
         try:
+            # USBの接続状態をチェック
+            if not self.usb:
+                raise Exception("USB not available")
+                
             sensor_data = self.get_sensor_data()
             json_string = ujson.dumps(sensor_data)
             
             # USB経由でJSON文字列を送信
-            if self.usb:
-                self.usb.write(json_string + '\r\n')
+            bytes_written = self.usb.write(json_string + '\r\n')
+            
+            # 書き込みに失敗した場合は例外を発生
+            if bytes_written is None or bytes_written == 0:
+                raise Exception("USB write failed")
                 
         except Exception as e:
-            # エラー時は何もしない（送信をスキップ）
-            pass
+            # エラーを再発生させてsensor_broadcasterで検知できるようにする
+            raise e
 
 
 async def sensor_broadcaster():
     """20ms間隔でセンサーデータを送信する非同期タスク"""
+    consecutive_errors = 0
+    max_consecutive_errors = 10  # 連続エラー10回で終了
+    
     while True:
         try:
             lego_spike.send_sensor_data()
+            consecutive_errors = 0  # 成功時はエラーカウンターをリセット
             await uasyncio.sleep_ms(20)  # 20ms間隔
         except Exception as e:
-            # エラーが発生してもタスクを継続
+            consecutive_errors += 1
+            if consecutive_errors >= max_consecutive_errors:
+                print(f"USB connection lost after {consecutive_errors} consecutive errors")
+                raise SystemExit("USB connection lost, terminating lego spike.")
             await uasyncio.sleep_ms(20)
 
 
 async def receiver():
+    usb_check_counter = 0
+    usb_check_interval = 50  # 50回ループごとにUSB接続をチェック
+    
     while True:
-        command_id, command_parameter1, command_parameter2 = lego_spike.read_command()
-        if command_id != None:
-            lego_spike.execute_command(
-                command_id, command_parameter1, command_parameter2
-            )
+        try:
+            command_id, command_parameter1, command_parameter2 = lego_spike.read_command()
+            if command_id != None:
+                lego_spike.execute_command(
+                    command_id, command_parameter1, command_parameter2
+                )
 
-        if time.ticks_ms() - lego_spike.command_counter > MAX_IDLE_TIME:
-            raise SystemExit("Maximum idle time reached, terminate lego spike.")
+            # 定期的にUSB接続状態をチェック
+            usb_check_counter += 1
+            if usb_check_counter >= usb_check_interval:
+                if not lego_spike.usb:
+                    raise SystemExit("USB connection lost, terminating lego spike.")
+                usb_check_counter = 0
 
-        await uasyncio.sleep(0)
+            if time.ticks_ms() - lego_spike.command_counter > MAX_IDLE_TIME:
+                raise SystemExit("Maximum idle time reached, terminate lego spike.")
+
+            await uasyncio.sleep(0)
+            
+        except SystemExit:
+            # SystemExitは再発生させる
+            raise
+        except Exception as e:
+            # その他のエラーはログ出力して継続
+            print(f"Receiver error: {e}")
+            await uasyncio.sleep(0)
 
 
 async def main_task():
