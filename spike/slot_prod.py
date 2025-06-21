@@ -167,11 +167,21 @@ class LegoSpike(object):
             motor_arm_position = self.motor_arm.absolute_position() if hasattr(self.motor_arm, 'absolute_position') else 0
             motor_arm_relative = self.motor_arm.relative_position() if hasattr(self.motor_arm, 'relative_position') else 0
             motor_arm_power = self.motor_arm.power() if hasattr(self.motor_arm, 'power') else 0
-            
-            # センサー情報取得
+              # センサー情報取得
             color_data = self.color_sensor.get() if self.color_sensor else [0, 0, 0, 0]
             ultrasonic_data = self.ultrasonic_sensor.get() if self.ultrasonic_sensor else [0]
             force_data = self.force_sensor.get() if self.force_sensor else [0]
+            
+            # デバッグ: センサー生データをプリント（一定間隔で）
+            if hasattr(self, '_debug_counter'):
+                self._debug_counter += 1
+            else:
+                self._debug_counter = 1
+                
+            if self._debug_counter % 50 == 0:  # 50回に1回（約1秒間隔）
+                print("Spike Debug: color_data=" + str(color_data))
+                print("Spike Debug: ultrasonic_data=" + str(ultrasonic_data))
+                print("Spike Debug: force_data=" + str(force_data))
             
             # 姿勢センサー情報
             try:
