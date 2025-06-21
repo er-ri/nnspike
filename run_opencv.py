@@ -280,17 +280,18 @@ def main(record_sensor_data=False, save_camera_video=False):
             
             # Prepare driving information for visualization
             info = dict()
-            info["offset_x"], info["offset_y"] = x1 + mx, y1 + my
-            
-            # センサーデータを取得して表示
+            info["offset_x"], info["offset_y"] = x1 + mx, y1 + my            # センサーデータを取得して表示
             color_data = sensor_reader.get_color_sensor_data()
             ultrasonic_data = sensor_reader.get_ultrasonic_sensor_data()
-              # デバッグ用: 1秒ごとにセンサー値をコンソールに出力（頻度を下げる）
+            
+            # デバッグ用: センサー値をコンソールに出力（頻度を下げる）
             current_second = int(time.time())
             if not hasattr(main, 'last_debug_second') or main.last_debug_second != current_second:
                 main.last_debug_second = current_second
                 if current_second % 2 == 0:  # 2秒ごとに出力
                     print(f"メインループ: Color={color_data}, Ultrasonic={ultrasonic_data}")
+                    # info["text"]の値も確認
+                    print(f"メインループ: info['text']の color_sensor と ultrasonic_sensor を確認中...")
             
             info["text"] = {
                 "theta_deg": f"{round(math.degrees(theta), 2)}deg",
@@ -306,6 +307,11 @@ def main(record_sensor_data=False, save_camera_video=False):
                 "ultrasonic_sensor": ultrasonic_data,
                 "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
             }
+            
+            # デバッグ用: info["text"]のセンサー値を確認
+            if current_second % 2 == 0 and hasattr(main, 'last_debug_second') and main.last_debug_second == current_second:
+                print(f"メインループ: info['text']['color_sensor'] = {info['text']['color_sensor']}")
+                print(f"メインループ: info['text']['ultrasonic_sensor'] = {info['text']['ultrasonic_sensor']}")
 
             # Create visualization frame
             gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
