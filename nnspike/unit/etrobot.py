@@ -45,13 +45,20 @@ class ETRobot(
 
         Note:
             The update rate should be less than the rate of sending sensor data in LEGO Prime Hub (0.0005 seconds).        """
-        received_data = self.__serial_port.read_until(expected=b"\r")
-          # Skip empty data
+        received_data = self.__serial_port.read_until(expected=b"\r")        # Skip empty data
         if not received_data or len(received_data.strip()) == 0:
             return
 
         if received_data.startswith(b"{"):
             try:
+                # デバッグ: 受信した生データを表示（一定間隔で）
+                if not hasattr(self, '_debug_counter'):
+                    self._debug_counter = 0
+                self._debug_counter += 1
+                
+                if self._debug_counter % 100 == 0:  # 100回に1回
+                    print(f"ETRobot受信生データ: {received_data.decode('utf-8', errors='ignore')[:200]}")  # 先頭200文字のみ
+                
                 # Update the spike status with the new data
                 self.spike_status.update(received_data)
                 # Update last_spike_status with valid sensor readings
