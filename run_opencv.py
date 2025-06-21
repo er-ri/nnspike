@@ -122,13 +122,19 @@ class AsyncSensorReader:
                     
                     self.ultrasonic_sensor_data = new_ultrasonic_data
                 else:
-                    # 超音波センサーが無効な場合の詳細ログ
-                    if spike_status and spike_status.sensors:
-                        print(f"AsyncSensorReader: 超音波センサー無効 - spike_status.sensors.distance = {spike_status.sensors.distance}")
-                    elif spike_status:
-                        print(f"AsyncSensorReader: spike_status.sensorsが無効")
-                    else:
-                        print(f"AsyncSensorReader: spike_statusが無効")
+                    # 超音波センサーが無効な場合：ログ頻度を下げる
+                    if not hasattr(self, '_ultrasonic_invalid_log_counter'):
+                        self._ultrasonic_invalid_log_counter = 0
+                    self._ultrasonic_invalid_log_counter += 1
+                    
+                    # 30回に1回（約1秒ごと）のみログ出力
+                    if self._ultrasonic_invalid_log_counter % 30 == 0:
+                        if spike_status and spike_status.sensors:
+                            print(f"AsyncSensorReader: 超音波センサー無効（1秒間隔ログ） - spike_status.sensors.distance = {spike_status.sensors.distance}")
+                        elif spike_status:
+                            print(f"AsyncSensorReader: spike_status.sensorsが無効")
+                        else:
+                            print(f"AsyncSensorReader: spike_statusが無効")
                     
                     self.ultrasonic_sensor_data = "N/A cm"
                 

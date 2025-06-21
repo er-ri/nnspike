@@ -11,7 +11,7 @@ import argparse
 from nnspike.unit import ETRobot
 
 
-async def display_spike_status_async(et, interval=0.02, duration=5.0):
+async def display_spike_status_async(et, interval=0.02, duration=20.0):
     """Asynchronously display spike status at regular intervals for specified duration"""
     status_count = 0
     start_time = time.time()
@@ -46,7 +46,7 @@ async def main_async():
     """Asynchronous main function"""
     print("=== Ultrasonic Sensor Only Test (Async Version) ===")
     print("This program ONLY reads ultrasonic sensor values via spike_status")
-    print("Continuous reading for 5 seconds with async processing")
+    print("Continuous reading for 20 seconds with async processing")
     print("Displaying values from spike_status every 0.02 seconds (20ms)")
     print()
     
@@ -63,14 +63,18 @@ async def main_async():
             print(f"Connection attempt {attempt + 1} failed: {e}")
             if attempt == 2:
                 print("Failed to connect after 3 attempts. Exiting.")
-                return            await asyncio.sleep(2.0)  # Async sleep      print("Starting 5-second async continuous reading from spike_status...")
+                return
+            await asyncio.sleep(2.0)  # Async sleep
+    
+    print("Starting 20-second async continuous reading from spike_status...")
     print("Status will be displayed every 0.02 seconds (20ms)")
     print()
     
     try:
         # Record start time
-        start_time = time.time()        # Only run spike status display task (no separate sensor reading)
-        status_task = asyncio.create_task(display_spike_status_async(et, interval=0.02, duration=5.0))
+        start_time = time.time()
+        # Only run spike status display task (no separate sensor reading)
+        status_task = asyncio.create_task(display_spike_status_async(et, interval=0.02, duration=20.0))
         
         # Wait for the status task to complete
         await status_task
