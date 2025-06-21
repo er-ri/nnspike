@@ -59,6 +59,10 @@ class ETRobot(
                 if self._debug_counter % 100 == 0:  # 100回に1回
                     print(f"ETRobot受信生データ: {received_data.decode('utf-8', errors='ignore')[:200]}")  # 先頭200文字のみ
                 
+                # 50回ごと（約1秒ごと）に受信頻度確認
+                if self._debug_counter % 50 == 0:
+                    print(f"ETRobot: 受信カウント={self._debug_counter}, データ長={len(received_data)}")
+                
                 # Update the spike status with the new data
                 self.spike_status.update(received_data)
                 # Update last_spike_status with valid sensor readings

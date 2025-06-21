@@ -75,25 +75,30 @@ class AsyncSensorReader:
         """センサー読み取りを開始"""
         self.running = True
         self.thread = threading.Thread(target=self._sensor_loop, daemon=True)
-        self.thread.start()        
+        self.thread.start()
+        
     def stop(self):
         """センサー読み取りを停止"""
         self.running = False
         if self.thread:
-            self.thread.join(timeout=1.0)            
+            self.thread.join(timeout=1.0)
+            
     def _sensor_loop(self):
         """0.03秒間隔でセンサー値を取得するループ"""
         print("AsyncSensorReader: センサー読み取りループを開始しました")
         
         loop_count = 0
-        previous_color = ""
-        previous_ultrasonic = ""
+        previous_color = self.color_sensor_data
+        previous_ultrasonic = self.ultrasonic_sensor_data
+        last_change_time = time.time()
         
         while self.running:
             try:
+                current_time = time.time()
                 # spike_statusを一度取得
                 spike_status = self.et_robot.get_spike_status()
-                  # カラーセンサーデータを更新
+                
+                # カラーセンサーデータを更新
                 if spike_status and spike_status.sensors and spike_status.sensors.color:
                     color = spike_status.sensors.color
                     new_color_data = f"R:{color.reflected} A:{color.ambient} C:{color.color}"
@@ -101,30 +106,34 @@ class AsyncSensorReader:
                     # より詳細な値変化も検知
                     if new_color_data != self.color_sensor_data:
                         print(f"AsyncSensorReader: カラーセンサー変化 - {self.color_sensor_data} → {new_color_data}")
+                        last_change_time = current_time
                     
                     self.color_sensor_data = new_color_data
                 else:
                     self.color_sensor_data = "R:N/A A:N/A C:N/A"
-                
-                # 超音波センサーデータを更新
+                  # 超音波センサーデータを更新
                 if spike_status and spike_status.sensors and spike_status.sensors.distance is not None:
-                    new_ultrasonic_data = f"{spike_status.sensors.distance}cm"
+                    new_ultrasonic_data = f"{spike_status.sensors.distance} cm"
                     
                     # より詳細な値変化も検知
                     if new_ultrasonic_data != self.ultrasonic_sensor_data:
                         print(f"AsyncSensorReader: 超音波センサー変化 - {self.ultrasonic_sensor_data} → {new_ultrasonic_data}")
+                        last_change_time = current_time
                     
                     self.ultrasonic_sensor_data = new_ultrasonic_data
                 else:
                     self.ultrasonic_sensor_data = "N/A cm"
                 
-                # センサー値が変化したときのみログ出力
+                # センサー値が変化したときの統合ログ出力
                 if (self.color_sensor_data != previous_color or 
                     self.ultrasonic_sensor_data != previous_ultrasonic):
                     print(f"AsyncSensorReader: 値変化検知 - Color: {previous_color} → {self.color_sensor_data}, Ultrasonic: {previous_ultrasonic} → {self.ultrasonic_sensor_data}")
                     previous_color = self.color_sensor_data
-                    previous_ultrasonic = self.ultrasonic_sensor_data                # 3秒ごと（100ループごと）に詳細ログ出力
+                    previous_ultrasonic = self.ultrasonic_sensor_data
+
                 loop_count += 1
+                
+                # 3秒ごと（100ループごと）に詳細ログ出力
                 if loop_count % 100 == 0:
                     # spike_statusの詳細情報も出力
                     if spike_status and spike_status.sensors:
@@ -135,16 +144,22 @@ class AsyncSensorReader:
                             print(f"AsyncSensorReader: 生データ確認 - 超音波 distance={spike_status.sensors.distance}")
                     print(f"AsyncSensorReader: 定期更新 - Color={self.color_sensor_data}, Ultrasonic={self.ultrasonic_sensor_data}")
                     print(f"AsyncSensorReader: ループカウント={loop_count}, spike_status取得成功={spike_status is not None}")
+                    print(f"AsyncSensorReader: 最後の変化から経過時間={current_time - last_change_time:.1f}秒")
                     
-                    # 値が変化しない場合の警告
-                    if loop_count > 200 and (previous_color == self.color_sensor_data and previous_ultrasonic == self.ultrasonic_sensor_data):
-                        print("AsyncSensorReader: 警告 - センサー値が長時間変化していません。物理的な接続を確認してください。")
+                    # 値が長時間変化しない場合の警告
+                    if current_time - last_change_time > 10:  # 10秒間変化なし
+                        print("AsyncSensorReader: 警告 - センサー値が10秒以上変化していません。物理的な接続や環境を確認してください。")
+                
+                # 30ループごと（約1秒ごと）に動作確認ログ
+                if loop_count % 30 == 0:
+                    print(f"AsyncSensorReader: 動作中 - ループ{loop_count}, 最新値: Color={self.color_sensor_data}, Ultrasonic={self.ultrasonic_sensor_data}")
                     
             except Exception as e:
                 # エラー時はデフォルト値を設定
                 print(f"AsyncSensorReader: エラー - {e}")
                 self.color_sensor_data = "R:N/A A:N/A C:N/A"
-                self.ultrasonic_sensor_data = "N/A cm"                
+                self.ultrasonic_sensor_data = "N/A cm"
+                
             time.sleep(0.03)  # 0.03秒間隔（30ms）
         
         print("AsyncSensorReader: センサー読み取りループを終了しました")
