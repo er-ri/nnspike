@@ -110,18 +110,26 @@ class AsyncSensorReader:
                     
                     self.color_sensor_data = new_color_data
                 else:
-                    self.color_sensor_data = "R:N/A A:N/A C:N/A"
-                  # 超音波センサーデータを更新
+                    self.color_sensor_data = "R:N/A A:N/A C:N/A"                # 超音波センサーデータを更新
                 if spike_status and spike_status.sensors and spike_status.sensors.distance is not None:
                     new_ultrasonic_data = f"{spike_status.sensors.distance} cm"
                     
                     # より詳細な値変化も検知
                     if new_ultrasonic_data != self.ultrasonic_sensor_data:
                         print(f"AsyncSensorReader: 超音波センサー変化 - {self.ultrasonic_sensor_data} → {new_ultrasonic_data}")
+                        print(f"AsyncSensorReader: spike_status.sensors.distance生値 = {spike_status.sensors.distance}")
                         last_change_time = current_time
                     
                     self.ultrasonic_sensor_data = new_ultrasonic_data
                 else:
+                    # 超音波センサーが無効な場合の詳細ログ
+                    if spike_status and spike_status.sensors:
+                        print(f"AsyncSensorReader: 超音波センサー無効 - spike_status.sensors.distance = {spike_status.sensors.distance}")
+                    elif spike_status:
+                        print(f"AsyncSensorReader: spike_status.sensorsが無効")
+                    else:
+                        print(f"AsyncSensorReader: spike_statusが無効")
+                    
                     self.ultrasonic_sensor_data = "N/A cm"
                 
                 # センサー値が変化したときの統合ログ出力

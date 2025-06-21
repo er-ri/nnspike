@@ -93,13 +93,32 @@ class ETRobot(
         last = self.last_spike_status        # Always update timestamp and message type
         last.timestamp = current.timestamp
         last.message_type = current.message_type
-        last.raw_data = current.raw_data
-
-        # Update sensors with valid readings
+        last.raw_data = current.raw_data        # Update sensors with valid readings
         if current.sensors.distance is not None and isinstance(current.sensors.distance, (int, float)):
+            # 超音波センサーの値が変化したときの詳細ログ
+            if hasattr(last.sensors, 'distance') and last.sensors.distance != current.sensors.distance:
+                print(f"ETRobot: 超音波センサー値変化検知 - {last.sensors.distance} → {current.sensors.distance}")
+            
             last.sensors.distance = current.sensors.distance
+            
+            # 定期的な超音波センサー状態確認
+            if not hasattr(self, '_ultrasonic_debug_counter'):
+                self._ultrasonic_debug_counter = 0
+            self._ultrasonic_debug_counter += 1
+            
+            if self._ultrasonic_debug_counter % 100 == 0:  # 100回に1回
+                print(f"ETRobot: 超音波センサー定期確認 - 現在値={current.sensors.distance}, 最後の有効値={last.sensors.distance}")
+        else:
+            # 超音波センサーが無効な値の場合のログ
+            if not hasattr(self, '_ultrasonic_invalid_counter'):
+                self._ultrasonic_invalid_counter = 0
+            self._ultrasonic_invalid_counter += 1
+            
+            if self._ultrasonic_invalid_counter % 50 == 0:  # 50回に1回
+                print(f"ETRobot: 超音波センサー無効値検知 - current.sensors.distance={current.sensors.distance}, type={type(current.sensors.distance)}")
+                
         if current.sensors.force is not None and isinstance(current.sensors.force, (int, float)):
-            last.sensors.force = current.sensors.force        # Update color sensor data
+            last.sensors.force = current.sensors.force# Update color sensor data
         if current.sensors.color:
             if not last.sensors.color:
                 from .spike_status import ColorSensorStatus

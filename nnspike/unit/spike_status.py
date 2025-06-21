@@ -280,12 +280,43 @@ class SpikeStatus:
                 # Force sensor - Port 63
                 force_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 63]
                 if force_entries:
-                    result["sensors"]["force"] = force_entries[0][1][2] if len(force_entries[0][1]) > 2 else None
-                
-                # Distance sensor - Port 62
+                    result["sensors"]["force"] = force_entries[0][1][2] if len(force_entries[0][1]) > 2 else None                # Distance sensor - Port 62
                 distance_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 62]
                 if distance_entries:
-                    result["sensors"]["distance"] = distance_entries[0][1][0] if len(distance_entries[0][1]) > 0 else None
+                    # 超音波センサーの生データを詳細にログ出力
+                    distance_raw = distance_entries[0][1][0] if len(distance_entries[0][1]) > 0 else None
+                    
+                    # グローバル変数でデバッグカウンタを管理
+                    global _distance_debug_counter, _last_distance_value
+                    if '_distance_debug_counter' not in globals():
+                        _distance_debug_counter = 0
+                        _last_distance_value = None
+                    
+                    _distance_debug_counter += 1
+                    
+                    # 値が変化したときのログ
+                    if distance_raw != _last_distance_value:
+                        print(f"SpikeStatus: 超音波センサー生データ変化 - {_last_distance_value} → {distance_raw}")
+                        print(f"SpikeStatus: 超音波センサー生配列 - {distance_entries[0][1]}")
+                        _last_distance_value = distance_raw
+                    
+                    # 定期的な状態確認（100回に1回）
+                    if _distance_debug_counter % 100 == 0:
+                        print(f"SpikeStatus: 超音波センサー定期確認 - 生値={distance_raw}, 配列={distance_entries[0][1]}")
+                        print(f"SpikeStatus: Port 62エントリ数={len(distance_entries)}, 第1エントリ={distance_entries[0]}")
+                    
+                    result["sensors"]["distance"] = distance_raw
+                else:
+                    # Port 62のデータが見つからない場合のログ
+                    global _distance_missing_counter
+                    if '_distance_missing_counter' not in globals():
+                        _distance_missing_counter = 0
+                    _distance_missing_counter += 1
+                    
+                    if _distance_missing_counter % 50 == 0:  # 50回に1回
+                        port_info = [f"Port {p[0]}" for p in payload if p and isinstance(p, list) and len(p) > 0]
+                        print(f"SpikeStatus: Port 62（超音波センサー）が見つかりません - 利用可能ポート: {port_info}")
+                        print(f"SpikeStatus: ペイロード詳細 - {payload[:3]}...")  # 最初の3要素のみ表示
                 
                 # Color sensor - Port 61
                 color_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 61]
