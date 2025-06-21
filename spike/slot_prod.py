@@ -271,7 +271,7 @@ async def sensor_broadcaster():
         except Exception as e:
             consecutive_errors += 1
             if consecutive_errors >= max_consecutive_errors:
-                print(f"USB connection lost after {consecutive_errors} consecutive errors")
+                print("USB connection lost after " + str(consecutive_errors) + " consecutive errors")
                 raise SystemExit("USB connection lost, terminating lego spike.")
             await uasyncio.sleep_ms(20)
 
@@ -305,7 +305,7 @@ async def receiver():
             raise
         except Exception as e:
             # その他のエラーはログ出力して継続
-            print(f"Receiver error: {e}")
+            print("Receiver error: " + str(e))
             await uasyncio.sleep(0)
 
 

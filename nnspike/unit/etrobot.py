@@ -153,8 +153,8 @@ class ETRobot(
                     last.motors[motor_id].power = current.motors[motor_id].power
 
         # Update battery data
-        if current.battery:
-            if current.battery.voltage is not None:
+        if current.battery:o
+            if current.battery.voltage is not Nne:
                 last.battery.voltage = current.battery.voltage
             if current.battery.percent is not None:
                 last.battery.percent = current.battery.percent
