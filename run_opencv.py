@@ -85,6 +85,9 @@ class AsyncSensorReader:
             
     def _sensor_loop(self):
         """0.2秒間隔でセンサー値を取得するループ"""
+        print("AsyncSensorReader: センサー読み取りループを開始しました")
+        
+        loop_count = 0
         while self.running:
             try:
                 # spike_statusを一度取得
@@ -102,13 +105,21 @@ class AsyncSensorReader:
                     self.ultrasonic_sensor_data = f"{spike_status.sensors.distance}cm"
                 else:
                     self.ultrasonic_sensor_data = "N/A cm"
+                
+                # 5秒ごと（25ループごと）にデバッグ情報を出力
+                loop_count += 1
+                if loop_count % 25 == 0:
+                    print(f"AsyncSensorReader: Color={self.color_sensor_data}, Ultrasonic={self.ultrasonic_sensor_data}")
                     
             except Exception as e:
                 # エラー時はデフォルト値を設定
+                print(f"AsyncSensorReader: エラー - {e}")
                 self.color_sensor_data = "R:N/A A:N/A C:N/A"
                 self.ultrasonic_sensor_data = "N/A cm"
                 
             time.sleep(0.2)  # 0.2秒間隔
+        
+        print("AsyncSensorReader: センサー読み取りループを終了しました")
             
     def get_color_sensor_data(self):
         """現在のカラーセンサーデータを取得"""
@@ -143,14 +154,13 @@ def main(record_sensor_data=False, save_camera_video=False):
             fourcc=fourcc,
             fps=30,
             frameSize=(640, 480),
-        )
-
-    # Socket connection for sending camera capture
+        )    # Socket connection for sending camera capture
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect(
         (HOST_IP_ADDRESS, 8485)
     )
-      # Initialize robot and PID controller
+    
+    # Initialize robot and PID controller
     et = ETRobot()
     pid = PIDController(
         Kp=3,  # Restored to ensure sufficient turning power
@@ -159,10 +169,10 @@ def main(record_sensor_data=False, save_camera_video=False):
         setpoint=0,
         output_limits=(-0.25, 0.25),  # Direct radian limits for steering correction
     )
-    
-    # 非同期センサーリーダーを初期化して開始
+      # 非同期センサーリーダーを初期化して開始
     sensor_reader = AsyncSensorReader(et)
     sensor_reader.start()
+    print("AsyncSensorReader started")
     
     # Time-based acceleration tracking
     straight_line_start_time = None
@@ -189,7 +199,9 @@ def main(record_sensor_data=False, save_camera_video=False):
                 offset_pixels=offset_pixels,
                 image_width=640,
                 sensitivity=0.4
-            )            # Dynamic speed control using external function
+            )
+            
+            # Dynamic speed control using external function
             current_time = time.time()
             abs_theta = abs(theta)
             current_base_power, straight_line_start_time = calculate_adaptive_speed(
@@ -213,15 +225,23 @@ def main(record_sensor_data=False, save_camera_video=False):
 
             et.set_motor_forward_power(
                 left_power=left_power,
-                right_power=right_power,
-            )
-              # Log sensor data using the recorder if enabled
+                right_power=right_power,            )
+            
+            # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
                 sensor_recorder.log_frame_data(et.get_spike_status())
-            
-            # Prepare driving information for visualization
+              # Prepare driving information for visualization
             info = dict()
             info["offset_x"], info["offset_y"] = x1 + mx, y1 + my
+            
+            # センサーデータを取得して表示
+            color_data = sensor_reader.get_color_sensor_data()
+            ultrasonic_data = sensor_reader.get_ultrasonic_sensor_data()
+            
+            # デバッグ用: 5秒ごとにセンサー値をコンソールに出力
+            if int(time.time()) % 5 == 0:
+                print(f"センサー値: Color={color_data}, Ultrasonic={ultrasonic_data}")
+            
             info["text"] = {
                 "theta_deg": f"{round(math.degrees(theta), 2)}deg",
                 "pid_corrected_theta": f"{round(math.degrees(pid_corrected_theta), 2)}deg",
@@ -232,8 +252,8 @@ def main(record_sensor_data=False, save_camera_video=False):
                 "acceleration_time": f"{(round(current_time - straight_line_start_time, 1) if straight_line_start_time is not None else 0.0)}s",
                 "left_power": f"{left_power}%",
                 "right_power": f"{right_power}%",
-                "color_sensor": sensor_reader.get_color_sensor_data(),
-                "ultrasonic_sensor": sensor_reader.get_ultrasonic_sensor_data(),
+                "color_sensor": color_data,
+                "ultrasonic_sensor": ultrasonic_data,
                 "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
             }
 
@@ -261,8 +281,7 @@ def main(record_sensor_data=False, save_camera_video=False):
     except KeyboardInterrupt:
         print("Interrupted by user")
         print("Sending stop signals to Spike for 10 seconds...")
-        
-        # 10秒間停止信号を送信
+          # 10秒間停止信号を送信
         stop_start_time = time.time()
         while time.time() - stop_start_time < 10.0:
             try:
@@ -277,7 +296,8 @@ def main(record_sensor_data=False, save_camera_video=False):
     except Exception as e:
         print(f"Error: {e}")
         print("Sending stop signals to Spike for 10 seconds...")
-          # エラー時も10秒間停止信号を送信
+        
+        # エラー時も10秒間停止信号を送信
         stop_start_time = time.time()
         while time.time() - stop_start_time < 10.0:
             try:
