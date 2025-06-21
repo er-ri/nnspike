@@ -35,21 +35,7 @@ class ETRobot(
 
     def __send_command(self, command) -> None:
         """Send a command to the robot via the serial port."""
-        # デバッグ: 送信するコマンドをログ出力
-        command_id = command[0] if len(command) > 0 else 0
-        elapsed_time = time.time() - self.start_time
-        
-        if command_id == self.COMMAND_STOP_MOTOR_ID:
-            print("ETRobot: STOP_MOTOR_ID送信 [" + str(elapsed_time) + "s] - コマンドID=" + str(command_id) + ", 全コマンド=" + command.hex())
-        elif command_id == self.COMMAND_SET_MOTOR_BACKWARD_POWER_ID:
-            if len(command) >= 3:
-                print("ETRobot: BACKWARD_POWER送信 [" + str(elapsed_time) + "s] - left=" + str(command[1]) + ", right=" + str(command[2]))
-        elif command_id == self.COMMAND_MOVE_ARM_ID:
-            if len(command) >= 2:
-                print("ETRobot: MOVE_ARM送信 [" + str(elapsed_time) + "s] - action=" + str(command[1]))
-        else:
-            print("ETRobot: 不明なコマンド送信 [" + str(elapsed_time) + "s] - コマンドID=" + str(command_id))
-        
+        # デバッグ出力なし
         self.__serial_port.write(self.CMD_FLAG + command)
 
     def __update_status(self) -> None:
