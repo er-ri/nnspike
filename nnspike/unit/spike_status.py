@@ -196,17 +196,14 @@ class SpikeStatus:
         # Split by '}{ pattern and process each valid JSON separately
         json_messages = []
         current_pos = 0
-        
         while current_pos < len(data_str):
             # Find the start of a JSON object
             start_pos = data_str.find('{', current_pos)
             if start_pos == -1:
                 break
-                
             # Find the matching closing brace
             brace_count = 0
             end_pos = start_pos
-            
             for i in range(start_pos, len(data_str)):
                 if data_str[i] == '{':
                     brace_count += 1
@@ -215,7 +212,7 @@ class SpikeStatus:
                     if brace_count == 0:
                         end_pos = i
                         break
-              # Extract this JSON message
+            # Extract this JSON message
             if brace_count == 0:  # Found complete JSON
                 json_message = data_str[start_pos:end_pos + 1]
                 json_messages.append(json_message)
@@ -223,22 +220,17 @@ class SpikeStatus:
             else:
                 # Incomplete JSON, skip it
                 break
-        
         # Process the last complete JSON message (most recent data)
         if not json_messages:
             return {"error": "no_valid_json", "raw": data, "processed": data_str}
-        
         # Use the last (most recent) complete JSON message
         data_str = json_messages[-1]
-        
         try:
             # Parse JSON
             json_data = json.loads(data_str)
-
             # Extract key information
             message_type = json_data.get('m', -1)
             payload = json_data.get('p', [])
-            
             # Initialize result structure
             result = {
                 "message_type": message_type,
@@ -248,7 +240,6 @@ class SpikeStatus:
                 "motors": {},
                 "battery": {}
             }
-            
             # Process the payload based on message type
             if message_type == 0:  # Sensor data message
                 # Motor A and B position - Port 48
@@ -266,7 +257,6 @@ class SpikeStatus:
                         "position": motor_entries[1][1][2] if len(motor_entries[1][1]) > 2 else None,
                         "power": motor_entries[1][1][3] if len(motor_entries[1][1]) > 3 else None
                     }
-                
                 # Motor arm (C) - Port 49
                 motor_arm_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 49]
                 if motor_arm_entries:
@@ -276,48 +266,15 @@ class SpikeStatus:
                         "position": motor_arm_entries[0][1][2] if len(motor_arm_entries[0][1]) > 2 else None,
                         "power": motor_arm_entries[0][1][3] if len(motor_arm_entries[0][1]) > 3 else None
                     }
-                
                 # Force sensor - Port 63
                 force_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 63]
                 if force_entries:
-                    result["sensors"]["force"] = force_entries[0][1][2] if len(force_entries[0][1]) > 2 else None                # Distance sensor - Port 62
+                    result["sensors"]["force"] = force_entries[0][1][2] if len(force_entries[0][1]) > 2 else None
+                # Distance sensor - Port 62
                 distance_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 62]
                 if distance_entries:
-                    # 超音波センサーの生データを詳細にログ出力
                     distance_raw = distance_entries[0][1][0] if len(distance_entries[0][1]) > 0 else None
-                    
-                    # グローバル変数でデバッグカウンタを管理
-                    global _distance_debug_counter, _last_distance_value
-                    if '_distance_debug_counter' not in globals():
-                        _distance_debug_counter = 0
-                        _last_distance_value = None
-                    
-                    _distance_debug_counter += 1
-                    
-                    # 値が変化したときのログ
-                    if distance_raw != _last_distance_value:
-                        print(f"SpikeStatus: 超音波センサー生データ変化 - {_last_distance_value} → {distance_raw}")
-                        print(f"SpikeStatus: 超音波センサー生配列 - {distance_entries[0][1]}")
-                        _last_distance_value = distance_raw
-                    
-                    # 定期的な状態確認（100回に1回）
-                    if _distance_debug_counter % 100 == 0:
-                        print(f"SpikeStatus: 超音波センサー定期確認 - 生値={distance_raw}, 配列={distance_entries[0][1]}")
-                        print(f"SpikeStatus: Port 62エントリ数={len(distance_entries)}, 第1エントリ={distance_entries[0]}")
-                    
                     result["sensors"]["distance"] = distance_raw
-                else:
-                    # Port 62のデータが見つからない場合のログ
-                    global _distance_missing_counter
-                    if '_distance_missing_counter' not in globals():
-                        _distance_missing_counter = 0
-                    _distance_missing_counter += 1
-                    
-                    if _distance_missing_counter % 50 == 0:  # 50回に1回
-                        port_info = [f"Port {p[0]}" for p in payload if p and isinstance(p, list) and len(p) > 0]
-                        print(f"SpikeStatus: Port 62（超音波センサー）が見つかりません - 利用可能ポート: {port_info}")
-                        print(f"SpikeStatus: ペイロード詳細 - {payload[:3]}...")  # 最初の3要素のみ表示
-                
                 # Color sensor - Port 61
                 color_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 61]
                 if color_entries and len(color_entries[0][1]) > 4:
@@ -326,14 +283,13 @@ class SpikeStatus:
                         "ambient": color_entries[0][1][3] if len(color_entries[0][1]) > 3 else None,
                         "color": color_entries[0][1][4] if len(color_entries[0][1]) > 4 else None,
                     }
-                  # Accelerometer information (typically index 6 in payload)
+                # Accelerometer information (typically index 6 in payload)
                 if len(payload) > 6 and isinstance(payload[6], list) and len(payload[6]) >= 3:
                     result["sensors"]["accelerometer"] = {
                         "x": payload[6][0],
                         "y": payload[6][1],
                         "z": payload[6][2]
                     }
-                
                 # Gyro sensor information (typically index 7 in payload)
                 if len(payload) > 7 and isinstance(payload[7], list) and len(payload[7]) >= 3:
                     result["sensors"]["gyro"] = {
@@ -341,14 +297,12 @@ class SpikeStatus:
                         "y": payload[7][1],
                         "z": payload[7][2]
                     }
-                    
                 # Position from sensors (derived from payload[8] for coordinates)
                 if len(payload) > 8 and isinstance(payload[8], list) and len(payload[8]) >= 3:
                     result["sensors"]["position"] = {
                         "x": payload[8][1],
                         "y": payload[8][2]
                     }
-                
             elif message_type == 2:  # Battery status message
                 # Extract battery information if available
                 if len(payload) > 1:
@@ -356,9 +310,7 @@ class SpikeStatus:
                         "voltage": payload[0] if len(payload) > 0 else None,
                         "percent": payload[1] if len(payload) > 1 else None
                     }
-            
             return result
-            
         except json.JSONDecodeError as e:
             return {"error": "json_parse_error", "raw": data, "processed": data_str}
         except Exception as e:

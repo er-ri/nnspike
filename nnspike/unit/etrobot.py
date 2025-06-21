@@ -55,33 +55,12 @@ class ETRobot(
 
         if received_data.startswith(b"{"):
             try:
-                # デバッグ: 受信した生データを表示（一定間隔で）
-                if not hasattr(self, '_debug_counter'):
-                    self._debug_counter = 0
-                self._debug_counter += 1
-                
-                if self._debug_counter % 100 == 0:  # 100回に1回
-                    print(f"ETRobot受信生データ: {received_data.decode('utf-8', errors='ignore')[:200]}")  # 先頭200文字のみ
-                
-                # 50回ごと（約1秒ごと）に受信頻度確認
-                if self._debug_counter % 50 == 0:
-                    print(f"ETRobot: 受信カウント={self._debug_counter}, データ長={len(received_data)}")
-                
-                # Update the spike status with the new data
                 self.spike_status.update(received_data)
-                # Update last_spike_status with valid sensor readings
                 self._update_last_spike_status()
-                
-                # Debug: Print update confirmation (uncomment for debugging)
-                # print(f"Updated spike_status - Distance: {self.spike_status.sensors.distance}, Color: {self.spike_status.sensors.color}")
-
             except Exception as e:
                 # Only print error if it's not a simple JSON parsing issue
                 if "syntax error in JSON" not in str(e):
-                    print(f"JSON parsing error: {e}")
-                    print(f"Raw data: {received_data}")
-                    print(f"Data length: {len(received_data)}")
-                    print(f"Data type: {type(received_data)}")
+                    pass
         elif received_data.startswith(b'{"i":null,"e":'):
             # Handle error messages from Spike (ignore these for now)
             pass
@@ -99,51 +78,21 @@ class ETRobot(
         last.message_type = current.message_type
         last.raw_data = current.raw_data        # Update sensors with valid readings
         if current.sensors.distance is not None and isinstance(current.sensors.distance, (int, float)):
-            # 有効な超音波センサー値の場合
-            # 無効値カウンターをリセット
             if hasattr(self, '_ultrasonic_invalid_counter'):
-                if self._ultrasonic_invalid_counter > 0:
-                    elapsed_time = time.time() - self.start_time
-                    print(f"ETRobot: 超音波センサー復帰 [{elapsed_time:.1f}s] - 無効値カウンター{self._ultrasonic_invalid_counter}をリセット")
                 self._ultrasonic_invalid_counter = 0
-            
-            # 超音波センサーの値が変化したときの詳細ログ
-            if hasattr(last.sensors, 'distance') and last.sensors.distance != current.sensors.distance:
-                elapsed_time = time.time() - self.start_time
-                print(f"ETRobot: 超音波センサー値変化検知 [{elapsed_time:.1f}s] - {last.sensors.distance} → {current.sensors.distance}")
-            
             last.sensors.distance = current.sensors.distance
-              # 定期的な超音波センサー状態確認
             if not hasattr(self, '_ultrasonic_debug_counter'):
                 self._ultrasonic_debug_counter = 0
             self._ultrasonic_debug_counter += 1
-            
-            if self._ultrasonic_debug_counter % 100 == 0:  # 100回に1回
-                elapsed_time = time.time() - self.start_time
-                print(f"ETRobot: 超音波センサー定期確認 [{elapsed_time:.1f}s] - 現在値={current.sensors.distance}, 最後の有効値={last.sensors.distance}")
         else:
-            # 超音波センサーが無効な値の場合
             if not hasattr(self, '_ultrasonic_invalid_counter'):
                 self._ultrasonic_invalid_counter = 0
             self._ultrasonic_invalid_counter += 1
-            
-            # 5回ごとに状況を確認（より頻繁に監視）
-            if self._ultrasonic_invalid_counter % 5 == 0:
-                elapsed_time = time.time() - self.start_time
-                print(f"ETRobot: 超音波センサー無効値検知 [{elapsed_time:.1f}s] - current.sensors.distance={current.sensors.distance}, type={type(current.sensors.distance)}, 連続回数={self._ultrasonic_invalid_counter}")
-              # 10回連続でNoneの場合、last_spike_statusもNoneにリセット
-            if self._ultrasonic_invalid_counter == 10:  # ちょうど10回目でリセット実行
+            if self._ultrasonic_invalid_counter == 10:
                 old_value = last.sensors.distance
                 last.sensors.distance = None
-                elapsed_time = time.time() - self.start_time
-                if old_value is not None:
-                    print(f"ETRobot: 超音波センサー値をリセット [{elapsed_time:.1f}s] - {old_value} → None （10回連続無効値のため）")
-                else:
-                    print(f"ETRobot: 超音波センサー値リセット確認 [{elapsed_time:.1f}s] - 既にNone状態 （10回連続無効値のため）")
             elif self._ultrasonic_invalid_counter > 10:
-                # 10回を超えた場合はカウンターを10に固定（リセット済み状態を維持）
                 self._ultrasonic_invalid_counter = 10
-                
         if current.sensors.force is not None and isinstance(current.sensors.force, (int, float)):
             last.sensors.force = current.sensors.force# Update color sensor data
         if current.sensors.color:
@@ -158,9 +107,7 @@ class ETRobot(
                 if current.sensors.color.color is not None and isinstance(current.sensors.color.color, (int, float)):
                     last.sensors.color.color = current.sensors.color.color
             except AttributeError:
-                # Skip update if color sensor data is malformed
                 pass
-
         # Update gyro data
         if current.sensors.gyro:
             if not last.sensors.gyro:
@@ -175,7 +122,6 @@ class ETRobot(
                     last.sensors.gyro.z = current.sensors.gyro.z
             except AttributeError:
                 pass
-
         # Update accelerometer data
         if current.sensors.accelerometer:
             if not last.sensors.accelerometer:
@@ -196,7 +142,6 @@ class ETRobot(
                 last.sensors.position = Position()
             last.sensors.position.x = current.sensors.position.x
             last.sensors.position.y = current.sensors.position.y
-
         # Update motor data (always update as these are more reliable)
         for motor_id in ["A", "B", "C"]:
             if motor_id in current.motors and motor_id in last.motors:
@@ -208,7 +153,6 @@ class ETRobot(
                     last.motors[motor_id].speed = current.motors[motor_id].speed
                 if current.motors[motor_id].power is not None:
                     last.motors[motor_id].power = current.motors[motor_id].power
-
         # Update battery data
         if current.battery:
             if current.battery.voltage is not None:
@@ -244,12 +188,24 @@ class ETRobot(
             left_power (int): Left motor power (0-100).
             right_power (int): Right motor power (0-100).
         """
+        # 送信最適化: 値が変化しない場合は1000msごとに1回のみ送信
+        now = time.time()
+        if not hasattr(self, '_last_forward_power'):
+            self._last_forward_power = (None, None)
+            self._last_forward_power_time = 0.0
+        # 値が変化した場合は即送信
+        if self._last_forward_power != (left_power, right_power):
+            self._last_forward_power = (left_power, right_power)
+            self._last_forward_power_time = now
+        # 値が変化していない場合は、前回送信から1秒(1000ms)経過していれば送信
+        elif now - self._last_forward_power_time < 1.0:
+            return
+        else:
+            self._last_forward_power_time = now
         id_byte = self.COMMAND_SET_MOTOR_FORWARD_POWER_ID.to_bytes(1, "big")
         parameter1_byte = left_power.to_bytes(1, "big")
         parameter2_byte = right_power.to_bytes(1, "big")
-
         command = id_byte + parameter1_byte + parameter2_byte
-
         self.__send_command(command)
 
     def set_motor_backward_power(self, left_power: int, right_power: int) -> None:

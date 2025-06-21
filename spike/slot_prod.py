@@ -195,7 +195,7 @@ class LegoSpike(object):
             self.motor_arm.run_at_speed(-50)
 
     def get_sensor_data(self):
-        """全センサーとモーターの状態を取得してJSON形式で返す"""
+        """モーターA/B・カラー・超音波センサーのみ取得し、他はコメントアウト"""
         try:
             # モーター情報取得
             motor_left_speed = self.motor_left.speed() if hasattr(self.motor_left, 'speed') else 0
@@ -208,38 +208,32 @@ class LegoSpike(object):
             motor_right_relative = self.motor_right.relative_position() if hasattr(self.motor_right, 'relative_position') else 0
             motor_right_power = self.motor_right.power() if hasattr(self.motor_right, 'power') else 0
             
-            motor_arm_speed = self.motor_arm.speed() if hasattr(self.motor_arm, 'speed') else 0
-            motor_arm_position = self.motor_arm.absolute_position() if hasattr(self.motor_arm, 'absolute_position') else 0
-            motor_arm_relative = self.motor_arm.relative_position() if hasattr(self.motor_arm, 'relative_position') else 0
-            motor_arm_power = self.motor_arm.power() if hasattr(self.motor_arm, 'power') else 0            # センサー情報取得
+            # motor_arm, force_sensor, accel, gyro, 位置情報はコメントアウト
+            # motor_arm_speed = self.motor_arm.speed() if hasattr(self.motor_arm, 'speed') else 0
+            # motor_arm_position = self.motor_arm.absolute_position() if hasattr(self.motor_arm, 'absolute_position') else 0
+            # motor_arm_relative = self.motor_arm.relative_position() if hasattr(self.motor_arm, 'relative_position') else 0
+            # motor_arm_power = self.motor_arm.power() if hasattr(self.motor_arm, 'power') else 0
+            # force_data = self.force_sensor.get() if self.force_sensor else [0]
             color_data = self.color_sensor.get() if self.color_sensor else [0, 0, 0, 0]
             ultrasonic_data = self.ultrasonic_sensor.get() if self.ultrasonic_sensor else [0]
-            force_data = self.force_sensor.get() if self.force_sensor else [0]
-            
-            # 姿勢センサー情報
-            try:
-                accel = hub.motion.accelerometer()
-                gyro = hub.motion.gyroscope()
-            except:
-                accel = [0, 0, 0]
-                gyro = [0, 0, 0]
-            
+            # try:
+            #     accel = hub.motion.accelerometer()
+            #     gyro = hub.motion.gyroscope()
+            # except:
+            #     accel = [0, 0, 0]
+            #     gyro = [0, 0, 0]
             # spike_status.pyが期待するJSON形式でデータ構築
             sensor_data = {
                 "m": 0,  # message_type: 0 = sensor data
                 "p": [
                     # モーターA (左) - Port 48
                     [48, [motor_left_speed, motor_left_relative, motor_left_position, motor_left_power]],
-                    
                     # モーターB (右) - Port 48  
                     [48, [motor_right_speed, motor_right_relative, motor_right_position, motor_right_power]],
-                    
-                    # モーターC (アーム) - Port 49
-                    [49, [motor_arm_speed, motor_arm_relative, motor_arm_position, motor_arm_power]],
-                    
-                    # フォースセンサー - Port 63
-                    [63, [0, 0, force_data[0] if len(force_data) > 0 else 0]],
-                    
+                    # # モーターC (アーム) - Port 49
+                    # [49, [motor_arm_speed, motor_arm_relative, motor_arm_position, motor_arm_power]],
+                    # # フォースセンサー - Port 63
+                    # [63, [0, 0, force_data[0] if len(force_data) > 0 else 0]],
                     # カラーセンサー - Port 61
                     [61, [
                         0, 0,  # 不明な値（プレースホルダー）
@@ -247,42 +241,36 @@ class LegoSpike(object):
                         color_data[1] if len(color_data) > 1 else 0,  # ambient
                         color_data[2] if len(color_data) > 2 else 0   # color
                     ]],
-                    
                     # 超音波センサー - Port 62
                     [62, [ultrasonic_data[0] if len(ultrasonic_data) > 0 else 0]],
-                    
-                    # 加速度センサー
-                    accel,
-                    
-                    # ジャイロセンサー
-                    gyro,
-                    
-                    # 位置情報（プレースホルダー）
-                    [0, 0, 0],
-                    
-                    # 予備フィールド
-                    "",
-                    0                ]
+                    # # 加速度センサー
+                    # accel,
+                    # # ジャイロセンサー
+                    # gyro,
+                    # # 位置情報（プレースホルダー）
+                    # [0, 0, 0],
+                    # # 予備フィールド
+                    # "",
+                    # 0
+                ]
             }
-            
             return sensor_data
-            
         except Exception as e:
-            # エラー時はデフォルトデータを返す
+            # エラー時はデフォルトデータを返す（同様に必要部分のみ）
             return {
                 "m": 0,
                 "p": [
                     [48, [0, 0, 0, 0]],  # モーターA
                     [48, [0, 0, 0, 0]],  # モーターB
-                    [49, [0, 0, 0, 0]],  # モーターC
-                    [63, [0, 0, 0]],     # フォースセンサー
+                    # [49, [0, 0, 0, 0]],  # モーターC
+                    # [63, [0, 0, 0]],     # フォースセンサー
                     [61, [0, 0, 0, 0, 0]], # カラーセンサー
                     [62, [0]],           # 超音波センサー
-                    [0, 0, 0],           # 加速度センサー
-                    [0, 0, 0],           # ジャイロセンサー
-                    [0, 0, 0],           # 位置情報
-                    "",                  # 予備
-                    0                    # 予備
+                    # [0, 0, 0],           # 加速度センサー
+                    # [0, 0, 0],           # ジャイロセンサー
+                    # [0, 0, 0],           # 位置情報
+                    # "",                  # 予備
+                    # 0                    # 予備
                 ]
             }
 

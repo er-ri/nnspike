@@ -199,51 +199,11 @@ def main(record_sensor_data=False, save_camera_video=False):
                 color_data = f"R:{color.reflected} A:{color.ambient} C:{color.color}"
             else:
                 color_data = "R:N/A A:N/A C:N/A"
-              # 超音波センサーデータの生成
+            # 超音波センサーデータの生成
             if spike_status and spike_status.sensors and spike_status.sensors.distance is not None:
                 ultrasonic_data = f"{spike_status.sensors.distance} cm"
             else:
-                ultrasonic_data = "N/A cm"                # N/A状態の詳細ログ
-                if not hasattr(main, '_na_log_counter'):
-                    main._na_log_counter = 0
-                main._na_log_counter += 1
-                if main._na_log_counter % 30 == 0:  # 30フレームごと（約1秒）
-                    elapsed_time = time.time() - start_time
-                    if spike_status and spike_status.sensors:
-                        print(f"MainLoop: 超音波センサーN/A状態 [{elapsed_time:.1f}s] - spike_status.sensors.distance={spike_status.sensors.distance}, type={type(spike_status.sensors.distance) if spike_status.sensors.distance is not None else 'None'}")
-                    else:
-                        print(f"MainLoop: spike_statusまたはsensorsがNone [{elapsed_time:.1f}s]")
-              # センサー値変化の詳細ログ（test_ultrasonic_only.pyと同様）
-            if color_data != previous_color_data:
-                elapsed_time = time.time() - start_time
-                print(f"MainLoop: カラーセンサー変化 [{elapsed_time:.1f}s] - {previous_color_data} → {color_data}")
-                previous_color_data = color_data
-            
-            if ultrasonic_data != previous_ultrasonic_data:
-                elapsed_time = time.time() - start_time
-                print(f"MainLoop: 超音波センサー変化 [{elapsed_time:.1f}s] - {previous_ultrasonic_data} → {ultrasonic_data}")
-                if spike_status and spike_status.sensors and spike_status.sensors.distance is not None:
-                    print(f"MainLoop: spike_status.sensors.distance生値 = {spike_status.sensors.distance}")
-                else:
-                    print(f"MainLoop: 超音波センサー無効 - spike_status.sensors.distance = {spike_status.sensors.distance if spike_status and spike_status.sensors else 'sensors無効'}")
-                previous_ultrasonic_data = ultrasonic_data
-              # 定期的なセンサー状況確認（150フレームごと、約5秒）
-            if sensor_debug_counter % 150 == 0:
-                elapsed_time = time.time() - start_time
-                print(f"MainLoop: フレーム#{sensor_debug_counter} [{elapsed_time:.1f}s] - Color={color_data}, Ultrasonic={ultrasonic_data}")
-                if spike_status and spike_status.sensors:
-                    print(f"MainLoop: spike_status取得成功, distance生値={spike_status.sensors.distance}")
-                    if spike_status.sensors.color:
-                        color = spike_status.sensors.color
-                        print(f"MainLoop: color生値 - reflected={color.reflected}, ambient={color.ambient}, color={color.color}")
-                else:
-                    print(f"MainLoop: spike_status取得失敗またはsensorsなし")            # デバッグ用: センサー値をコンソールに出力（頻度を下げる）
-            current_second = int(time.time())
-            if not hasattr(main, 'last_debug_second') or main.last_debug_second != current_second:
-                main.last_debug_second = current_second
-                if current_second % 5 == 0:  # 5秒ごとに出力
-                    elapsed_time = time.time() - start_time
-                    print(f"メインループ: [{elapsed_time:.1f}s] Color={color_data}, Ultrasonic={ultrasonic_data}")
+                ultrasonic_data = "N/A cm"
             
             info["text"] = {
                 "theta_deg": f"{round(math.degrees(theta), 2)}deg",
