@@ -75,16 +75,14 @@ class AsyncSensorReader:
         """センサー読み取りを開始"""
         self.running = True
         self.thread = threading.Thread(target=self._sensor_loop, daemon=True)
-        self.thread.start()
-        
+        self.thread.start()        
     def stop(self):
         """センサー読み取りを停止"""
         self.running = False
         if self.thread:
-            self.thread.join(timeout=1.0)
-            
+            self.thread.join(timeout=1.0)            
     def _sensor_loop(self):
-        """0.2秒間隔でセンサー値を取得するループ"""
+        """0.03秒間隔でセンサー値を取得するループ"""
         print("AsyncSensorReader: センサー読み取りループを開始しました")
         
         loop_count = 0
@@ -125,9 +123,9 @@ class AsyncSensorReader:
                     self.ultrasonic_sensor_data != previous_ultrasonic):
                     print(f"AsyncSensorReader: 値変化検知 - Color: {previous_color} → {self.color_sensor_data}, Ultrasonic: {previous_ultrasonic} → {self.ultrasonic_sensor_data}")
                     previous_color = self.color_sensor_data
-                    previous_ultrasonic = self.ultrasonic_sensor_data                # 10秒ごと（50ループごと）に詳細ログ出力
+                    previous_ultrasonic = self.ultrasonic_sensor_data                # 3秒ごと（100ループごと）に詳細ログ出力
                 loop_count += 1
-                if loop_count % 50 == 0:
+                if loop_count % 100 == 0:
                     # spike_statusの詳細情報も出力
                     if spike_status and spike_status.sensors:
                         if spike_status.sensors.color:
@@ -139,16 +137,15 @@ class AsyncSensorReader:
                     print(f"AsyncSensorReader: ループカウント={loop_count}, spike_status取得成功={spike_status is not None}")
                     
                     # 値が変化しない場合の警告
-                    if loop_count > 100 and (previous_color == self.color_sensor_data and previous_ultrasonic == self.ultrasonic_sensor_data):
+                    if loop_count > 200 and (previous_color == self.color_sensor_data and previous_ultrasonic == self.ultrasonic_sensor_data):
                         print("AsyncSensorReader: 警告 - センサー値が長時間変化していません。物理的な接続を確認してください。")
                     
             except Exception as e:
                 # エラー時はデフォルト値を設定
                 print(f"AsyncSensorReader: エラー - {e}")
                 self.color_sensor_data = "R:N/A A:N/A C:N/A"
-                self.ultrasonic_sensor_data = "N/A cm"
-                
-            time.sleep(0.2)  # 0.2秒間隔
+                self.ultrasonic_sensor_data = "N/A cm"                
+            time.sleep(0.03)  # 0.03秒間隔（30ms）
         
         print("AsyncSensorReader: センサー読み取りループを終了しました")
             
