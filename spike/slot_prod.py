@@ -3,7 +3,6 @@
 import gc
 import hub  # type: ignore
 import time
-import uasyncio  # type: ignore
 import ujson  # type: ignore
 
 MAX_IDLE_TIME = 120000  # Maximum idle time, unit: millisecond
@@ -302,43 +301,22 @@ class LegoSpike(object):
         except:
             pass
 
-async def sensor_broadcaster():
-    """50ms間隔でセンサーデータを送信する非同期タスク"""
-    consecutive_errors = 0
-    max_consecutive_errors = 10  # 連続エラー10回で終了
-    
-    while not lego_spike.stop_requested and not lego_spike.emergency_stop:
-        try:
-            # 緊急停止チェックを送信前に実行
-            if lego_spike.emergency_stop or lego_spike.stop_requested:
-                break
-                
-            lego_spike.send_sensor_data()
-            consecutive_errors = 0  # 成功時はエラーカウンターをリセット
-            
-            # 短いスリープ中も緊急停止をチェック
-            for i in range(10):  # 50msを5ms x 10回に分割
-                if lego_spike.emergency_stop or lego_spike.stop_requested:
-                    return
-                await uasyncio.sleep_ms(5)
-                
-        except Exception as e:
-            consecutive_errors += 1
-            if consecutive_errors >= max_consecutive_errors:
-                lego_spike.stop_requested = True
-                break
-            await uasyncio.sleep_ms(50)
-
-
-async def receiver():
+def main_loop():
+    """メインループ - センサーデータ送信とコマンド受信を順次処理"""
     usb_check_counter = 0
     usb_check_interval = 50  # 50回ループごとにUSB接続をチェック
+    sensor_send_counter = 0
+    sensor_send_interval = 6  # 6回ループごとにセンサーデータ送信（約30ms間隔）
     
-    while not lego_spike.stop_requested and not lego_spike.emergency_stop:
-        try:            # 緊急停止チェックをループ開始時に実行
+    start_time = time.time()
+    
+    while not lego_spike.stop_requested and not lego_spike.emergency_stop and (time.time() - start_time) < MAX_RUN_TIME:
+        try:
+            # 緊急停止チェック
             if lego_spike.emergency_stop or lego_spike.stop_requested:
                 break
-                
+            
+            # コマンド受信処理
             command_id, command_parameter1, command_parameter2 = lego_spike.read_command()
             if command_id != None:
                 lego_spike.execute_command(
@@ -354,7 +332,17 @@ async def receiver():
                 # 停止信号を受信した場合は即座にループを抜ける
                 if lego_spike.stop_requested or lego_spike.emergency_stop:
                     break
-
+            
+            # センサーデータ送信処理（一定間隔で実行）
+            sensor_send_counter += 1
+            if sensor_send_counter >= sensor_send_interval:
+                try:
+                    lego_spike.send_sensor_data()
+                    sensor_send_counter = 0
+                except Exception as e:
+                    # センサーデータ送信エラーは継続
+                    sensor_send_counter = 0
+            
             # 定期的にUSB接続状態をチェック
             usb_check_counter += 1
             if usb_check_counter >= usb_check_interval:
@@ -363,74 +351,18 @@ async def receiver():
                     break
                 usb_check_counter = 0
 
+            # アイドルタイムチェック
             if time.ticks_ms() - lego_spike.command_counter > MAX_IDLE_TIME:
                 lego_spike.stop_requested = True
                 break
 
-            # 緊急停止チェック後にスリープ
-            if lego_spike.emergency_stop or lego_spike.stop_requested:
-                break
-            await uasyncio.sleep(0)
+            # 短いスリープで処理負荷を軽減
+            time.sleep(0.005)  # 5ms
             
         except Exception as e:
             # エラー時は停止フラグを設定してループを抜ける
             lego_spike.stop_requested = True
             break
-
-
-async def main_task():
-    tasks = list()
-
-    receiver_task = uasyncio.create_task(receiver())
-    tasks.append(receiver_task)
-    
-    # センサーデータ送信タスクを追加
-    sensor_task = uasyncio.create_task(sensor_broadcaster())
-    tasks.append(sensor_task)
-
-    # タスクの完了を待つか、MAX_RUN_TIMEに達するか、停止が要求されるまで待機
-    try:
-        start_time = time.time()
-        while not lego_spike.stop_requested and not lego_spike.emergency_stop and (time.time() - start_time) < MAX_RUN_TIME:
-              # 緊急停止の即座チェック（100ms間隔）
-            for _ in range(10):  # 100msを10ms x 10回に分割
-                if lego_spike.emergency_stop:
-                    # すべてのタスクを即座にキャンセル
-                    for task in tasks:
-                        if not task.done():
-                            task.cancel()
-                    
-                    # モーターを強制停止
-                    try:
-                        lego_spike.motor_left.brake()
-                        lego_spike.motor_right.brake()
-                        lego_spike.motor_arm.brake()
-                    except:
-                        pass
-                    return
-                
-                if lego_spike.stop_requested:
-                    break
-                    
-                await uasyncio.sleep_ms(10)
-              # いずれかのタスクが完了したかチェック
-            completed_tasks = [task for task in tasks if task.done()]
-            if completed_tasks:
-                break
-                
-    except Exception as e:
-        pass
-    finally:
-        # すべてのタスクをキャンセル
-        for task in tasks:
-            if not task.done():
-                task.cancel()
-          # タスクの完了を待つ（最大1秒）
-        for task in tasks:
-            try:
-                await task
-            except:
-                pass
 
 
 # Trigger a garbage collection cycle
@@ -440,7 +372,7 @@ print("Starting LEGO Prime Hub..")
 
 try:
     lego_spike = LegoSpike()
-    uasyncio.run(main_task())
+    main_loop()
 except KeyboardInterrupt:
     try:
         lego_spike.emergency_stop = True
