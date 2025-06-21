@@ -90,6 +90,15 @@ async def main_async():
         print(f"Error: {e}")
     finally:
         if et:
+            # 明示的にSTOPコマンドを送信
+            try:
+                id_byte = et.COMMAND_STOP_MOTOR_ID.to_bytes(1, "big")
+                dummy1 = (0).to_bytes(1, "big")
+                dummy2 = (0).to_bytes(1, "big")
+                command = id_byte + dummy1 + dummy2
+                et._ETRobot__send_command(command)
+            except Exception as e:
+                print(f"Error sending STOP command: {e}")
             et.stop()
         print("Program finished")
 
