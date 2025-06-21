@@ -130,15 +130,16 @@ class ETRobot(
             if self._ultrasonic_invalid_counter % 5 == 0:
                 elapsed_time = time.time() - self.start_time
                 print(f"ETRobot: 超音波センサー無効値検知 [{elapsed_time:.1f}s] - current.sensors.distance={current.sensors.distance}, type={type(current.sensors.distance)}, 連続回数={self._ultrasonic_invalid_counter}")
-                
-                # 10回連続でNoneの場合、last_spike_statusもNoneにリセット（50回→10回に厳格化）
-                if self._ultrasonic_invalid_counter >= 10:
-                    old_value = last.sensors.distance
+            
+            # 10回連続でNoneの場合、last_spike_statusもNoneにリセット
+            if self._ultrasonic_invalid_counter >= 10:
+                old_value = last.sensors.distance
+                if old_value is not None:  # まだリセットされていない場合のみリセット
                     last.sensors.distance = None
-                    if old_value is not None:
-                        elapsed_time = time.time() - self.start_time
-                        print(f"ETRobot: 超音波センサー値をリセット [{elapsed_time:.1f}s] - {old_value} → None （10回連続無効値のため）")
-                    # カウンターは継続（復帰時に適切にリセットされるため）
+                    elapsed_time = time.time() - self.start_time
+                    print(f"ETRobot: 超音波センサー値をリセット [{elapsed_time:.1f}s] - {old_value} → None （10回連続無効値のため）")
+                    # リセット実行後、カウンターを一定値に固定してリセット済みを示す
+                    self._ultrasonic_invalid_counter = 10
                 
         if current.sensors.force is not None and isinstance(current.sensors.force, (int, float)):
             last.sensors.force = current.sensors.force# Update color sensor data
