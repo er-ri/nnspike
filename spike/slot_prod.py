@@ -294,7 +294,7 @@ class LegoSpike(object):
         print("EMERGENCY STOP!")
 
 async def sensor_broadcaster():
-    """20ms間隔でセンサーデータを送信する非同期タスク"""
+    """50ms間隔でセンサーデータを送信する非同期タスク"""
     consecutive_errors = 0
     max_consecutive_errors = 10  # 連続エラー10回で終了
     
@@ -309,7 +309,7 @@ async def sensor_broadcaster():
             consecutive_errors = 0  # 成功時はエラーカウンターをリセット
             
             # 短いスリープ中も緊急停止をチェック
-            for i in range(4):  # 20msを5ms x 4回に分割
+            for i in range(10):  # 50msを5ms x 10回に分割
                 if lego_spike.emergency_stop or lego_spike.stop_requested:
                     print("sensor_broadcaster: Emergency stop during sleep!")
                     return
@@ -320,7 +320,7 @@ async def sensor_broadcaster():
             if consecutive_errors >= max_consecutive_errors:
                 lego_spike.stop_requested = True
                 break
-            await uasyncio.sleep_ms(20)
+            await uasyncio.sleep_ms(50)
 
 
 async def receiver():
