@@ -105,6 +105,7 @@ class LegoSpike(object):
         elif command_id == COMMAND_STOP_MOTOR_ID:
             self.motor_left.brake()
             self.motor_right.brake()
+            raise SystemExit("Stop signal received, terminating lego spike.")
         elif command_id == COMMAND_MOVE_ARM_ID:
             self._move_arm(command_parameter1)
 

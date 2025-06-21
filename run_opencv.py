@@ -201,9 +201,7 @@ def main(record_sensor_data=False, save_camera_video=False):
             if max_contour is not None:
                 # Adjust contour coordinates to full frame
                 adjusted_contour = max_contour + np.array([x1, y1])
-                cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)
-
-                # Draw centroid
+                cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)                # Draw centroid
                 cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
 
             # Send camera capture for remote monitoring
@@ -218,8 +216,36 @@ def main(record_sensor_data=False, save_camera_video=False):
 
     except KeyboardInterrupt:
         print("Interrupted by user")
+        print("Sending stop signals to Spike for 10 seconds...")
+        
+        # 10秒間停止信号を送信
+        stop_start_time = time.time()
+        while time.time() - stop_start_time < 10.0:
+            try:
+                et.brake()  # モーター停止信号を送信
+                time.sleep(0.1)  # 100ms間隔で送信
+            except Exception as e:
+                print(f"Error sending stop signal: {e}")
+                break
+        
+        print("Stop signal transmission completed")
+        
     except Exception as e:
         print(f"Error: {e}")
+        print("Sending stop signals to Spike for 10 seconds...")
+        
+        # エラー時も10秒間停止信号を送信
+        stop_start_time = time.time()
+        while time.time() - stop_start_time < 10.0:
+            try:
+                et.brake()  # モーター停止信号を送信
+                time.sleep(0.1)  # 100ms間隔で送信
+            except Exception as e:
+                print(f"Error sending stop signal: {e}")
+                break
+        
+        print("Stop signal transmission completed")
+        
     finally:
         # Cleanup
         et.stop()
