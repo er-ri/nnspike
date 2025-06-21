@@ -42,6 +42,9 @@ class LegoSpike(object):
     """
 
     def __init__(self) -> None:
+        # 停止フラグを追加
+        self.stop_requested = False
+        
         # Initialization
         hub.display.show(
             hub.Image.ALL_CLOCKS, delay=400, clear=True, wait=False, loop=True, fade=0
@@ -103,9 +106,11 @@ class LegoSpike(object):
         elif command_id == COMMAND_SET_MOTOR_RELATIVE_POSITION_ID:
             self._set_motor_relative_position(command_parameter1, command_parameter2)
         elif command_id == COMMAND_STOP_MOTOR_ID:
+            # 停止フラグを設定してすべてのモーターを停止
+            self.stop_requested = True
             self.motor_left.brake()
             self.motor_right.brake()
-            raise SystemExit("Stop signal received, terminating lego spike.")
+            self.motor_arm.brake()
         elif command_id == COMMAND_MOVE_ARM_ID:
             self._move_arm(command_parameter1)
 
@@ -265,7 +270,7 @@ async def sensor_broadcaster():
     consecutive_errors = 0
     max_consecutive_errors = 10  # 連続エラー10回で終了
     
-    while True:
+    while not lego_spike.stop_requested:
         try:
             lego_spike.send_sensor_data()
             consecutive_errors = 0  # 成功時はエラーカウンターをリセット
@@ -273,8 +278,8 @@ async def sensor_broadcaster():
         except Exception as e:
             consecutive_errors += 1
             if consecutive_errors >= max_consecutive_errors:
-                print("USB connection lost after " + str(consecutive_errors) + " consecutive errors")
-                raise SystemExit("USB connection lost, terminating lego spike.")
+                lego_spike.stop_requested = True
+                break
             await uasyncio.sleep_ms(20)
 
 
@@ -282,33 +287,36 @@ async def receiver():
     usb_check_counter = 0
     usb_check_interval = 50  # 50回ループごとにUSB接続をチェック
     
-    while True:
+    while not lego_spike.stop_requested:
         try:
             command_id, command_parameter1, command_parameter2 = lego_spike.read_command()
             if command_id != None:
                 lego_spike.execute_command(
                     command_id, command_parameter1, command_parameter2
                 )
+                
+                # 停止信号を受信した場合は即座にループを抜ける
+                if lego_spike.stop_requested:
+                    break
 
             # 定期的にUSB接続状態をチェック
             usb_check_counter += 1
             if usb_check_counter >= usb_check_interval:
                 if not lego_spike.usb:
-                    raise SystemExit("USB connection lost, terminating lego spike.")
+                    lego_spike.stop_requested = True
+                    break
                 usb_check_counter = 0
 
             if time.ticks_ms() - lego_spike.command_counter > MAX_IDLE_TIME:
-                raise SystemExit("Maximum idle time reached, terminate lego spike.")
+                lego_spike.stop_requested = True
+                break
 
             await uasyncio.sleep(0)
             
-        except SystemExit:
-            # SystemExitは再発生させる
-            raise
         except Exception as e:
-            # その他のエラーはログ出力して継続
-            print("Receiver error: " + str(e))
-            await uasyncio.sleep(0)
+            # エラー時は停止フラグを設定してループを抜ける
+            lego_spike.stop_requested = True
+            break
 
 
 async def main_task():
@@ -321,11 +329,29 @@ async def main_task():
     sensor_task = uasyncio.create_task(sensor_broadcaster())
     tasks.append(sensor_task)
 
-    await uasyncio.sleep(MAX_RUN_TIME)
-
-    # Cancel all tasks.
-    for task in tasks:
-        task.cancel()
+    # タスクの完了を待つか、MAX_RUN_TIMEに達するか、停止が要求されるまで待機
+    try:
+        start_time = time.time()
+        while not lego_spike.stop_requested and (time.time() - start_time) < MAX_RUN_TIME:
+            # いずれかのタスクが完了したかチェック
+            completed_tasks = [task for task in tasks if task.done()]
+            if completed_tasks:
+                break
+            await uasyncio.sleep(0.1)
+    except Exception:
+        pass
+    finally:
+        # すべてのタスクをキャンセル
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        
+        # タスクの完了を待つ
+        for task in tasks:
+            try:
+                await task
+            except:
+                pass
 
 
 # Trigger a garbage collection cycle
@@ -336,12 +362,16 @@ print("Starting LEGO Prime Hub..")
 try:
     lego_spike = LegoSpike()
     uasyncio.run(main_task())
-except SystemExit as e:
-    print(e)
+except Exception as e:
+    print("Error: " + str(e))
+finally:
+    # 強制的にすべてのモーターを停止
+    try:
+        lego_spike.motor_left.brake()
+        lego_spike.motor_right.brake()
+        lego_spike.motor_arm.brake()
+    except:
+        pass
 
-lego_spike.motor_left.brake()
-lego_spike.motor_right.brake()
-
-hub.display.show(hub.Image.ASLEEP)
-
-print("Ended")
+    hub.display.show(hub.Image.ASLEEP)
+    print("Ended")

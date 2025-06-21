@@ -21,6 +21,8 @@ import socket
 import pickle
 import struct
 import argparse
+import asyncio
+import threading
 import numpy as np
 from nnspike.unit import ETRobot
 from nnspike.utils import (
@@ -59,6 +61,64 @@ cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
 
+class AsyncSensorReader:
+    """非同期でセンサー値を取得するクラス"""
+    
+    def __init__(self, et_robot):
+        self.et_robot = et_robot
+        self.color_sensor_data = "R:N/A A:N/A C:N/A"
+        self.ultrasonic_sensor_data = "N/A cm"
+        self.running = False
+        self.thread = None
+        
+    def start(self):
+        """センサー読み取りを開始"""
+        self.running = True
+        self.thread = threading.Thread(target=self._sensor_loop, daemon=True)
+        self.thread.start()
+        
+    def stop(self):
+        """センサー読み取りを停止"""
+        self.running = False
+        if self.thread:
+            self.thread.join(timeout=1.0)
+            
+    def _sensor_loop(self):
+        """0.2秒間隔でセンサー値を取得するループ"""
+        while self.running:
+            try:
+                # spike_statusを一度取得
+                spike_status = self.et_robot.get_spike_status()
+                
+                # カラーセンサーデータを更新
+                if spike_status and spike_status.sensors and spike_status.sensors.color:
+                    color = spike_status.sensors.color
+                    self.color_sensor_data = f"R:{color.reflected} A:{color.ambient} C:{color.color}"
+                else:
+                    self.color_sensor_data = "R:N/A A:N/A C:N/A"
+                
+                # 超音波センサーデータを更新
+                if spike_status and spike_status.sensors and spike_status.sensors.distance is not None:
+                    self.ultrasonic_sensor_data = f"{spike_status.sensors.distance}cm"
+                else:
+                    self.ultrasonic_sensor_data = "N/A cm"
+                    
+            except Exception as e:
+                # エラー時はデフォルト値を設定
+                self.color_sensor_data = "R:N/A A:N/A C:N/A"
+                self.ultrasonic_sensor_data = "N/A cm"
+                
+            time.sleep(0.2)  # 0.2秒間隔
+            
+    def get_color_sensor_data(self):
+        """現在のカラーセンサーデータを取得"""
+        return self.color_sensor_data
+        
+    def get_ultrasonic_sensor_data(self):
+        """現在の超音波センサーデータを取得"""
+        return self.ultrasonic_sensor_data
+
+
 def main(record_sensor_data=False, save_camera_video=False):
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = (
@@ -90,8 +150,7 @@ def main(record_sensor_data=False, save_camera_video=False):
     client_socket.connect(
         (HOST_IP_ADDRESS, 8485)
     )
-    
-    # Initialize robot and PID controller
+      # Initialize robot and PID controller
     et = ETRobot()
     pid = PIDController(
         Kp=3,  # Restored to ensure sufficient turning power
@@ -100,6 +159,10 @@ def main(record_sensor_data=False, save_camera_video=False):
         setpoint=0,
         output_limits=(-0.25, 0.25),  # Direct radian limits for steering correction
     )
+    
+    # 非同期センサーリーダーを初期化して開始
+    sensor_reader = AsyncSensorReader(et)
+    sensor_reader.start()
     
     # Time-based acceleration tracking
     straight_line_start_time = None
@@ -152,28 +215,9 @@ def main(record_sensor_data=False, save_camera_video=False):
                 left_power=left_power,
                 right_power=right_power,
             )
-            
-            # Log sensor data using the recorder if enabled
+              # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
                 sensor_recorder.log_frame_data(et.get_spike_status())
-                
-            # Get spike status once for efficiency and consistency
-            spike_status = et.get_spike_status()
-            
-            # Color sensor formatting
-            def format_color_sensor(status):
-                if status and status.sensors and status.sensors.color:
-                    color = status.sensors.color
-                    return f"R:{color.reflected} A:{color.ambient} C:{color.color}"
-                else:
-                    return "R:N/A A:N/A C:N/A"
-            
-            # Ultrasonic sensor formatting
-            def format_ultrasonic_sensor(status):
-                if status and status.sensors and status.sensors.distance is not None:
-                    return f"{status.sensors.distance}cm"
-                else:
-                    return "N/A cm"
             
             # Prepare driving information for visualization
             info = dict()
@@ -188,8 +232,8 @@ def main(record_sensor_data=False, save_camera_video=False):
                 "acceleration_time": f"{(round(current_time - straight_line_start_time, 1) if straight_line_start_time is not None else 0.0)}s",
                 "left_power": f"{left_power}%",
                 "right_power": f"{right_power}%",
-                "color_sensor": format_color_sensor(spike_status),
-                "ultrasonic_sensor": format_ultrasonic_sensor(spike_status),
+                "color_sensor": sensor_reader.get_color_sensor_data(),
+                "ultrasonic_sensor": sensor_reader.get_ultrasonic_sensor_data(),
                 "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
             }
 
@@ -233,8 +277,7 @@ def main(record_sensor_data=False, save_camera_video=False):
     except Exception as e:
         print(f"Error: {e}")
         print("Sending stop signals to Spike for 10 seconds...")
-        
-        # エラー時も10秒間停止信号を送信
+          # エラー時も10秒間停止信号を送信
         stop_start_time = time.time()
         while time.time() - stop_start_time < 10.0:
             try:
@@ -247,6 +290,9 @@ def main(record_sensor_data=False, save_camera_video=False):
         print("Stop signal transmission completed")
         
     finally:
+        # センサーリーダーを停止
+        sensor_reader.stop()
+        
         # Cleanup
         et.stop()
         cap.release()
