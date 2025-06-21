@@ -67,7 +67,9 @@ class ETRobot(
                 print(f"Data length: {len(received_data)}")
                 print(f"Data type: {type(received_data)}")
 
-        time.sleep(0.0001)  # Value should be less than '0.0005' seconds    def _update_last_spike_status(self) -> None:
+        time.sleep(0.0001)  # Value should be less than '0.0005' seconds
+
+    def _update_last_spike_status(self) -> None:
         """
         Update last_spike_status with current valid sensor readings.
         Only updates values that are not None to preserve last known good values.
