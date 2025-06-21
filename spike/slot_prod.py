@@ -111,9 +111,20 @@ class LegoSpike(object):
         elif command_id == COMMAND_STOP_MOTOR_ID:
             # 停止フラグを設定してすべてのモーターを停止
             self.stop_requested = True
+            
+            # 即座にモーター停止を実行
             self.motor_left.brake()
             self.motor_right.brake()
             self.motor_arm.brake()
+            self.motor_left.stop()
+            self.motor_right.stop()
+            self.motor_arm.stop()
+            
+            # ディスプレイに停止状態を表示
+            try:
+                hub.display.show(hub.Image.ASLEEP)
+            except:
+                pass
         elif command_id == COMMAND_MOVE_ARM_ID:
             self._move_arm(command_parameter1)
 
@@ -264,6 +275,7 @@ class LegoSpike(object):
         except Exception as e:
             # エラーを再発生させてsensor_broadcasterで検知できるようにする
             raise e
+    
     def _emergency_stop_callback(self):
         """センターボタン押下時の緊急停止コールバック"""
         # 緊急停止フラグを即座に設定
@@ -289,9 +301,6 @@ class LegoSpike(object):
             hub.speaker.beep(60, 200)
         except:
             pass
-        
-        # 停止メッセージ
-        print("EMERGENCY STOP!")
 
 async def sensor_broadcaster():
     """50ms間隔でセンサーデータを送信する非同期タスク"""
@@ -302,7 +311,6 @@ async def sensor_broadcaster():
         try:
             # 緊急停止チェックを送信前に実行
             if lego_spike.emergency_stop or lego_spike.stop_requested:
-                print("sensor_broadcaster: Emergency stop detected!")
                 break
                 
             lego_spike.send_sensor_data()
@@ -311,7 +319,6 @@ async def sensor_broadcaster():
             # 短いスリープ中も緊急停止をチェック
             for i in range(10):  # 50msを5ms x 10回に分割
                 if lego_spike.emergency_stop or lego_spike.stop_requested:
-                    print("sensor_broadcaster: Emergency stop during sleep!")
                     return
                 await uasyncio.sleep_ms(5)
                 
@@ -328,10 +335,8 @@ async def receiver():
     usb_check_interval = 50  # 50回ループごとにUSB接続をチェック
     
     while not lego_spike.stop_requested and not lego_spike.emergency_stop:
-        try:
-            # 緊急停止チェックをループ開始時に実行
+        try:            # 緊急停止チェックをループ開始時に実行
             if lego_spike.emergency_stop or lego_spike.stop_requested:
-                print("receiver: Emergency stop detected!")
                 break
                 
             command_id, command_parameter1, command_parameter2 = lego_spike.read_command()
@@ -340,9 +345,14 @@ async def receiver():
                     command_id, command_parameter1, command_parameter2
                 )
                 
+                # STOPコマンド受信時は即座に全処理を停止
+                if command_id == COMMAND_STOP_MOTOR_ID:
+                    lego_spike.stop_requested = True
+                    lego_spike.emergency_stop = True
+                    break
+                
                 # 停止信号を受信した場合は即座にループを抜ける
                 if lego_spike.stop_requested or lego_spike.emergency_stop:
-                    print("receiver: Stop command received!")
                     break
 
             # 定期的にUSB接続状態をチェック
@@ -359,14 +369,12 @@ async def receiver():
 
             # 緊急停止チェック後にスリープ
             if lego_spike.emergency_stop or lego_spike.stop_requested:
-                print("receiver: Emergency stop before sleep!")
                 break
             await uasyncio.sleep(0)
             
         except Exception as e:
             # エラー時は停止フラグを設定してループを抜ける
             lego_spike.stop_requested = True
-            print("receiver: Exception occurred - " + str(e))
             break
 
 
@@ -384,11 +392,9 @@ async def main_task():
     try:
         start_time = time.time()
         while not lego_spike.stop_requested and not lego_spike.emergency_stop and (time.time() - start_time) < MAX_RUN_TIME:
-            
-            # 緊急停止の即座チェック（100ms間隔）
+              # 緊急停止の即座チェック（100ms間隔）
             for _ in range(10):  # 100msを10ms x 10回に分割
                 if lego_spike.emergency_stop:
-                    print("main_task: EMERGENCY STOP DETECTED! Cancelling all tasks...")
                     # すべてのタスクを即座にキャンセル
                     for task in tasks:
                         if not task.done():
@@ -404,21 +410,17 @@ async def main_task():
                     return
                 
                 if lego_spike.stop_requested:
-                    print("main_task: Stop requested!")
                     break
                     
                 await uasyncio.sleep_ms(10)
-            
-            # いずれかのタスクが完了したかチェック
+              # いずれかのタスクが完了したかチェック
             completed_tasks = [task for task in tasks if task.done()]
             if completed_tasks:
-                print("main_task: Task completed!")
                 break
                 
     except Exception as e:
-        print("main_task: Exception - " + str(e))
+        pass
     finally:
-        print("main_task: Cleaning up tasks...")
         # すべてのタスクをキャンセル
         for task in tasks:
             if not task.done():
@@ -438,11 +440,8 @@ print("Starting LEGO Prime Hub..")
 
 try:
     lego_spike = LegoSpike()
-    print("LEGO Spike initialized.")
-    print("Center button = EMERGENCY STOP")
     uasyncio.run(main_task())
 except KeyboardInterrupt:
-    print("KeyboardInterrupt: Emergency stop!")
     try:
         lego_spike.emergency_stop = True
         lego_spike.stop_requested = True
@@ -452,7 +451,6 @@ except KeyboardInterrupt:
     except:
         pass
 except Exception as e:
-    print("Error: " + str(e))
     try:
         lego_spike.emergency_stop = True
         lego_spike.stop_requested = True
@@ -463,7 +461,6 @@ except Exception as e:
         pass
 finally:
     # 最終安全装置：強制的にすべてのモーターを複数回停止
-    print("Final safety stop...")
     for attempt in range(5):  # 5回試行して確実に停止
         try:
             lego_spike.motor_left.brake()
@@ -481,4 +478,3 @@ finally:
         hub.speaker.beep(60, 100)  # 終了確認音
     except:
         pass
-    print("Ended - All motors stopped")
