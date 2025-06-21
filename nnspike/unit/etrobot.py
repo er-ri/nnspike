@@ -41,9 +41,6 @@ class ETRobot(
         
         if command_id == self.COMMAND_STOP_MOTOR_ID:
             print("ETRobot: STOP_MOTOR_ID送信 [" + str(elapsed_time) + "s] - コマンドID=" + str(command_id) + ", 全コマンド=" + command.hex())
-        elif command_id == self.COMMAND_SET_MOTOR_FORWARD_POWER_ID:
-            if len(command) >= 3:
-                print("ETRobot: FORWARD_POWER送信 [" + str(elapsed_time) + "s] - left=" + str(command[1]) + ", right=" + str(command[2]))
         elif command_id == self.COMMAND_SET_MOTOR_BACKWARD_POWER_ID:
             if len(command) >= 3:
                 print("ETRobot: BACKWARD_POWER送信 [" + str(elapsed_time) + "s] - left=" + str(command[1]) + ", right=" + str(command[2]))
