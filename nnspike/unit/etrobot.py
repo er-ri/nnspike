@@ -26,6 +26,9 @@ class ETRobot(
         # Create a SpikeStatus object for handling data
         self.spike_status = SpikeStatus()        # Keep track of last valid sensor data to handle missing readings
         self.last_spike_status = SpikeStatus()
+        
+        # 動作開始時間を記録
+        self.start_time = time.time()
 
         self.__thread = threading.Thread(target=self.__update_status)
         self.__thread.start()
@@ -95,9 +98,18 @@ class ETRobot(
         last.message_type = current.message_type
         last.raw_data = current.raw_data        # Update sensors with valid readings
         if current.sensors.distance is not None and isinstance(current.sensors.distance, (int, float)):
+            # 有効な超音波センサー値の場合
+            # 無効値カウンターをリセット
+            if hasattr(self, '_ultrasonic_invalid_counter'):
+                if self._ultrasonic_invalid_counter > 0:
+                    elapsed_time = time.time() - self.start_time
+                    print(f"ETRobot: 超音波センサー復帰 [{elapsed_time:.1f}s] - 無効値カウンター{self._ultrasonic_invalid_counter}をリセット")
+                self._ultrasonic_invalid_counter = 0
+            
             # 超音波センサーの値が変化したときの詳細ログ
             if hasattr(last.sensors, 'distance') and last.sensors.distance != current.sensors.distance:
-                print(f"ETRobot: 超音波センサー値変化検知 - {last.sensors.distance} → {current.sensors.distance}")
+                elapsed_time = time.time() - self.start_time
+                print(f"ETRobot: 超音波センサー値変化検知 [{elapsed_time:.1f}s] - {last.sensors.distance} → {current.sensors.distance}")
             
             last.sensors.distance = current.sensors.distance
               # 定期的な超音波センサー状態確認
@@ -106,23 +118,27 @@ class ETRobot(
             self._ultrasonic_debug_counter += 1
             
             if self._ultrasonic_debug_counter % 100 == 0:  # 100回に1回
-                print(f"ETRobot: 超音波センサー定期確認 - 現在値={current.sensors.distance}, 最後の有効値={last.sensors.distance}")
+                elapsed_time = time.time() - self.start_time
+                print(f"ETRobot: 超音波センサー定期確認 [{elapsed_time:.1f}s] - 現在値={current.sensors.distance}, 最後の有効値={last.sensors.distance}")
         else:
-            # 超音波センサーが無効な値の場合：より積極的にリセット
+            # 超音波センサーが無効な値の場合
             if not hasattr(self, '_ultrasonic_invalid_counter'):
                 self._ultrasonic_invalid_counter = 0
             self._ultrasonic_invalid_counter += 1
             
-            if self._ultrasonic_invalid_counter % 20 == 0:  # 20回に1回（0.6秒ごと）
-                print(f"ETRobot: 超音波センサー無効値検知 - current.sensors.distance={current.sensors.distance}, type={type(current.sensors.distance)}")
+            # 5回ごとに状況を確認（より頻繁に監視）
+            if self._ultrasonic_invalid_counter % 5 == 0:
+                elapsed_time = time.time() - self.start_time
+                print(f"ETRobot: 超音波センサー無効値検知 [{elapsed_time:.1f}s] - current.sensors.distance={current.sensors.distance}, type={type(current.sensors.distance)}, 連続回数={self._ultrasonic_invalid_counter}")
                 
-                # 20回連続でNoneの場合、last_spike_statusもNoneにリセット
-                if self._ultrasonic_invalid_counter >= 20:
+                # 10回連続でNoneの場合、last_spike_statusもNoneにリセット（50回→10回に厳格化）
+                if self._ultrasonic_invalid_counter >= 10:
                     old_value = last.sensors.distance
                     last.sensors.distance = None
                     if old_value is not None:
-                        print(f"ETRobot: 超音波センサー値をリセット - {old_value} → None （20回連続無効値のため）")
-                    self._ultrasonic_invalid_counter = 0  # カウンターリセット
+                        elapsed_time = time.time() - self.start_time
+                        print(f"ETRobot: 超音波センサー値をリセット [{elapsed_time:.1f}s] - {old_value} → None （10回連続無効値のため）")
+                    # カウンターは継続（復帰時に適切にリセットされるため）
                 
         if current.sensors.force is not None and isinstance(current.sensors.force, (int, float)):
             last.sensors.force = current.sensors.force# Update color sensor data
