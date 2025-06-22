@@ -40,13 +40,11 @@ import struct
 import argparse
 import numpy as np
 from nnspike.unit import ETRobot
+from nnspike.utils.control import ControlCalculator
 from nnspike.utils import (
-    steer_by_camera,
     draw_driving_info,
     PIDController,
     SensorRecorder,
-    calculate_adaptive_speed,
-    calculate_theta_from_pixels,
 )
 
 # User defined constants
@@ -173,22 +171,19 @@ def main(record_sensor_data=False, save_camera_video=False):
             if save_camera_video and video_writer is not None:
                 video_writer.write(frame)
             
-            # Process frame for steering using updated steer_by_camera function
-            mx, my, offset_pixels, max_contour = steer_by_camera(frame, ROI_OPENCV)
-            theta = calculate_theta_from_pixels(
+            # Process frame for steering using ControlCalculator
+            mx, my, offset_pixels, max_contour = ControlCalculator.steer_by_camera(frame, ROI_OPENCV)
+            theta = ControlCalculator.calculate_theta_from_pixels(
                 offset_pixels=offset_pixels,
                 image_width=IMAGE_WIDTH,
                 sensitivity=SENSITIVITY
             )
-            
             # spike_statusの取得を最初にまとめる
             spike_status = et.get_spike_status()
-
             # カラーセンサー値取得・データ生成・黒ライン判定
             if spike_status and spike_status.sensors and spike_status.sensors.color:
                 color = spike_status.sensors.color
                 color_data = f"R:{color.reflected} A:{color.ambient} C:{color.color}"
-                # より安全側に余裕を持たせた黒ライン判定
                 ON_BLACK_LINE = (
                     color.reflected is not None and color.reflected <= BLACK_LINE_REFLECTED_THRESHOLD and
                     color.color is not None and color.color <= BLACK_LINE_COLOR_THRESHOLD
@@ -196,10 +191,9 @@ def main(record_sensor_data=False, save_camera_video=False):
             else:
                 color_data = "R:N/A A:N/A C:N/A"
                 ON_BLACK_LINE = False
-
-            # Dynamic speed control using external function
+            # Dynamic speed control using ControlCalculator
             abs_theta = abs(theta)
-            current_base_power = calculate_adaptive_speed(
+            current_base_power = ControlCalculator.calculate_adaptive_speed(
                 abs_theta=abs_theta,
                 base_power=BASE_POWER,
                 curve_power=CURVE_POWER,
