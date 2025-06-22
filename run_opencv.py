@@ -19,8 +19,9 @@ PID Tuning Parameters:
 ROI_OPENCV = (150, 300, 490, 400)  # 必要に応じて変更
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
-BASE_POWER = 30         # 直進時の基本パワー
-CURVE_POWER = 20        # カーブ時のパワー
+BASE_POWER = 30         # 基本パワー（直線時以外、カーブ時の基準）
+STRAIGHT_POWER = 50     # 直線時専用のパワー（カーブでなく黒ライン上のみ）
+CURVE_POWER = 20        # カーブ時の最低パワー（必要に応じて使用）
 CURVE_THRESHOLD_DEG = 3.0      # カーブ判定閾値（度数法, 例: 3度）
 SENSITIVITY = 0.4           # ピクセル→theta変換感度
 STEERING_SCALE_FACTOR = 30  # ステアリング補正のスケール
@@ -179,23 +180,6 @@ def main(record_sensor_data=False, save_camera_video=False):
                 sensitivity=SENSITIVITY
             )
             
-            # Dynamic speed control using external function
-            abs_theta = abs(theta)
-            current_base_power = calculate_adaptive_speed(
-                abs_theta=abs_theta,
-                base_power=BASE_POWER,
-                curve_power=CURVE_POWER,
-                curve_threshold=math.radians(CURVE_THRESHOLD_DEG)
-            )
-
-            # Apply PID control to theta for smooth steering correction
-            pid_corrected_theta = pid.update(theta)
-            
-            # pid_corrected_theta is in radians, convert to power adjustment
-            power_adjustment = int(pid_corrected_theta * STEERING_SCALE_FACTOR)
-            left_power = int(current_base_power - power_adjustment)
-            right_power = int(current_base_power + power_adjustment)
-
             # spike_statusの取得を最初にまとめる
             spike_status = et.get_spike_status()
 
@@ -212,19 +196,31 @@ def main(record_sensor_data=False, save_camera_video=False):
                 color_data = "R:N/A A:N/A C:N/A"
                 ON_BLACK_LINE = False
 
-            # ステアリング・速度補正
-            # if ON_BLACK_LINE:
-            #     left_power = right_power = int(current_base_power)
-            # else:
-            #     left_power = right_power = int(BASE_POWER * 0.5)
+            # Dynamic speed control using external function
+            abs_theta = abs(theta)
+            current_base_power = calculate_adaptive_speed(
+                abs_theta=abs_theta,
+                base_power=BASE_POWER,
+                curve_power=CURVE_POWER,
+                straight_power=STRAIGHT_POWER,
+                curve_threshold=math.radians(CURVE_THRESHOLD_DEG),
+                on_black_line=ON_BLACK_LINE
+            )
 
-            # --- 一時的に速度補正を無効化（常にBASE_POWERで直進） ---
-            # left_power = right_power = int(BASE_POWER)
+            # Apply PID control to theta for smooth steering correction
+            pid_corrected_theta = pid.update(theta)
+            # スケールファクターをパワーに比例させる
+            dynamic_steering_scale = STEERING_SCALE_FACTOR * (current_base_power / BASE_POWER)
+            power_adjustment = int(pid_corrected_theta * dynamic_steering_scale)
+            left_power = int(current_base_power - power_adjustment)
+            right_power = int(current_base_power + power_adjustment)
 
+            # 計算した左右パワーでモーターを駆動
             et.set_motor_forward_power(
                 left_power=left_power,
                 right_power=right_power,
-            )            # Log sensor data using the recorder if enabled
+            )
+            # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
                 sensor_recorder.log_frame_data(spike_status)  # 既に取得したspike_statusを再利用
             

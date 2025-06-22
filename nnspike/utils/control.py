@@ -17,7 +17,7 @@ Functions:
         Calculates attitude angle (theta) from pixel offset using simple normalization.
 
     calculate_adaptive_speed(abs_theta: float, base_power: float = 30,
-                          curve_power: float = 20, curve_threshold: float = 0.0524) -> float:
+                          curve_power: float = 20, straight_power: float = 10, curve_threshold: float = 0.0524) -> float:
         Calculates adaptive speed based on curve detection and time-based acceleration.
 """
 
@@ -88,15 +88,16 @@ def calculate_adaptive_speed(
     abs_theta: float,
     base_power: float,
     curve_power: float,
-    curve_threshold: float
+    straight_power: float,
+    curve_threshold: float,
+    on_black_line: bool
 ) -> float:
     """
-    カーブ量(abs_theta)に応じて速度を調整する。
-    直線時はbase_power、カーブ時はcurve_power。
-    呼び出し元から渡された引数を必ず使う。
+    カーブ量(abs_theta)と黒ライン判定に応じて速度を調整する。
+    黒ライン上かつカーブでなければstraight_power、カーブ時はcurve_power、それ以外はbase_power。
     """
-    if abs_theta == 0:
-        return curve_power
+    if on_black_line and abs_theta <= curve_threshold:
+        return straight_power
     elif abs_theta > curve_threshold:
         return curve_power
     else:
