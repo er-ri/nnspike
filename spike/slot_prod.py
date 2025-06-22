@@ -282,8 +282,8 @@ def main_loop():
             if time.ticks_ms() - lego_spike.command_counter > MAX_IDLE_TIME:
                 lego_spike.stop_requested = True
                 break
-            # 動作頻度を10msに統一
-            time.sleep(0.01)  # 10ms
+            # 動作頻度を5msに統一
+            time.sleep(0.005)  # 5ms
         except:
             # エラー時は停止フラグのみ設定し、重い処理やprintはしない
             # lego_spike.stop_requested = True
