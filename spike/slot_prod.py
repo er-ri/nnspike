@@ -293,8 +293,9 @@ def main_loop():
             time.sleep(0.03)  # 30ms
         except:
             # エラー時は停止フラグのみ設定し、重い処理やprintはしない
-            lego_spike.stop_requested = True
-            break
+            # lego_spike.stop_requested = True
+            # break
+            pass
         
 
 # Trigger a garbage collection cycle
