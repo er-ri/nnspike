@@ -56,10 +56,10 @@ def main():
             # Move arm up and then down before starting the test
             print("Moving arm up and then down before test...")
             et.move_arm(1)  # 1 = move up
-            time.sleep(1.0)  # Wait 1 second
+            time.sleep(2.0)  # Wait 1 second
             print("✓ Arm moved up, now moving down...")
             et.move_arm(0)  # 0 = move down
-            time.sleep(1.0)  # Wait 1 second
+            time.sleep(2.0)  # Wait 1 second
             print("✓ Arm moved down")
             break
         except Exception as e:
