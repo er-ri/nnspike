@@ -35,15 +35,19 @@ def main():
         interval = 0.03    # 30msごと
         switch_interval = 1.0  # 1秒ごとに切り替え
         start_time = time.time()
-        last_switch = start_time
         left_cmd, right_cmd = 0, 50
         left_disp, right_disp = "OFF", "ON "
         switch_count = 0
         print(f" {switch_count+1:2d}回 | {left_disp:^7} | {right_disp:^7} | L={left_cmd:2d}, R={right_cmd:2d}")
-        while time.time() - start_time < total_time:
+        while True:
             now = time.time()
-            if now - last_switch >= switch_interval:
-                switch_count += 1
+            elapsed = now - start_time
+            if elapsed >= total_time:
+                break
+            # 1秒ごとに切り替え（経過秒数で判定）
+            new_switch_count = int(elapsed // switch_interval)
+            if new_switch_count != switch_count:
+                switch_count = new_switch_count
                 if switch_count % 2 == 0:
                     left_cmd, right_cmd = 0, 50
                     left_disp, right_disp = "OFF", "ON "
@@ -51,7 +55,6 @@ def main():
                     left_cmd, right_cmd = 50, 0
                     left_disp, right_disp = "ON ", "OFF"
                 print(f" {switch_count+1:2d}回 | {left_disp:^7} | {right_disp:^7} | L={left_cmd:2d}, R={right_cmd:2d}")
-                last_switch = now
             et.set_motor_forward_power(left_power=left_cmd, right_power=right_cmd)
             time.sleep(interval)
         et.set_motor_forward_power(left_power=0, right_power=0)
