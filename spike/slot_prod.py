@@ -262,6 +262,8 @@ def main_loop():
     read_command = lego_spike.read_command
     execute_command = lego_spike.execute_command
 
+    sensor_send_toggle = False  # 2回に1回だけセンサーデータ送信
+
     while not lego_spike.stop_requested and (time.time() - start_time) < MAX_RUN_TIME:
         try:
             # コマンド受信処理
@@ -272,23 +274,26 @@ def main_loop():
                 if command_id == COMMAND_STOP_MOTOR_ID:
                     lego_spike.stop_all()
                     break
-            # センサーデータ送信処理（毎ループ送信、30ms間隔）
-            # try:
-            #     send_sensor_data()
-            #     pass
-            # except:
-            #     pass
+            # センサーデータ送信処理（2回に1回）
+            sensor_send_toggle = not sensor_send_toggle
+            if sensor_send_toggle:
+                try:
+                    lego_spike.send_sensor_data()
+                except:
+                    pass
             # アイドルタイムチェック
             if time.ticks_ms() - lego_spike.command_counter > MAX_IDLE_TIME:
                 lego_spike.stop_requested = True
                 break
-            # 動作頻度を5msに統一
-            time.sleep(0.005)  # 5ms
+            # 動作頻度を10msに統一
+            time.sleep(0.01)  # 10ms
         except:
             # エラー時は停止フラグのみ設定し、重い処理やprintはしない
             # lego_spike.stop_requested = True
             # break
             pass
+    # アイドルタイムカウンタをリセット（終了時）
+    lego_spike.command_counter = time.ticks_ms()
         
 
 print("Starting LEGO Prime Hub..")
