@@ -14,6 +14,20 @@ Speed Tuning Parameters:
 PID Tuning Parameters:
 - Kp, Ki, Kd: Standard PID parameters for steering correction
 """
+
+# ==== ユーザー調整用パラメータ（ここだけ編集すればOK） ====
+ROI_OPENCV = (0, 320, 640, 480)  # 必要に応じて変更
+IMAGE_WIDTH = 640
+IMAGE_HEIGHT = 480
+BASE_POWER = 50         # 直進時の基本パワー
+MAX_POWER = 80          # 直進時の最大パワー
+CURVE_POWER = 20        # カーブ時のパワー
+ACCELERATION_DURATION = 1.0  # 最高速到達までの加速時間（秒）
+CURVE_THRESHOLD = 0.0524    # カーブ判定閾値（ラジアン）
+SENSITIVITY = 0.4           # ピクセル→theta変換感度
+STEERING_SCALE_FACTOR = 30  # ステアリング補正のスケール
+# ================================================
+
 import cv2
 import math
 import time
@@ -21,8 +35,6 @@ import socket
 import pickle
 import struct
 import argparse
-import asyncio
-import threading
 import numpy as np
 from nnspike.unit import ETRobot
 from nnspike.utils import (
@@ -40,14 +52,6 @@ from nnspike.constants import (
 # User defined constants
 x1, y1, x2, y2 = ROI_OPENCV  # Region of Interest for OpenCV processing
 
-# Simplified Speed Control Parameters (Easy to tune)
-BASE_POWER = 50  # Base power for straight lines (adjust this first)
-MAX_POWER = 80   # Maximum power for straight lines
-CURVE_POWER = 20 # Power for curves (rapid deceleration)
-CURVE_THRESHOLD = 0.0524  # Threshold to detect curves (≈3.0 degrees, adjusted boundary)
-
-# Steering Control Parameters
-STEERING_SCALE_FACTOR = 30  # Scaling factor to convert steering correction (radians) to power adjustment
 
 # Socket connection settings
 HOST_IP_ADDRESS = (
@@ -57,14 +61,32 @@ HOST_IP_ADDRESS = (
 # Camera setup
 cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FPS, 30)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, IMAGE_WIDTH)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, IMAGE_HEIGHT)
 
 
 # AsyncSensorReader クラスを削除 - メインループで直接センサー値を取得するように変更
 
 
-def main(record_sensor_data=False, save_camera_video=False):
+def run_initial_sensor_test(et, test_count=5, delay=0.2):
+    """SPIKEの初期センサーテストを簡素に実行"""
+    print("初期センサーテスト...")
+    for i in range(test_count):
+        test_status = et.get_spike_status()
+        if test_status and test_status.sensors:
+            color = test_status.sensors.color
+            dist = test_status.sensors.distance
+            color_str = f"R:{color.reflected} A:{color.ambient} C:{color.color}" if color else "N/A"
+            dist_str = f"{dist}cm" if dist is not None else "N/A"
+            print(f"{i+1}: OK  Color={color_str}  US={dist_str}")
+        else:
+            print(f"{i+1}: spike_status取得失敗")
+        time.sleep(delay)
+    print("初期センサーテスト完了")
+
+
+def initialize_system(record_sensor_data, save_camera_video):
+    """ロボット・PID・センサーレコーダ・ビデオ・ソケット等の初期化をまとめて行う"""
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = (
         time.strftime("%Y%m%d%H%M%S", time.localtime())
@@ -80,6 +102,7 @@ def main(record_sensor_data=False, save_camera_video=False):
 
     # Initialize video writer conditionally
     video_writer = None
+    video_filename = None
     if save_camera_video:
         fourcc = cv2.VideoWriter_fourcc(*"XVID")
         video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
@@ -87,13 +110,12 @@ def main(record_sensor_data=False, save_camera_video=False):
             filename=video_filename,
             fourcc=fourcc,
             fps=30,
-            frameSize=(640, 480),
-        )    # Socket connection for sending camera capture
+            frameSize=(IMAGE_WIDTH, IMAGE_HEIGHT),
+        )
+    # Socket connection for sending camera capture
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect(
-        (HOST_IP_ADDRESS, 8485)
-    )
-    
+    client_socket.connect((HOST_IP_ADDRESS, 8485))
+
     # Initialize robot and PID controller
     et = ETRobot()
     pid = PIDController(
@@ -102,29 +124,31 @@ def main(record_sensor_data=False, save_camera_video=False):
         Kd=0.2,  # Increased derivative term to reduce oscillation
         setpoint=0,
         output_limits=(-0.25, 0.25),  # Direct radian limits for steering correction
-    )    # センサーデータ取得をメインループで直接行うため、AsyncSensorReaderは削除
+    )
     print("メインループで直接センサー値を取得します")
-    
-    # 初期センサーテスト
-    print("初期センサーテストを実行中...")
-    for i in range(5):
-        test_status = et.get_spike_status()
-        if test_status and test_status.sensors:
-            print(f"テスト{i+1}: spike_status OK")
-            if test_status.sensors.color:
-                color = test_status.sensors.color
-                print(f"  カラーセンサー: R={color.reflected}, A={color.ambient}, C={color.color}")
-            else:
-                print("  カラーセンサー: データなし")
-            if test_status.sensors.distance is not None:
-                print(f"  超音波センサー: {test_status.sensors.distance}cm")
-            else:
-                print("  超音波センサー: データなし")
-        else:
-            print(f"テスト{i+1}: spike_status取得失敗")
-        time.sleep(0.2)
-    print("初期センサーテスト完了")
-      # センサー値変化追跡用の変数を初期化
+
+    # 初期センサーテストを関数で実行
+    run_initial_sensor_test(et)
+
+    return et, pid, sensor_recorder, video_writer, video_filename, client_socket
+
+
+def send_stop_signal(et, duration=5.0):
+    print(f"Sending stop signals to Spike for {duration} seconds...")
+    stop_start_time = time.time()
+    while time.time() - stop_start_time < duration:
+        try:
+            et.brake()
+            time.sleep(0.1)
+        except Exception as e:
+            print(f"Error sending stop signal: {e}")
+            break
+    print("Stop signal transmission completed")
+
+
+def main(record_sensor_data=False, save_camera_video=False):
+    et, pid, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(record_sensor_data, save_camera_video)
+    # センサー値変化追跡用の変数を初期化
     previous_color_data = "R:N/A A:N/A C:N/A"
     previous_ultrasonic_data = "N/A cm"
     sensor_debug_counter = 0
@@ -150,12 +174,10 @@ def main(record_sensor_data=False, save_camera_video=False):
             
             # Process frame for steering using updated steer_by_camera function
             mx, my, offset_pixels, max_contour = steer_by_camera(frame, ROI_OPENCV)
-            
-            # Calculate theta (attitude angle in radians): +right deviation, -left deviation, 0=centered
             theta = calculate_theta_from_pixels(
                 offset_pixels=offset_pixels,
-                image_width=640,
-                sensitivity=0.4
+                image_width=IMAGE_WIDTH,
+                sensitivity=SENSITIVITY
             )
             
             # Dynamic speed control using external function
@@ -169,7 +191,7 @@ def main(record_sensor_data=False, save_camera_video=False):
                 max_power=MAX_POWER,
                 curve_power=CURVE_POWER,
                 curve_threshold=CURVE_THRESHOLD,
-                acceleration_duration=1.0
+                acceleration_duration=ACCELERATION_DURATION
             )
 
             # Apply PID control to theta for smooth steering correction
@@ -243,49 +265,17 @@ def main(record_sensor_data=False, save_camera_video=False):
 
     except KeyboardInterrupt:
         print("Interrupted by user")
-        print("Sending stop signals to Spike for 10 seconds...")
-        
-        # 10秒間停止信号を送信
-        stop_start_time = time.time()
-        while time.time() - stop_start_time < 10.0:
-            try:
-                et.brake()  # モーター停止信号を送信
-                time.sleep(0.1)  # 100ms間隔で送信
-            except Exception as e:
-                print(f"Error sending stop signal: {e}")
-                break
-        
-        print("Stop signal transmission completed")
-        
+        send_stop_signal(et, duration=5.0)
     except Exception as e:
         print(f"Error: {e}")
-        print("Sending stop signals to Spike for 10 seconds...")
-          # エラー時も10秒間停止信号を送信
-        stop_start_time = time.time()
-        while time.time() - stop_start_time < 10.0:
-            try:
-                et.brake()  # モーター停止信号を送信
-                time.sleep(0.1)  # 100ms間隔で送信
-            except Exception as e:
-                print(f"Error sending stop signal: {e}")
-                break
-        
-        print("Stop signal transmission completed")
-        
+        send_stop_signal(et, duration=5.0)
     finally:
-        # センサーリーダーはメインループで直接処理するため削除
-        
-        # Cleanup
         et.stop()
         cap.release()
         client_socket.close()
-
-        # Clean up video writer if it was used
         if save_camera_video and video_writer is not None:
             video_writer.release()
             print(f"Video saved to: {video_filename}")
-
-        # Clean up sensor recorder if it was used
         if record_sensor_data and sensor_recorder is not None:
             sensor_recorder.stop_recording()
             print(f"Total frames recorded: {sensor_recorder.get_frame_count()}")
