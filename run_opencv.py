@@ -150,6 +150,7 @@ def main(record_sensor_data=False, save_camera_video=False):
 
     try:
         while et.is_running == True:
+            loop_start = time.time()
             ret, frame = cap.read()
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
@@ -262,6 +263,12 @@ def main(record_sensor_data=False, save_camera_video=False):
             except Exception as e:
                 print(f"Socket error: {e}")
                 break
+
+            # ループ終了時に30ms間隔となるようsleep
+            elapsed = time.time() - loop_start
+            sleep_time = max(0, 0.03 - elapsed)
+            print(f"[DEBUG] loop_elapsed: {elapsed*1000:.2f} ms, sleep: {sleep_time*1000:.2f} ms")
+            time.sleep(sleep_time)
 
     except KeyboardInterrupt:
         print("Interrupted by user")
