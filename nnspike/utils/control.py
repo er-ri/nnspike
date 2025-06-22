@@ -25,10 +25,16 @@ import cv2
 import numpy as np
 
 class ControlCalculator:
-    @staticmethod
-    def steer_by_camera(
-        frame: np.ndarray, roi: tuple
-    ) -> tuple[float, float, float, object]:
+    def __init__(self, roi, image_width, sensitivity, base_power, curve_power, straight_power, curve_threshold):
+        self.roi = roi
+        self.image_width = image_width
+        self.sensitivity = sensitivity
+        self.base_power = base_power
+        self.curve_power = curve_power
+        self.straight_power = straight_power
+        self.curve_threshold = curve_threshold
+
+    def steer_by_camera(self, frame):
         """
         Processes a full camera frame to determine the steering direction based on contour detection within a specified ROI.
 
@@ -55,7 +61,7 @@ class ControlCalculator:
             9. Calculates pixel offset from the center of the ROI.
         """
         # Extract ROI and convert to grayscale
-        x1, y1, x2, y2 = roi
+        x1, y1, x2, y2 = self.roi
         roi_area = frame[y1:y2, x1:x2]
         image = cv2.cvtColor(roi_area, cv2.COLOR_BGR2GRAY)
 
@@ -84,38 +90,25 @@ class ControlCalculator:
 
         return mx, my, offset_pixels, max_contour
 
-    @staticmethod
-    def calculate_adaptive_speed(
-        abs_theta: float,
-        base_power: float,
-        curve_power: float,
-        straight_power: float,
-        curve_threshold: float,
-        on_black_line: bool
-    ) -> float:
-        """
-        カーブ量(abs_theta)と黒ライン判定に応じて速度を調整する。
-        黒ライン上かつカーブでなければstraight_power、カーブ時はcurve_power、それ以外はbase_power。
-        """
-        if on_black_line and abs_theta <= curve_threshold:
-            return straight_power
-        elif abs_theta > curve_threshold:
-            return curve_power
-        else:
-            return base_power
-
-    @staticmethod
-    def calculate_theta_from_pixels(
-        offset_pixels: float,
-        image_width: int,
-        sensitivity: float
-    ) -> float:
+    def calculate_theta_from_pixels(self, offset_pixels):
         """
         Calculate attitude angle (theta) from pixel offset using simple normalization.
         必ず呼び出し元から渡されたimage_width, sensitivityを使う。
         """
-        image_center_x = image_width / 2
+        image_center_x = self.image_width / 2
         max_offset = image_center_x
         normalized_offset = offset_pixels / max_offset
-        theta = normalized_offset * sensitivity
+        theta = normalized_offset * self.sensitivity
         return theta
+
+    def calculate_adaptive_speed(self, abs_theta, on_black_line):
+        """
+        カーブ量(abs_theta)と黒ライン判定に応じて速度を調整する。
+        黒ライン上かつカーブでなければstraight_power、カーブ時はcurve_power、それ以外はbase_power。
+        """
+        if on_black_line and abs_theta <= self.curve_threshold:
+            return self.straight_power
+        elif abs_theta > self.curve_threshold:
+            return self.curve_power
+        else:
+            return self.base_power

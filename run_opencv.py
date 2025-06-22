@@ -114,7 +114,7 @@ def initialize_system(record_sensor_data, save_camera_video):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((HOST_IP_ADDRESS, 8485))
 
-    # Initialize robot and PID controller
+    # Initialize robot, PID, ControlCalculator（ユーザー調整値はグローバル参照）
     et = ETRobot()
     pid = PIDController(
         Kp=3,  # Restored to ensure sufficient turning power
@@ -122,6 +122,10 @@ def initialize_system(record_sensor_data, save_camera_video):
         Kd=0.2,  # Increased derivative term to reduce oscillation
         setpoint=0,
         output_limits=(-0.25, 0.25),  # Direct radian limits for steering correction
+    )
+    control_calc = ControlCalculator(
+        ROI_OPENCV, IMAGE_WIDTH, SENSITIVITY,
+        BASE_POWER, CURVE_POWER, STRAIGHT_POWER, math.radians(CURVE_THRESHOLD_DEG)
     )
     print("メインループで直接センサー値を取得します")
 
@@ -139,7 +143,7 @@ def initialize_system(record_sensor_data, save_camera_video):
     # 初期センサーテストを関数で実行
     run_initial_sensor_test(et)
 
-    return et, pid, sensor_recorder, video_writer, video_filename, client_socket
+    return et, pid, control_calc, sensor_recorder, video_writer, video_filename, client_socket
 
 
 def send_stop_signal(et, duration=5.0):
@@ -156,7 +160,9 @@ def send_stop_signal(et, duration=5.0):
 
 
 def main(record_sensor_data=False, save_camera_video=False):
-    et, pid, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(record_sensor_data, save_camera_video)
+    et, pid, control_calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
+        record_sensor_data, save_camera_video
+    )
     time.sleep(0.5)
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
@@ -166,18 +172,14 @@ def main(record_sensor_data=False, save_camera_video=False):
             ret, frame = cap.read()
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
-                break            
+                break
             # Save video frame if enabled
             if save_camera_video and video_writer is not None:
                 video_writer.write(frame)
             
-            # Process frame for steering using ControlCalculator
-            mx, my, offset_pixels, max_contour = ControlCalculator.steer_by_camera(frame, ROI_OPENCV)
-            theta = ControlCalculator.calculate_theta_from_pixels(
-                offset_pixels=offset_pixels,
-                image_width=IMAGE_WIDTH,
-                sensitivity=SENSITIVITY
-            )
+            # steer_by_camera/θ計算をインスタンスメソッドで
+            mx, my, offset_pixels, max_contour = control_calc.steer_by_camera(frame)
+            theta = control_calc.calculate_theta_from_pixels(offset_pixels)
             # spike_statusの取得を最初にまとめる
             spike_status = et.get_spike_status()
             # カラーセンサー値取得・データ生成・黒ライン判定
@@ -193,14 +195,7 @@ def main(record_sensor_data=False, save_camera_video=False):
                 ON_BLACK_LINE = False
             # Dynamic speed control using ControlCalculator
             abs_theta = abs(theta)
-            current_base_power = ControlCalculator.calculate_adaptive_speed(
-                abs_theta=abs_theta,
-                base_power=BASE_POWER,
-                curve_power=CURVE_POWER,
-                straight_power=STRAIGHT_POWER,
-                curve_threshold=math.radians(CURVE_THRESHOLD_DEG),
-                on_black_line=ON_BLACK_LINE
-            )
+            current_base_power = control_calc.calculate_adaptive_speed(abs_theta, ON_BLACK_LINE)
 
             # Apply PID control to theta for smooth steering correction
             pid_corrected_theta = pid.update(theta)
