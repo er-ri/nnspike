@@ -19,7 +19,7 @@ PID Tuning Parameters:
 ROI_OPENCV = (0, 320, 640, 480)  # 必要に応じて変更
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
-BASE_POWER = 20         # 直進時の基本パワー
+BASE_POWER = 10         # 直進時の基本パワー
 CURVE_POWER = 10        # カーブ時のパワー
 CURVE_THRESHOLD_DEG = 3.0      # カーブ判定閾値（度数法, 例: 3度）
 SENSITIVITY = 0.4           # ピクセル→theta変換感度
