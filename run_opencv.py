@@ -21,7 +21,7 @@ IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
 BASE_POWER = 50         # 直進時の基本パワー
 CURVE_POWER = 20        # カーブ時のパワー
-CURVE_THRESHOLD = 0.0524    # カーブ判定閾値（ラジアン）
+CURVE_THRESHOLD_DEG = 3.0      # カーブ判定閾値（度数法, 例: 3度）
 SENSITIVITY = 0.4           # ピクセル→theta変換感度
 STEERING_SCALE_FACTOR = 30  # ステアリング補正のスケール
 # ================================================
@@ -42,9 +42,6 @@ from nnspike.utils import (
     SensorRecorder,
     calculate_adaptive_speed,
     calculate_theta_from_pixels,
-)
-from nnspike.constants import (
-    ROI_OPENCV,
 )
 
 # User defined constants
@@ -146,16 +143,6 @@ def send_stop_signal(et, duration=5.0):
 
 def main(record_sensor_data=False, save_camera_video=False):
     et, pid, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(record_sensor_data, save_camera_video)
-    # センサー値変化追跡用の変数を初期化
-    previous_color_data = "R:N/A A:N/A C:N/A"
-    previous_ultrasonic_data = "N/A cm"
-    sensor_debug_counter = 0
-    # 動作開始時間を記録
-    start_time = time.time()
-    
-    # Time-based acceleration tracking
-    straight_line_start_time = None
-    
     time.sleep(0.5)
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
@@ -183,7 +170,7 @@ def main(record_sensor_data=False, save_camera_video=False):
                 abs_theta=abs_theta,
                 base_power=BASE_POWER,
                 curve_power=CURVE_POWER,
-                curve_threshold=CURVE_THRESHOLD
+                curve_threshold=math.radians(CURVE_THRESHOLD_DEG)
             )
 
             # Apply PID control to theta for smooth steering correction
@@ -193,6 +180,28 @@ def main(record_sensor_data=False, save_camera_video=False):
             power_adjustment = int(pid_corrected_theta * STEERING_SCALE_FACTOR)
             left_power = int(current_base_power - power_adjustment)
             right_power = int(current_base_power + power_adjustment)
+
+            # spike_statusの取得を最初にまとめる
+            spike_status = et.get_spike_status()
+
+            # カラーセンサー値取得・データ生成・黒ライン判定
+            if spike_status and spike_status.sensors and spike_status.sensors.color:
+                color = spike_status.sensors.color
+                reflected = color.reflected
+                color_data = f"R:{reflected} A:{color.ambient} C:{color.color}"
+                ON_BLACK_LINE = reflected < 30
+            else:
+                reflected = None
+                color_data = "R:N/A A:N/A C:N/A"
+                ON_BLACK_LINE = False
+
+            # ステアリング・速度補正
+            if ON_BLACK_LINE:
+                power_adjustment = int(pid_corrected_theta * STEERING_SCALE_FACTOR)
+                left_power = int(current_base_power - power_adjustment)
+                right_power = int(current_base_power + power_adjustment)
+            else:
+                left_power = right_power = int(BASE_POWER * 0.5)
 
             et.set_motor_forward_power(
                 left_power=left_power,
@@ -204,15 +213,6 @@ def main(record_sensor_data=False, save_camera_video=False):
             # Prepare driving information for visualization
             info = dict()
             info["offset_x"], info["offset_y"] = x1 + mx, y1 + my            # メインループで直接センサーデータを取得
-            spike_status = et.get_spike_status()
-            sensor_debug_counter += 1
-            
-            # カラーセンサーデータの生成
-            if spike_status and spike_status.sensors and spike_status.sensors.color:
-                color = spike_status.sensors.color
-                color_data = f"R:{color.reflected} A:{color.ambient} C:{color.color}"
-            else:
-                color_data = "R:N/A A:N/A C:N/A"
             # 超音波センサーデータの生成
             if spike_status and spike_status.sensors and spike_status.sensors.distance is not None:
                 ultrasonic_data = f"{spike_status.sensors.distance} cm"
@@ -225,7 +225,7 @@ def main(record_sensor_data=False, save_camera_video=False):
                 "offset_pixels": f"{round(offset_pixels, 1)}px",
                 "current_power": f"{round(current_base_power, 1)}%",
                 "curve_detected": ("OFF_LINE" if theta == 0 else 
-                                 "YES" if abs_theta > CURVE_THRESHOLD else "NO"),
+                                 "YES" if abs_theta > math.radians(CURVE_THRESHOLD_DEG) else "NO"),
                 "left_power": f"{left_power}%",
                 "right_power": f"{right_power}%",
                 "color_sensor": color_data,
