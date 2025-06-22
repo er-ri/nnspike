@@ -262,7 +262,7 @@ def main_loop():
     read_command = lego_spike.read_command
     execute_command = lego_spike.execute_command
 
-    sensor_send_toggle = False  # 2回に1回だけセンサーデータ送信
+    sensor_send_counter = 0  # 3回に1回だけセンサーデータ送信
 
     while not lego_spike.stop_requested and (time.time() - start_time) < MAX_RUN_TIME:
         try:
@@ -274,13 +274,14 @@ def main_loop():
                 if command_id == COMMAND_STOP_MOTOR_ID:
                     lego_spike.stop_all()
                     break
-            # センサーデータ送信処理（2回に1回）
-            sensor_send_toggle = not sensor_send_toggle
-            if sensor_send_toggle:
+            # センサーデータ送信処理（3回に1回）
+            sensor_send_counter += 1
+            if sensor_send_counter >= 3:
                 try:
                     lego_spike.send_sensor_data()
                 except:
                     pass
+                sensor_send_counter = 0
             # アイドルタイムチェック
             if time.ticks_ms() - lego_spike.command_counter > MAX_IDLE_TIME:
                 lego_spike.stop_requested = True
