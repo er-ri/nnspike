@@ -124,14 +124,22 @@ def initialize_system(record_sensor_data, save_camera_video):
         output_limits=(-0.25, 0.25),  # Direct radian limits for steering correction
     )
     control_calc = ControlCalculator(
+        # steer_by_camera(frame):
+        #   入力画像からラインの重心座標(mx, my)、オフセットピクセル、最大輪郭を検出
         ROI_OPENCV,
         IMAGE_WIDTH,
+        # calculate_theta_from_pixels(offset_pixels):
+        #   ピクセル→theta変換感度
         SENSITIVITY,
+        # calculate_adaptive_speed(abs_theta, on_black_line):
+        #   走行パワー調整用パラメータ
         BASE_POWER,
         CURVE_POWER,
         STRAIGHT_POWER,
+        # カーブ判定閾値（ラジアン）
         math.radians(CURVE_THRESHOLD_DEG)
     )
+
     print("メインループで直接センサー値を取得します")
 
     # --- アームを1秒上げて1秒下げる処理を追加（test_color_only.py参考） ---
