@@ -25,6 +25,7 @@ CURVE_THRESHOLD_DEG = 3.0      # カーブ判定閾値（度数法, 例: 3度）
 SENSITIVITY = 0.4           # ピクセル→theta変換感度
 STEERING_SCALE_FACTOR = 30  # ステアリング補正のスケール
 BLACK_LINE_REFLECTED_THRESHOLD = 30  # 黒ライン判定の反射閾値
+BLACK_LINE_COLOR_THRESHOLD = 90      # 黒ライン判定のcolor.color閾値
 # ================================================
 
 import cv2
@@ -188,11 +189,9 @@ def main(record_sensor_data=False, save_camera_video=False):
             # カラーセンサー値取得・データ生成・黒ライン判定
             if spike_status and spike_status.sensors and spike_status.sensors.color:
                 color = spike_status.sensors.color
-                reflected = color.reflected
-                color_data = f"R:{reflected} A:{color.ambient} C:{color.color}"
-                ON_BLACK_LINE = reflected < BLACK_LINE_REFLECTED_THRESHOLD
+                color_data = f"R:{color.reflected} A:{color.ambient} C:{color.color}"
+                ON_BLACK_LINE = color.color is not None and color.color <= BLACK_LINE_COLOR_THRESHOLD
             else:
-                reflected = None
                 color_data = "R:N/A A:N/A C:N/A"
                 ON_BLACK_LINE = False
 
