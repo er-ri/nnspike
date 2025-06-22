@@ -57,7 +57,7 @@ async def main():
             # Move arm up and then down before starting the test
             print("Moving arm up and then down before test...")
             et.move_arm(1)  # 1 = move up
-            await asyncio.sleep(2.0)
+            await asyncio.sleep(3.0)
             print("✓ Arm moved up, now moving down...")
             et.move_arm(0)  # 0 = move down
             await asyncio.sleep(2.0)
