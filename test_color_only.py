@@ -60,7 +60,7 @@ async def main():
             await asyncio.sleep(3.0)
             print("✓ Arm moved up, now moving down...")
             et.move_arm(0)  # 0 = move down
-            await asyncio.sleep(2.0)
+            await asyncio.sleep(3.0)
             print("✓ Arm moved down")
             break
         except Exception as e:
