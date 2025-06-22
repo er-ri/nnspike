@@ -22,7 +22,6 @@ IMAGE_HEIGHT = 480
 BASE_POWER = 50         # 直進時の基本パワー
 MAX_POWER = 80          # 直進時の最大パワー
 CURVE_POWER = 20        # カーブ時のパワー
-ACCELERATION_DURATION = 1.0  # 最高速到達までの加速時間（秒）
 CURVE_THRESHOLD = 0.0524    # カーブ判定閾値（ラジアン）
 SENSITIVITY = 0.4           # ピクセル→theta変換感度
 STEERING_SCALE_FACTOR = 30  # ステアリング補正のスケール
@@ -157,7 +156,6 @@ def main(record_sensor_data=False, save_camera_video=False):
     
     # Time-based acceleration tracking
     straight_line_start_time = None
-    acceleration_duration = 1.0  # 1 second to reach MAX_POWER
     
     time.sleep(0.5)
     et.set_motor_relative_position(left_positon=0, right_position=0)
@@ -190,8 +188,7 @@ def main(record_sensor_data=False, save_camera_video=False):
                 base_power=BASE_POWER,
                 max_power=MAX_POWER,
                 curve_power=CURVE_POWER,
-                curve_threshold=CURVE_THRESHOLD,
-                acceleration_duration=ACCELERATION_DURATION
+                curve_threshold=CURVE_THRESHOLD
             )
 
             # Apply PID control to theta for smooth steering correction

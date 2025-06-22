@@ -16,10 +16,8 @@ Functions:
                               sensitivity: float = 0.4) -> float:
         Calculates attitude angle (theta) from pixel offset using simple normalization.
 
-    calculate_adaptive_speed(abs_theta: float, current_time: float,
-                          straight_line_start_time: float, base_power: float = 30,
-                          max_power: float = 50, curve_power: float = 20,
-                          curve_threshold: float = 0.0524, acceleration_duration: float = 1.0) -> tuple[float, float]:
+    calculate_adaptive_speed(abs_theta: float, base_power: float = 30,
+                          curve_power: float = 20, curve_threshold: float = 0.0524) -> float:
         Calculates adaptive speed based on curve detection and time-based acceleration.
 """
 
@@ -88,94 +86,33 @@ def steer_by_camera(
 
 def calculate_adaptive_speed(
     abs_theta: float,
-    current_time: float,
-    straight_line_start_time: float,
-    base_power: float = 30,
-    max_power: float = 50,
-    curve_power: float = 20,
-    curve_threshold: float = 0.0524,
-    acceleration_duration: float = 1.0
-) -> tuple[float, float]:
+    base_power: float,
+    curve_power: float,
+    curve_threshold: float
+) -> float:
     """
-    Calculate adaptive speed based on curve detection and time-based acceleration.
-    
-    This function implements dynamic speed control that:
-    1. Detects line-off conditions (abs_theta == 0) and uses safe curve power
-    2. Detects curves (abs_theta > curve_threshold) and decelerates to curve power
-    3. Implements time-based acceleration on straight lines from base power to max power
-    
-    Args:
-        abs_theta (float): Absolute value of current attitude angle in radians
-        current_time (float): Current timestamp
-        straight_line_start_time (float): Start time of current straight line (None if not on straight line)
-        base_power (float, optional): Base power for straight lines. Defaults to 30.
-        max_power (float, optional): Maximum power after acceleration. Defaults to 50.
-        curve_power (float, optional): Power for curves and line-off conditions. Defaults to 20.
-        curve_threshold (float, optional): Threshold to detect curves in radians. Defaults to 0.0524 (~3.0 degrees).
-        acceleration_duration (float, optional): Time to accelerate from base to max power. Defaults to 1.0.
-    
-    Returns:
-        tuple[float, float]: A tuple containing:
-            - current_power (float): Calculated power value
-            - new_straight_line_start_time (float): Updated straight line start time (None if not on straight line)
+    カーブ量(abs_theta)に応じて速度を調整する。
+    直線時はbase_power、カーブ時はcurve_power。
+    呼び出し元から渡された引数を必ず使う。
     """
-    
-    # Determine speed based on curve detection and time-based acceleration
     if abs_theta == 0:
-        # Exception: theta is zero, likely off the line - use CURVE_POWER for safety
-        return curve_power, None
+        return curve_power
     elif abs_theta > curve_threshold:
-        # In a curve: rapid deceleration to CURVE_POWER
-        return curve_power, None
+        return curve_power
     else:
-        # On straight line: time-based acceleration
-        if straight_line_start_time is None:
-            # Start of straight line - initialize timer
-            return base_power, current_time
-        else:
-            # Calculate elapsed time on straight line
-            elapsed_time = current_time - straight_line_start_time
-            
-            if elapsed_time >= acceleration_duration:
-                # Full acceleration after specified duration
-                return max_power, straight_line_start_time
-            else:
-                # Linear acceleration from base_power to max_power over acceleration_duration
-                acceleration_factor = elapsed_time / acceleration_duration
-                current_power = base_power + (max_power - base_power) * acceleration_factor
-                return current_power, straight_line_start_time
+        return base_power
 
 def calculate_theta_from_pixels(
     offset_pixels: float,
-    image_width: int = 640,
-    sensitivity: float = 0.4
+    image_width: int,
+    sensitivity: float
 ) -> float:
     """
     Calculate attitude angle (theta) from pixel offset using simple normalization.
-    
-    This function converts the pixel-based offset detected in the camera image
-    to an attitude angle using a simple normalization approach. The pixel offset
-    is normalized to a range of [-1, 1] and then scaled by a sensitivity factor.
-    
-    Args:
-        offset_pixels (float): Lateral offset in pixels from image center
-        image_width (int, optional): Camera image width in pixels. Defaults to 640.
-        sensitivity (float, optional): Sensitivity factor for angle conversion. Defaults to 0.4.
-    
-    Returns:
-        float: Attitude angle (theta) in radians. Positive values indicate rightward deviation,
-               negative values indicate leftward deviation.
-    
-    Note:
-        The sensitivity factor determines the maximum angle range. With sensitivity=0.4,
-        the maximum angle is ±0.4 radians (≈±22.9 degrees).
+    必ず呼び出し元から渡されたimage_width, sensitivityを使う。
     """
-    # Calculate image center and maximum possible offset
-    image_center_x = image_width / 2  # Half of image width
-    max_offset = image_center_x  # Maximum possible offset
-    
-    # Normalize offset_pixels to range [-1, 1] and convert to radians
-    normalized_offset = offset_pixels / max_offset  # Range: [-1, 1]
-    theta = normalized_offset * sensitivity  # Apply sensitivity scaling
-    
+    image_center_x = image_width / 2
+    max_offset = image_center_x
+    normalized_offset = offset_pixels / max_offset
+    theta = normalized_offset * sensitivity
     return theta
