@@ -16,7 +16,7 @@ PID Tuning Parameters:
 """
 
 # ==== ユーザー調整用パラメータ（ここだけ編集すればOK） ====
-ROI_OPENCV = (0, 320, 640, 480)  # 必要に応じて変更
+ROI_OPENCV = (150, 300, 490, 400)  # 必要に応じて変更
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
 BASE_POWER = 15         # 直進時の基本パワー
