@@ -38,9 +38,15 @@ async def main():
             else:
                 left_cmd, right_cmd = 50, 0
                 left_disp, right_disp = "ON ", "OFF"
-            et.set_motor_forward_power(left_power=left_cmd, right_power=right_cmd)
-            print(f" {i+1:2d}回 | {left_disp:^7} | {right_disp:^7} | L={left_cmd:2d}, R={right_cmd:2d}")
-            await asyncio.sleep(1.0)
+            # 1秒間、30msごとに同じ命令を送信
+            t_start = asyncio.get_event_loop().time()
+            count = 0
+            while asyncio.get_event_loop().time() - t_start < 1.0:
+                et.set_motor_forward_power(left_power=left_cmd, right_power=right_cmd)
+                if count == 0:
+                    print(f" {i+1:2d}回 | {left_disp:^7} | {right_disp:^7} | L={left_cmd:2d}, R={right_cmd:2d}")
+                count += 1
+                await asyncio.sleep(0.03)  # 30msごと
         et.set_motor_forward_power(left_power=0, right_power=0)
         print("✓ テスト完了: 両モーター停止")
     except KeyboardInterrupt:
