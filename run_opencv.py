@@ -19,9 +19,9 @@ PID Tuning Parameters:
 ROI_OPENCV = (150, 300, 490, 400)  # 必要に応じて変更
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
-BASE_POWER = 30         # 基本パワー（直線時以外、カーブ時の基準）
-STRAIGHT_POWER = 50     # 直線時専用のパワー（カーブでなく黒ライン上のみ）
-CURVE_POWER = 20        # カーブ時の最低パワー（必要に応じて使用）
+BASE_POWER = 45         # 基本パワー（直線時以外、カーブ時の基準）
+STRAIGHT_POWER = 75     # 直線時専用のパワー（カーブでなく黒ライン上のみ）
+CURVE_POWER = 30        # カーブ時の最低パワー（必要に応じて使用）
 CURVE_THRESHOLD_DEG = 3.0      # カーブ判定閾値（度数法, 例: 3度）
 SENSITIVITY = 0.4           # ピクセル→theta変換感度
 MAX_STEERING_POWER_DIFF = 20   # 最大旋回時の左右パワー差（%）
