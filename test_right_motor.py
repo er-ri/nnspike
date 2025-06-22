@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Right Motor Only Test Program (Synchronous Version)
+Right/Left Motor Alternating Test Program (Synchronous Version)
 
-このスクリプトは右モーターのみを一定時間動かすテストを行います。
+このスクリプトは右・左モーターを1秒ごとに交互に動かすテストを行います。
 """
 import time
 from nnspike.unit import ETRobot
 
 def main():
-    print("=== Right Motor Only Test (Sync Version) ===")
-    print("右モーターのみを5秒間動かします")
+    print("=== Right/Left Motor Alternating Test (Sync Version) ===")
+    print("右・左モーターを1秒ごとに交互に動かします（合計10秒）")
     print()
     
     et = None
@@ -28,11 +28,16 @@ def main():
             time.sleep(2.0)
     
     try:
-        print("右モーターを50%パワーで5秒間動かします...")
-        et.set_motor_forward_power(left_power=0, right_power=50)
-        time.sleep(5.0)
+        for i in range(10):
+            if i % 2 == 0:
+                print(f"{i+1}秒目: 右モーターON, 左モーターOFF")
+                et.set_motor_forward_power(left_power=0, right_power=50)
+            else:
+                print(f"{i+1}秒目: 左モーターON, 右モーターOFF")
+                et.set_motor_forward_power(left_power=50, right_power=0)
+            time.sleep(1.0)
         et.set_motor_forward_power(left_power=0, right_power=0)
-        print("✓ テスト完了: 右モーター停止")
+        print("✓ テスト完了: 両モーター停止")
     except KeyboardInterrupt:
         print("\nTest stopped by user")
     except Exception as e:
