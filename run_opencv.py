@@ -20,7 +20,6 @@ ROI_OPENCV = (0, 320, 640, 480)  # 必要に応じて変更
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
 BASE_POWER = 50         # 直進時の基本パワー
-MAX_POWER = 80          # 直進時の最大パワー
 CURVE_POWER = 20        # カーブ時のパワー
 CURVE_THRESHOLD = 0.0524    # カーブ判定閾値（ラジアン）
 SENSITIVITY = 0.4           # ピクセル→theta変換感度
@@ -179,14 +178,10 @@ def main(record_sensor_data=False, save_camera_video=False):
             )
             
             # Dynamic speed control using external function
-            current_time = time.time()
             abs_theta = abs(theta)
-            current_base_power, straight_line_start_time = calculate_adaptive_speed(
+            current_base_power = calculate_adaptive_speed(
                 abs_theta=abs_theta,
-                current_time=current_time,
-                straight_line_start_time=straight_line_start_time,
                 base_power=BASE_POWER,
-                max_power=MAX_POWER,
                 curve_power=CURVE_POWER,
                 curve_threshold=CURVE_THRESHOLD
             )
@@ -231,7 +226,6 @@ def main(record_sensor_data=False, save_camera_video=False):
                 "current_power": f"{round(current_base_power, 1)}%",
                 "curve_detected": ("OFF_LINE" if theta == 0 else 
                                  "YES" if abs_theta > CURVE_THRESHOLD else "NO"),
-                "acceleration_time": f"{(round(current_time - straight_line_start_time, 1) if straight_line_start_time is not None else 0.0)}s",
                 "left_power": f"{left_power}%",
                 "right_power": f"{right_power}%",
                 "color_sensor": color_data,
