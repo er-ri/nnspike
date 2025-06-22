@@ -248,7 +248,14 @@ def main(record_sensor_data=False, save_camera_video=False):
 
             # Send camera capture for remote monitoring
             try:
-                ret, buffer = cv2.imencode(".png", gray)
+                # 変更前: PNG形式でエンコード
+                # ret, buffer = cv2.imencode(".png", gray)
+                # img_encoded = buffer.tobytes()
+                # data = pickle.dumps(img_encoded)
+                # client_socket.sendall(struct.pack("L", len(data)) + data)
+
+                # 変更後: JPG形式（品質90）でエンコード
+                ret, buffer = cv2.imencode(".jpg", gray, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
                 img_encoded = buffer.tobytes()
                 data = pickle.dumps(img_encoded)
                 client_socket.sendall(struct.pack("L", len(data)) + data)
