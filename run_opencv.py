@@ -24,8 +24,9 @@ CURVE_POWER = 20        # カーブ時のパワー
 CURVE_THRESHOLD_DEG = 3.0      # カーブ判定閾値（度数法, 例: 3度）
 SENSITIVITY = 0.4           # ピクセル→theta変換感度
 STEERING_SCALE_FACTOR = 30  # ステアリング補正のスケール
-BLACK_LINE_REFLECTED_THRESHOLD = 30  # 黒ライン判定の反射閾値
-BLACK_LINE_COLOR_THRESHOLD = 120      # 黒ライン判定のcolor.color閾値
+# 黒ライン判定の閾値（より安全側に余裕を持たせる）
+BLACK_LINE_REFLECTED_THRESHOLD = 40  # 反射光R: 40以下なら黒
+BLACK_LINE_COLOR_THRESHOLD = 150     # color: 150以下なら黒
 # ================================================
 
 import cv2
@@ -126,15 +127,14 @@ def initialize_system(record_sensor_data, save_camera_video):
 
     # --- アームを1秒上げて1秒下げる処理を追加（test_color_only.py参考） ---
     try:
-        print("初期処理: アームを1秒上げて1秒下げます...")
-        et.move_arm(1)  # 1 = 上げる
+        print("Arm up...")
+        et.move_arm(1)  # 1 = up
         time.sleep(1.0)
-        print("✓ アームを上げました。次に下げます...")
-        et.move_arm(0)  # 0 = 下げる
+        print("Arm down...")
+        et.move_arm(0)  # 0 = down
         time.sleep(1.0)
-        print("✓ アームを下げました")
     except Exception as e:
-        print(f"アーム動作エラー: {e}")
+        print(f"Arm move error: {e}")
 
     # 初期センサーテストを関数で実行
     run_initial_sensor_test(et)
@@ -203,7 +203,11 @@ def main(record_sensor_data=False, save_camera_video=False):
             if spike_status and spike_status.sensors and spike_status.sensors.color:
                 color = spike_status.sensors.color
                 color_data = f"R:{color.reflected} A:{color.ambient} C:{color.color}"
-                ON_BLACK_LINE = color.color is not None and color.color <= BLACK_LINE_COLOR_THRESHOLD
+                # より安全側に余裕を持たせた黒ライン判定
+                ON_BLACK_LINE = (
+                    color.reflected is not None and color.reflected <= BLACK_LINE_REFLECTED_THRESHOLD and
+                    color.color is not None and color.color <= BLACK_LINE_COLOR_THRESHOLD
+                )
             else:
                 color_data = "R:N/A A:N/A C:N/A"
                 ON_BLACK_LINE = False
