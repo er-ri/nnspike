@@ -52,10 +52,10 @@ def main():
             # テスト前にアームを上げてから下げる
             print("テスト前にアームを上げてから下げます...")
             et.move_arm(1)  # 1 = 上げる
-            time.sleep(3.0)
+            time.sleep(2.0)
             print("✓ アームを上げました。次に下げます...")
             et.move_arm(0)  # 0 = 下げる
-            time.sleep(3.0)
+            time.sleep(2.0)
             print("✓ アームを下げました")
             break
         except Exception as e:
