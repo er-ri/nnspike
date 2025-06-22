@@ -25,7 +25,7 @@ CURVE_THRESHOLD_DEG = 3.0      # カーブ判定閾値（度数法, 例: 3度）
 SENSITIVITY = 0.4           # ピクセル→theta変換感度
 STEERING_SCALE_FACTOR = 30  # ステアリング補正のスケール
 BLACK_LINE_REFLECTED_THRESHOLD = 30  # 黒ライン判定の反射閾値
-BLACK_LINE_COLOR_THRESHOLD = 90      # 黒ライン判定のcolor.color閾値
+BLACK_LINE_COLOR_THRESHOLD = 120      # 黒ライン判定のcolor.color閾値
 # ================================================
 
 import cv2
