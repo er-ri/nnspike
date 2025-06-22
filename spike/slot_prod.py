@@ -259,7 +259,6 @@ def main_loop():
     """メインループ - センサーデータ送信とコマンド受信を順次処理"""
     start_time = time.time()
     # ループ外で一度だけ取得できるものはここで取得
-    send_sensor_data = lego_spike.send_sensor_data
     read_command = lego_spike.read_command
     execute_command = lego_spike.execute_command
 
@@ -274,16 +273,17 @@ def main_loop():
                     lego_spike.stop_all()
                     break
             # センサーデータ送信処理（毎ループ送信、30ms間隔）
-            try:
-                send_sensor_data()
-            except:
-                pass
+            # try:
+            #     send_sensor_data()
+            #     pass
+            # except:
+            #     pass
             # アイドルタイムチェック
             if time.ticks_ms() - lego_spike.command_counter > MAX_IDLE_TIME:
                 lego_spike.stop_requested = True
                 break
-            # 動作頻度を30msに統一
-            time.sleep(0.03)  # 30ms
+            # 動作頻度を10msに統一
+            time.sleep(0.01)  # 10ms
         except:
             # エラー時は停止フラグのみ設定し、重い処理やprintはしない
             # lego_spike.stop_requested = True
