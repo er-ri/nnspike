@@ -123,7 +123,7 @@ def initialize_system(record_sensor_data, save_camera_video):
         setpoint=0,
         output_limits=(-0.25, 0.25),  # Direct radian limits for steering correction
     )
-    control_calc = ControlCalculator(
+    calc = ControlCalculator(
         # steer_by_camera(frame):
         #   入力画像からラインの重心座標(mx, my)、オフセットピクセル、最大輪郭を検出
         ROI_OPENCV,
@@ -156,7 +156,7 @@ def initialize_system(record_sensor_data, save_camera_video):
     # 初期センサーテストを関数で実行
     run_initial_sensor_test(et)
 
-    return et, pid, control_calc, sensor_recorder, video_writer, video_filename, client_socket
+    return et, pid, calc, sensor_recorder, video_writer, video_filename, client_socket
 
 
 def send_stop_signal(et, duration=5.0):
@@ -173,7 +173,7 @@ def send_stop_signal(et, duration=5.0):
 
 
 def main(record_sensor_data=False, save_camera_video=False):
-    et, pid, control_calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
+    et, pid, calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
         record_sensor_data, save_camera_video
     )
     time.sleep(0.5)
@@ -191,8 +191,8 @@ def main(record_sensor_data=False, save_camera_video=False):
                 video_writer.write(frame)
             
             # steer_by_camera/θ計算をインスタンスメソッドで
-            mx, my, offset_pixels, max_contour = control_calc.steer_by_camera(frame)
-            theta = control_calc.calculate_theta_from_pixels(offset_pixels)
+            mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
+            theta = calc.calculate_theta_from_pixels(offset_pixels)
             # spike_statusの取得を最初にまとめる
             spike_status = et.get_spike_status()
             # カラーセンサー値取得・データ生成・黒ライン判定
@@ -208,7 +208,7 @@ def main(record_sensor_data=False, save_camera_video=False):
                 ON_BLACK_LINE = False
             # Dynamic speed control using ControlCalculator
             abs_theta = abs(theta)
-            current_base_power = control_calc.calculate_adaptive_speed(abs_theta, ON_BLACK_LINE)
+            current_base_power = calc.calculate_adaptive_speed(abs_theta, ON_BLACK_LINE)
 
             # Apply PID control to theta for smooth steering correction
             pid_corrected_theta = pid.update(theta)
