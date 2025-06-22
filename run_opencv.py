@@ -24,7 +24,8 @@ STRAIGHT_POWER = 50     # 直線時専用のパワー（カーブでなく黒ラ
 CURVE_POWER = 20        # カーブ時の最低パワー（必要に応じて使用）
 CURVE_THRESHOLD_DEG = 3.0      # カーブ判定閾値（度数法, 例: 3度）
 SENSITIVITY = 0.4           # ピクセル→theta変換感度
-STEERING_SCALE_FACTOR = 30  # ステアリング補正のスケール
+MAX_STEERING_POWER_DIFF = 40   # 最大旋回時の左右パワー差（%）
+MAX_STEERING_THETA_DEG = 30    # 最大旋回角（度数法, 例: 30度）
 # 黒ライン判定の閾値（より安全側に余裕を持たせる）
 BLACK_LINE_REFLECTED_THRESHOLD = 40  # 反射光R: 40以下なら黒
 BLACK_LINE_COLOR_THRESHOLD = 150     # color: 150以下なら黒
@@ -209,9 +210,9 @@ def main(record_sensor_data=False, save_camera_video=False):
 
             # Apply PID control to theta for smooth steering correction
             pid_corrected_theta = pid.update(theta)
-            # スケールファクターをパワーに比例させる
-            dynamic_steering_scale = STEERING_SCALE_FACTOR * (current_base_power / BASE_POWER)
-            power_adjustment = int(pid_corrected_theta * dynamic_steering_scale)
+            # 最大旋回時のパワー差を直感的に指定
+            max_theta = math.radians(MAX_STEERING_THETA_DEG)
+            power_adjustment = int((pid_corrected_theta / max_theta) * MAX_STEERING_POWER_DIFF)
             left_power = int(current_base_power - power_adjustment)
             right_power = int(current_base_power + power_adjustment)
 
