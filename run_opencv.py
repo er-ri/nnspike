@@ -19,8 +19,8 @@ PID Tuning Parameters:
 ROI_OPENCV = (150, 300, 490, 400)  # 必要に応じて変更
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
-BASE_POWER = 15         # 直進時の基本パワー
-CURVE_POWER = 15        # カーブ時のパワー
+BASE_POWER = 30         # 直進時の基本パワー
+CURVE_POWER = 20        # カーブ時のパワー
 CURVE_THRESHOLD_DEG = 3.0      # カーブ判定閾値（度数法, 例: 3度）
 SENSITIVITY = 0.4           # ピクセル→theta変換感度
 STEERING_SCALE_FACTOR = 30  # ステアリング補正のスケール
@@ -123,6 +123,18 @@ def initialize_system(record_sensor_data, save_camera_video):
         output_limits=(-0.25, 0.25),  # Direct radian limits for steering correction
     )
     print("メインループで直接センサー値を取得します")
+
+    # --- アームを1秒上げて1秒下げる処理を追加（test_color_only.py参考） ---
+    try:
+        print("初期処理: アームを1秒上げて1秒下げます...")
+        et.move_arm(1)  # 1 = 上げる
+        time.sleep(1.0)
+        print("✓ アームを上げました。次に下げます...")
+        et.move_arm(0)  # 0 = 下げる
+        time.sleep(1.0)
+        print("✓ アームを下げました")
+    except Exception as e:
+        print(f"アーム動作エラー: {e}")
 
     # 初期センサーテストを関数で実行
     run_initial_sensor_test(et)
@@ -261,7 +273,7 @@ def main(record_sensor_data=False, save_camera_video=False):
             # ループ終了時に30ms間隔となるようsleep
             elapsed = time.time() - loop_start
             sleep_time = max(0, 0.03 - elapsed)
-            print(f"[DEBUG] loop_elapsed: {elapsed*1000:.2f} ms, sleep: {sleep_time*1000:.2f} ms")
+            #print(f"[DEBUG] loop_elapsed: {elapsed*1000:.2f} ms, sleep: {sleep_time*1000:.2f} ms")
             time.sleep(sleep_time)
 
     except KeyboardInterrupt:
