@@ -197,12 +197,13 @@ def main(record_sensor_data=False, save_camera_video=False):
                 ON_BLACK_LINE = False
 
             # ステアリング・速度補正
-            if ON_BLACK_LINE:
-                power_adjustment = int(pid_corrected_theta * STEERING_SCALE_FACTOR)
-                left_power = int(current_base_power - power_adjustment)
-                right_power = int(current_base_power + power_adjustment)
-            else:
-                left_power = right_power = int(BASE_POWER * 0.5)
+            # if ON_BLACK_LINE:
+            #     left_power = right_power = int(current_base_power)
+            # else:
+            #     left_power = right_power = int(BASE_POWER * 0.5)
+
+            # --- 一時的に速度補正を無効化（常にBASE_POWERで直進） ---
+            # left_power = right_power = int(BASE_POWER)
 
             et.set_motor_forward_power(
                 left_power=left_power,
