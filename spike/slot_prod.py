@@ -1,12 +1,8 @@
 # LEGO type:standard slot:2 autostart
 """Main controlling program for LEGO Spike Prime Hub"""
-import gc
 import hub  # type: ignore
 import time
 import ujson  # type: ignore
-
-# Trigger a garbage collection cycle at startup
-gc.collect()
 
 MAX_IDLE_TIME = 120000  # Maximum idle time, unit: millisecond
 MAX_RUN_TIME = 600  # Maximum running time, unit: second
@@ -295,9 +291,6 @@ def main_loop():
             pass
         
 
-# Trigger a garbage collection cycle
-gc.collect()
-
 print("Starting LEGO Prime Hub..")
 
 try:
@@ -308,4 +301,3 @@ finally:
         lego_spike.stop_all(repeat=5, wait=0.1)
     except:
         pass
-    gc.collect()
