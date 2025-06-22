@@ -227,6 +227,7 @@ def main(record_sensor_data=False, save_camera_video=False):
                 "current_power": f"{round(current_base_power, 1)}%",
                 "curve_detected": ("OFF_LINE" if theta == 0 else 
                                  "YES" if abs_theta > math.radians(CURVE_THRESHOLD_DEG) else "NO"),
+                "on_black_line": "YES" if ON_BLACK_LINE else "NO",
                 "left_power": f"{left_power}%",
                 "right_power": f"{right_power}%",
                 "color_sensor": color_data,

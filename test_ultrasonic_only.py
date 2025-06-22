@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 """
-Ultrasonic Sensor Only Test Program (Asynchronous Version)
+Ultrasonic Sensor Only Test Program (Synchronous Version)
 
-This script tests ONLY the ultrasonic sensor functionality using async/await.
+This script tests ONLY the ultrasonic sensor functionality.
 No arm movement - just sensor readings.
 """
 import time
-import asyncio
-import argparse
 from nnspike.unit import ETRobot
 
 
-async def display_spike_status_async(et, interval=0.02, duration=20.0):
-    """Asynchronously display spike status at regular intervals for specified duration"""
+def display_spike_status(et, interval=0.02, duration=20.0):
+    """Display spike status at regular intervals for specified duration"""
     status_count = 0
     start_time = time.time()
     
@@ -24,7 +22,6 @@ async def display_spike_status_async(et, interval=0.02, duration=20.0):
             
             if spike_status and spike_status.sensors and spike_status.sensors.distance is not None:
                 distance_raw = spike_status.sensors.distance
-                # The raw value appears to be in cm, not mm as originally assumed
                 distance_cm = distance_raw  # Raw value is actually in cm
                 distance_mm = distance_raw * 10.0  # Convert cm to mm
                 print(f"[{elapsed:.3f}s] Status #{status_count}: Distance={distance_cm}cm ({distance_mm}mm)")
@@ -39,14 +36,14 @@ async def display_spike_status_async(et, interval=0.02, duration=20.0):
         next_time = start_time + (status_count * interval)
         current_time = time.time()
         sleep_time = max(0, next_time - current_time)
-        await asyncio.sleep(sleep_time)
+        time.sleep(sleep_time)
 
 
-async def main_async():
-    """Asynchronous main function"""
-    print("=== Ultrasonic Sensor Only Test (Async Version) ===")
+def main():
+    """Synchronous main function"""
+    print("=== Ultrasonic Sensor Only Test (Sync Version) ===")
     print("This program ONLY reads ultrasonic sensor values via spike_status")
-    print("Continuous reading for 20 seconds with async processing")
+    print("Continuous reading for 20 seconds")
     print("Displaying values from spike_status every 0.02 seconds (20ms)")
     print()
     
@@ -56,7 +53,7 @@ async def main_async():
         try:
             print(f"Attempting to connect to robot (attempt {attempt + 1}/3)...")
             et = ETRobot()
-            await asyncio.sleep(1.0)  # Async sleep
+            time.sleep(1.0)
             print("✓ Robot initialized")
             break
         except Exception as e:
@@ -64,23 +61,17 @@ async def main_async():
             if attempt == 2:
                 print("Failed to connect after 3 attempts. Exiting.")
                 return
-            await asyncio.sleep(2.0)  # Async sleep
+            time.sleep(2.0)
     
-    print("Starting 20-second async continuous reading from spike_status...")
+    print("Starting 20-second continuous reading from spike_status...")
     print("Status will be displayed every 0.02 seconds (20ms)")
     print()
     
     try:
-        # Record start time
         start_time = time.time()
-        # Only run spike status display task (no separate sensor reading)
-        status_task = asyncio.create_task(display_spike_status_async(et, interval=0.02, duration=20.0))
-        
-        # Wait for the status task to complete
-        await status_task
-        
+        display_spike_status(et, interval=0.02, duration=20.0)
         elapsed_time = time.time() - start_time
-        print(f"\n✓ Async test completed in {elapsed_time:.3f} seconds")
+        print(f"\n✓ Test completed in {elapsed_time:.3f} seconds")
         print(f"✓ Used spike_status for ultrasonic sensor reading")
         print(f"✓ Interval: 0.02 seconds (20ms)")
         
@@ -101,11 +92,6 @@ async def main_async():
                 print(f"Error sending STOP command: {e}")
             et.stop()
         print("Program finished")
-
-
-def main():
-    """Synchronous wrapper for async main"""
-    asyncio.run(main_async())
 
 
 if __name__ == "__main__":

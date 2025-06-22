@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 """
-Color Sensor Only Test Program (Asynchronous Version)
+Color Sensor Only Test Program (Synchronous Version)
 
-This script tests ONLY the color sensor functionality using async/await.
+This script tests ONLY the color sensor functionality.
 No arm movement - just sensor readings.
 """
 import time
-import asyncio
-import argparse
 from nnspike.unit import ETRobot
 
 
-async def display_spike_status_async(et, interval=0.02, duration=5.0):
-    """Asynchronously display spike status at regular intervals for specified duration"""
+def display_spike_status(et, interval=0.02, duration=5.0):
+    """Display spike status at regular intervals for specified duration"""
     status_count = 0
     start_time = time.time()
     
@@ -35,14 +33,14 @@ async def display_spike_status_async(et, interval=0.02, duration=5.0):
         next_time = start_time + (status_count * interval)
         current_time = time.time()
         sleep_time = max(0, next_time - current_time)
-        await asyncio.sleep(sleep_time)
+        time.sleep(sleep_time)
 
 
-async def main_async():
-    """Asynchronous main function"""
-    print("=== Color Sensor Only Test (Async Version) ===")
-    print("This program ONLY reads color sensor values asynchronously")
-    print("Continuous reading for 5 seconds with async processing")
+def main():
+    """Synchronous main function"""
+    print("=== Color Sensor Only Test (Sync Version) ===")
+    print("This program ONLY reads color sensor values synchronously")
+    print("Continuous reading for 5 seconds")
     print("Display interval: 20ms (matches Spike sensor broadcast interval)")
     print("Arm will be moved up then down before test starts")
     print()
@@ -53,15 +51,15 @@ async def main_async():
         try:
             print(f"Attempting to connect to robot (attempt {attempt + 1}/3)...")
             et = ETRobot()
-            await asyncio.sleep(1.0)  # Async sleep
+            time.sleep(1.0)
             print("✓ Robot initialized")
-              # Move arm up and then down before starting the test
+            # Move arm up and then down before starting the test
             print("Moving arm up and then down before test...")
             et.move_arm(1)  # 1 = move up
-            await asyncio.sleep(1.0)  # Wait 1 second
+            time.sleep(1.0)  # Wait 1 second
             print("✓ Arm moved up, now moving down...")
             et.move_arm(0)  # 0 = move down
-            await asyncio.sleep(1.0)  # Wait 1 second
+            time.sleep(1.0)  # Wait 1 second
             print("✓ Arm moved down")
             break
         except Exception as e:
@@ -69,20 +67,16 @@ async def main_async():
             if attempt == 2:
                 print("Failed to connect after 3 attempts. Exiting.")
                 return
-            await asyncio.sleep(2.0)  # Async sleep      print("Starting 5-second async continuous reading from spike_status...")
+            time.sleep(2.0)
+    print("Starting 5-second continuous reading from spike_status...")
     print("Status will be displayed every 0.02 seconds (20ms)")
     print()
     
     try:
-        # Record start time
-        start_time = time.time()        # Only run spike status display task (no separate sensor reading)
-        status_task = asyncio.create_task(display_spike_status_async(et, interval=0.02, duration=5.0))
-        
-        # Wait for the status task to complete
-        await status_task
-        
+        start_time = time.time()
+        display_spike_status(et, interval=0.02, duration=5.0)
         elapsed_time = time.time() - start_time
-        print(f"\n✓ Async test completed in {elapsed_time:.3f} seconds")
+        print(f"\n✓ Test completed in {elapsed_time:.3f} seconds")
         print(f"✓ Used spike_status for color sensor reading")
         print(f"✓ Interval: 0.02 seconds (20ms)")
         
@@ -94,11 +88,6 @@ async def main_async():
         if et:
             et.stop()
         print("Program finished")
-
-
-def main():
-    """Synchronous wrapper for async main"""
-    asyncio.run(main_async())
 
 
 if __name__ == "__main__":
