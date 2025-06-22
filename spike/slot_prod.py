@@ -5,6 +5,9 @@ import hub  # type: ignore
 import time
 import ujson  # type: ignore
 
+# Trigger a garbage collection cycle at startup
+gc.collect()
+
 MAX_IDLE_TIME = 120000  # Maximum idle time, unit: millisecond
 MAX_RUN_TIME = 600  # Maximum running time, unit: second
 
@@ -43,11 +46,6 @@ class LegoSpike(object):
     def __init__(self) -> None:
         # 停止フラグを追加
         self.stop_requested = False
-        self.emergency_stop = False
-        
-        # 電源ボタンコールバックの設定
-        hub.button.center.callback(self._emergency_stop_callback)
-        
         # Initialization
         hub.display.show(
             hub.Image.ALL_CLOCKS, delay=400, clear=True, wait=False, loop=True, fade=0
@@ -108,29 +106,7 @@ class LegoSpike(object):
         elif command_id == COMMAND_SET_MOTOR_RELATIVE_POSITION_ID:
             self._set_motor_relative_position(command_parameter1, command_parameter2)
         elif command_id == COMMAND_STOP_MOTOR_ID:
-            # 停止フラグを設定してすべてのモーターを停止
-            self.stop_requested = True
-            self.emergency_stop = True
-            
-            # 強制的にモーター停止を実行（複数回試行）
-            for i in range(5):
-                try:
-                    self.motor_left.brake()
-                    self.motor_right.brake()
-                    self.motor_arm.brake()
-                    self.motor_left.stop()
-                    self.motor_right.stop()
-                    self.motor_arm.stop()
-                    # 短い待機を入れて確実に停止
-                    time.sleep(0.01)
-                except:
-                    pass
-            
-            # ディスプレイに停止状態を表示
-            try:
-                hub.display.show(hub.Image.ASLEEP)
-            except:
-                pass
+            self.stop_all()
         elif command_id == COMMAND_MOVE_ARM_ID:
             self._move_arm(command_parameter1)
 
@@ -141,22 +117,7 @@ class LegoSpike(object):
             left_speed: Left wheel speed(0~100)
             right_speed: Right wheel speed(0~100)
         """
-        # 停止要求チェック - 新しいモーターコマンドを無視し、即座にモーター出力値を0に
-        if self.stop_requested or self.emergency_stop:
-            # 強制的にモーター出力を0にして停止
-            try:
-                self.motor_left.run_at_speed(0)
-                self.motor_right.run_at_speed(0)
-                self.motor_left.brake()
-                self.motor_right.brake()
-                self.motor_left.stop()
-                self.motor_right.stop()
-            except:
-                pass
-            return
-            
         self.command_counter = time.ticks_ms()
-
         self.motor_left.run_at_speed(-int(left_speed))
         self.motor_right.run_at_speed(int(right_speed))
 
@@ -174,39 +135,28 @@ class LegoSpike(object):
         Args:
             action: Action to perform (0 = move down, 1 = move up)
         """
-        # 停止要求チェック - 新しいアームコマンドを無視し、即座にアーム出力値を0に
-        if self.stop_requested or self.emergency_stop:
-            # 強制的にアーム出力を0にして停止
-            try:
-                self.motor_arm.run_at_speed(0)
-                self.motor_arm.brake()
-                self.motor_arm.stop()
-            except:
-                pass
-            return
-            
         self.command_counter = time.ticks_ms()
-
         if action == 0:  # Move down
-            # Move arm down at constant speed
             self.motor_arm.run_at_speed(50)
         elif action == 1:  # Move up
-            # Move arm up at constant speed
             self.motor_arm.run_at_speed(-50)
 
     def get_sensor_data(self):
         """モーターA/B・カラー・超音波センサーのみ取得し、他はコメントアウト"""
         try:
+            # self.motor_left, self.motor_rightは__init__で取得済みインスタンスを必ず利用
+            motor_left = self.motor_left
+            motor_right = self.motor_right
             # モーター情報取得
-            motor_left_speed = self.motor_left.speed() if hasattr(self.motor_left, 'speed') else 0
-            motor_left_position = self.motor_left.absolute_position() if hasattr(self.motor_left, 'absolute_position') else 0
-            motor_left_relative = self.motor_left.relative_position() if hasattr(self.motor_left, 'relative_position') else 0
-            motor_left_power = self.motor_left.power() if hasattr(self.motor_left, 'power') else 0
+            motor_left_speed = motor_left.speed() if hasattr(motor_left, 'speed') else 0
+            motor_left_position = motor_left.absolute_position() if hasattr(motor_left, 'absolute_position') else 0
+            motor_left_relative = motor_left.relative_position() if hasattr(motor_left, 'relative_position') else 0
+            motor_left_power = motor_left.power() if hasattr(motor_left, 'power') else 0
             
-            motor_right_speed = self.motor_right.speed() if hasattr(self.motor_right, 'speed') else 0
-            motor_right_position = self.motor_right.absolute_position() if hasattr(self.motor_right, 'absolute_position') else 0
-            motor_right_relative = self.motor_right.relative_position() if hasattr(self.motor_right, 'relative_position') else 0
-            motor_right_power = self.motor_right.power() if hasattr(self.motor_right, 'power') else 0
+            motor_right_speed = motor_right.speed() if hasattr(motor_right, 'speed') else 0
+            motor_right_position = motor_right.absolute_position() if hasattr(motor_right, 'absolute_position') else 0
+            motor_right_relative = motor_right.relative_position() if hasattr(motor_right, 'relative_position') else 0
+            motor_right_power = motor_right.power() if hasattr(motor_right, 'power') else 0
             
             # motor_arm, force_sensor, accel, gyro, 位置情報はコメントアウト
             # motor_arm_speed = self.motor_arm.speed() if hasattr(self.motor_arm, 'speed') else 0
@@ -276,124 +226,76 @@ class LegoSpike(object):
 
     def send_sensor_data(self):
         """センサーデータをJSON形式でUSB経由で送信"""
-        try:
-            # USBの接続状態をチェック
-            if not self.usb:
-                raise Exception("USB not available")
-                
-            sensor_data = self.get_sensor_data()
-            json_string = ujson.dumps(sensor_data)
-            
-            # USB経由でJSON文字列を送信
-            bytes_written = self.usb.write(json_string + '\r\n')
-            
-            # 書き込みに失敗した場合は例外を発生
-            if bytes_written is None or bytes_written == 0:
-                raise Exception("USB write failed")
-                
-        except Exception as e:
-            # エラーを再発生させてsensor_broadcasterで検知できるようにする
-            raise e
+        sensor_data = self.get_sensor_data()
+        json_string = ujson.dumps(sensor_data)
+        bytes_written = self.usb.write(json_string + '\r\n')
+        if bytes_written is None or bytes_written == 0:
+            raise Exception("USB write failed")
     
-    def _emergency_stop_callback(self):
-        """センターボタン押下時の緊急停止コールバック"""
-        # 緊急停止フラグを即座に設定
-        self.emergency_stop = True
+    def safe_stop_all_motors(self):
+        """すべてのモーターを安全に停止する（1回のみ、0.01秒待機）"""
+        repeat = 1
+        wait = 0.01
+        for _ in range(repeat):
+            try:
+                self.motor_left.brake()
+                self.motor_right.brake()
+                self.motor_arm.brake()
+                self.motor_left.stop()
+                self.motor_right.stop()
+                self.motor_arm.stop()
+                if wait > 0:
+                    time.sleep(wait)
+            except:
+                pass
+
+    def stop_all(self):
+        """全停止処理（フラグ・モーター・ディスプレイ・音）をまとめて実行"""
         self.stop_requested = True
-        
-        # すべてのモーターを強制停止
-        try:
-            self.motor_left.brake()
-            self.motor_right.brake()
-            self.motor_arm.brake()
-        except:
-            pass
-        
-        # ディスプレイに緊急停止表示
+        self.safe_stop_all_motors()
         try:
             hub.display.show(hub.Image.ASLEEP)
         except:
             pass
-        
-        # 緊急停止確認音
         try:
-            hub.speaker.beep(60, 200)
+            hub.speaker.beep(60, 100)
         except:
             pass
 
 def main_loop():
     """メインループ - センサーデータ送信とコマンド受信を順次処理"""
-    usb_check_counter = 0
-    usb_check_interval = 50  # 50回ループごとにUSB接続をチェック
-    sensor_send_counter = 0
-    sensor_send_interval = 6  # 6回ループごとにセンサーデータ送信（約30ms間隔）
-    
     start_time = time.time()
-    
-    while not lego_spike.stop_requested and not lego_spike.emergency_stop and (time.time() - start_time) < MAX_RUN_TIME:
+    # ループ外で一度だけ取得できるものはここで取得
+    send_sensor_data = lego_spike.send_sensor_data
+    read_command = lego_spike.read_command
+    execute_command = lego_spike.execute_command
+
+    while not lego_spike.stop_requested and (time.time() - start_time) < MAX_RUN_TIME:
         try:
-            # 緊急停止チェック
-            if lego_spike.emergency_stop or lego_spike.stop_requested:
-                break
-              # コマンド受信処理
-            command_id, command_parameter1, command_parameter2 = lego_spike.read_command()
-            if command_id != None:
-                lego_spike.execute_command(
-                    command_id, command_parameter1, command_parameter2
-                )
-                
+            # コマンド受信処理
+            command_id, command_parameter1, command_parameter2 = read_command()
+            if command_id is not None:
+                execute_command(command_id, command_parameter1, command_parameter2)
                 # STOPコマンド受信時は即座に全処理を停止
                 if command_id == COMMAND_STOP_MOTOR_ID:
-                    # 追加の強制停止処理
-                    for i in range(3):
-                        try:
-                            lego_spike.motor_left.brake()
-                            lego_spike.motor_right.brake()
-                            lego_spike.motor_arm.brake()
-                            lego_spike.motor_left.stop()
-                            lego_spike.motor_right.stop()
-                            lego_spike.motor_arm.stop()
-                        except:
-                            pass
-                    lego_spike.stop_requested = True
-                    lego_spike.emergency_stop = True
+                    lego_spike.stop_all()
                     break
-                
-                # 停止信号を受信した場合は即座にループを抜ける
-                if lego_spike.stop_requested or lego_spike.emergency_stop:
-                    break
-            
-            # センサーデータ送信処理（一定間隔で実行）
-            sensor_send_counter += 1
-            if sensor_send_counter >= sensor_send_interval:
-                try:
-                    lego_spike.send_sensor_data()
-                    sensor_send_counter = 0
-                except Exception as e:
-                    # センサーデータ送信エラーは継続
-                    sensor_send_counter = 0
-            
-            # 定期的にUSB接続状態をチェック
-            usb_check_counter += 1
-            if usb_check_counter >= usb_check_interval:
-                if not lego_spike.usb:
-                    lego_spike.stop_requested = True
-                    break
-                usb_check_counter = 0
-
+            # センサーデータ送信処理（毎ループ送信、30ms間隔）
+            try:
+                send_sensor_data()
+            except:
+                pass
             # アイドルタイムチェック
             if time.ticks_ms() - lego_spike.command_counter > MAX_IDLE_TIME:
                 lego_spike.stop_requested = True
                 break
-
-            # 短いスリープで処理負荷を軽減
-            time.sleep(0.005)  # 5ms
-            
-        except Exception as e:
-            # エラー時は停止フラグを設定してループを抜ける
+            # 動作頻度を30msに統一
+            time.sleep(0.03)  # 30ms
+        except:
+            # エラー時は停止フラグのみ設定し、重い処理やprintはしない
             lego_spike.stop_requested = True
             break
-
+        
 
 # Trigger a garbage collection cycle
 gc.collect()
@@ -403,40 +305,9 @@ print("Starting LEGO Prime Hub..")
 try:
     lego_spike = LegoSpike()
     main_loop()
-except KeyboardInterrupt:
-    try:
-        lego_spike.emergency_stop = True
-        lego_spike.stop_requested = True
-        lego_spike.motor_left.brake()
-        lego_spike.motor_right.brake()
-        lego_spike.motor_arm.brake()
-    except:
-        pass
-except Exception as e:
-    try:
-        lego_spike.emergency_stop = True
-        lego_spike.stop_requested = True
-        lego_spike.motor_left.brake()
-        lego_spike.motor_right.brake()
-        lego_spike.motor_arm.brake()
-    except:
-        pass
 finally:
-    # 最終安全装置：強制的にすべてのモーターを複数回停止
-    for attempt in range(5):  # 5回試行して確実に停止
-        try:
-            lego_spike.motor_left.brake()
-            lego_spike.motor_right.brake()
-            lego_spike.motor_arm.brake()
-            lego_spike.motor_left.stop()
-            lego_spike.motor_right.stop()
-            lego_spike.motor_arm.stop()
-            time.sleep(0.1)  # 短い待機
-        except:
-            pass
-
     try:
-        hub.display.show(hub.Image.ASLEEP)
-        hub.speaker.beep(60, 100)  # 終了確認音
+        lego_spike.stop_all(repeat=5, wait=0.1)
     except:
         pass
+    gc.collect()
