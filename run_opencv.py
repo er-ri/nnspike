@@ -124,8 +124,13 @@ def initialize_system(record_sensor_data, save_camera_video):
         output_limits=(-0.25, 0.25),  # Direct radian limits for steering correction
     )
     control_calc = ControlCalculator(
-        ROI_OPENCV, IMAGE_WIDTH, SENSITIVITY,
-        BASE_POWER, CURVE_POWER, STRAIGHT_POWER, math.radians(CURVE_THRESHOLD_DEG)
+        ROI_OPENCV,
+        IMAGE_WIDTH,
+        SENSITIVITY,
+        BASE_POWER,
+        CURVE_POWER,
+        STRAIGHT_POWER,
+        math.radians(CURVE_THRESHOLD_DEG)
     )
     print("メインループで直接センサー値を取得します")
 
