@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Right/Left Motor Alternating Test Program (Synchronous Version)
+Right/Left Motor Alternating Test Program (Async Version)
 
 このスクリプトは右・左モーターを1秒ごとに交互に動かすテストを行います。
 """
-import time
+import asyncio
 from nnspike.unit import ETRobot
 
-def main():
-    print("=== Right/Left Motor Alternating Test (Sync Version) ===")
+async def main():
+    print("=== Right/Left Motor Alternating Test (Async Version) ===")
     print("右・左モーターを1秒ごとに交互に動かします（合計10秒）")
     print()
     
@@ -17,7 +17,7 @@ def main():
         try:
             print(f"Attempting to connect to robot (attempt {attempt + 1}/3)...")
             et = ETRobot()
-            time.sleep(1.0)
+            await asyncio.sleep(1.0)
             print("✓ Robot initialized")
             break
         except Exception as e:
@@ -25,7 +25,7 @@ def main():
             if attempt == 2:
                 print("Failed to connect after 3 attempts. Exiting.")
                 return
-            time.sleep(2.0)
+            await asyncio.sleep(2.0)
     
     try:
         for i in range(10):
@@ -35,7 +35,7 @@ def main():
             else:
                 print(f"{i+1}秒目: 左モーターON, 右モーターOFF")
                 et.set_motor_forward_power(left_power=50, right_power=0)
-            time.sleep(1.0)
+            await asyncio.sleep(1.0)
         et.set_motor_forward_power(left_power=0, right_power=0)
         print("✓ テスト完了: 両モーター停止")
     except KeyboardInterrupt:
@@ -56,4 +56,4 @@ def main():
         print("Program finished")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
