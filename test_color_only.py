@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """
-Color Sensor Only Test Program (Synchronous Version)
+Color Sensor Only Test Program (Asynchronous Version)
 
 This script tests ONLY the color sensor functionality.
 No arm movement - just sensor readings.
 """
 import time
+import asyncio
 from nnspike.unit import ETRobot
 
 
-def display_spike_status(et, interval=0.02, duration=5.0):
-    """Display spike status at regular intervals for specified duration"""
+async def display_spike_status(et, interval=0.03, duration=5.0):
+    """Asynchronously display spike status at regular intervals for specified duration"""
     status_count = 0
     start_time = time.time()
     
@@ -33,15 +34,15 @@ def display_spike_status(et, interval=0.02, duration=5.0):
         next_time = start_time + (status_count * interval)
         current_time = time.time()
         sleep_time = max(0, next_time - current_time)
-        time.sleep(sleep_time)
+        await asyncio.sleep(sleep_time)
 
 
-def main():
-    """Synchronous main function"""
-    print("=== Color Sensor Only Test (Sync Version) ===")
-    print("This program ONLY reads color sensor values synchronously")
+async def main():
+    """Asynchronous main function"""
+    print("=== Color Sensor Only Test (Async Version) ===")
+    print("This program ONLY reads color sensor values asynchronously")
     print("Continuous reading for 5 seconds")
-    print("Display interval: 20ms (matches Spike sensor broadcast interval)")
+    print("Display interval: 30ms (matches Spike sensor broadcast interval)")
     print("Arm will be moved up then down before test starts")
     print()
     
@@ -51,15 +52,15 @@ def main():
         try:
             print(f"Attempting to connect to robot (attempt {attempt + 1}/3)...")
             et = ETRobot()
-            time.sleep(1.0)
+            await asyncio.sleep(1.0)
             print("✓ Robot initialized")
             # Move arm up and then down before starting the test
             print("Moving arm up and then down before test...")
             et.move_arm(1)  # 1 = move up
-            time.sleep(2.0)  # Wait 1 second
+            await asyncio.sleep(2.0)
             print("✓ Arm moved up, now moving down...")
             et.move_arm(0)  # 0 = move down
-            time.sleep(2.0)  # Wait 1 second
+            await asyncio.sleep(2.0)
             print("✓ Arm moved down")
             break
         except Exception as e:
@@ -67,18 +68,18 @@ def main():
             if attempt == 2:
                 print("Failed to connect after 3 attempts. Exiting.")
                 return
-            time.sleep(2.0)
+            await asyncio.sleep(2.0)
     print("Starting 5-second continuous reading from spike_status...")
-    print("Status will be displayed every 0.02 seconds (20ms)")
+    print("Status will be displayed every 0.03 seconds (30ms)")
     print()
     
     try:
         start_time = time.time()
-        display_spike_status(et, interval=0.02, duration=5.0)
+        await display_spike_status(et, interval=0.03, duration=5.0)
         elapsed_time = time.time() - start_time
         print(f"\n✓ Test completed in {elapsed_time:.3f} seconds")
         print(f"✓ Used spike_status for color sensor reading")
-        print(f"✓ Interval: 0.02 seconds (20ms)")
+        print(f"✓ Interval: 0.03 seconds (30ms)")
         
     except KeyboardInterrupt:
         print("\nTest stopped by user")
@@ -91,4 +92,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
