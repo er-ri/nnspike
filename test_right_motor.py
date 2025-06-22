@@ -28,15 +28,19 @@ async def main():
             await asyncio.sleep(2.0)
     
     try:
-        print("両モーターを50で10回動かし、spike_statusで実測速度を取得します")
+        print("右・左モーターを1秒ごとに交互に動かします（合計10秒）")
+        print("  回数 | 左モーター | 右モーター | 指令値 (L, R)")
+        print("------------------------------------------")
         for i in range(10):
-            et.set_motor_forward_power(left_power=50, right_power=50)
-            await asyncio.sleep(0.5)  # 少し待ってから速度取得（応答遅延対策）
-            status = et.get_spike_status()
-            left_speed = status.motors['B'].speed  # B=左
-            right_speed = status.motors['A'].speed # A=右
-            print(f"{i+1}回目: 両モーターON | 指令値: L=50, R=50 | 実測速度: L={left_speed}, R={right_speed}")
-            await asyncio.sleep(2.5)  # 残りの2.5秒
+            if i % 2 == 0:
+                left_cmd, right_cmd = 0, 50
+                left_disp, right_disp = "OFF", "ON "
+            else:
+                left_cmd, right_cmd = 50, 0
+                left_disp, right_disp = "ON ", "OFF"
+            et.set_motor_forward_power(left_power=left_cmd, right_power=right_cmd)
+            print(f" {i+1:2d}回 | {left_disp:^7} | {right_disp:^7} | L={left_cmd:2d}, R={right_cmd:2d}")
+            await asyncio.sleep(1.0)
         et.set_motor_forward_power(left_power=0, right_power=0)
         print("✓ テスト完了: 両モーター停止")
     except KeyboardInterrupt:
