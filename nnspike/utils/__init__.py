@@ -1,8 +1,4 @@
-from .control import (
-    steer_by_camera,
-    calculate_adaptive_speed,
-    calculate_theta_from_pixels,
-)
+from .control import ControlCalculator
 
 from .image import (
     normalize_image,
