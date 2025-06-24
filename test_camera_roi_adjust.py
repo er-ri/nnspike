@@ -1,73 +1,322 @@
 #!/usr/bin/env python3
 """
-Camera ROI Adjustment Tool
+OpenCV-Based Line Following Robot Control
 
-カメラ画像のROI（Region Of Interest）調整専用プログラム。
-指定したROI領域を矩形で表示し、リアルタイムでカメラ画像を確認しながらパラメータ調整が可能。
+This script controls a line-following robot using OpenCV computer vision
+instead of neural network predictions. It uses the steer_by_camera function
+to detect the line centroid and follows it using PID control.
 
-- 画像ウィンドウ上でROI領域が白枠で表示されます。
-- qキーで終了。
-- ROI座標はrun_opencv.pyと同じ形式。
+Speed Tuning Parameters:
+- BASE_POWER: Base power for straight lines (start here)
+- TURN_REDUCTION_FACTOR: Speed reduction in turns (0.0-1.0)
+- TURN_THRESHOLD: Pixel offset threshold to detect turns
+
+PID Tuning Parameters:
+- Kp, Ki, Kd: Standard PID parameters for steering correction
 """
 
+# ==== ユーザー調整用パラメータ（ここだけ編集すればOK） ====
+# ROI_OPENCV: OpenCV画像処理で使用する領域（左上x, 左上y, 右下x, 右下y）
+ROI_OPENCV = (150, 250, 490, 400)  # 必要に応じて変更
+IMAGE_WIDTH = 640                  # カメラ画像の幅
+IMAGE_HEIGHT = 480                 # カメラ画像の高さ
+BASE_POWER = 50                    # カーブ時の基準パワー
+STRAIGHT_POWER = 80                # 直線時の推奨パワー
+CURVE_POWER = 30                   # 急カーブ時の最低パワー
+CURVE_THRESHOLD_DEG = 10           # カーブ判定閾値（度数法, SENSITIVITY=1.0時の推奨値）
+STRAIGHT_THRESHOLD_DEG = 3         # 直線判定のしきい値（ユーザー調整用, デフォルト3度, STRAIGHT_THRESHOLD_DEGで指定）
+SENSITIVITY = 1.0                  # ピクセル→theta変換感度
+MAX_STEERING_POWER_DIFF = 40       # 最大旋回時の左右パワー差（%）
+MAX_STEERING_THETA_DEG = 50        # 最大旋回角（度数法, 例: 50度）
+# 黒ライン判定の閾値（反射光R: 40以下, color: 150以下なら黒と判定）
+BLACK_LINE_REFLECTED_THRESHOLD = 40
+BLACK_LINE_COLOR_THRESHOLD = 150
+# ================================================
+
 import cv2
-import os
-import datetime
+import math
 import time
-
-# ROI設定（run_opencv.pyと同じ形式で記述）
-ROI_OPENCV = (150, 250, 490, 400)  # (x1, y1, x2, y2)
-IMAGE_WIDTH = 640
-IMAGE_HEIGHT = 480
-
-# 動画保存用ディレクトリとファイル名（run_opencv.pyと同じロジック）
-TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime())
-video_dir = "storage/videos"
-os.makedirs(video_dir, exist_ok=True)
-video_filename = f"{video_dir}/{TIMESTAMP}_roi_adjust.avi"
-fourcc = cv2.VideoWriter_fourcc(*"XVID")
-video_writer = cv2.VideoWriter(
-    filename=video_filename,
-    fourcc=fourcc,
-    fps=30,
-    frameSize=(IMAGE_WIDTH, IMAGE_HEIGHT),
+import socket
+import pickle
+import struct
+import argparse
+import numpy as np
+from nnspike.unit import ETRobot
+from nnspike.utils.control import ControlCalculator
+from nnspike.utils import (
+    draw_driving_info,
+    PIDController,
+    SensorRecorder,
 )
 
+# User defined constants
+x1, y1, x2, y2 = ROI_OPENCV  # Region of Interest for OpenCV processing
+
+
+# Socket connection settings
+HOST_IP_ADDRESS = (
+    "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
+)
+
+# Camera setup
 cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FPS, 30)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, IMAGE_WIDTH)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, IMAGE_HEIGHT)
 
-print("カメラ画像ROI調整ツールを起動します")
-print(f"ROI_OPENCV: {ROI_OPENCV}")
-print("qキーで終了 / sキーで静止画保存 / 動画は自動保存")
 
-save_dir = "output/camera_roi_snapshots"
-os.makedirs(save_dir, exist_ok=True)
+# AsyncSensorReader クラスを削除 - メインループで直接センサー値を取得するように変更
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        print("カメラ画像が取得できません")
-        break
-    # ROI領域を矩形で描画
-    x1, y1, x2, y2 = ROI_OPENCV
-    cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)
-    cv2.putText(frame, f"ROI: ({x1},{y1})-({x2},{y2})", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
-    cv2.imshow('Camera ROI Adjust', frame)
-    # 動画として保存
-    video_writer.write(frame)
-    key = cv2.waitKey(1)
-    if key & 0xFF == ord('q'):
-        break
-    elif key & 0xFF == ord('s'):
-        # 静止画保存
-        now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{save_dir}/roi_{now}.png"
-        cv2.imwrite(filename, frame)
-        print(f"画像を保存しました: {filename}")
 
-cap.release()
-video_writer.release()
-cv2.destroyAllWindows()
-print(f"動画を保存しました: {video_filename}")
-print("終了しました")
+def run_initial_sensor_test(et, test_count=5, delay=0.2):
+    """SPIKEの初期センサーテストを簡素に実行"""
+    print("初期センサーテスト...")
+    for i in range(test_count):
+        test_status = et.get_spike_status()
+        if test_status and test_status.sensors:
+            color = test_status.sensors.color
+            dist = test_status.sensors.distance
+            color_str = f"R:{color.reflected} A:{color.ambient} C:{color.color}" if color else "N/A"
+            dist_str = f"{dist}cm" if dist is not None else "N/A"
+            print(f"{i+1}: OK  Color={color_str}  US={dist_str}")
+        else:
+            print(f"{i+1}: spike_status取得失敗")
+        time.sleep(delay)
+    print("初期センサーテスト完了")
+
+
+def initialize_system(record_sensor_data, save_camera_video):
+    """ロボット・PID・センサーレコーダ・ビデオ・ソケット等の初期化をまとめて行う"""
+    # Generate timestamp for consistent naming if recording is enabled
+    TIMESTAMP = (
+        time.strftime("%Y%m%d%H%M%S", time.localtime())
+        if (record_sensor_data or save_camera_video)
+        else None
+    )
+
+    # Initialize sensor recorder conditionally
+    sensor_recorder = None
+    if record_sensor_data:
+        sensor_recorder = SensorRecorder(timestamp=TIMESTAMP)
+        sensor_recorder.start_recording()
+
+    # Initialize video writer conditionally
+    video_writer = None
+    video_filename = None
+    if save_camera_video:
+        fourcc = cv2.VideoWriter_fourcc(*"XVID")
+        video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
+        video_writer = cv2.VideoWriter(
+            filename=video_filename,
+            fourcc=fourcc,
+            fps=30,
+            frameSize=(IMAGE_WIDTH, IMAGE_HEIGHT),
+        )
+    # Socket connection for sending camera capture
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect((HOST_IP_ADDRESS, 8485))
+
+    # Initialize robot, PID, ControlCalculator（ユーザー調整値はグローバル参照）
+    et = ETRobot()
+    pid = PIDController(
+        Kp=2.0,  # 比例項: 反応をやや抑える（従来3→2.0）
+        Ki=0,    # 積分項: 通常0でOK
+        Kd=0.4,  # 微分項: 揺れ抑制を強める（従来0.2→0.4）
+        setpoint=0,
+        output_limits=(-0.25, 0.25),  # Direct radian limits for steering correction
+    )
+    calc = ControlCalculator(
+        # steer_by_camera(frame):
+        #   入力画像からラインの重心座標(mx, my)、オフセットピクセル、最大輪郭を検出
+        ROI_OPENCV,
+        IMAGE_WIDTH,
+        # calculate_theta_from_pixels(offset_pixels):
+        #   ピクセル→theta変換感度
+        SENSITIVITY,
+        # calculate_adaptive_speed(abs_theta): theta角度（進行方向の絶対値, ラジアン）に応じて速度（パワー）を自動調整
+        #     （直線・緩カーブ・急カーブで推奨パワーを自動切替, センサー値は参照しない）
+        BASE_POWER,
+        CURVE_POWER,
+        STRAIGHT_POWER,
+        # カーブ判定閾値（CURVE_THRESHOLD_DEG, ラジアンに変換）
+        math.radians(CURVE_THRESHOLD_DEG),
+        # 直線判定閾値（STRAIGHT_THRESHOLD_DEG, ラジアンに変換）
+        math.radians(STRAIGHT_THRESHOLD_DEG)  # 直線判定のしきい値
+    )
+
+    print("メインループで直接センサー値を取得します")
+
+    # --- アームを1秒上げて1秒下げる処理を追加（test_color_only.py参考） ---
+    try:
+        print("Arm up...")
+        et.move_arm(1)  # 1 = up
+        time.sleep(1.0)
+        print("Arm down...")
+        et.move_arm(0)  # 0 = down
+        time.sleep(1.0)
+    except Exception as e:
+        print(f"Arm move error: {e}")
+
+    # 初期センサーテストを関数で実行
+    run_initial_sensor_test(et)
+
+    return et, pid, calc, sensor_recorder, video_writer, video_filename, client_socket
+
+
+def send_stop_signal(et, duration=5.0):
+    print(f"Sending stop signals to Spike for {duration} seconds...")
+    stop_start_time = time.time()
+    while time.time() - stop_start_time < duration:
+        try:
+            et.brake()
+            time.sleep(0.1)
+        except Exception as e:
+            print(f"Error sending stop signal: {e}")
+            break
+    print("Stop signal transmission completed")
+
+
+def main(record_sensor_data=False, save_camera_video=False):
+    et, pid, calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
+        record_sensor_data, save_camera_video
+    )
+    time.sleep(0.5)
+    et.set_motor_relative_position(left_positon=0, right_position=0)
+
+    try:
+        while et.is_running == True:
+            loop_start = time.time()
+            ret, frame = cap.read()
+            if not ret:
+                print("Can't receive frame (stream end?). Exiting ...")
+                break
+            # Save video frame if enabled
+            if save_camera_video and video_writer is not None:
+                video_writer.write(frame)
+            
+            # steer_by_camera/θ計算をインスタンスメソッドで
+            mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
+            theta = calc.calculate_theta_from_pixels(offset_pixels)
+            # spike_statusの取得を最初にまとめる
+            spike_status = et.get_spike_status()
+            # カラーセンサー値取得・データ生成・黒ライン判定
+            if spike_status and spike_status.sensors and spike_status.sensors.color:
+                color = spike_status.sensors.color
+                color_data = f"R:{color.reflected} A:{color.ambient} C:{color.color}"
+                ON_BLACK_LINE = (
+                    color.reflected is not None and color.reflected <= BLACK_LINE_REFLECTED_THRESHOLD and
+                    color.color is not None and color.color <= BLACK_LINE_COLOR_THRESHOLD
+                )
+            else:
+                color_data = "R:N/A A:N/A C:N/A"
+                ON_BLACK_LINE = False
+            # Dynamic speed control using ControlCalculator
+            abs_theta = abs(theta)
+            current_base_power = calc.calculate_adaptive_speed(abs_theta)
+
+            # Apply PID control to theta for smooth steering correction
+            pid_corrected_theta = pid.update(theta)
+            # 最大旋回時のパワー差を直感的に指定
+            max_theta = math.radians(MAX_STEERING_THETA_DEG)
+            power_adjustment = int((pid_corrected_theta / max_theta) * MAX_STEERING_POWER_DIFF)
+            left_power = int(current_base_power - power_adjustment)
+            right_power = int(current_base_power + power_adjustment)
+
+            # 計算した左右パワーでモーターを駆動
+            #et.set_motor_forward_power(
+            #    left_power=left_power,
+            #    right_power=right_power,
+            #)
+            # Log sensor data using the recorder if enabled
+            if record_sensor_data and sensor_recorder is not None:
+                sensor_recorder.log_frame_data(spike_status)  # 既に取得したspike_statusを再利用
+            
+            # Prepare driving information for visualization
+            info = dict()
+            info["offset_x"], info["offset_y"] = x1 + mx, y1 + my            # メインループで直接センサーデータを取得
+            # 超音波センサーデータの生成
+            if spike_status and spike_status.sensors and spike_status.sensors.distance is not None:
+                ultrasonic_data = f"{spike_status.sensors.distance} cm"
+            else:
+                ultrasonic_data = "N/A cm"
+            
+            info["text"] = {
+                "theta_deg": f"{round(math.degrees(theta), 2)}deg",
+                "pid_corrected_theta": f"{round(math.degrees(pid_corrected_theta), 2)}deg",
+                "offset_pixels": f"{round(offset_pixels, 1)}px",
+                "current_power": f"{round(current_base_power, 1)}%",
+                "curve_detected": ("OFF_LINE" if theta == 0 else 
+                                 "YES" if abs_theta > math.radians(CURVE_THRESHOLD_DEG) else "NO"),
+                "on_black_line": "YES" if ON_BLACK_LINE else "NO",
+                "left_power": f"{left_power}%",
+                "right_power": f"{right_power}%",
+                "color_sensor": color_data,
+                "ultrasonic_sensor": ultrasonic_data,
+                "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
+            }
+
+            # Create visualization frame
+            gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
+            gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
+
+            # Draw contour on the visualization if found
+            if max_contour is not None:
+                # Adjust contour coordinates to full frame
+                adjusted_contour = max_contour + np.array([x1, y1])
+                cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)                # Draw centroid
+                cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
+
+            # Send camera capture for remote monitoring
+            try:
+                # 変更後: JPG形式（品質80）でエンコード
+                ret, buffer = cv2.imencode(".jpg", gray, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+                img_encoded = buffer.tobytes()
+                data = pickle.dumps(img_encoded)
+                client_socket.sendall(struct.pack("L", len(data)) + data)
+            except Exception as e:
+                print(f"Socket error: {e}")
+                break
+
+            # ループ終了時に30ms間隔となるようsleep
+            elapsed = time.time() - loop_start
+            sleep_time = max(0, 0.03 - elapsed)
+            #print(f"[DEBUG] loop_elapsed: {elapsed*1000:.2f} ms, sleep: {sleep_time*1000:.2f} ms")
+            time.sleep(sleep_time)
+
+    except KeyboardInterrupt:
+        print("Interrupted by user")
+        send_stop_signal(et, duration=5.0)
+    except Exception as e:
+        print(f"Error: {e}")
+        send_stop_signal(et, duration=5.0)
+    finally:
+        et.stop()
+        cap.release()
+        client_socket.close()
+        if save_camera_video and video_writer is not None:
+            video_writer.release()
+            print(f"Video saved to: {video_filename}")
+        if record_sensor_data and sensor_recorder is not None:
+            sensor_recorder.stop_recording()
+            print(f"Total frames recorded: {sensor_recorder.get_frame_count()}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Run the OpenCV-based line following robot with optional sensor recording and video saving"
+    )
+    parser.add_argument(
+        "--record-sensor", action="store_true", help="Record sensor data to file"
+    )
+    parser.add_argument(
+        "--save-video", action="store_true", help="Save camera video to file"
+    )
+
+    args = parser.parse_args()
+
+    print("Starting OpenCV-based line following robot...")
+    print(f"Using ROI: {ROI_OPENCV}")
+    print(f"Base power: {BASE_POWER}")
+    print("Press Ctrl+C to stop")
+
+    main(record_sensor_data=args.record_sensor, save_camera_video=args.save_video)
