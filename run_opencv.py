@@ -26,8 +26,8 @@ CURVE_POWER = 30                   # 急カーブ時の最低パワー
 CURVE_THRESHOLD_DEG = 10           # カーブ判定閾値（度数法, SENSITIVITY=1.0時の推奨値）
 STRAIGHT_THRESHOLD_DEG = 3         # 直線判定のしきい値（ユーザー調整用, デフォルト3度, STRAIGHT_THRESHOLD_DEGで指定）
 SENSITIVITY = 1.0                  # ピクセル→theta変換感度
-MAX_STEERING_POWER_DIFF = 30       # 最大旋回時の左右パワー差（%）
-MAX_STEERING_THETA_DEG = 40        # 最大旋回角（度数法, 例: 40度）
+MAX_STEERING_POWER_DIFF = 40       # 最大旋回時の左右パワー差（%）
+MAX_STEERING_THETA_DEG = 50        # 最大旋回角（度数法, 例: 50度）
 # 黒ライン判定の閾値（反射光R: 40以下, color: 150以下なら黒と判定）
 BLACK_LINE_REFLECTED_THRESHOLD = 40
 BLACK_LINE_COLOR_THRESHOLD = 150
