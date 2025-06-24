@@ -28,9 +28,12 @@ STRAIGHT_THRESHOLD_DEG = 3         # 直線判定のしきい値（ユーザー�
 SENSITIVITY = 1.0                  # ピクセル→theta変換感度
 MAX_STEERING_POWER_DIFF = 40       # 最大旋回時の左右パワー差（%）
 MAX_STEERING_THETA_DEG = 50        # 最大旋回角（度数法, 例: 50度）
-# 黒ライン判定の閾値（反射光R: 40以下, color: 150以下なら黒と判定）
-BLACK_LINE_REFLECTED_THRESHOLD = 40
-BLACK_LINE_COLOR_THRESHOLD = 150
+# 黒判定の閾値（反射光R: 40以下, color: 150以下なら黒と判定）
+BLACK_REFLECTED_THRESHOLD = 40
+BLACK_COLOR_THRESHOLD = 150
+# 青判定の閾値（色値: 30以下, 反射光: 60以下なら青と判定）
+BLUE_COLOR_THRESHOLD = 30
+BLUE_REFLECTED_THRESHOLD = 60
 # ================================================
 
 import cv2
@@ -176,6 +179,58 @@ def send_stop_signal(et, duration=5.0):
     print("Stop signal transmission completed")
 
 
+ON_BLACK = False
+ON_BLUE = False
+def get_sensor_info(et):
+    """
+    Spikeの最新センサーステータス・カラー・超音波・モーター相対位置値・判定をまとめて取得
+    - Spikeの最新センサーステータスを取得
+    - カラーセンサー値取得と黒・青判定
+    - 超音波センサーデータ値取得
+    - モーターB/C相対位置値取得
+    """
+    global ON_BLACK, ON_BLUE
+    # Spikeの最新センサーステータスを取得
+    spike_status = et.get_spike_status()
+    sensors = getattr(spike_status, 'sensors', None)
+    color = getattr(sensors, 'color', None)
+    if color:
+        color_reflected = getattr(color, 'reflected', None)
+        color_ambient = getattr(color, 'ambient', None)
+        color_color = getattr(color, 'color', None)
+        color_data = f"R:{color_reflected if color_reflected is not None else 'N/A'} A:{color_ambient if color_ambient is not None else 'N/A'} C:{color_color if color_color is not None else 'N/A'}"
+        ON_BLACK = (
+            color_reflected is not None and color_reflected <= BLACK_REFLECTED_THRESHOLD and
+            color_color is not None and color_color <= BLACK_COLOR_THRESHOLD
+        )
+        ON_BLUE = (
+            color_color is not None and color_color <= BLUE_COLOR_THRESHOLD and
+            color_reflected is not None and color_reflected <= BLUE_REFLECTED_THRESHOLD
+        )
+    else:
+        color_data = "R:N/A A:N/A C:N/A"
+        ON_BLACK = False
+        ON_BLUE = False
+    # 超音波センサーデータ値取得
+    distance = getattr(sensors, 'distance', None)
+    if distance is not None:
+        ultrasonic_data = f"{distance} cm"
+    else:
+        ultrasonic_data = "N/A cm"
+    # モーター左右相対位置値取得
+    left_relative_position = getattr(spike_status, 'motor_b_relative_position', 'N/A')
+    right_relative_position = getattr(spike_status, 'motor_a_relative_position', 'N/A')
+    # 走行距離[cm]に変換（1度あたり0.0471cm, タイヤ径54mm）
+    def to_distance_cm(pos):
+        try:
+            return int(float(pos) * 0.0471)
+        except:
+            return 'N/A'
+    left_distance_cm = to_distance_cm(left_relative_position)
+    right_distance_cm = to_distance_cm(right_relative_position)
+    return spike_status, color_data, ultrasonic_data, left_relative_position, right_relative_position, left_distance_cm, right_distance_cm
+
+
 def main(record_sensor_data=False, save_camera_video=False):
     et, pid, calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
         record_sensor_data, save_camera_video
@@ -194,64 +249,62 @@ def main(record_sensor_data=False, save_camera_video=False):
             if save_camera_video and video_writer is not None:
                 video_writer.write(frame)
             
-            # steer_by_camera/θ計算をインスタンスメソッドで
-            mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
-            theta = calc.calculate_theta_from_pixels(offset_pixels)
-            # spike_statusの取得を最初にまとめる
-            spike_status = et.get_spike_status()
-            # カラーセンサー値取得・データ生成・黒ライン判定
-            if spike_status and spike_status.sensors and spike_status.sensors.color:
-                color = spike_status.sensors.color
-                color_data = f"R:{color.reflected} A:{color.ambient} C:{color.color}"
-                ON_BLACK_LINE = (
-                    color.reflected is not None and color.reflected <= BLACK_LINE_REFLECTED_THRESHOLD and
-                    color.color is not None and color.color <= BLACK_LINE_COLOR_THRESHOLD
-                )
-            else:
-                color_data = "R:N/A A:N/A C:N/A"
-                ON_BLACK_LINE = False
-            # Dynamic speed control using ControlCalculator
-            abs_theta = abs(theta)
-            current_base_power = calc.calculate_adaptive_speed(abs_theta)
+            # Spikeの最新センサーステータス・カラー・超音波センサー値・判定をまとめて取得
+            spike_status, color_data, ultrasonic_data, left_relative_position, right_relative_position, left_distance_cm, right_distance_cm = get_sensor_info(et)
 
-            # Apply PID control to theta for smooth steering correction
+            # steer_by_cameraでラインの重心座標・オフセット・最大輪郭を取得
+            mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
+            # オフセットピクセルから進行角度thetaを計算
+            theta = calc.calculate_theta_from_pixels(offset_pixels)
+            # thetaの絶対値から推奨速度を計算（カーブ時は減速）
+            abs_theta = abs(theta)
+            current_power = calc.calculate_adaptive_speed(abs_theta)
+
+            # PID制御でthetaを補正し、左右パワー差を計算
             pid_corrected_theta = pid.update(theta)
-            # 最大旋回時のパワー差を直感的に指定
             max_theta = math.radians(MAX_STEERING_THETA_DEG)
             power_adjustment = int((pid_corrected_theta / max_theta) * MAX_STEERING_POWER_DIFF)
-            left_power = int(current_base_power - power_adjustment)
-            right_power = int(current_base_power + power_adjustment)
+            left_power = int(current_power - power_adjustment)
+            right_power = int(current_power + power_adjustment)
 
-            # 計算した左右パワーでモーターを駆動
+            # 計算したパワーでモーターを駆動
             et.set_motor_forward_power(
                 left_power=left_power,
                 right_power=right_power,
             )
-            # Log sensor data using the recorder if enabled
+            # センサーデータ記録が有効な場合はロガーに記録
             if record_sensor_data and sensor_recorder is not None:
-                sensor_recorder.log_frame_data(spike_status)  # 既に取得したspike_statusを再利用
+                sensor_recorder.log_frame_data(spike_status)
             
             # Prepare driving information for visualization
             info = dict()
             info["offset_x"], info["offset_y"] = x1 + mx, y1 + my            # メインループで直接センサーデータを取得
-            # 超音波センサーデータの生成
+            # 超音波センサーデータ値取得
             if spike_status and spike_status.sensors and spike_status.sensors.distance is not None:
                 ultrasonic_data = f"{spike_status.sensors.distance} cm"
             else:
                 ultrasonic_data = "N/A cm"
             
             info["text"] = {
+                "offset_pixels": f"{round(offset_pixels, 1)}px",
                 "theta_deg": f"{round(math.degrees(theta), 2)}deg",
                 "pid_corrected_theta": f"{round(math.degrees(pid_corrected_theta), 2)}deg",
-                "offset_pixels": f"{round(offset_pixels, 1)}px",
-                "current_power": f"{round(current_base_power, 1)}%",
-                "curve_detected": ("OFF_LINE" if theta == 0 else 
-                                 "YES" if abs_theta > math.radians(CURVE_THRESHOLD_DEG) else "NO"),
-                "on_black_line": "YES" if ON_BLACK_LINE else "NO",
-                "left_power": f"{left_power}%",
-                "right_power": f"{right_power}%",
+                "power_status": (
+                    "OFF_LINE" if theta == 0 else
+                    "CURVE" if abs_theta > math.radians(CURVE_THRESHOLD_DEG) else
+                    "STRAIGHT" if abs_theta < math.radians(STRAIGHT_THRESHOLD_DEG) else
+                    "BASE"
+                ),
+                "current_power": f"{round(current_power, 1)}%",
+                "on_color": (
+                    "BLACK" if ON_BLACK else ("BLUE" if ON_BLUE else "N/A")
+                ),
                 "color_sensor": color_data,
                 "ultrasonic_sensor": ultrasonic_data,
+                "left_power": f"{left_power}%",
+                "right_power": f"{right_power}%",
+                "left_relative_position": f"{left_relative_position}deg / {left_distance_cm}cm",
+                "right_relative_position": f"{right_relative_position}deg / {right_distance_cm}cm",
                 "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
             }
 
