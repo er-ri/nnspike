@@ -80,7 +80,7 @@ def draw_driving_info(
             (10, 30 + index * 20),  # 左上(10,30)から縦に並べる
             cv2.FONT_HERSHEY_PLAIN,
             1,
-            (255, 255, 255),
+            (255, 255, 200),  # 薄水色（BGR）
             1,
             cv2.LINE_4,
         )
