@@ -87,7 +87,7 @@
 ※下記コードを https://mermaid.live/ にそのまま貼り付けてください。
 
 ```mermaid
-flowchart TD
+flowchart LR
     Start((スタート))
     S1["1:直線区間1"]
     OBY(("オブスタクルボトル(黄)"))
