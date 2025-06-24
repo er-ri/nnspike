@@ -19,6 +19,18 @@
 - 推定質量：約0.7～0.8kg
 - 制御周期：約30ms（OpenCV制御）
 
+## 3. ユーザー調整用パラメータ（run_opencv.py抜粋）
+- ROI_OPENCV = (150, 300, 490, 400)
+- BASE_POWER = 45
+- STRAIGHT_POWER = 75
+- CURVE_POWER = 30
+- CURVE_THRESHOLD_DEG = 3.0
+- SENSITIVITY = 0.4
+- MAX_STEERING_POWER_DIFF = 20
+- MAX_STEERING_THETA_DEG = 40
+- BLACK_LINE_REFLECTED_THRESHOLD = 40
+- BLACK_LINE_COLOR_THRESHOLD = 150
+
 ## 4. 走行戦略
 
 ### 4.1 ライン・オブスタクル区間攻略
@@ -33,10 +45,12 @@
 ### 4.3 スマートキャリー1回目攻略
 - キャリーゲート1回目通過時は減速・安定走行を重視
 - ボトル運搬時はライン復帰・逸脱防止を優先
+- キャリーボトル1は赤ラベル（赤色テープ）
 
 ### 4.4 スマートキャリー2回目攻略
 - 2回目のキャリーゲート通過も同様に減速・安定走行
 - ボーナス取得条件を満たすため、確実なゲート通過とボトル運搬を両立
+- キャリーボトル2は青ラベル（青色テープ）
 
 ### 4.5 目標タイム
 - 全ボーナス取得時の目標タイム：約1分50秒
