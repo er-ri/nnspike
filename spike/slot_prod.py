@@ -135,12 +135,12 @@ class LegoSpike(object):
         """
         self.command_counter = time.ticks_ms()
 
-        if action == 0:# Move down
-            # Move arm down by 180 degrees
-            self.motor_arm.run_for_degrees(degrees=180, speed=50)
-        elif action == 1:# Move up
-            # Move arm up by 180 degrees
-            self.motor_arm.run_for_degrees(degrees=-180, speed=50)
+        if action == 0:  # Move down
+            # アームを下げる: 速度50で回転（角度指定なし、連続動作）
+            self.motor_arm.run_at_speed(50)
+        elif action == 1:  # Move up
+            # アームを上げる: 速度-50で回転（角度指定なし、連続動作）
+            self.motor_arm.run_at_speed(-50)
 
 async def receiver():
     while True:
