@@ -175,7 +175,7 @@ def send_stop_signal(et, duration=5.0):
     print("Stop signal transmission completed")
 
 
-def get_sensor_info(et, sensor_recorder=None, record_sensor_data=False):
+def get_sensor_info(et, sensor_recorder=None):
     """
     Spikeの最新センサーステータス・カラー・超音波・モーター相対位置値・判定をまとめて取得
     - Spikeの最新センサーステータスを取得
@@ -192,7 +192,7 @@ def get_sensor_info(et, sensor_recorder=None, record_sensor_data=False):
         'left': spike_status.motors['B'].relative_position if 'B' in spike_status.motors and spike_status.motors['B'].relative_position is not None else 0,
         'right': spike_status.motors['A'].relative_position if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0
     }
-    if record_sensor_data and sensor_recorder is not None:
+    if sensor_recorder is not None:
         sensor_recorder.log_frame_data(spike_status)
     return color, distance, relative_position
 
@@ -291,7 +291,7 @@ def main(record_sensor_data=False, save_camera_video=False):
             if save_camera_video and video_writer is not None:
                 video_writer.write(frame)
             # Spikeの最新センサーステータス・カラー・超音波・モーター相対位置値を取得
-            color, distance, relative_position = get_sensor_info(et, sensor_recorder, record_sensor_data)
+            color, distance, relative_position = get_sensor_info(et, sensor_recorder)
             # ラインの重心座標・オフセット・最大輪郭を取得
             mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
             # 進行角度thetaを計算
