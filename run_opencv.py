@@ -333,7 +333,7 @@ def main(record_sensor_data=False, save_camera_video=False):
         if save_camera_video and video_writer is not None:
             video_writer.release()
             print(f"Video saved to: {video_filename}")
-        if record_sensor_data and sensor_recorder is not None:
+        if sensor_recorder is not None:
             sensor_recorder.stop_recording()
             print(f"Total frames recorded: {sensor_recorder.get_frame_count()}")
 
