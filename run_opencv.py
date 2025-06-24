@@ -236,6 +236,67 @@ def get_sensor_info(et, sensor_recorder=None, record_sensor_data=False):
     return color_data, ultrasonic_data, left_relative_position, right_relative_position, left_distance_cm, right_distance_cm
 
 
+# --- 可視化・送信処理の外部関数 ---
+def prepare_driving_info(x1, y1, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, abs_theta, left_power, right_power, color_data, ultrasonic_data, left_relative_position, right_relative_position, left_distance_cm, right_distance_cm, max_contour):
+    """
+    Prepare driving information for visualization
+    """
+    info = dict()
+    info["offset_x"], info["offset_y"] = x1 + mx, y1 + my
+    info["text"] = {
+        "offset_pixels": f"{round(offset_pixels, 1)}px",
+        "theta_deg": f"{round(math.degrees(theta), 2)}deg",
+        "pid_corrected_theta": f"{round(math.degrees(pid_corrected_theta), 2)}deg",
+        "power_status": (
+            "OFF_LINE" if theta == 0 else
+            "CURVE" if abs_theta > math.radians(CURVE_THRESHOLD_DEG) else
+            "STRAIGHT" if abs_theta < math.radians(STRAIGHT_THRESHOLD_DEG) else
+            "BASE"
+        ),
+        "current_power": f"{round(current_power, 1)}%",
+        "on_color": (
+            "BLACK" if ON_BLACK else ("BLUE" if ON_BLUE else "N/A")
+        ),
+        "color_sensor": color_data,
+        "ultrasonic_sensor": ultrasonic_data,
+        "left_power": f"{left_power}%",
+        "right_power": f"{right_power}%",
+        "left_relative_position": f"{left_relative_position if left_relative_position != 'N/A' else 0}deg / {left_distance_cm if left_distance_cm != 'N/A' else 0}cm",
+        "right_relative_position": f"{right_relative_position if right_relative_position != 'N/A' else 0}deg / {right_distance_cm if right_distance_cm != 'N/A' else 0}cm",
+        "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
+    }
+    return info
+
+# --- 可視化フレーム生成（輪郭描画含む） ---
+def create_visualization_frame(frame, info, x1, y1, x2, y2, mx, my, max_contour):
+    """
+    Create visualization frame and draw contour on the visualization if found
+    """
+    gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
+    gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
+    if max_contour is not None:
+        # Adjust contour coordinates to full frame
+        adjusted_contour = max_contour + np.array([x1, y1])
+        cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)  # Draw centroid
+        cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
+    return gray
+
+# --- カメラ画像送信 ---
+def send_camera_capture(gray, client_socket):
+    """
+    Send camera capture for remote monitoring
+    """
+    try:
+        ret, buffer = cv2.imencode(".jpg", gray, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+        img_encoded = buffer.tobytes()
+        data = pickle.dumps(img_encoded)
+        client_socket.sendall(struct.pack("L", len(data)) + data)
+    except Exception as e:
+        print(f"Socket error: {e}")
+        return False
+    return True
+
+
 def main(record_sensor_data=False, save_camera_video=False):
     et, pid, calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
         record_sensor_data, save_camera_video
@@ -279,51 +340,13 @@ def main(record_sensor_data=False, save_camera_video=False):
             )
             
             # Prepare driving information for visualization
-            info = dict()
-            info["offset_x"], info["offset_y"] = x1 + mx, y1 + my            # メインループで直接センサーデータを取得
-            info["text"] = {
-                "offset_pixels": f"{round(offset_pixels, 1)}px",
-                "theta_deg": f"{round(math.degrees(theta), 2)}deg",
-                "pid_corrected_theta": f"{round(math.degrees(pid_corrected_theta), 2)}deg",
-                "power_status": (
-                    "OFF_LINE" if theta == 0 else
-                    "CURVE" if abs_theta > math.radians(CURVE_THRESHOLD_DEG) else
-                    "STRAIGHT" if abs_theta < math.radians(STRAIGHT_THRESHOLD_DEG) else
-                    "BASE"
-                ),
-                "current_power": f"{round(current_power, 1)}%",
-                "on_color": (
-                    "BLACK" if ON_BLACK else ("BLUE" if ON_BLUE else "N/A")
-                ),
-                "color_sensor": color_data,
-                "ultrasonic_sensor": ultrasonic_data,
-                "left_power": f"{left_power}%",
-                "right_power": f"{right_power}%",
-                "left_relative_position": f"{left_relative_position if left_relative_position != 'N/A' else 0}deg / {left_distance_cm if left_distance_cm != 'N/A' else 0}cm",
-                "right_relative_position": f"{right_relative_position if right_relative_position != 'N/A' else 0}deg / {right_distance_cm if right_distance_cm != 'N/A' else 0}cm",
-                "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
-            }
+            info = prepare_driving_info(x1, y1, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, abs_theta, left_power, right_power, color_data, ultrasonic_data, left_relative_position, right_relative_position, left_distance_cm, right_distance_cm, max_contour)
 
-            # Create visualization frame
-            gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
-            gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
-
-            # Draw contour on the visualization if found
-            if max_contour is not None:
-                # Adjust contour coordinates to full frame
-                adjusted_contour = max_contour + np.array([x1, y1])
-                cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)                # Draw centroid
-                cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
+            # Create visualization frame and draw contour on the visualization if found
+            gray = create_visualization_frame(frame, info, x1, y1, x2, y2, mx, my, max_contour)
 
             # Send camera capture for remote monitoring
-            try:
-                # 変更後: JPG形式（品質80）でエンコード
-                ret, buffer = cv2.imencode(".jpg", gray, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
-                img_encoded = buffer.tobytes()
-                data = pickle.dumps(img_encoded)
-                client_socket.sendall(struct.pack("L", len(data)) + data)
-            except Exception as e:
-                print(f"Socket error: {e}")
+            if not send_camera_capture(gray, client_socket):
                 break
 
             # ループ終了時に30ms間隔となるようsleep
