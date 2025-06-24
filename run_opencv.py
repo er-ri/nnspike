@@ -52,10 +52,6 @@ from nnspike.utils import (
     SensorRecorder,
 )
 
-# User defined constants
-x1, y1, x2, y2 = ROI_OPENCV  # Region of Interest for OpenCV processing
-
-
 # Socket connection settings
 HOST_IP_ADDRESS = (
     "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
@@ -189,9 +185,9 @@ def get_sensor_info(et, sensor_recorder=None, record_sensor_data=False):
     - センサーデータ記録が有効な場合はロガーに記録
     """
     spike_status = et.get_spike_status()
-    sensors = getattr(spike_status, 'sensors', None)
-    color = getattr(sensors, 'color', None)
-    distance = getattr(sensors, 'distance', None)
+    sensors = spike_status.sensors
+    color = sensors.color if sensors else None
+    distance = sensors.distance if sensors else None
     relative_position = {
         'left': spike_status.motors['B'].relative_position if 'B' in spike_status.motors and spike_status.motors['B'].relative_position is not None else 0,
         'right': spike_status.motors['A'].relative_position if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0
@@ -201,24 +197,21 @@ def get_sensor_info(et, sensor_recorder=None, record_sensor_data=False):
     return color, distance, relative_position
 
 
-def prepare_driving_info(x1, y1, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, abs_theta, left_power, right_power, color, distance, relative_position, max_contour):
+def prepare_driving_info(x1, y1, x2, y2, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour):
     """
-    Prepare driving information for visualization
+    可視化用の走行情報を生成
     """
-    # relative_positionから値とcm変換をまとめて生成
     def to_distance_cm(pos):
         return int(float(pos) * 0.0471) if pos is not None else 0
     left_distance_cm = to_distance_cm(relative_position['left'])
     right_distance_cm = to_distance_cm(relative_position['right'])
-    # color_data生成
     if color:
-        color_reflected = getattr(color, 'reflected', None)
-        color_ambient = getattr(color, 'ambient', None)
-        color_color = getattr(color, 'color', None)
+        color_reflected = color.reflected
+        color_ambient = color.ambient
+        color_color = color.color
         color_data = f"R:{color_reflected if color_reflected is not None else 'N/A'} A:{color_ambient if color_ambient is not None else 'N/A'} C:{color_color if color_color is not None else 'N/A'}"
     else:
         color_data = "R:N/A A:N/A C:N/A"
-    # ultrasonic_data生成
     if distance is not None:
         ultrasonic_data = f"{distance} cm"
     else:
@@ -231,13 +224,13 @@ def prepare_driving_info(x1, y1, mx, my, offset_pixels, theta, pid_corrected_the
         "pid_corrected_theta": f"{round(math.degrees(pid_corrected_theta), 2)}deg",
         "power_status": (
             "OFF_LINE" if theta == 0 else
-            "CURVE" if abs_theta > math.radians(CURVE_THRESHOLD_DEG) else
-            "STRAIGHT" if abs_theta < math.radians(STRAIGHT_THRESHOLD_DEG) else
+            "CURVE" if abs(theta) > math.radians(CURVE_THRESHOLD_DEG) else
+            "STRAIGHT" if abs(theta) < math.radians(STRAIGHT_THRESHOLD_DEG) else
             "BASE"
         ),
         "current_power": f"{round(current_power, 1)}%",
         "on_color": (
-            "BLACK" if (color and getattr(color, 'is_black', False)) else ("BLUE" if (color and getattr(color, 'is_blue', False)) else "N/A")
+            "BLACK" if (color and color.is_black) else ("BLUE" if (color and color.is_blue) else "N/A")
         ),
         "color_sensor": color_data,
         "ultrasonic_sensor": ultrasonic_data,
@@ -253,6 +246,7 @@ def prepare_driving_info(x1, y1, mx, my, offset_pixels, theta, pid_corrected_the
 def create_visualization_frame(frame, info, x1, y1, x2, y2, mx, my, max_contour):
     """
     Create visualization frame and draw contour on the visualization if found
+    ROI: x1, y1, x2, y2
     """
     gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
     gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
@@ -293,51 +287,39 @@ def main(record_sensor_data=False, save_camera_video=False):
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
-            # Save video frame if enabled
+            # ビデオ保存有効時はフレームを保存
             if save_camera_video and video_writer is not None:
                 video_writer.write(frame)
-            
-            # Spikeの最新センサーステータス・カラー・超音波センサー値・判定をまとめて取得
+            # Spikeの最新センサーステータス・カラー・超音波・モーター相対位置値を取得
             color, distance, relative_position = get_sensor_info(et, sensor_recorder, record_sensor_data)
-            # relative_positionは辞書型でleft/rightでアクセス
-
-            # steer_by_cameraでラインの重心座標・オフセット・最大輪郭を取得
+            # ラインの重心座標・オフセット・最大輪郭を取得
             mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
-            # オフセットピクセルから進行角度thetaを計算
+            # 進行角度thetaを計算
             theta = calc.calculate_theta_from_pixels(offset_pixels)
-            # thetaの絶対値から推奨速度を計算（カーブ時は減速）
-            abs_theta = abs(theta)
-            current_power = calc.calculate_adaptive_speed(abs_theta)
-
+            # 推奨速度を計算（カーブ時は減速）
+            current_power = calc.calculate_adaptive_speed(abs(theta))
             # PID制御でthetaを補正し、左右パワー差を計算
             pid_corrected_theta = pid.update(theta)
             max_theta = math.radians(MAX_STEERING_THETA_DEG)
             power_adjustment = int((pid_corrected_theta / max_theta) * MAX_STEERING_POWER_DIFF)
             left_power = int(current_power - power_adjustment)
             right_power = int(current_power + power_adjustment)
-
             # 計算したパワーでモーターを駆動
             et.set_motor_forward_power(
                 left_power=left_power,
                 right_power=right_power,
             )
-            
-            # Prepare driving information for visualization
-            info = prepare_driving_info(x1, y1, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, abs_theta, left_power, right_power, color, distance, relative_position, max_contour)
-
-            # Create visualization frame and draw contour on the visualization if found
-            gray = create_visualization_frame(frame, info, x1, y1, x2, y2, mx, my, max_contour)
-
-            # Send camera capture for remote monitoring
+            # 可視化用情報生成
+            info = prepare_driving_info(*ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour)
+            # 可視化フレーム生成
+            gray = create_visualization_frame(frame, info, *ROI_OPENCV, mx, my, max_contour)
+            # カメラ画像送信（リモートモニタ用）
             if not send_camera_capture(gray, client_socket):
                 break
-
             # ループ終了時に30ms間隔となるようsleep
             elapsed = time.time() - loop_start
             sleep_time = max(0, 0.03 - elapsed)
-            #print(f"[DEBUG] loop_elapsed: {elapsed*1000:.2f} ms, sleep: {sleep_time*1000:.2f} ms")
             time.sleep(sleep_time)
-
     except KeyboardInterrupt:
         print("Interrupted by user")
         send_stop_signal(et, duration=5.0)
