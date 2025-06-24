@@ -222,12 +222,12 @@ def get_sensor_info(et, sensor_recorder=None, record_sensor_data=False):
     # spike_status.motors['A']['relative_position'] などから取得する形に修正
     left_relative_position = 'N/A'
     right_relative_position = 'N/A'
-    if hasattr(spike_status, 'motors') and isinstance(spike_status.motors, dict):
+    if hasattr(spike_status, 'motors'):
         # LEGO SPIKE Prime の一般的なポート割り当て: 左=B, 右=A
-        if 'B' in spike_status.motors and 'relative_position' in spike_status.motors['B']:
-            left_relative_position = spike_status.motors['B']['relative_position']
-        if 'A' in spike_status.motors and 'relative_position' in spike_status.motors['A']:
-            right_relative_position = spike_status.motors['A']['relative_position']
+        if hasattr(spike_status.motors, 'B') and hasattr(spike_status.motors.B, 'relative_position'):
+            left_relative_position = spike_status.motors.B.relative_position
+        if hasattr(spike_status.motors, 'A') and hasattr(spike_status.motors.A, 'relative_position'):
+            right_relative_position = spike_status.motors.A.relative_position
     # 走行距離[cm]に変換（1度あたり0.0471cm, タイヤ径54mm）
     def to_distance_cm(pos):
         try:
