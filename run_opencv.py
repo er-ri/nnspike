@@ -22,7 +22,7 @@ IMAGE_HEIGHT = 480
 BASE_POWER = 50         # 基本パワー（直線時以外、カーブ時の基準）
 STRAIGHT_POWER = 80     # 直線時専用のパワー（カーブでなく黒ライン上のみ）
 CURVE_POWER = 30        # カーブ時の最低パワー（必要に応じて使用）
-CURVE_THRESHOLD_DEG = 8     # カーブ判定閾値（度数法, SENSITIVITY=1.0時の推奨値）
+CURVE_THRESHOLD_DEG = 20     # カーブ判定閾値（度数法, SENSITIVITY=1.0時の推奨値）
 SENSITIVITY = 1.0           # ピクセル→theta変換感度
 MAX_STEERING_POWER_DIFF = 30   # 最大旋回時の左右パワー差（%）
 MAX_STEERING_THETA_DEG = 40    # 最大旋回角（度数法, 例: 40度）
