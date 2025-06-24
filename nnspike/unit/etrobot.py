@@ -170,10 +170,10 @@ class ETRobot(
         return self.last_spike_status
 
     def set_motor_relative_position(
-        self, left_positon: int, right_position: int
+        self, left_position: int, right_position: int
     ) -> None:
         id_byte = self.COMMAND_SET_MOTOR_RELATIVE_POSITION_ID.to_bytes(1, "big")
-        parameter1_byte = left_positon.to_bytes(1, "big")
+        parameter1_byte = left_position.to_bytes(1, "big")
         parameter2_byte = right_position.to_bytes(1, "big")
 
         command = id_byte + parameter1_byte + parameter2_byte
