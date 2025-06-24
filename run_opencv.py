@@ -219,8 +219,15 @@ def get_sensor_info(et, sensor_recorder=None, record_sensor_data=False):
     else:
         ultrasonic_data = "N/A cm"
     # モーター左右相対位置値取得
-    left_relative_position = getattr(spike_status, 'motor_b_relative_position', 'N/A')
-    right_relative_position = getattr(spike_status, 'motor_a_relative_position', 'N/A')
+    # spike_status.motors['A']['relative_position'] などから取得する形に修正
+    left_relative_position = 'N/A'
+    right_relative_position = 'N/A'
+    if hasattr(spike_status, 'motors') and isinstance(spike_status.motors, dict):
+        # LEGO SPIKE Prime の一般的なポート割り当て: 左=B, 右=A
+        if 'B' in spike_status.motors and 'relative_position' in spike_status.motors['B']:
+            left_relative_position = spike_status.motors['B']['relative_position']
+        if 'A' in spike_status.motors and 'relative_position' in spike_status.motors['A']:
+            right_relative_position = spike_status.motors['A']['relative_position']
     # 走行距離[cm]に変換（1度あたり0.0471cm, タイヤ径54mm）
     def to_distance_cm(pos):
         try:
@@ -298,8 +305,8 @@ def main(record_sensor_data=False, save_camera_video=False):
                 "ultrasonic_sensor": ultrasonic_data,
                 "left_power": f"{left_power}%",
                 "right_power": f"{right_power}%",
-                "left_relative_position": f"{left_relative_position}deg / {left_distance_cm}cm",
-                "right_relative_position": f"{right_relative_position}deg / {right_distance_cm}cm",
+                "left_relative_position": f"{left_relative_position if left_relative_position != 'N/A' else 0}deg / {left_distance_cm if left_distance_cm != 'N/A' else 0}cm",
+                "right_relative_position": f"{right_relative_position if right_relative_position != 'N/A' else 0}deg / {right_distance_cm if right_distance_cm != 'N/A' else 0}cm",
                 "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
             }
 
