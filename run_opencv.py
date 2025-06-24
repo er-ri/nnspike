@@ -231,7 +231,15 @@ def get_sensor_info(et, sensor_recorder=None, record_sensor_data=False):
                 return val
         # 辞書型
         if isinstance(motors, dict) and port in motors:
-            val = motors[port].get('relative_position', 'N/A')
+            motor = motors[port]
+            # motorがdict型
+            if isinstance(motor, dict):
+                val = motor.get('relative_position', 'N/A')
+            # motorがオブジェクト型
+            elif hasattr(motor, 'relative_position'):
+                val = getattr(motor, 'relative_position')
+            else:
+                val = 'N/A'
             if isinstance(val, (list, tuple)):
                 return val[1] if len(val) > 1 else val[0]
             return val
