@@ -117,9 +117,9 @@ def initialize_system(record_sensor_data, save_camera_video):
     # Initialize robot, PID, ControlCalculator（ユーザー調整値はグローバル参照）
     et = ETRobot()
     pid = PIDController(
-        Kp=3,  # Restored to ensure sufficient turning power
-        Ki=0,
-        Kd=0.2,  # Increased derivative term to reduce oscillation
+        Kp=2.0,  # 比例項: 反応をやや抑える（従来3→2.0）
+        Ki=0,    # 積分項: 通常0でOK
+        Kd=0.4,  # 微分項: 揺れ抑制を強める（従来0.2→0.4）
         setpoint=0,
         output_limits=(-0.25, 0.25),  # Direct radian limits for steering correction
     )
