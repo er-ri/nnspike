@@ -77,7 +77,7 @@ def draw_driving_info(
         image = cv2.putText(
             image,
             f"{key} : {text}",
-            (50, 270 + index * 20),
+            (50, 230 + index * 20),  # 270→230で2行分(40px)上に移動
             cv2.FONT_HERSHEY_PLAIN,
             1,
             (255, 255, 255),
