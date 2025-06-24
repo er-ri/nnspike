@@ -233,7 +233,7 @@ def get_sensor_info(et, sensor_recorder=None, record_sensor_data=False):
     # センサーデータ記録が有効な場合はロガーに記録
     if record_sensor_data and sensor_recorder is not None:
         sensor_recorder.log_frame_data(spike_status)
-    return spike_status, color_data, ultrasonic_data, left_relative_position, right_relative_position, left_distance_cm, right_distance_cm
+    return color_data, ultrasonic_data, left_relative_position, right_relative_position, left_distance_cm, right_distance_cm
 
 
 def main(record_sensor_data=False, save_camera_video=False):
@@ -241,7 +241,7 @@ def main(record_sensor_data=False, save_camera_video=False):
         record_sensor_data, save_camera_video
     )
     time.sleep(0.5)
-    et.set_motor_relative_position(left_positon=0, right_position=0)
+    et.set_motor_relative_position(left_position=0, right_position=0)
 
     try:
         while et.is_running == True:
@@ -255,7 +255,7 @@ def main(record_sensor_data=False, save_camera_video=False):
                 video_writer.write(frame)
             
             # Spikeの最新センサーステータス・カラー・超音波センサー値・判定をまとめて取得
-            spike_status, color_data, ultrasonic_data, left_relative_position, right_relative_position, left_distance_cm, right_distance_cm = get_sensor_info(et, sensor_recorder, record_sensor_data)
+            color_data, ultrasonic_data, left_relative_position, right_relative_position, left_distance_cm, right_distance_cm = get_sensor_info(et, sensor_recorder, record_sensor_data)
 
             # steer_by_cameraでラインの重心座標・オフセット・最大輪郭を取得
             mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
