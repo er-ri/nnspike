@@ -17,7 +17,7 @@ PID Tuning Parameters:
 
 # ==== ユーザー調整用パラメータ（ここだけ編集すればOK） ====
 # ROI_OPENCV: OpenCV画像処理で使用する領域（左上x, 左上y, 右下x, 右下y）
-ROI_OPENCV = (150, 250, 490, 400)  # 必要に応じて変更
+ROI_OPENCV = (150, 320, 490, 400)  # 必要に応じて変更
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480                 # カメラ画像の高さ
 BASE_POWER = 50                    # カーブ時の基準パワー
