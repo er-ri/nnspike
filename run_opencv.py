@@ -17,7 +17,7 @@ PID Tuning Parameters:
 
 # ==== ユーザー調整用パラメータ（ここだけ編集すればOK） ====
 # ROI_OPENCV: OpenCV画像処理で使用する領域（左上x, 左上y, 右下x, 右下y）
-ROI_OPENCV = (150, 300, 490, 400)  # 必要に応じて変更
+ROI_OPENCV = (150, 300, 490, 400)  # 必ずタプルで定義すること
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480                 # カメラ画像の高さ
 BASE_POWER = 50                    # カーブ時の基準パワー
@@ -179,8 +179,6 @@ def send_stop_signal(et, duration=5.0):
     print("Stop signal transmission completed")
 
 
-ON_BLACK = False
-ON_BLUE = False
 def get_sensor_info(et, sensor_recorder=None, record_sensor_data=False):
     """
     Spikeの最新センサーステータス・カラー・超音波・モーター相対位置値・判定をまとめて取得
@@ -190,57 +188,41 @@ def get_sensor_info(et, sensor_recorder=None, record_sensor_data=False):
     - モーターB/C相対位置値取得
     - センサーデータ記録が有効な場合はロガーに記録
     """
-    global ON_BLACK, ON_BLUE
-    # Spikeの最新センサーステータスを取得
     spike_status = et.get_spike_status()
     sensors = getattr(spike_status, 'sensors', None)
     color = getattr(sensors, 'color', None)
+    distance = getattr(sensors, 'distance', None)
+    relative_position = {
+        'left': spike_status.motors['B'].relative_position if 'B' in spike_status.motors and spike_status.motors['B'].relative_position is not None else 0,
+        'right': spike_status.motors['A'].relative_position if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0
+    }
+    if record_sensor_data and sensor_recorder is not None:
+        sensor_recorder.log_frame_data(spike_status)
+    return color, distance, relative_position
+
+
+def prepare_driving_info(x1, y1, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, abs_theta, left_power, right_power, color, distance, relative_position, max_contour):
+    """
+    Prepare driving information for visualization
+    """
+    # relative_positionから値とcm変換をまとめて生成
+    def to_distance_cm(pos):
+        return int(float(pos) * 0.0471) if pos is not None else 0
+    left_distance_cm = to_distance_cm(relative_position['left'])
+    right_distance_cm = to_distance_cm(relative_position['right'])
+    # color_data生成
     if color:
         color_reflected = getattr(color, 'reflected', None)
         color_ambient = getattr(color, 'ambient', None)
         color_color = getattr(color, 'color', None)
         color_data = f"R:{color_reflected if color_reflected is not None else 'N/A'} A:{color_ambient if color_ambient is not None else 'N/A'} C:{color_color if color_color is not None else 'N/A'}"
-        ON_BLACK = (
-            color_reflected is not None and color_reflected <= BLACK_REFLECTED_THRESHOLD and
-            color_color is not None and color_color <= BLACK_COLOR_THRESHOLD
-        )
-        ON_BLUE = (
-            color_color is not None and color_color <= BLUE_COLOR_THRESHOLD and
-            color_reflected is not None and color_reflected <= BLUE_REFLECTED_THRESHOLD
-        )
     else:
         color_data = "R:N/A A:N/A C:N/A"
-        ON_BLACK = False
-        ON_BLUE = False
-    # 超音波センサーデータ値取得
-    distance = getattr(sensors, 'distance', None)
+    # ultrasonic_data生成
     if distance is not None:
         ultrasonic_data = f"{distance} cm"
     else:
         ultrasonic_data = "N/A cm"
-    # モーター左右相対位置値取得
-    # recorder.pyと同じく、Noneなら0で扱う
-    left_relative_position = spike_status.motors['B'].relative_position if 'B' in spike_status.motors and spike_status.motors['B'].relative_position is not None else 0
-    right_relative_position = spike_status.motors['A'].relative_position if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0
-    # 走行距離[cm]に変換（1度あたり0.0471cm, タイヤ径54mm）
-    def to_distance_cm(pos):
-        try:
-            return int(float(pos) * 0.0471)
-        except:
-            return 0
-    left_distance_cm = to_distance_cm(left_relative_position)
-    right_distance_cm = to_distance_cm(right_relative_position)
-    # センサーデータ記録が有効な場合はロガーに記録
-    if record_sensor_data and sensor_recorder is not None:
-        sensor_recorder.log_frame_data(spike_status)
-    return color_data, ultrasonic_data, left_relative_position, right_relative_position, left_distance_cm, right_distance_cm
-
-
-# --- 可視化・送信処理の外部関数 ---
-def prepare_driving_info(x1, y1, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, abs_theta, left_power, right_power, color_data, ultrasonic_data, left_relative_position, right_relative_position, left_distance_cm, right_distance_cm, max_contour):
-    """
-    Prepare driving information for visualization
-    """
     info = dict()
     info["offset_x"], info["offset_y"] = x1 + mx, y1 + my
     info["text"] = {
@@ -255,14 +237,14 @@ def prepare_driving_info(x1, y1, mx, my, offset_pixels, theta, pid_corrected_the
         ),
         "current_power": f"{round(current_power, 1)}%",
         "on_color": (
-            "BLACK" if ON_BLACK else ("BLUE" if ON_BLUE else "N/A")
+            "BLACK" if (color and getattr(color, 'is_black', False)) else ("BLUE" if (color and getattr(color, 'is_blue', False)) else "N/A")
         ),
         "color_sensor": color_data,
         "ultrasonic_sensor": ultrasonic_data,
         "left_power": f"{left_power}%",
         "right_power": f"{right_power}%",
-        "left_relative_position": f"{left_relative_position if left_relative_position != 'N/A' else 0}deg / {left_distance_cm if left_distance_cm != 'N/A' else 0}cm",
-        "right_relative_position": f"{right_relative_position if right_relative_position != 'N/A' else 0}deg / {right_distance_cm if right_distance_cm != 'N/A' else 0}cm",
+        "left_relative_position": f"{relative_position['left']}deg / {left_distance_cm}cm",
+        "right_relative_position": f"{relative_position['right']}deg / {right_distance_cm}cm",
         "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
     }
     return info
@@ -316,7 +298,8 @@ def main(record_sensor_data=False, save_camera_video=False):
                 video_writer.write(frame)
             
             # Spikeの最新センサーステータス・カラー・超音波センサー値・判定をまとめて取得
-            color_data, ultrasonic_data, left_relative_position, right_relative_position, left_distance_cm, right_distance_cm = get_sensor_info(et, sensor_recorder, record_sensor_data)
+            color, distance, relative_position = get_sensor_info(et, sensor_recorder, record_sensor_data)
+            # relative_positionは辞書型でleft/rightでアクセス
 
             # steer_by_cameraでラインの重心座標・オフセット・最大輪郭を取得
             mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
@@ -340,7 +323,7 @@ def main(record_sensor_data=False, save_camera_video=False):
             )
             
             # Prepare driving information for visualization
-            info = prepare_driving_info(x1, y1, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, abs_theta, left_power, right_power, color_data, ultrasonic_data, left_relative_position, right_relative_position, left_distance_cm, right_distance_cm, max_contour)
+            info = prepare_driving_info(x1, y1, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, abs_theta, left_power, right_power, color, distance, relative_position, max_contour)
 
             # Create visualization frame and draw contour on the visualization if found
             gray = create_visualization_frame(frame, info, x1, y1, x2, y2, mx, my, max_contour)

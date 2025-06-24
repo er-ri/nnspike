@@ -3,6 +3,13 @@ from dataclasses import dataclass
 from typing import Dict, Optional, Union, Any
 import time
 
+# 黒・青判定の閾値（run_opencv.py等と同じ値をここにも定義）
+# --- これらはユーザー調整値です。必要に応じてプロジェクト全体で統一・調整してください ---
+BLACK_REFLECTED_THRESHOLD = 40
+BLACK_COLOR_THRESHOLD = 150
+BLUE_COLOR_THRESHOLD = 30
+BLUE_REFLECTED_THRESHOLD = 60
+
 
 @dataclass
 class MotorStatus:
@@ -22,19 +29,32 @@ class MotorStatus:
         )
 
 
-@dataclass
 class ColorSensorStatus:
     """Status information for a color sensor connected to the Spike Prime hub."""
     reflected: Optional[int] = None
     ambient: Optional[int] = None
     color: Optional[int] = None
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ColorSensorStatus':
         return cls(
             reflected=data.get('reflected'),
             ambient=data.get('ambient'),
             color=data.get('color')
+        )
+
+    @property
+    def is_black(self) -> bool:
+        return (
+            self.reflected is not None and self.reflected <= BLACK_REFLECTED_THRESHOLD and
+            self.color is not None and self.color <= BLACK_COLOR_THRESHOLD
+        )
+
+    @property
+    def is_blue(self) -> bool:
+        return (
+            self.color is not None and self.color <= BLUE_COLOR_THRESHOLD and
+            self.reflected is not None and self.reflected <= BLUE_REFLECTED_THRESHOLD
         )
 
 
