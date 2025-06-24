@@ -181,13 +181,14 @@ def send_stop_signal(et, duration=5.0):
 
 ON_BLACK = False
 ON_BLUE = False
-def get_sensor_info(et):
+def get_sensor_info(et, sensor_recorder=None, record_sensor_data=False):
     """
     Spikeの最新センサーステータス・カラー・超音波・モーター相対位置値・判定をまとめて取得
     - Spikeの最新センサーステータスを取得
     - カラーセンサー値取得と黒・青判定
     - 超音波センサーデータ値取得
     - モーターB/C相対位置値取得
+    - センサーデータ記録が有効な場合はロガーに記録
     """
     global ON_BLACK, ON_BLUE
     # Spikeの最新センサーステータスを取得
@@ -228,6 +229,9 @@ def get_sensor_info(et):
             return 'N/A'
     left_distance_cm = to_distance_cm(left_relative_position)
     right_distance_cm = to_distance_cm(right_relative_position)
+    # センサーデータ記録が有効な場合はロガーに記録
+    if record_sensor_data and sensor_recorder is not None:
+        sensor_recorder.log_frame_data(spike_status)
     return spike_status, color_data, ultrasonic_data, left_relative_position, right_relative_position, left_distance_cm, right_distance_cm
 
 
@@ -250,7 +254,7 @@ def main(record_sensor_data=False, save_camera_video=False):
                 video_writer.write(frame)
             
             # Spikeの最新センサーステータス・カラー・超音波センサー値・判定をまとめて取得
-            spike_status, color_data, ultrasonic_data, left_relative_position, right_relative_position, left_distance_cm, right_distance_cm = get_sensor_info(et)
+            spike_status, color_data, ultrasonic_data, left_relative_position, right_relative_position, left_distance_cm, right_distance_cm = get_sensor_info(et, sensor_recorder, record_sensor_data)
 
             # steer_by_cameraでラインの重心座標・オフセット・最大輪郭を取得
             mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
@@ -272,19 +276,10 @@ def main(record_sensor_data=False, save_camera_video=False):
                 left_power=left_power,
                 right_power=right_power,
             )
-            # センサーデータ記録が有効な場合はロガーに記録
-            if record_sensor_data and sensor_recorder is not None:
-                sensor_recorder.log_frame_data(spike_status)
             
             # Prepare driving information for visualization
             info = dict()
             info["offset_x"], info["offset_y"] = x1 + mx, y1 + my            # メインループで直接センサーデータを取得
-            # 超音波センサーデータ値取得
-            if spike_status and spike_status.sensors and spike_status.sensors.distance is not None:
-                ultrasonic_data = f"{spike_status.sensors.distance} cm"
-            else:
-                ultrasonic_data = "N/A cm"
-            
             info["text"] = {
                 "offset_pixels": f"{round(offset_pixels, 1)}px",
                 "theta_deg": f"{round(math.degrees(theta), 2)}deg",
