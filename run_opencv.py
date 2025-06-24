@@ -19,8 +19,8 @@ PID Tuning Parameters:
 ROI_OPENCV = (150, 300, 490, 400)  # 必要に応じて変更
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
-BASE_POWER = 40         # 基本パワー（直線時以外、カーブ時の基準）
-STRAIGHT_POWER = 50     # 直線時専用のパワー（カーブでなく黒ライン上のみ）
+BASE_POWER = 50         # 基本パワー（直線時以外、カーブ時の基準）
+STRAIGHT_POWER = 80     # 直線時専用のパワー（カーブでなく黒ライン上のみ）
 CURVE_POWER = 30        # カーブ時の最低パワー（必要に応じて使用）
 CURVE_THRESHOLD_DEG = 8     # カーブ判定閾値（度数法, SENSITIVITY=1.0時の推奨値）
 SENSITIVITY = 1.0           # ピクセル→theta変換感度
@@ -208,7 +208,7 @@ def main(record_sensor_data=False, save_camera_video=False):
                 ON_BLACK_LINE = False
             # Dynamic speed control using ControlCalculator
             abs_theta = abs(theta)
-            current_base_power = calc.calculate_adaptive_speed(abs_theta, ON_BLACK_LINE)
+            current_base_power = calc.calculate_adaptive_speed(abs_theta)
 
             # Apply PID control to theta for smooth steering correction
             pid_corrected_theta = pid.update(theta)

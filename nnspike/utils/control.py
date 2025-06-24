@@ -23,6 +23,7 @@ Functions:
 
 import cv2
 import numpy as np
+import math
 
 class ControlCalculator:
     def __init__(self, roi, image_width, sensitivity, base_power, curve_power, straight_power, curve_threshold):
@@ -101,14 +102,14 @@ class ControlCalculator:
         theta = normalized_offset * self.sensitivity
         return theta
 
-    def calculate_adaptive_speed(self, abs_theta, on_black_line):
+    def calculate_adaptive_speed(self, abs_theta):
         """
-        カーブ量(abs_theta)と黒ライン判定に応じて速度を調整する。
-        黒ライン上かつカーブでなければstraight_power、カーブ時はcurve_power、それ以外はbase_power。
+        abs_theta（進行方向の絶対角度）だけで速度を調整する。
+        カラーセンサー値（on_black_line）は使用しない。
         """
-        if on_black_line and abs_theta <= self.curve_threshold:
-            return self.straight_power
-        elif abs_theta > self.curve_threshold:
+        if abs_theta > self.curve_threshold:
             return self.curve_power
+        elif abs_theta < math.radians(2):  # 直線判定は任意で調整
+            return self.straight_power
         else:
             return self.base_power
