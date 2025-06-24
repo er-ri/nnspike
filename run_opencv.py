@@ -219,39 +219,15 @@ def get_sensor_info(et, sensor_recorder=None, record_sensor_data=False):
     else:
         ultrasonic_data = "N/A cm"
     # モーター左右相対位置値取得
-    # spike_status.motors['A']['relative_position'] などから取得する形に修正
-    def get_relative_position(motors, port):
-        # 属性型
-        if hasattr(motors, port):
-            motor = getattr(motors, port)
-            if hasattr(motor, 'relative_position'):
-                val = motor.relative_position
-                if isinstance(val, (list, tuple)):
-                    return val[1] if len(val) > 1 else val[0]
-                return val
-        # 辞書型
-        if isinstance(motors, dict) and port in motors:
-            motor = motors[port]
-            # motorがdict型
-            if isinstance(motor, dict):
-                val = motor.get('relative_position', 'N/A')
-            # motorがオブジェクト型
-            elif hasattr(motor, 'relative_position'):
-                val = getattr(motor, 'relative_position')
-            else:
-                val = 'N/A'
-            if isinstance(val, (list, tuple)):
-                return val[1] if len(val) > 1 else val[0]
-            return val
-        return 'N/A'
-    left_relative_position = get_relative_position(getattr(spike_status, 'motors', {}), 'B')
-    right_relative_position = get_relative_position(getattr(spike_status, 'motors', {}), 'A')
+    # recorder.pyと同じく、Noneなら0で扱う
+    left_relative_position = spike_status.motors['B'].relative_position if 'B' in spike_status.motors and spike_status.motors['B'].relative_position is not None else 0
+    right_relative_position = spike_status.motors['A'].relative_position if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0
     # 走行距離[cm]に変換（1度あたり0.0471cm, タイヤ径54mm）
     def to_distance_cm(pos):
         try:
             return int(float(pos) * 0.0471)
         except:
-            return 'N/A'
+            return 0
     left_distance_cm = to_distance_cm(left_relative_position)
     right_distance_cm = to_distance_cm(right_relative_position)
     # センサーデータ記録が有効な場合はロガーに記録
