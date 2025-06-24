@@ -26,7 +26,7 @@ import numpy as np
 import math
 
 class ControlCalculator:
-    def __init__(self, roi, image_width, sensitivity, base_power, curve_power, straight_power, curve_threshold):
+    def __init__(self, roi, image_width, sensitivity, base_power, curve_power, straight_power, curve_threshold, straight_threshold=math.radians(2)):
         self.roi = roi
         self.image_width = image_width
         self.sensitivity = sensitivity
@@ -34,6 +34,7 @@ class ControlCalculator:
         self.curve_power = curve_power
         self.straight_power = straight_power
         self.curve_threshold = curve_threshold
+        self.straight_threshold = straight_threshold
 
     def steer_by_camera(self, frame):
         """
@@ -109,7 +110,7 @@ class ControlCalculator:
         """
         if abs_theta > self.curve_threshold:
             return self.curve_power
-        elif abs_theta < math.radians(2):  # 直線判定は任意で調整
+        elif abs_theta < self.straight_threshold:  # 直線判定は任意で調整
             return self.straight_power
         else:
             return self.base_power

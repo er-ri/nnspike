@@ -16,19 +16,21 @@ PID Tuning Parameters:
 """
 
 # ==== ユーザー調整用パラメータ（ここだけ編集すればOK） ====
+# ROI_OPENCV: OpenCV画像処理で使用する領域（左上x, 左上y, 右下x, 右下y）
 ROI_OPENCV = (150, 300, 490, 400)  # 必要に応じて変更
-IMAGE_WIDTH = 640
-IMAGE_HEIGHT = 480
-BASE_POWER = 50         # 基本パワー（直線時以外、カーブ時の基準）
-STRAIGHT_POWER = 80     # 直線時専用のパワー（カーブでなく黒ライン上のみ）
-CURVE_POWER = 30        # カーブ時の最低パワー（必要に応じて使用）
-CURVE_THRESHOLD_DEG = 20     # カーブ判定閾値（度数法, SENSITIVITY=1.0時の推奨値）
-SENSITIVITY = 1.0           # ピクセル→theta変換感度
-MAX_STEERING_POWER_DIFF = 30   # 最大旋回時の左右パワー差（%）
-MAX_STEERING_THETA_DEG = 40    # 最大旋回角（度数法, 例: 40度）
-# 黒ライン判定の閾値（より安全側に余裕を持たせる）
-BLACK_LINE_REFLECTED_THRESHOLD = 40  # 反射光R: 40以下なら黒
-BLACK_LINE_COLOR_THRESHOLD = 150     # color: 150以下なら黒
+IMAGE_WIDTH = 640                  # カメラ画像の幅
+IMAGE_HEIGHT = 480                 # カメラ画像の高さ
+BASE_POWER = 50                    # カーブ時の基準パワー
+STRAIGHT_POWER = 80                # 直線時の推奨パワー
+CURVE_POWER = 30                   # 急カーブ時の最低パワー
+CURVE_THRESHOLD_DEG = 10           # カーブ判定閾値（度数法, SENSITIVITY=1.0時の推奨値）
+STRAIGHT_THRESHOLD_DEG = 3         # 直線判定のしきい値（ユーザー調整用, デフォルト3度, STRAIGHT_THRESHOLD_DEGで指定）
+SENSITIVITY = 1.0                  # ピクセル→theta変換感度
+MAX_STEERING_POWER_DIFF = 30       # 最大旋回時の左右パワー差（%）
+MAX_STEERING_THETA_DEG = 40        # 最大旋回角（度数法, 例: 40度）
+# 黒ライン判定の閾値（反射光R: 40以下, color: 150以下なら黒と判定）
+BLACK_LINE_REFLECTED_THRESHOLD = 40
+BLACK_LINE_COLOR_THRESHOLD = 150
 # ================================================
 
 import cv2
@@ -131,13 +133,15 @@ def initialize_system(record_sensor_data, save_camera_video):
         # calculate_theta_from_pixels(offset_pixels):
         #   ピクセル→theta変換感度
         SENSITIVITY,
-        # calculate_adaptive_speed(abs_theta, on_black_line):
-        #   走行パワー調整用パラメータ
+        # calculate_adaptive_speed(abs_theta): theta角度（進行方向の絶対値, ラジアン）に応じて速度（パワー）を自動調整
+        #     （直線・緩カーブ・急カーブで推奨パワーを自動切替, センサー値は参照しない）
         BASE_POWER,
         CURVE_POWER,
         STRAIGHT_POWER,
-        # カーブ判定閾値（ラジアン）
-        math.radians(CURVE_THRESHOLD_DEG)
+        # カーブ判定閾値（CURVE_THRESHOLD_DEG, ラジアンに変換）
+        math.radians(CURVE_THRESHOLD_DEG),
+        # 直線判定閾値（STRAIGHT_THRESHOLD_DEG, ラジアンに変換）
+        math.radians(STRAIGHT_THRESHOLD_DEG)  # 直線判定のしきい値
     )
 
     print("メインループで直接センサー値を取得します")
