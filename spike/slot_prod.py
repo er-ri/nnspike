@@ -142,16 +142,16 @@ class LegoSpike(object):
         try:
             # self.motor_left, self.motor_rightは__init__で取得済みインスタンスを必ず利用
             # モーター情報取得
-            # motor_left = self.motor_left
-            # motor_right = self.motor_right
-            # motor_left_speed = motor_left.speed() if hasattr(motor_left, 'speed') else 0
-            # motor_left_position = motor_left.absolute_position() if hasattr(motor_left, 'absolute_position') else 0
-            # motor_left_relative = motor_left.relative_position() if hasattr(motor_left, 'relative_position') else 0
-            # motor_left_power = motor_left.power() if hasattr(motor_left, 'power') else 0
-            # motor_right_speed = motor_right.speed() if hasattr(motor_right, 'speed') else 0
-            # motor_right_position = motor_right.absolute_position() if hasattr(motor_right, 'absolute_position') else 0
-            # motor_right_relative = motor_right.relative_position() if hasattr(motor_right, 'relative_position') else 0
-            # motor_right_power = motor_right.power() if hasattr(motor_right, 'power') else 0
+            motor_left = self.motor_left
+            motor_right = self.motor_right
+            motor_left_speed = motor_left.speed() if hasattr(motor_left, 'speed') else 0
+            motor_left_position = motor_left.absolute_position() if hasattr(motor_left, 'absolute_position') else 0
+            motor_left_relative = motor_left.relative_position() if hasattr(motor_left, 'relative_position') else 0
+            motor_left_power = motor_left.power() if hasattr(motor_left, 'power') else 0
+            motor_right_speed = motor_right.speed() if hasattr(motor_right, 'speed') else 0
+            motor_right_position = motor_right.absolute_position() if hasattr(motor_right, 'absolute_position') else 0
+            motor_right_relative = motor_right.relative_position() if hasattr(motor_right, 'relative_position') else 0
+            motor_right_power = motor_right.power() if hasattr(motor_right, 'power') else 0
             
             # motor_arm, force_sensor, accel, gyro, 位置情報はコメントアウト
             # motor_arm_speed = self.motor_arm.speed() if hasattr(self.motor_arm, 'speed') else 0
@@ -171,8 +171,8 @@ class LegoSpike(object):
             sensor_data = {
                 "m": 0,  # message_type: 0 = sensor data
                 "p": [
-                    # [48, [motor_left_speed, motor_left_relative, motor_left_position, motor_left_power]],  # モーターA (左) - Port 48
-                    # [48, [motor_right_speed, motor_right_relative, motor_right_position, motor_right_power]],  # モーターB (右) - Port 48
+                    [48, [motor_left_speed, motor_left_relative, motor_left_position, motor_left_power]],  # モーターA (左) - Port 48
+                    [48, [motor_right_speed, motor_right_relative, motor_right_position, motor_right_power]],  # モーターB (右) - Port 48
                     # # モーターC (アーム) - Port 49
                     # [49, [motor_arm_speed, motor_arm_relative, motor_arm_position, motor_arm_power]],
                     # # フォースセンサー - Port 63
