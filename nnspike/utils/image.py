@@ -74,14 +74,13 @@ def draw_driving_info(
         value = info["text"][key]
         text = f"{value:.2f}" if type(value) is float else value
 
-        # 水色（BGR: 255, 200, 100）、太さは1
         image = cv2.putText(
             image,
             f"{key} : {text}",
-            (10, 30 + index * 20),
+            (10, 30 + index * 20),  # 左上(10,30)から縦に並べる
             cv2.FONT_HERSHEY_PLAIN,
             1,
-            (255, 200, 100),
+            (255, 255, 255),
             1,
             cv2.LINE_4,
         )
