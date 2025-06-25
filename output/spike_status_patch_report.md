@@ -41,43 +41,6 @@ def get_spike_status(self):
     try:
         if self.__serial_port.in_waiting > 0:
             received_data = self.__serial_port.read_until(expected=b"\r")
-        ambient = data[3] if len(data) > 3 else None
-        color = data[4] if len(data) > 4 else None
-        return cls(reflected=reflected, ambient=ambient, color=color)
-
-    @classmethod
-    def from_dict(cls, d: dict) -> 'ColorSensorStatus':
-        return cls(reflected=d.get('reflected'), ambient=d.get('ambient'), color=d.get('color'))
-```
-
-**使い分け例**
-```python
-# リスト形式
-color_status = ColorSensorStatus.from_list([0, 0, 22, 0, 116])
-# 辞書形式
-color_status = ColorSensorStatus.from_dict({'reflected': 22, 'ambient': 0, 'color': 116})
-```
-
----
-
-### etrobot.py（[GitHub 該当ファイル](https://github.com/er-ri/nnspike/blob/et2025/nnspike/unit/etrobot.py)）
-
-**get_spike_status 修正前（ブロッキング・無限ループ）**
-```python
-while True:
-    received_data = self.__serial_port.read_until(expected=b"\r")
-    if not received_data or len(received_data.strip()) == 0:
-        continue
-    # ...パース処理...
-    # 条件成立でreturn
-```
-
-**get_spike_status 修正後（完全非ブロッキング化）**
-```python
-def get_spike_status(self):
-    try:
-        if self.__serial_port.in_waiting > 0:
-            received_data = self.__serial_port.read_until(expected=b"\r")
             if received_data and len(received_data.strip()) > 0:
                 for chunk in received_data.split(b'}{'):
                     if not chunk:
@@ -99,13 +62,17 @@ def get_spike_status(self):
         return self.last_spike_status
 ```
 
-**stop 修正前（何もしない）**
+**stop 修正前（ブロッキング・例外リスクあり）**
 ```python
-def stop(self):
-    pass
+def stop(self) -> None:
+    """Stop the robot and close the serial port."""
+    self.is_running = False
+    self.brake()
+    self.__thread.join()
+    self.__serial_port.close()
 ```
 
-**stop 修正後（スレッド安全停止・リソース解放）**
+**stop 修正後（スレッド安全停止・リソース解放・例外握りつぶし）**
 ```python
 def stop(self):
     self.is_running = False
@@ -116,6 +83,43 @@ def stop(self):
             self.__serial_port.close()
         except Exception:
             pass
+```
+
+---
+
+### spike_status.py（[GitHub 該当ファイル](https://github.com/er-ri/nnspike/blob/et2025/nnspike/unit/spike_status.py)）
+
+**修正前（リスト形式未対応・TypeError発生）**
+```python
+default_color = ColorSensorStatus([0, 0, 22, 0, 116])  # → TypeError: takes no arguments
+```
+
+**修正後（リスト・辞書両対応）**
+```python
+class ColorSensorStatus:
+    def __init__(self, reflected=None, ambient=None, color=None):
+        self.reflected = reflected
+        self.ambient = ambient
+        self.color = color
+
+    @classmethod
+    def from_list(cls, data: list) -> 'ColorSensorStatus':
+        reflected = data[2] if len(data) > 2 else None
+        ambient = data[3] if len(data) > 3 else None
+        color = data[4] if len(data) > 4 else None
+        return cls(reflected=reflected, ambient=ambient, color=color)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> 'ColorSensorStatus':
+        return cls(reflected=d.get('reflected'), ambient=d.get('ambient'), color=d.get('color'))
+```
+
+**使い分け例**
+```python
+# リスト形式
+color_status = ColorSensorStatus.from_list([0, 0, 22, 0, 116])
+# 辞書形式
+color_status = ColorSensorStatus.from_dict({'reflected': 22, 'ambient': 0, 'color': 116})
 ```
 
 ---
