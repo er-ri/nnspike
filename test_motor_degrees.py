@@ -24,8 +24,8 @@ def main():
         time.sleep(3)
         # 右カーブで前進（右モーター弱・左モーター強）
         print("右カーブ: power=40, duration=2.0秒で前進（右モーター弱・左モーター強）")
-        et.move_right_arc(duration=ARC_DURATION, power=ARC_POWER)
-        time.sleep(3)
+        #et.move_right_arc(duration=ARC_DURATION, power=ARC_POWER)
+        #time.sleep(3)
         et.brake()
         time.sleep(3)
     except KeyboardInterrupt:
