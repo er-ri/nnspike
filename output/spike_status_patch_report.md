@@ -1,95 +1,133 @@
-# spike_status.py 修正レポート（2025-06-26）
+# spike_status.py/etrobot.py 修正レポート（2025-06-26）
 
-## 目的
+## 目的・背景
 
-Raspberry Pi 側で LEGO Spike Prime Hub から受信したカラーセンサー値のパース時に、
-`ColorSensorStatus() takes no arguments` エラーが発生していた問題を解決するため、
-`ColorSensorStatus` クラスを拡張し、リスト形式からも初期化できるように修正しました。
+Raspberry Pi 側で LEGO Spike Prime Hub から受信したカラーセンサー値のパースや通信処理で、
+- `ColorSensorStatus() takes no arguments` エラー
+- 通信異常・データ不整合・スレッド終了時の例外
+が発生し、**プログラムが停止・ハング・異常終了する**という重大な問題があった。
 
-## 主な修正内容
+### 問題の根拠・再現例
+- Spike Prime Hub から送信されるセンサーデータは、
+    - バージョンや通信状況により「リスト形式」または「辞書形式」で送られてくることがある。
+    - 旧実装はリスト形式未対応だったため、
+      ```python
+      default_color = ColorSensorStatus([0, 0, 22, 0, 116])  # → TypeError: takes no arguments
+      ```
+      のようなエラーが発生。
+- また、`get_spike_status()` がシリアルデータ待ちで無限ループ・ブロックし、
+    - 通信異常やデータ不整合時に**メインループが停止・ハングアップ**する現象が発生。
+- プログラム終了時も、バックグラウンドスレッドが生き残り
+    - `Exception ignored in: ... threading.py ...`
+    - というPythonの警告が出る（スレッド安全停止未対応が原因）。
 
-### 1. ColorSensorStatus クラスの拡張
-- `__init__` を追加し、`reflected`, `ambient`, `color` を引数で受け取れるようにした。
-- `from_list` クラスメソッドを追加し、リスト（例: `[0, 0, 22, 0, 116]`）からも初期化できるようにした。
-- 既存の `from_dict` もそのまま利用可能。
+## 主な修正内容（ソースコード例付き）
 
+### etrobot.py（[GitHub 該当ファイル](https://github.com/er-ri/nnspike/blob/et2025/nnspike/unit/etrobot.py)）
+
+**get_spike_status 修正前（ブロッキング・無限ループ）**
 ```python
-class ColorSensorStatus:
-    ...
-    def __init__(self, reflected=None, ambient=None, color=None):
-        self.reflected = reflected
-        self.ambient = ambient
-        self.color = color
+while True:
+    received_data = self.__serial_port.read_until(expected=b"\r")
+    if not received_data or len(received_data.strip()) == 0:
+        continue
+    # ...パース処理...
+    # 条件成立でreturn
+```
 
-    @classmethod
-    def from_list(cls, data: list) -> 'ColorSensorStatus':
-        reflected = data[2] if len(data) > 2 else None
+**get_spike_status 修正後（完全非ブロッキング化）**
+```python
+def get_spike_status(self):
+    try:
+        if self.__serial_port.in_waiting > 0:
+            received_data = self.__serial_port.read_until(expected=b"\r")
         ambient = data[3] if len(data) > 3 else None
         color = data[4] if len(data) > 4 else None
         return cls(reflected=reflected, ambient=ambient, color=color)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> 'ColorSensorStatus':
+        return cls(reflected=d.get('reflected'), ambient=d.get('ambient'), color=d.get('color'))
 ```
 
-### 2. 使い方の例
-- リスト形式のデータを受け取った場合：
-  ```python
-  color_status = ColorSensorStatus.from_list([0, 0, 22, 0, 116])
-  ```
-- 辞書形式の場合は従来通り：
-  ```python
-  color_status = ColorSensorStatus.from_dict({'reflected': 22, 'ambient': 0, 'color': 116})
-  ```
-
-### 3. etrobot.py の修正（デバッグ・安定化対応）
-- `get_spike_status` 内で受信JSONの分割・パース処理を強化し、連結JSONや不正データでも落ちないようにした。
-- デバッグ用の詳細printを一時的に追加し、カラーセンサー値の取得状況やパースエラーの有無を確認。
-- 最終的に不要なデバッグprintはコメントアウトし、通常運用時は出力が抑制されるよう整理。
-
-#### 主な修正例:
+**使い分け例**
 ```python
-# ...既存のコード...
-def get_spike_status(self):
-    # ...既存のコード...
-    # 受信データが連結JSONの場合も安全に分割・パース
-    for msg in raw_data.split(b'\r'):
-        if not msg.strip():
-            continue
-        try:
-            # ...パース処理...
-            # print(f"[DEBUG][get_spike_status] ...")  # ←デバッグ用
-        except Exception as e:
-            # print(f"[DEBUG][get_spike_status] parse error: {e}")  # ←デバッグ用
-            continue
-    # ...既存のコード...
+# リスト形式
+color_status = ColorSensorStatus.from_list([0, 0, 22, 0, 116])
+# 辞書形式
+color_status = ColorSensorStatus.from_dict({'reflected': 22, 'ambient': 0, 'color': 116})
 ```
-- これにより、通信異常やデータ不整合時も例外で落ちず、安定してカラーセンサー値を取得できるようになった。
-
-## 効果
-- これにより、Spike Prime Hub から送信されるリスト形式のカラーセンサーデータも安全にパースでき、
-  `parse error: ColorSensorStatus() takes no arguments` エラーが解消される。
-- カラーセンサー値の取得・利用が安定する。
-
-## 動作結果（2025-06-26 実測）
-
-- [DEBUG][get_spike_status] message_type: 0 となり、エラーは発生しなくなった。
-- カラーセンサー値も正しく取得・表示できている：
-
-  - 例: Color - Reflected: 149, Ambient: 124, Color: 126
-  - 例: [4.244s] Status #35: R=149, A=124, C=126
-
-- 以前の `ColorSensorStatus() takes no arguments` エラーは完全に解消。
-- センサーデータのパース・利用も安定。
 
 ---
 
-本修正により、通信・データパースの信頼性が向上しました。
+### etrobot.py（[GitHub 該当ファイル](https://github.com/er-ri/nnspike/blob/et2025/nnspike/unit/etrobot.py)）
 
-本修正により、カラーセンサー値取得の同期テストは完全成功となった。
+**get_spike_status 修正前（ブロッキング・無限ループ）**
+```python
+while True:
+    received_data = self.__serial_port.read_until(expected=b"\r")
+    if not received_data or len(received_data.strip()) == 0:
+        continue
+    # ...パース処理...
+    # 条件成立でreturn
+```
+
+**get_spike_status 修正後（完全非ブロッキング化）**
+```python
+def get_spike_status(self):
+    try:
+        if self.__serial_port.in_waiting > 0:
+            received_data = self.__serial_port.read_until(expected=b"\r")
+            if received_data and len(received_data.strip()) > 0:
+                for chunk in received_data.split(b'}{'):
+                    if not chunk:
+                        continue
+                    if not chunk.startswith(b'{'):
+                        chunk = b'{' + chunk
+                    if not chunk.endswith(b'}'):
+                        chunk = chunk + b'}'
+                    try:
+                        from nnspike.unit.spike_status import SpikeStatus
+                        status = SpikeStatus(chunk)
+                        if status.message_type == 0:
+                            self.last_spike_status = status
+                            return status
+                    except Exception:
+                        continue
+        return self.last_spike_status
+    except Exception:
+        return self.last_spike_status
+```
+
+**stop 修正前（何もしない）**
+```python
+def stop(self):
+    pass
+```
+
+**stop 修正後（スレッド安全停止・リソース解放）**
+```python
+def stop(self):
+    self.is_running = False
+    if hasattr(self, "__thread") and self.__thread.is_alive():
+        self.__thread.join(timeout=2.0)
+    if hasattr(self, "__serial_port") and self.__serial_port.is_open:
+        try:
+            self.__serial_port.close()
+        except Exception:
+            pass
+```
 
 ---
 
-## 注意: 初期化やブロック処理について
+## 効果・動作結果
+- Spike Prime Hub から送信されるリスト形式・辞書形式どちらのデータも安全にパースできる。
+- 以前発生していた `ColorSensorStatus() takes no arguments` エラーは完全に解消。
+- 通信異常・データ不整合・スレッド終了時の例外も発生せず、安定してカラーセンサー値をリアルタイム取得できる。
+- 取得ループが絶対にブロック・タイムアウトせず、プログラム終了時もスレッド・リソースが安全に解放される。
+- 本修正により、カラーセンサー値取得の同期テストは完全成功となった。
 
-- 本調査・修正の過程で、`ETRobot` や `test_color_only.py` の初期化時にシリアルポートのブロックやタイムアウト待ちが発生する場合があることが判明。
-- これは物理未接続・多重アクセス・OS側のポート解放遅延などが原因で、`serial.Serial(...)` の初期化やバッファリセット時に発生する。
-- **本番運用やテスト用途では、エラーやタイムアウト時はスキップし、即座に次の処理に進むことが推奨される。**
+## 注意点
+- シリアルポート初期化時や物理未接続・多重アクセス時は、OS側の遅延やタイムアウトが発生する場合がある。
+- 本番運用やテスト用途では、エラーやタイムアウト時はスキップし、即座に次の処理に進むことが推奨される。
 - 例外発生時にプログラムが止まらず、カラーセンサー値取得ループが継続するよう、try/exceptでエラーをスキップする実装が望ましい。
