@@ -3,7 +3,11 @@
 Color Sensor Only Test Program (Synchronous Version)
 
 このスクリプトはカラーセンサーの動作のみをテストします。
-アームの動作は開始時のみで、以降はセンサー値の取得のみ行います。
+- アームの動作は開始時のみ（上げてから下げる）。
+- 以降はカラーセンサー値の取得・表示のみを行います。
+- 取得間隔は30ms（スパイク側のセンサーブロードキャスト間隔に合わせる）。
+- 例外発生時は自動リカバリ（ETRobot再初期化）を最大3回まで試みます。
+- ログはflush=Trueでリアルタイム表示されます。
 """
 import time
 from nnspike.unit import ETRobot
@@ -24,7 +28,7 @@ def display_spike_status(et, interval=0.03, duration=5.0, max_recover=3):
             spike_status = et.get_spike_status()
             if spike_status and spike_status.sensors and spike_status.sensors.color:
                 color_sensor = spike_status.sensors.color
-                print(f"[{elapsed:.3f}s] ColorSensor: Reflected={color_sensor.reflected}, Ambient={color_sensor.ambient}, Color={color_sensor.color}")
+                print(f"[{elapsed:.3f}s] ColorSensor: Reflected={color_sensor.reflected}, Ambient={color_sensor.ambient}, Color={color_sensor.color}", flush=True)
             elif spike_status and spike_status.sensors:
                 print(f"[{elapsed:.3f}s] Status #{status_count}: No color sensor data (sensors.color=None)")
             else:
