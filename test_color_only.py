@@ -64,25 +64,23 @@ from nnspike.unit import ETRobot
 
 def main():
     et = ETRobot()
-    try:
-        # アームを上げてから下げる
-        et.move_arm(1)  # 上げる
-        time.sleep(1.0)
-        et.move_arm(0)  # 下げる
-        time.sleep(1.0)
-        for _ in range(int(10/0.03)):
-            try:
-                s = et.get_spike_status()
-                if s and s.sensors and s.sensors.color:
-                    c = s.sensors.color
-                    print(f"Reflected={c.reflected}, Ambient={c.ambient}, Color={c.color}", flush=True)
-                else:
-                    print("No color sensor data", flush=True)
-            except Exception as e:
-                print(f"Error: {e}", flush=True)
-            time.sleep(0.03)
-    finally:
-        et.stop()
+    # アームを上げてから下げる
+    et.move_arm(1)
+    time.sleep(1.0)
+    et.move_arm(0)
+    time.sleep(1.0)
+    for _ in range(int(10/0.03)):
+        try:
+            s = et.get_spike_status()
+            if s and s.sensors and s.sensors.color:
+                c = s.sensors.color
+                print(f"Reflected={c.reflected}, Ambient={c.ambient}, Color={c.color}", flush=True)
+            else:
+                print("No color sensor data", flush=True)
+        except Exception as e:
+            print(f"Error: {e}", flush=True)
+        time.sleep(0.03)
+    # 停止処理はしない（スレッド例外等は無視して即終了）
 
 
 if __name__ == "__main__":
