@@ -338,20 +338,22 @@ class ETRobot(
         time.sleep(duration)
         self.brake()
 
-    def move_left_arc(self, duration, power):
+    def move_left_arc(self, duration, power, ratio=0.8):
         """
         左カーブで前進（左モーター弱・右モーター強）。
+        ratio: 弱い側のパワー比（デフォルト0.8）。
         呼び出し側でduration, powerを必ず指定すること。
         """
-        self.set_motor_forward_power(left_power=int(power*0.8), right_power=power)
+        self.set_motor_forward_power(left_power=int(power*ratio), right_power=power)
         time.sleep(duration)
         self.brake()
 
-    def move_right_arc(self, duration, power):
+    def move_right_arc(self, duration, power, ratio=0.8):
         """
         右カーブで前進（右モーター弱・左モーター強）。
+        ratio: 弱い側のパワー比（デフォルト0.8）。
         呼び出し側でduration, powerを必ず指定すること。
         """
-        self.set_motor_forward_power(left_power=power, right_power=int(power*0.8))
+        self.set_motor_forward_power(left_power=power, right_power=int(power*ratio))
         time.sleep(duration)
         self.brake()

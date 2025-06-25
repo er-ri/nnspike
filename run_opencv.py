@@ -162,7 +162,7 @@ def initialize_system(record_sensor_data, save_camera_video):
     return et, pid, calc, sensor_recorder, video_writer, video_filename, client_socket
 
 
-def send_stop_signal(et, duration=5.0):
+def send_stop_signal(et, duration=3.0):
     print(f"Sending stop signals to Spike for {duration} seconds...")
     stop_start_time = time.time()
     while time.time() - stop_start_time < duration:
@@ -327,12 +327,13 @@ class ModeManager:
 class ActionManager:
     """
     障害物回避などの固有動作を管理する拡張用クラス。
-    例: 45度左回転→右弧旋回で回避（カラーセンサーは使わず、距離・時間のみで制御）
+    例: 45度左回転→右弧旋回→45度左回転で回避（カラーセンサーは使わず、距離・時間・カーブ比のみで制御）
     """
     USER_TIME_PER_DEGREE = 1.0 / 90  # ←90度で何秒かかるか実測値で調整
     ARC_POWER = 50
     ARC_DURATION = 5.0
     TURN_ANGLE = 45
+    ARC_RATIO = 0.8  # カーブ時の弱い側のパワー比
     def __init__(self, et):
         self.et = et
         self.state = 0
@@ -346,16 +347,20 @@ class ActionManager:
         # 回避動作：
         # 1. 45度左回転
         # 2. 右弧旋回
-        # 3. ライントレースモードに切り替え
+        # 3. 45度左回転
+        # 4. ライントレースモードに切り替え
         if self.finished:
             return
         if self.state == 0:
             self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
             self.state = 1
         elif self.state == 1:
-            self.et.move_right_arc(duration=self.ARC_DURATION, power=self.ARC_POWER)
+            self.et.move_right_arc(duration=self.ARC_DURATION, power=self.ARC_POWER, ratio=self.ARC_RATIO)
             self.state = 2
         elif self.state == 2:
+            self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
+            self.state = 3
+        elif self.state == 3:
             self.finished = True  # ここで回避動作終了
     def is_finished(self):
         return self.finished
