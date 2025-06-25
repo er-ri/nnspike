@@ -12,8 +12,8 @@ TURN_ANGLE = 45     # 左回転角度（度）
 def main():
     et = ETRobot()
     try:
-        print(f"turn_left(angle={TURN_ANGLE})で45度左回転テスト")
-        et.turn_left(angle=TURN_ANGLE)
+        print(f"turn_left(degree={TURN_ANGLE}, power={ARC_POWER})で45度左回転テスト")
+        et.turn_left(degree=TURN_ANGLE, power=ARC_POWER)
         time.sleep(3)
         print(f"move_right_arc(duration={ARC_DURATION}, power={ARC_POWER})で右弧旋回テスト")
         et.move_right_arc(duration=ARC_DURATION, power=ARC_POWER)
