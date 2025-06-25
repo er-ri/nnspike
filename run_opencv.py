@@ -375,14 +375,14 @@ class ActionManager:
                 duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
                 print(f"[DEBUG] state=0: now={now}, start_time={self.start_time}, duration={duration}, elapsed={now - self.start_time}")
                 if now - self.start_time >= duration:
-                    print("[DEBUG] state=0: calling self.et.stop()")
+                    print("[DEBUG] state=0: calling self.et.brake() (was stop)")
                     try:
-                        self.et.stop()
+                        self.et.brake()
                     except Exception as e:
                         import traceback
-                        print(f"[EXCEPTION] et.stop error: {e}")
+                        print(f"[EXCEPTION] et.brake error: {e}")
                         traceback.print_exc()
-                    print("[DEBUG] state=0: self.et.stop() returned")
+                    print("[DEBUG] state=0: self.et.brake() returned")
                     self.state = 1
                     print(f"[DEBUG] state=0: self.state set to {self.state}")
                     self.action_sent = False
@@ -394,7 +394,7 @@ class ActionManager:
                 self.action_sent = True
             else:
                 if now - self.start_time >= self.ARC_DURATION:
-                    self.et.stop()
+                    self.et.brake()  # ここもstop→brake
                     self.state = 2
                     self.action_sent = False
         elif self.state == 2:
@@ -406,7 +406,7 @@ class ActionManager:
             else:
                 duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
                 if now - self.start_time >= duration:
-                    self.et.stop()
+                    self.et.brake()  # ここもstop→brake
                     self.state = 3
                     self.action_sent = False
         elif self.state == 3:
