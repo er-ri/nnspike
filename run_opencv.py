@@ -341,41 +341,48 @@ class ActionManager:
         self.state = 0
         self.start_time = None
         self.finished = False
+        self.action_sent = False
     def reset(self):
         self.state = 0
         self.start_time = None
         self.finished = False
+        self.action_sent = False
     def step(self):
-        # 非ブロッキングな回避動作ステートマシン
+        # 非ブロッキングな回避動作ステートマシン（blocking引数なし対応）
         now = time.time()
         if self.finished:
             return
         if self.state == 0:
-            # 1. 45度左回転 開始
-            self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE, blocking=False)
-            self.start_time = now
-            self.state = 1
-        elif self.state == 1:
-            # 左回転中（所要時間経過で次へ）
+            if not self.action_sent:
+                self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
+                self.start_time = now
+                self.action_sent = True
             duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
             if now - self.start_time >= duration:
                 self.et.stop()
-                self.et.move_right_arc(duration=self.ARC_DURATION, power=self.ARC_POWER, ratio=self.ARC_RATIO, blocking=False)
+                self.state = 1
+                self.action_sent = False
+        elif self.state == 1:
+            if not self.action_sent:
+                self.et.move_right_arc(duration=self.ARC_DURATION, power=self.ARC_POWER, ratio=self.ARC_RATIO)
                 self.start_time = now
-                self.state = 2
-        elif self.state == 2:
-            # 右弧旋回中
+                self.action_sent = True
             if now - self.start_time >= self.ARC_DURATION:
                 self.et.stop()
-                self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE, blocking=False)
+                self.state = 2
+                self.action_sent = False
+        elif self.state == 2:
+            if not self.action_sent:
+                self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
                 self.start_time = now
-                self.state = 3
-        elif self.state == 3:
-            # 2回目左回転中
+                self.action_sent = True
             duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
             if now - self.start_time >= duration:
                 self.et.stop()
-                self.finished = True  # ここで回避動作終了
+                self.state = 3
+                self.action_sent = False
+        elif self.state == 3:
+            self.finished = True  # ここで回避動作終了
     def is_finished(self):
         return self.finished
 
