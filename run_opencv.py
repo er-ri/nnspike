@@ -350,7 +350,7 @@ class ActionManager:
         # パラメータ（必要に応じて調整）
         TURN_LEFT_DEGREES = -180  # 45度左方向に回転する左モーター角度
         TURN_RIGHT_DEGREES = 180  # 45度左方向に回転する右モーター角度
-        ARC_POWER = 40
+        ARC_POWER = 50
         ARC_DURATION = 2.0  # 弧を描く時間（仮: 2m相当、要調整）
         FORWARD_POWER = 40
         FORWARD_DISTANCE = 2.0  # m単位
