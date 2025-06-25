@@ -1,5 +1,12 @@
 import serial
 import time
+import serial.tools.list_ports
+
+# 利用可能なCOMポート一覧を表示
+print('--- 利用可能なCOMポート一覧 ---')
+for port in serial.tools.list_ports.comports():
+    print(f'  {port.device} : {port.description}')
+print('-----------------------------')
 
 # Windowsの場合はCOMポート名に変更（例: 'COM3'）
 PORT = 'COM5'  # 適宜変更してください
