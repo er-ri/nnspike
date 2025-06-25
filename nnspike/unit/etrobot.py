@@ -287,11 +287,24 @@ class ETRobot(
         self.__send_command(command)
 
     def stop(self) -> None:
-        """Stop the robot and close the serial port."""
+        """Stop the robot and close the serial port (idempotent)."""
+        if not getattr(self, 'is_running', False):
+            return
         self.is_running = False
-        self.brake()
-        self.__thread.join()
-        self.__serial_port.close()
+        try:
+            self.brake()
+        except Exception as e:
+            print(f"[ETRobot.stop] brake() error: {e}")
+        try:
+            if hasattr(self, '_ETRobot__thread') and self.__thread.is_alive():
+                self.__thread.join(timeout=2)
+        except Exception as e:
+            print(f"[ETRobot.stop] thread join error: {e}")
+        try:
+            if hasattr(self, '_ETRobot__serial_port') and self.__serial_port.is_open:
+                self.__serial_port.close()
+        except Exception as e:
+            print(f"[ETRobot.stop] serial close error: {e}")
 
     def turn_left(self, degree, power):
         """

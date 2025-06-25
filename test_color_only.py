@@ -12,6 +12,7 @@ from nnspike.unit import ETRobot
 def display_spike_status(et, interval=0.03, duration=5.0, max_recover=3):
     """指定した間隔・時間だけスパイクのステータスを表示する（同期版）
     例外発生時は自動リカバリを試みる
+    スレッド・シリアルポートの多重アクセスを防ぐため、再初期化時は必ずstop()してから新インスタンスを返す。
     """
     status_count = 0
     start_time = time.time()
@@ -38,10 +39,10 @@ def display_spike_status(et, interval=0.03, duration=5.0, max_recover=3):
                 break
             # ETRobot再初期化を試みる
             try:
-                print("ETRobotを再初期化してリカバリを試みます...")
+                print("ETRobotを再初期化してリカバリを試みます...（stop→新インスタンス）")
                 et.stop()
-            except Exception:
-                pass
+            except Exception as e_stop:
+                print(f"et.stop()失敗: {e_stop}")
             try:
                 et = ETRobot()
                 time.sleep(1.0)
@@ -54,6 +55,7 @@ def display_spike_status(et, interval=0.03, duration=5.0, max_recover=3):
         current_time = time.time()
         sleep_time = max(0, next_time - current_time)
         time.sleep(sleep_time)
+    return et
 
 
 def main():
@@ -92,7 +94,7 @@ def main():
     print()
     try:
         start_time = time.time()
-        display_spike_status(et, interval=0.03, duration=10.0)
+        et = display_spike_status(et, interval=0.03, duration=10.0)
         elapsed_time = time.time() - start_time
         print(f"\n✓ テスト完了: {elapsed_time:.3f}秒")
         print(f"✓ spike_statusを用いてカラーセンサー値を取得")
