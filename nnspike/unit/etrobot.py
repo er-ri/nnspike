@@ -288,15 +288,24 @@ class ETRobot(
 
     def stop(self) -> None:
         """Stop the robot and close the serial port. (スレッド安全停止)"""
+        import traceback
+        print(f"[DEBUG][ETRobot.stop] called. is_running(before)={self.is_running}")
+        traceback.print_stack()
         self.is_running = False
+        print(f"[DEBUG][ETRobot.stop] is_running(after)={self.is_running}")
         if hasattr(self, "__thread") and self.__thread.is_alive():
+            print(f"[DEBUG][ETRobot.stop] joining thread...")
             self.__thread.join(timeout=2.0)
-        # シリアルポートも閉じる（必要なら）
+            print(f"[DEBUG][ETRobot.stop] thread join finished.")
         if hasattr(self, "__serial_port") and self.__serial_port.is_open:
             try:
+                print(f"[DEBUG][ETRobot.stop] closing serial port...")
                 self.__serial_port.close()
-            except Exception:
+                print(f"[DEBUG][ETRobot.stop] serial port closed.")
+            except Exception as e:
+                print(f"[DEBUG][ETRobot.stop] serial port close error: {e}")
                 pass
+        print(f"[DEBUG][ETRobot.stop] finished.")
 
     def turn_left(self, degree, power, time_per_degree=None):
         """
