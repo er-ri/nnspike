@@ -193,7 +193,12 @@ def get_sensor_info(et, sensor_recorder=None):
         'right': spike_status.motors['A'].relative_position if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0
     }
     if sensor_recorder is not None:
-        sensor_recorder.log_frame_data(spike_status)
+        try:
+            sensor_recorder.log_frame_data(spike_status)
+        except Exception as e:
+            import traceback
+            print(f"[SensorRecorder] log_frame_data error: {e}")
+            traceback.print_exc()
     return color, distance, relative_position
 
 
