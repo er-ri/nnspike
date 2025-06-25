@@ -372,6 +372,7 @@ class ActionManager:
                 self.action_sent = True
             else:
                 duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
+                print(f"[DEBUG] state=0: now={now}, start_time={self.start_time}, duration={duration}, elapsed={now - self.start_time}")
                 if now - self.start_time >= duration:
                     self.et.stop()
                     self.state = 1
