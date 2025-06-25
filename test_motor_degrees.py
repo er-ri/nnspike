@@ -18,14 +18,13 @@ FORWARD_DURATION = FORWARD_DISTANCE / SPEED_MPS
 def main():
     et = ETRobot()
     try:
-        # 右モーターのみ180度回転（左モーターは0度）
-        print("左モーター: 0度、右モーター: 180度 正回転（右のみ45度左方向回転相当）")
-        et.set_motor_degrees(left_degrees=0, right_degrees=180)
+        # 45度左回転テスト
+        print("turn_left(angle=45)で45度左回転テスト")
+        et.turn_left(angle=45)
         time.sleep(3)
-        # 右カーブで前進（右モーター弱・左モーター強）
-        print("右カーブ: power=40, duration=2.0秒で前進（右モーター弱・左モーター強）")
+        # 右弧旋回テスト
+        print(f"move_right_arc(duration={ARC_DURATION}, power={ARC_POWER})で右弧旋回テスト")
         et.move_right_arc(duration=ARC_DURATION, power=ARC_POWER)
-        #time.sleep(3)
         et.brake()
         time.sleep(3)
     except KeyboardInterrupt:
