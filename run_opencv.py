@@ -406,6 +406,10 @@ def main(record_sensor_data=False, save_camera_video=False):
     mode_manager = ModeManager()
     action_manager = ActionManager(et)
 
+    # --- 直前の画像処理結果を保持する変数を初期化 ---
+    mx = my = offset_pixels = theta = pid_corrected_theta = current_power = left_power = right_power = 0
+    max_contour = None
+
     try:
         while et.is_running == True:
             loop_start = time.time()
@@ -413,16 +417,10 @@ def main(record_sensor_data=False, save_camera_video=False):
             if not ret:
                 print("[ERROR] Can't receive frame (stream end?). Exiting ...")
                 break
-            # どのモードでも必ずフレームを保存
-            if save_camera_video and video_writer is not None:
-                video_writer.write(frame)
             # Spikeの最新センサーステータス・カラー・超音波・モーター相対位置値を取得
             color, distance, relative_position = get_sensor_info(et, sensor_recorder)
             # モード更新
             mode_manager.update(distance)
-            # --- 各モードでの走行パラメータ初期化 ---
-            mx = my = offset_pixels = theta = pid_corrected_theta = current_power = left_power = right_power = 0
-            max_contour = None
             # --- モードごとの処理 ---
             if mode_manager.mode == Mode.LINE_TRACE:
                 # ラインの重心座標・オフセット・最大輪郭を取得
@@ -441,25 +439,25 @@ def main(record_sensor_data=False, save_camera_video=False):
                 # 一時停止し、2秒間セミ回避モードで距離の再確認のみ行う（前進しない）
                 left_power = right_power = 0
             elif mode_manager.mode == Mode.OBSTACLE_AVOID:
-                # print(f"[DEBUG] OBSTACLE_AVOID: state={action_manager.state}, finished={action_manager.finished}")
+                # 回避動作中も画像処理を行い、可視化情報を生成する
+                mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
                 action_manager.step()
                 left_power = right_power = 0
                 if action_manager.is_finished():
-                    # print("[DEBUG] ActionManager finished. Resetting mode_manager.")
                     mode_manager.reset()
             # --- ここから共通処理 ---
             # 計算したパワーでモーターを駆動
             try:
                 et.set_motor_forward_power(left_power=left_power, right_power=right_power)
             except Exception as e:
-                # print(f"[EXCEPTION] et.set_motor_forward_power error: {e}")
-                # traceback.print_exc()
                 break
             # 可視化用情報生成
             info = prepare_driving_info(ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour, mode=mode_manager.mode.name)
             # 可視化フレーム生成
             gray = create_visualization_frame(frame, info, ROI_OPENCV, mx, my, max_contour)
-            # カメラ画像送信（リモートモニタ用）
+            # --- ここで必ずカメラ画像を送信・保存 ---
+            if save_camera_video and video_writer is not None:
+                video_writer.write(frame)
             if not send_camera_capture(gray, client_socket):
                 print("[ERROR] send_camera_capture failed. Breaking main loop.")
                 break
