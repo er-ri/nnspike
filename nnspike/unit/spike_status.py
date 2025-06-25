@@ -35,6 +35,11 @@ class ColorSensorStatus:
     ambient: Optional[int] = None
     color: Optional[int] = None
 
+    def __init__(self, reflected=None, ambient=None, color=None):
+        self.reflected = reflected
+        self.ambient = ambient
+        self.color = color
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ColorSensorStatus':
         return cls(
@@ -42,6 +47,14 @@ class ColorSensorStatus:
             ambient=data.get('ambient'),
             color=data.get('color')
         )
+
+    @classmethod
+    def from_list(cls, data: list) -> 'ColorSensorStatus':
+        # 例: [0, 0, 22, 0, 116] など
+        reflected = data[2] if len(data) > 2 else None
+        ambient = data[3] if len(data) > 3 else None
+        color = data[4] if len(data) > 4 else None
+        return cls(reflected=reflected, ambient=ambient, color=color)
 
     @property
     def is_black(self) -> bool:
