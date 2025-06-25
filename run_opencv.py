@@ -291,7 +291,7 @@ class ModeManager:
     SEMI_AVOID: 障害物検知後の一時停止・確認（低速前進し距離変化を監視）
     OBSTACLE_AVOID: 障害物回避動作
     """
-    OBSTACLE_DETECT_DISTANCE = 30  # 障害物検知のしきい値（cm, デフォルト30）
+    OBSTACLE_DETECT_DISTANCE = 40  # 障害物検知のしきい値（cm, デフォルト30）
     SEMI_AVOID_DURATION = 2.0      # セミ回避モードの待機秒数（デフォルト2.0秒）
     def __init__(self):
         self.mode = Mode.LINE_TRACE
@@ -327,9 +327,12 @@ class ModeManager:
 class ActionManager:
     """
     障害物回避などの固有動作を管理する拡張用クラス。
-    例: 弧を描いて左旋回で回避（45度回転や直進は行わない）
-    カラーセンサーは使わず、距離・時間のみで制御。
+    例: 45度左回転→右弧旋回で回避（カラーセンサーは使わず、距離・時間のみで制御）
     """
+    USER_TIME_PER_DEGREE = 1.0 / 90  # ←90度で何秒かかるか実測値で調整
+    ARC_POWER = 50
+    ARC_DURATION = 5.0
+    TURN_ANGLE = 45
     def __init__(self, et):
         self.et = et
         self.state = 0
@@ -342,22 +345,18 @@ class ActionManager:
     def step(self):
         # 回避動作：
         # 1. 45度左回転
-        # 2. 弧を描いて右旋回（距離指定）
+        # 2. 右弧旋回
         # 3. ライントレースモードに切り替え
-        # ※カラーセンサーは使わず、距離・時間のみで制御
         if self.finished:
             return
-        ARC_POWER = 50
-        ARC_DURATION = 5.0  # 弧を描く時間（5秒に設定）
-        TURN_ANGLE = 45     # 左回転角度（度）
         if self.state == 0:
-            self.et.turn_left(angle=TURN_ANGLE)  # 45度左回転
+            self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
             self.state = 1
         elif self.state == 1:
-            self.et.move_right_arc(duration=ARC_DURATION, power=ARC_POWER)
+            self.et.move_right_arc(duration=self.ARC_DURATION, power=self.ARC_POWER)
             self.state = 2
         elif self.state == 2:
-            self.finished = True  # ここで回避動作終了（LINE_TRACEモードへ）
+            self.finished = True  # ここで回避動作終了
     def is_finished(self):
         return self.finished
 
