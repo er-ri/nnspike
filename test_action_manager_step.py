@@ -12,7 +12,7 @@ TURN_ANGLE = 45     # 左回転角度（度）
 def main():
     et = ETRobot()
     # 例: 90度で1.0秒かかる場合 → 1.0/90
-    USER_TIME_PER_DEGREE = 2.0 / 90  # ←ここを調整（90度で何秒かかるか実測値で計算）
+    USER_TIME_PER_DEGREE = 1.0 / 90  # ←ここを調整（90度で何秒かかるか実測値で計算）
     try:
         print(f"turn_left(degree={TURN_ANGLE}, power={ARC_POWER}, time_per_degree={USER_TIME_PER_DEGREE})で45度左回転テスト")
         et.turn_left(degree=TURN_ANGLE, power=ARC_POWER, time_per_degree=USER_TIME_PER_DEGREE)
