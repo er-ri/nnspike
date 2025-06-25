@@ -164,34 +164,34 @@ class ETRobot(
     def get_spike_status(self):
         """
         Get the spike status with last known good sensor values.
-
         Returns:
             SpikeStatus: Spike status object with consistent sensor data
         """
-        # 直近のType:0（センサーデータ）だけを返すように修正
-        while True:
-            received_data = self.__serial_port.read_until(expected=b"\r")
-            if not received_data or len(received_data.strip()) == 0:
-                continue
-            # print(f"[DEBUG][get_spike_status] raw bytes: {repr(received_data)}")  # デバッグ用
-            # 複数JSONが連結している場合に分割
-            for chunk in received_data.split(b'}{'):
-                if not chunk:
-                    continue
-                if not chunk.startswith(b'{'):
-                    chunk = b'{' + chunk
-                if not chunk.endswith(b'}'):
-                    chunk = chunk + b'}'
-                try:
-                    from nnspike.unit.spike_status import SpikeStatus
-                    status = SpikeStatus(chunk)
-                    # print(f"[DEBUG][get_spike_status] message_type: {status.message_type}")  # デバッグ用
-                    if status.message_type == 0:
-                        self.last_spike_status = status
-                        return status
-                except Exception as e:
-                    # print(f"[DEBUG][get_spike_status] parse error: {e}")  # デバッグ用
-                    continue
+        try:
+            # シリアルバッファにデータがある場合のみ1回だけ処理
+            if self.__serial_port.in_waiting > 0:
+                received_data = self.__serial_port.read_until(expected=b"\r")
+                if received_data and len(received_data.strip()) > 0:
+                    for chunk in received_data.split(b'}{'):
+                        if not chunk:
+                            continue
+                        if not chunk.startswith(b'{'):
+                            chunk = b'{' + chunk
+                        if not chunk.endswith(b'}'):
+                            chunk = chunk + b'}'
+                        try:
+                            from nnspike.unit.spike_status import SpikeStatus
+                            status = SpikeStatus(chunk)
+                            if status.message_type == 0:
+                                self.last_spike_status = status
+                                return status
+                        except Exception:
+                            continue
+            # データがなければ常に直近の値を返す
+            return self.last_spike_status
+        except Exception:
+            # 例外時も必ず直近の値を返す
+            return self.last_spike_status
 
     def set_motor_relative_position(
         self, left_position: int, right_position: int
