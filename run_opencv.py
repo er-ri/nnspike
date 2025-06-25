@@ -197,10 +197,11 @@ def get_sensor_info(et, sensor_recorder=None):
     return color, distance, relative_position
 
 
-def prepare_driving_info(roi, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour):
+def prepare_driving_info(roi, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour, mode=None):
     """
     可視化用の走行情報を生成
     roi: (x1, y1, x2, y2) タプル
+    mode: 現在の動作モード（例: 'LINE_TRACE'）
     """
     x1, y1, x2, y2 = roi
     def to_distance_cm(pos):
@@ -242,6 +243,7 @@ def prepare_driving_info(roi, mx, my, offset_pixels, theta, pid_corrected_theta,
         "left_relative_position": f"{relative_position['left']}deg / {left_distance_cm}cm",
         "right_relative_position": f"{relative_position['right']}deg / {right_distance_cm}cm",
         "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
+        "mode": mode if mode is not None else "N/A"
     }
     return info
 
@@ -291,8 +293,8 @@ class ModeManager:
     SEMI_AVOID: 障害物検知後の一時停止・確認（低速前進し距離変化を監視）
     OBSTACLE_AVOID: 障害物回避動作
     """
-    OBSTACLE_DETECT_DISTANCE = 40  # 障害物検知のしきい値（cm, デフォルト30）
-    SEMI_AVOID_DURATION = 2.0      # セミ回避モードの待機秒数（デフォルト2.0秒）
+    OBSTACLE_DETECT_DISTANCE = 45  # 障害物検知のしきい値[cm]
+    SEMI_AVOID_DURATION = 2.0      # セミ回避モードの待機時間[秒]
     def __init__(self):
         self.mode = Mode.LINE_TRACE
         self.obstacle_detected_time = None
@@ -421,7 +423,7 @@ def main(record_sensor_data=False, save_camera_video=False):
             # 計算したパワーでモーターを駆動
             et.set_motor_forward_power(left_power=left_power, right_power=right_power)
             # 可視化用情報生成
-            info = prepare_driving_info(ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour)
+            info = prepare_driving_info(ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour, mode=mode_manager.mode.name)
             # 可視化フレーム生成
             gray = create_visualization_frame(frame, info, ROI_OPENCV, mx, my, max_contour)
             # カメラ画像送信（リモートモニタ用）
