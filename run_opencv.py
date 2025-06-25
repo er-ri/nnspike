@@ -303,17 +303,16 @@ class ModeManager:
                 self.obstacle_detected_time = time.time()
                 self.last_distance = distance
         elif self.mode == Mode.SEMI_AVOID:
-            # 距離が縮まったら即OBSTACLE_AVOIDへ
-            if distance is not None and self.last_distance is not None and distance < self.last_distance - 2:
-                self.mode = Mode.OBSTACLE_AVOID
-                self.avoid_start_time = time.time()
-            elif distance is not None and distance >= 50:
+            # 2秒経過したらOBSTACLE_AVOIDへ（距離が縮まっても即移行しない）
+            if distance is not None and distance >= 50:
                 self.mode = Mode.LINE_TRACE
                 self.obstacle_detected_time = None
                 self.last_distance = None
-            elif time.time() - self.obstacle_detected_time >= 3.0:
+            elif time.time() - self.obstacle_detected_time >= 2.0:
                 self.mode = Mode.OBSTACLE_AVOID
                 self.avoid_start_time = time.time()
+            # 距離の更新は維持（次回の判定用）
+            self.last_distance = distance if distance is not None else self.last_distance
         elif self.mode == Mode.OBSTACLE_AVOID:
             pass
     def reset(self):
@@ -340,22 +339,18 @@ class ActionManager:
         self.finished = False
     def step(self):
         # 回避動作：
-        # 1. 45度左方向に回転（左モーター-180度、右モーター180度）
+        # 1. 45度左方向に回転（左モーター0度、右モーター180度）
         # 2. 弧を描いて左旋回（距離指定）
-        # 3. 45度左方向に回転（左モーター-180度、右モーター180度）
-        # 4. 直進（距離指定）
+        # 3. 45度左方向に回転（左モーター0度、右モーター180度）
+        # 4. ライントレースモードに切り替え
         # カラーセンサーは使わない
         if self.finished:
             return
         # パラメータ（必要に応じて調整）
-        TURN_LEFT_DEGREES = -180  # 45度左方向に回転する左モーター角度
+        TURN_LEFT_DEGREES = 0  # 左モーターは回転しない
         TURN_RIGHT_DEGREES = 180  # 45度左方向に回転する右モーター角度
         ARC_POWER = 50
-        ARC_DURATION = 2.0  # 弧を描く時間（仮: 2m相当、要調整）
-        FORWARD_POWER = 40
-        FORWARD_DISTANCE = 2.0  # m単位
-        SPEED_MPS = 0.5  # 仮: 0.5m/s（要実測で調整）
-        FORWARD_DURATION = FORWARD_DISTANCE / SPEED_MPS
+        ARC_DURATION = 5.0  # 弧を描く時間（5秒に設定）
         if self.state == 0:
             self.et.set_motor_degrees(left_degrees=TURN_LEFT_DEGREES, right_degrees=TURN_RIGHT_DEGREES)
             self.state = 1
@@ -366,8 +361,7 @@ class ActionManager:
             self.et.set_motor_degrees(left_degrees=TURN_LEFT_DEGREES, right_degrees=TURN_RIGHT_DEGREES)
             self.state = 3
         elif self.state == 3:
-            self.et.move_forward(duration=FORWARD_DURATION, power=FORWARD_POWER)
-            self.finished = True
+            self.finished = True  # 直進せず、ここで回避動作終了（LINE_TRACEモードへ）
     def is_finished(self):
         return self.finished
 
@@ -415,8 +409,8 @@ def main(record_sensor_data=False, save_camera_video=False):
                 left_power = int(current_power - power_adjustment)
                 right_power = int(current_power + power_adjustment)
             elif mode_manager.mode == Mode.SEMI_AVOID:
-                # 一時停止・確認→低速前進し距離変化を監視
-                left_power = right_power = 5
+                # 一時停止し、2秒間セミ回避モードで距離の再確認のみ行う（前進しない）
+                left_power = right_power = 0
             elif mode_manager.mode == Mode.OBSTACLE_AVOID:
                 # 固有動作ステップ実行（カラーセンサーは使わない）
                 action_manager.step()

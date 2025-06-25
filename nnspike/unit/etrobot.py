@@ -313,7 +313,7 @@ class ETRobot(
         左カーブで前進（左モーター弱・右モーター強）。
         呼び出し側でduration, powerを必ず指定すること。
         """
-        self.set_motor_forward_power(left_power=int(power*0.6), right_power=power)
+        self.set_motor_forward_power(left_power=int(power*0.8), right_power=power)
         time.sleep(duration)
         self.brake()
 
