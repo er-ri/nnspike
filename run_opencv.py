@@ -291,6 +291,8 @@ class ModeManager:
     SEMI_AVOID: 障害物検知後の一時停止・確認（低速前進し距離変化を監視）
     OBSTACLE_AVOID: 障害物回避動作
     """
+    OBSTACLE_DETECT_DISTANCE = 30  # 障害物検知のしきい値（cm, デフォルト30）
+    SEMI_AVOID_DURATION = 2.0      # セミ回避モードの待機秒数（デフォルト2.0秒）
     def __init__(self):
         self.mode = Mode.LINE_TRACE
         self.obstacle_detected_time = None
@@ -298,17 +300,17 @@ class ModeManager:
         self.last_distance = None
     def update(self, distance):
         if self.mode == Mode.LINE_TRACE:
-            if distance is not None and distance < 50:
+            if distance is not None and distance < self.OBSTACLE_DETECT_DISTANCE:
                 self.mode = Mode.SEMI_AVOID
                 self.obstacle_detected_time = time.time()
                 self.last_distance = distance
         elif self.mode == Mode.SEMI_AVOID:
             # 2秒経過したらOBSTACLE_AVOIDへ（距離が縮まっても即移行しない）
-            if distance is not None and distance >= 50:
+            if distance is not None and distance >= self.OBSTACLE_DETECT_DISTANCE * (50/30):
                 self.mode = Mode.LINE_TRACE
                 self.obstacle_detected_time = None
                 self.last_distance = None
-            elif time.time() - self.obstacle_detected_time >= 2.0:
+            elif time.time() - self.obstacle_detected_time >= self.SEMI_AVOID_DURATION:
                 self.mode = Mode.OBSTACLE_AVOID
                 self.avoid_start_time = time.time()
             # 距離の更新は維持（次回の判定用）
@@ -325,7 +327,7 @@ class ModeManager:
 class ActionManager:
     """
     障害物回避などの固有動作を管理する拡張用クラス。
-    例: 45度左回転→弧を描いて左旋回で回避→再度45度左回転→直進（距離指定）
+    例: 弧を描いて左旋回で回避（45度回転や直進は行わない）
     カラーセンサーは使わず、距離・時間のみで制御。
     """
     def __init__(self, et):
@@ -339,28 +341,18 @@ class ActionManager:
         self.finished = False
     def step(self):
         # 回避動作：
-        # 1. 45度左方向に回転（左モーター0度、右モーター180度）
-        # 2. 弧を描いて左旋回（距離指定）
-        # 3. 45度左方向に回転（左モーター0度、右モーター180度）
-        # 4. ライントレースモードに切り替え
-        # カラーセンサーは使わない
+        # 1. 弧を描いて左旋回（距離指定）
+        # 2. ライントレースモードに切り替え
+        # ※現在は「弧を描いて左旋回」のみ実行し、45度回転は行わない
         if self.finished:
             return
         # パラメータ（必要に応じて調整）
-        TURN_LEFT_DEGREES = 0  # 左モーターは回転しない
-        TURN_RIGHT_DEGREES = 180  # 45度左方向に回転する右モーター角度
         ARC_POWER = 50
         ARC_DURATION = 5.0  # 弧を描く時間（5秒に設定）
         if self.state == 0:
-            self.et.set_motor_degrees(left_degrees=TURN_LEFT_DEGREES, right_degrees=TURN_RIGHT_DEGREES)
+            self.et.move_left_arc(duration=ARC_DURATION, power=ARC_POWER)
             self.state = 1
         elif self.state == 1:
-            self.et.move_left_arc(duration=ARC_DURATION, power=ARC_POWER)
-            self.state = 2
-        elif self.state == 2:
-            self.et.set_motor_degrees(left_degrees=TURN_LEFT_DEGREES, right_degrees=TURN_RIGHT_DEGREES)
-            self.state = 3
-        elif self.state == 3:
             self.finished = True  # 直進せず、ここで回避動作終了（LINE_TRACEモードへ）
     def is_finished(self):
         return self.finished
