@@ -22,9 +22,9 @@ def main():
         print("左モーター: 0度、右モーター: 180度 正回転（右のみ45度左方向回転相当）")
         et.set_motor_degrees(left_degrees=0, right_degrees=180)
         time.sleep(3)
-        # 左カーブで前進（左モーター弱・右モーター強）
-        print("左カーブ: power=40, duration=2.0秒で前進（左モーター弱・右モーター強）")
-        et.move_left_arc(duration=ARC_DURATION, power=ARC_POWER)
+        # 右カーブで前進（右モーター弱・左モーター強）
+        print("右カーブ: power=40, duration=2.0秒で前進（右モーター弱・左モーター強）")
+        et.move_right_arc(duration=ARC_DURATION, power=ARC_POWER)
         time.sleep(3)
         et.brake()
         time.sleep(3)
