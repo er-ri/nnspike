@@ -12,6 +12,7 @@ class ETRobot(
     COMMAND_SET_MOTOR_RELATIVE_POSITION_ID = 203
     COMMAND_STOP_MOTOR_ID = 204
     COMMAND_MOVE_ARM_ID = 205
+    COMMAND_SET_MOTOR_DEGREES_ID = 206
 
     CMD_FLAG = b"CF:"
 
@@ -249,9 +250,78 @@ class ETRobot(
 
         self.__send_command(command)
 
+    def set_motor_degrees(self, left_degrees: int, right_degrees: int) -> None:
+        """
+        左右モーターを指定した角度（degree）だけ回転させる（符号付き2バイト値、符号反転なし）。
+        Args:
+            left_degrees (int): 左モーターの回転角度（degree, 負値で逆転）
+            right_degrees (int): 右モーターの回転角度（degree, 負値で逆転）
+        """
+        id_byte = self.COMMAND_SET_MOTOR_DEGREES_ID.to_bytes(1, "big")
+        parameter1_bytes = int(left_degrees).to_bytes(2, "big", signed=True)
+        parameter2_bytes = int(right_degrees).to_bytes(2, "big", signed=True)
+        command = id_byte + parameter1_bytes + parameter2_bytes
+        self.__send_command(command)
+
     def stop(self) -> None:
         """Stop the robot and close the serial port."""
         self.is_running = False
         self.brake()
         self.__thread.join()
         self.__serial_port.close()
+
+    def turn_left(self, degree, power):
+        """
+        左に指定角度だけ回転する（degree単位、powerは回転速度）。
+        呼び出し側でdegree, powerを必ず指定すること。
+        """
+        time_per_degree = 0.5 / 90
+        self.set_motor_forward_power(left_power=0, right_power=power)
+        time.sleep(abs(degree) * time_per_degree)
+        self.brake()
+
+    def turn_right(self, degree, power):
+        """
+        右に指定角度だけ回転する（degree単位、powerは回転速度）。
+        呼び出し側でdegree, powerを必ず指定すること。
+        """
+        time_per_degree = 0.5 / 90
+        self.set_motor_forward_power(left_power=power, right_power=0)
+        time.sleep(abs(degree) * time_per_degree)
+        self.brake()
+
+    def move_forward(self, duration, power):
+        """
+        指定時間だけ前進する。
+        呼び出し側でduration, powerを必ず指定すること。
+        """
+        self.set_motor_forward_power(left_power=power, right_power=power)
+        time.sleep(duration)
+        self.brake()
+
+    def move_backward(self, duration, power):
+        """
+        指定時間だけ後退する。
+        呼び出し側でduration, powerを必ず指定すること。
+        """
+        self.set_motor_backward_power(left_power=power, right_power=power)
+        time.sleep(duration)
+        self.brake()
+
+    def move_left_arc(self, duration, power):
+        """
+        左カーブで前進（左モーター弱・右モーター強）。
+        呼び出し側でduration, powerを必ず指定すること。
+        """
+        self.set_motor_forward_power(left_power=int(power*0.5), right_power=power)
+        time.sleep(duration)
+        self.brake()
+
+    def move_right_arc(self, duration, power):
+        """
+        右カーブで前進（右モーター弱・左モーター強）。
+        呼び出し側でduration, powerを必ず指定すること。
+        """
+        self.set_motor_forward_power(left_power=power, right_power=int(power*0.5))
+        time.sleep(duration)
+        self.brake()

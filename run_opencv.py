@@ -276,6 +276,101 @@ def send_camera_capture(gray, client_socket):
         return False
     return True
 
+# --- 動作モード管理クラス ---
+from enum import Enum, auto
+
+class Mode(Enum):
+    LINE_TRACE = auto()
+    SEMI_AVOID = auto()
+    OBSTACLE_AVOID = auto()
+
+class ModeManager:
+    """
+    動作モードの状態遷移を管理するクラス。
+    LINE_TRACE: 通常のライン走行
+    SEMI_AVOID: 障害物検知後の一時停止・確認（低速前進し距離変化を監視）
+    OBSTACLE_AVOID: 障害物回避動作
+    """
+    def __init__(self):
+        self.mode = Mode.LINE_TRACE
+        self.obstacle_detected_time = None
+        self.avoid_start_time = None
+        self.last_distance = None
+    def update(self, distance):
+        if self.mode == Mode.LINE_TRACE:
+            if distance is not None and distance < 50:
+                self.mode = Mode.SEMI_AVOID
+                self.obstacle_detected_time = time.time()
+                self.last_distance = distance
+        elif self.mode == Mode.SEMI_AVOID:
+            # 距離が縮まったら即OBSTACLE_AVOIDへ
+            if distance is not None and self.last_distance is not None and distance < self.last_distance - 2:
+                self.mode = Mode.OBSTACLE_AVOID
+                self.avoid_start_time = time.time()
+            elif distance is not None and distance >= 50:
+                self.mode = Mode.LINE_TRACE
+                self.obstacle_detected_time = None
+                self.last_distance = None
+            elif time.time() - self.obstacle_detected_time >= 3.0:
+                self.mode = Mode.OBSTACLE_AVOID
+                self.avoid_start_time = time.time()
+        elif self.mode == Mode.OBSTACLE_AVOID:
+            pass
+    def reset(self):
+        self.mode = Mode.LINE_TRACE
+        self.obstacle_detected_time = None
+        self.avoid_start_time = None
+        self.last_distance = None
+
+# --- 固有動作管理クラス（回避・今後の特殊動作用） ---
+class ActionManager:
+    """
+    障害物回避などの固有動作を管理する拡張用クラス。
+    例: 45度左回転→弧を描いて左旋回で回避→再度45度左回転→直進（距離指定）
+    カラーセンサーは使わず、距離・時間のみで制御。
+    """
+    def __init__(self, et):
+        self.et = et
+        self.state = 0
+        self.start_time = None
+        self.finished = False
+    def reset(self):
+        self.state = 0
+        self.start_time = None
+        self.finished = False
+    def step(self):
+        # 回避動作：
+        # 1. 45度左方向に回転（左モーター-180度、右モーター180度）
+        # 2. 弧を描いて左旋回（距離指定）
+        # 3. 45度左方向に回転（左モーター-180度、右モーター180度）
+        # 4. 直進（距離指定）
+        # カラーセンサーは使わない
+        if self.finished:
+            return
+        # パラメータ（必要に応じて調整）
+        TURN_LEFT_DEGREES = -180  # 45度左方向に回転する左モーター角度
+        TURN_RIGHT_DEGREES = 180  # 45度左方向に回転する右モーター角度
+        ARC_POWER = 40
+        ARC_DURATION = 2.0  # 弧を描く時間（仮: 2m相当、要調整）
+        FORWARD_POWER = 40
+        FORWARD_DISTANCE = 2.0  # m単位
+        SPEED_MPS = 0.5  # 仮: 0.5m/s（要実測で調整）
+        FORWARD_DURATION = FORWARD_DISTANCE / SPEED_MPS
+        if self.state == 0:
+            self.et.set_motor_degrees(left_degrees=TURN_LEFT_DEGREES, right_degrees=TURN_RIGHT_DEGREES)
+            self.state = 1
+        elif self.state == 1:
+            self.et.move_left_arc(duration=ARC_DURATION, power=ARC_POWER)
+            self.state = 2
+        elif self.state == 2:
+            self.et.set_motor_degrees(left_degrees=TURN_LEFT_DEGREES, right_degrees=TURN_RIGHT_DEGREES)
+            self.state = 3
+        elif self.state == 3:
+            self.et.move_forward(duration=FORWARD_DURATION, power=FORWARD_POWER)
+            self.finished = True
+    def is_finished(self):
+        return self.finished
+
 
 def main(record_sensor_data=False, save_camera_video=False):
     et, pid, calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
@@ -283,6 +378,10 @@ def main(record_sensor_data=False, save_camera_video=False):
     )
     time.sleep(0.5)
     et.set_motor_relative_position(left_position=0, right_position=0)
+
+    # モード管理クラス・固有動作管理クラスのインスタンス生成
+    mode_manager = ModeManager()
+    action_manager = ActionManager(et)
 
     try:
         while et.is_running == True:
@@ -296,23 +395,37 @@ def main(record_sensor_data=False, save_camera_video=False):
                 video_writer.write(frame)
             # Spikeの最新センサーステータス・カラー・超音波・モーター相対位置値を取得
             color, distance, relative_position = get_sensor_info(et, sensor_recorder)
-            # ラインの重心座標・オフセット・最大輪郭を取得
-            mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
-            # 進行角度thetaを計算
-            theta = calc.calculate_theta_from_pixels(offset_pixels)
-            # 推奨速度を計算（カーブ時は減速）
-            current_power = calc.calculate_adaptive_speed(abs(theta))
-            # PID制御でthetaを補正し、左右パワー差を計算
-            pid_corrected_theta = pid.update(theta)
-            max_theta = math.radians(MAX_STEERING_THETA_DEG)
-            power_adjustment = int((pid_corrected_theta / max_theta) * MAX_STEERING_POWER_DIFF)
-            left_power = int(current_power - power_adjustment)
-            right_power = int(current_power + power_adjustment)
+            # モード更新
+            mode_manager.update(distance)
+            # --- 各モードでの走行パラメータ初期化 ---
+            mx = my = offset_pixels = theta = pid_corrected_theta = current_power = left_power = right_power = 0
+            max_contour = None
+            # --- モードごとの処理 ---
+            if mode_manager.mode == Mode.LINE_TRACE:
+                # ラインの重心座標・オフセット・最大輪郭を取得
+                mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
+                # 進行角度thetaを計算
+                theta = calc.calculate_theta_from_pixels(offset_pixels)
+                # 推奨速度を計算（カーブ時は減速）
+                current_power = calc.calculate_adaptive_speed(abs(theta))
+                # PID制御でthetaを補正し、左右パワー差を計算
+                pid_corrected_theta = pid.update(theta)
+                max_theta = math.radians(MAX_STEERING_THETA_DEG)
+                power_adjustment = int((pid_corrected_theta / max_theta) * MAX_STEERING_POWER_DIFF)
+                left_power = int(current_power - power_adjustment)
+                right_power = int(current_power + power_adjustment)
+            elif mode_manager.mode == Mode.SEMI_AVOID:
+                # 一時停止・確認→低速前進し距離変化を監視
+                left_power = right_power = 5
+            elif mode_manager.mode == Mode.OBSTACLE_AVOID:
+                # 固有動作ステップ実行（カラーセンサーは使わない）
+                action_manager.step()
+                left_power = right_power = 0
+                if action_manager.is_finished():
+                    mode_manager.reset()
+            # --- ここから共通処理 ---
             # 計算したパワーでモーターを駆動
-            et.set_motor_forward_power(
-                left_power=left_power,
-                right_power=right_power,
-            )
+            et.set_motor_forward_power(left_power=left_power, right_power=right_power)
             # 可視化用情報生成
             info = prepare_driving_info(ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour)
             # 可視化フレーム生成
@@ -320,10 +433,6 @@ def main(record_sensor_data=False, save_camera_video=False):
             # カメラ画像送信（リモートモニタ用）
             if not send_camera_capture(gray, client_socket):
                 break
-            # ループ終了時に30ms間隔となるようsleep
-            elapsed = time.time() - loop_start
-            sleep_time = max(0, 0.03 - elapsed)
-            time.sleep(sleep_time)
     except KeyboardInterrupt:
         print("Interrupted by user")
         send_stop_signal(et, duration=5.0)

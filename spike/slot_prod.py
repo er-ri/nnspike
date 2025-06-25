@@ -12,6 +12,7 @@ MAX_RUN_TIME = 600# Maximum running time, unit: second
 COMMAND_SET_MOTOR_FORWARD_POWER_ID = 201
 COMMAND_SET_MOTOR_BACKWARD_POWER_ID = 202
 COMMAND_SET_MOTOR_RELATIVE_POSITION_ID = 203
+COMMAND_SET_MOTOR_DEGREES_ID = 206
 COMMAND_STOP_MOTOR_ID = 204
 COMMAND_MOVE_ARM_ID = 205
 
@@ -101,6 +102,8 @@ class LegoSpike(object):
             self._set_motor_speed(-command_parameter1, -command_parameter2)
         elif command_id == COMMAND_SET_MOTOR_RELATIVE_POSITION_ID:
             self._set_motor_relative_position(command_parameter1, command_parameter2)
+        elif command_id == COMMAND_SET_MOTOR_DEGREES_ID:
+            self._set_motor_degrees(command_parameter1, command_parameter2)
         elif command_id == COMMAND_STOP_MOTOR_ID:
             self.motor_left.brake()
             self.motor_right.brake()
@@ -141,6 +144,17 @@ class LegoSpike(object):
         elif action == 1:  # Move up
             # アームを上げる: 速度-50で回転（角度指定なし、連続動作）
             self.motor_arm.run_at_speed(-50)
+
+    def _set_motor_degrees(self, left_degrees: int, right_degrees: int) -> None:
+        """
+        左右モーターを指定された角度だけ動かす（度数単位）。
+        Args:
+            left_degrees: 左モーターの回転角度（正負で方向指定）
+            right_degrees: 右モーターの回転角度（正負で方向指定）
+        """
+        self.command_counter = time.ticks_ms()
+        self.motor_left.run_for_degrees(-int(left_degrees), 50)   # 左はマイナス値で反転
+        self.motor_right.run_for_degrees(int(right_degrees), 50)
 
 async def receiver():
     while True:

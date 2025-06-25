@@ -38,29 +38,29 @@ class ControlCalculator:
 
     def steer_by_camera(self, frame):
         """
-        Processes a full camera frame to determine the steering direction based on contour detection within a specified ROI.
+        カメラフレームからROI内の輪郭検出を行い、進行方向の判断に必要な情報を返す。
 
-        Args:
-            frame (np.ndarray): The full camera frame as a NumPy array.
-            roi (tuple): Region of interest tuple (x1, y1, x2, y2).
+        引数:
+            frame (np.ndarray): カメラから取得したフルフレーム画像（NumPy配列）
+            roi (tuple): Region of interest tuple (x1, y1, x2, y2)。
 
-        Returns:
-            tuple[float, float, float, object]: A tuple containing:
-                - mx (float): The x-coordinate of the centroid of the largest contour.
-                - my (float): The y-coordinate of the centroid of the largest contour.
-                - offset_pixels (float): Pixel offset from the center of the ROI.
-                - max_contour (object): The largest contour detected in the ROI.
+        戻り値:
+            tuple[float, float, float, object]: 以下のタプルを返す
+                - mx (float): 最大輪郭の重心x座標（ROI内）
+                - my (float): 最大輪郭の重心y座標（ROI内）
+                - offset_pixels (float): ROI中心から重心までのx方向ピクセルオフセット
+                - max_contour (object): 検出された最大輪郭（なければNone）
 
-        The function performs the following steps:
-            1. Extracts the region of interest from the full frame.
-            2. Converts the ROI to grayscale.
-            3. Applies Gaussian blur to the ROI to reduce noise.
-            4. Converts the blurred image to a binary image using thresholding.
-            5. Erodes and dilates the binary image to eliminate noise and restore eroded parts.
-            6. Finds contours in the processed mask.
-            7. Identifies the largest contour based on contour area.
-            8. Calculates the moments of the largest contour to find its centroid.
-            9. Calculates pixel offset from the center of the ROI.
+        主な処理:
+            1. ROI（関心領域）をフレームから切り出す
+            2. ROIをグレースケール変換
+            3. ガウシアンブラーでノイズ除去
+            4. 二値化でライン部分を抽出
+            5. 収縮・膨張でノイズ除去
+            6. 輪郭検出
+            7. 最大輪郭の重心(mx, my)を計算
+            8. ROI中心からのx方向オフセットを計算
+            9. (mx, my, offset_pixels, max_contour)を返す
         """
         # Extract ROI and convert to grayscale
         x1, y1, x2, y2 = self.roi
@@ -105,8 +105,10 @@ class ControlCalculator:
 
     def calculate_adaptive_speed(self, abs_theta):
         """
-        abs_theta（進行方向の絶対角度）だけで速度を調整する。
-        カラーセンサー値（on_black_line）は使用しない。
+        abs_theta（進行方向の絶対角度）のみを使って推奨速度（パワー）を自動調整する。
+        ・カーブ判定・直線判定の閾値はインスタンス生成時のパラメータで調整可能。
+        ・カラーセンサー値やライン判定は一切参照しない。
+        ・カーブ時はcurve_power、直線時はstraight_power、それ以外はbase_powerを返す。
         """
         if abs_theta > self.curve_threshold:
             return self.curve_power
