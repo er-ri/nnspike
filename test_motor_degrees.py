@@ -10,6 +10,10 @@ from nnspike.unit import ETRobot
 def main():
     et = ETRobot()
     try:
+        print("左右モーター: power=100 で1秒間動作")
+        et.set_motor_forward_power(left_power=100, right_power=100)
+        time.sleep(1)
+        et.brake()
         print("左モーター: 180度、右モーター: 180度 正回転")
         et.set_motor_degrees(left_degrees=180, right_degrees=180)
         time.sleep(3)
