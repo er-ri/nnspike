@@ -353,6 +353,7 @@ class ActionManager:
         self.finished = False
         self.action_sent = False
     def step(self):
+        print(f"[DEBUG] step() called: state={self.state}, action_sent={self.action_sent}, finished={self.finished}")
         # 非ブロッキングな回避動作ステートマシン（blocking引数なし対応）
         now = time.time()
         if self.finished:
@@ -383,6 +384,7 @@ class ActionManager:
                         traceback.print_exc()
                     print("[DEBUG] state=0: self.et.stop() returned")
                     self.state = 1
+                    print(f"[DEBUG] state=0: self.state set to {self.state}")
                     self.action_sent = False
         elif self.state == 1:
             if not self.action_sent:
