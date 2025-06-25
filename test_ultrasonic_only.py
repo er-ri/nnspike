@@ -9,7 +9,7 @@ import time
 from nnspike.unit import ETRobot
 
 
-def display_spike_status(et, interval=0.02, duration=20.0):
+def display_spike_status(et, interval=0.02, duration=10.0):
     """Display spike status at regular intervals for specified duration"""
     status_count = 0
     start_time = time.time()
@@ -43,7 +43,7 @@ def main():
     """Synchronous main function"""
     print("=== Ultrasonic Sensor Only Test (Sync Version) ===")
     print("This program ONLY reads ultrasonic sensor values via spike_status")
-    print("Continuous reading for 20 seconds")
+    print("Continuous reading for 10 seconds")
     print("Displaying values from spike_status every 0.02 seconds (20ms)")
     print()
     
@@ -63,13 +63,13 @@ def main():
                 return
             time.sleep(2.0)
     
-    print("Starting 20-second continuous reading from spike_status...")
+    print("Starting 10-second continuous reading from spike_status...")
     print("Status will be displayed every 0.02 seconds (20ms)")
     print()
     
     try:
         start_time = time.time()
-        display_spike_status(et, interval=0.02, duration=20.0)
+        display_spike_status(et, interval=0.02, duration=10.0)
         elapsed_time = time.time() - start_time
         print(f"\n✓ Test completed in {elapsed_time:.3f} seconds")
         print(f"✓ Used spike_status for ultrasonic sensor reading")
