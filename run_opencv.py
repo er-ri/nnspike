@@ -329,7 +329,7 @@ class ModeManager:
 class ActionManager:
     """
     障害物回避などの固有動作を管理する拡張用クラス。
-    例: 45度左回転→右弧旋回→45度左回転で回避（カラーセンサーは使わず、距離・時間・カーブ比のみで制御）
+    例: 45度左回転→右弧旋回→45度左回転で回避（非ブロッキングで各動作を進める）
     """
     USER_TIME_PER_DEGREE = 1.0 / 90  # ←90度で何秒かかるか実測値で調整
     ARC_POWER = 50
@@ -346,24 +346,36 @@ class ActionManager:
         self.start_time = None
         self.finished = False
     def step(self):
-        # 回避動作：
-        # 1. 45度左回転
-        # 2. 右弧旋回
-        # 3. 45度左回転
-        # 4. ライントレースモードに切り替え
+        # 非ブロッキングな回避動作ステートマシン
+        now = time.time()
         if self.finished:
             return
         if self.state == 0:
-            self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
+            # 1. 45度左回転 開始
+            self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE, blocking=False)
+            self.start_time = now
             self.state = 1
         elif self.state == 1:
-            self.et.move_right_arc(duration=self.ARC_DURATION, power=self.ARC_POWER, ratio=self.ARC_RATIO)
-            self.state = 2
+            # 左回転中（所要時間経過で次へ）
+            duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
+            if now - self.start_time >= duration:
+                self.et.stop()
+                self.et.move_right_arc(duration=self.ARC_DURATION, power=self.ARC_POWER, ratio=self.ARC_RATIO, blocking=False)
+                self.start_time = now
+                self.state = 2
         elif self.state == 2:
-            self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
-            self.state = 3
+            # 右弧旋回中
+            if now - self.start_time >= self.ARC_DURATION:
+                self.et.stop()
+                self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE, blocking=False)
+                self.start_time = now
+                self.state = 3
         elif self.state == 3:
-            self.finished = True  # ここで回避動作終了
+            # 2回目左回転中
+            duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
+            if now - self.start_time >= duration:
+                self.et.stop()
+                self.finished = True  # ここで回避動作終了
     def is_finished(self):
         return self.finished
 
@@ -386,7 +398,7 @@ def main(record_sensor_data=False, save_camera_video=False):
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
-            # ビデオ保存有効時はフレームを保存
+            # どのモードでも必ずフレームを保存
             if save_camera_video and video_writer is not None:
                 video_writer.write(frame)
             # Spikeの最新センサーステータス・カラー・超音波・モーター相対位置値を取得
