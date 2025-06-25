@@ -81,7 +81,9 @@ class SensorRecorder:
         
         Creates output directory, opens CSV file, writes headers, and sets up cleanup.
         """
+        print(f"[DEBUG][SensorRecorder] start_recording() called. Output: {self.csv_filename}")
         if self.is_recording:
+            print(f"[DEBUG][SensorRecorder] Recording already in progress. is_recording={self.is_recording}")
             return
         
         # Ensure directory exists
@@ -99,6 +101,7 @@ class SensorRecorder:
         self.frame_count = 0
         
         print(f"CSV logging started: {self.csv_filename}")
+        print(f"[DEBUG][SensorRecorder] is_recording={self.is_recording}, frame_count={self.frame_count}")
     
     def log_frame_data(self, spike_status) -> None:
         """
@@ -108,6 +111,7 @@ class SensorRecorder:
             spike_status: SpikeStatus object with sensor data
         """
         if not self.is_recording or self.csv_writer is None:
+            print(f"[DEBUG][SensorRecorder] log_frame_data() skipped: is_recording={self.is_recording}, csv_writer={self.csv_writer}")
             return
         
         self.frame_count += 1
@@ -152,16 +156,22 @@ class SensorRecorder:
             
             # Flush periodically to ensure data is saved (every 30 frames ≈ 1 second at 30fps)
             if self.frame_count % 30 == 0:
+                print(f"[DEBUG][SensorRecorder] Flushing at frame {self.frame_count}")
                 self.csv_file.flush()
                 
         except Exception as e:
-            print(f"Error writing to CSV: {e}")
-    
+            print(f"[DEBUG][SensorRecorder] Error writing to CSV: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+
     def stop_recording(self) -> None:
         """
         Stop CSV recording session and close file properly.
         """
+        print(f"[DEBUG][SensorRecorder] stop_recording() called. is_recording={self.is_recording}")
         if not self.is_recording:
+            print(f"[DEBUG][SensorRecorder] Recording not in progress. is_recording={self.is_recording}")
             return
         
         if self.csv_file and not self.csv_file.closed:
@@ -172,7 +182,8 @@ class SensorRecorder:
         self.is_recording = False
         self.csv_file = None
         self.csv_writer = None
-    
+        print(f"[DEBUG][SensorRecorder] stop_recording() finished. frame_count={self.frame_count}")
+
     def get_filename(self) -> str:
         """
         Get the current CSV filename.
@@ -189,6 +200,7 @@ class SensorRecorder:
         Returns:
             int: Number of frames recorded
         """
+        print(f"[DEBUG][SensorRecorder] get_frame_count() called. frame_count={self.frame_count}")
         return self.frame_count
     
     @staticmethod

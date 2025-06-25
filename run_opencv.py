@@ -419,6 +419,9 @@ def main(record_sensor_data=False, save_camera_video=False):
     et, pid, calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
         record_sensor_data, save_camera_video
     )
+    print(f"[DEBUG] SensorRecorder instance: {sensor_recorder}")
+    if sensor_recorder is not None:
+        print(f"[DEBUG] SensorRecorder recording to: {getattr(sensor_recorder, 'filename', None)}")
     time.sleep(0.5)
     et.set_motor_relative_position(left_position=0, right_position=0)
 
@@ -429,6 +432,8 @@ def main(record_sensor_data=False, save_camera_video=False):
     try:
         while et.is_running == True:
             print(f"[DEBUG] Main loop: et.is_running={et.is_running}")
+            if sensor_recorder is not None:
+                print(f"[DEBUG] SensorRecorder frame count: {sensor_recorder.get_frame_count()} | is_recording: {getattr(sensor_recorder, 'is_recording', None)}")
             loop_start = time.time()
             ret, frame = cap.read()
             if not ret:
@@ -492,15 +497,35 @@ def main(record_sensor_data=False, save_camera_video=False):
             if not send_camera_capture(gray, client_socket):
                 print("[ERROR] send_camera_capture failed. Breaking main loop.")
                 break
+            # === 追加: et.is_runningがFalseになった直後の詳細デバッグ ===
+            if et.is_running is False:
+                print("[DEBUG] et.is_running became False inside main loop!")
+                print(f"[DEBUG] ActionManager state: {action_manager.state}, finished: {action_manager.finished}")
+                try:
+                    status = et.get_spike_status()
+                    print(f"[DEBUG] et.get_spike_status(): {status}")
+                except Exception as e:
+                    print(f"[DEBUG] et.get_spike_status() error: {e}")
+                # et内部のエラー情報や属性もprint（あれば）
+                if hasattr(et, 'last_error'):
+                    print(f"[DEBUG] et.last_error: {et.last_error}")
+                if hasattr(et, 'error_message'):
+                    print(f"[DEBUG] et.error_message: {et.error_message}")
+                # ここでbreakしてもよいが、既にwhile条件で抜けるはず
     except KeyboardInterrupt:
         print("Interrupted by user")
+        if sensor_recorder is not None:
+            print(f"[DEBUG] (KeyboardInterrupt) SensorRecorder frame count: {sensor_recorder.get_frame_count()} | is_recording: {getattr(sensor_recorder, 'is_recording', None)}")
         send_stop_signal(et, duration=3.0)
     except Exception as e:
         import traceback
         print(f"[EXCEPTION] Error: {e}")
+        if sensor_recorder is not None:
+            print(f"[DEBUG] (Exception) SensorRecorder frame count: {sensor_recorder.get_frame_count()} | is_recording: {getattr(sensor_recorder, 'is_recording', None)}")
         traceback.print_exc()
         send_stop_signal(et, duration=3.0)
     finally:
+        print(f"[DEBUG] (finally) SensorRecorder frame count: {sensor_recorder.get_frame_count() if sensor_recorder else None} | is_recording: {getattr(sensor_recorder, 'is_recording', None) if sensor_recorder else None}")
         et.stop()
         cap.release()
         client_socket.close()
