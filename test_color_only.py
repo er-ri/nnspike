@@ -9,10 +9,13 @@ import time
 from nnspike.unit import ETRobot
 
 
-def display_spike_status(et, interval=0.03, duration=5.0):
-    """指定した間隔・時間だけスパイクのステータスを表示する（同期版）"""
+def display_spike_status(et, interval=0.03, duration=5.0, max_recover=3):
+    """指定した間隔・時間だけスパイクのステータスを表示する（同期版）
+    例外発生時は自動リカバリを試みる
+    """
     status_count = 0
     start_time = time.time()
+    recover_count = 0
     while time.time() - start_time < duration:
         try:
             status_count += 1
@@ -25,9 +28,27 @@ def display_spike_status(et, interval=0.03, duration=5.0):
                 print(f"[{elapsed:.3f}s] Status #{status_count}: No color sensor data (sensors.color=None)")
             else:
                 print(f"[{elapsed:.3f}s] Status #{status_count}: No color sensor data (sensors=None)")
+            recover_count = 0  # 成功したらリカバリカウントリセット
         except Exception as e:
             elapsed = time.time() - start_time
             print(f"[{elapsed:.3f}s] Status #{status_count}: Error - {e}")
+            recover_count += 1
+            if recover_count > max_recover:
+                print(f"リカバリ試行{max_recover}回失敗。処理を中断します。")
+                break
+            # ETRobot再初期化を試みる
+            try:
+                print("ETRobotを再初期化してリカバリを試みます...")
+                et.stop()
+            except Exception:
+                pass
+            try:
+                et = ETRobot()
+                time.sleep(1.0)
+                print("✓ ETRobot再初期化成功")
+            except Exception as e2:
+                print(f"ETRobot再初期化失敗: {e2}")
+                time.sleep(2.0)
         # 一定間隔で実行
         next_time = start_time + (status_count * interval)
         current_time = time.time()
