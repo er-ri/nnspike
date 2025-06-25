@@ -44,6 +44,19 @@ class ColorSensorStatus:
   `parse error: ColorSensorStatus() takes no arguments` エラーが解消される。
 - カラーセンサー値の取得・利用が安定する。
 
+## 動作結果（2025-06-26 実測）
+
+- [DEBUG][get_spike_status] message_type: 0 となり、エラーは発生しなくなった。
+- カラーセンサー値も正しく取得・表示できている：
+
+  - 例: Color - Reflected: 149, Ambient: 124, Color: 126
+  - 例: [4.244s] Status #35: R=149, A=124, C=126
+
+- 以前の `ColorSensorStatus() takes no arguments` エラーは完全に解消。
+- センサーデータのパース・利用も安定。
+
 ---
 
 本修正により、通信・データパースの信頼性が向上しました。
+
+本修正により、カラーセンサー値取得の同期テストは完全成功となった。

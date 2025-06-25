@@ -18,11 +18,9 @@ def display_spike_status(et, interval=0.03, duration=5.0):
             status_count += 1
             elapsed = time.time() - start_time
             spike_status = et.get_spike_status()
-            # デバッグ: 受信したspike_statusのrawデータを表示
-            print(f"[DEBUG] spike_status: {spike_status}")
+            # print(f"[DEBUG] spike_status: {spike_status}")  # 調査用デバッグ
+            # print(f"[DEBUG] sensors: {spike_status.sensors}")  # 調査用デバッグ
             if spike_status and spike_status.sensors:
-                # デバッグ: sensorsの中身を表示
-                print(f"[DEBUG] sensors: {spike_status.sensors}")
                 if spike_status.sensors.color:
                     color_sensor = spike_status.sensors.color
                     print(f"[{elapsed:.3f}s] Status #{status_count}: R={color_sensor.reflected}, A={color_sensor.ambient}, C={color_sensor.color}")
