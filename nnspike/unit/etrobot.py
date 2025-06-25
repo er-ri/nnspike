@@ -287,8 +287,16 @@ class ETRobot(
         self.__send_command(command)
 
     def stop(self) -> None:
-        """Stop the robot and close the serial port. (何もしない: 強制停止・再起動禁止)"""
-        pass
+        """Stop the robot and close the serial port. (スレッド安全停止)"""
+        self.is_running = False
+        if hasattr(self, "__thread") and self.__thread.is_alive():
+            self.__thread.join(timeout=2.0)
+        # シリアルポートも閉じる（必要なら）
+        if hasattr(self, "__serial_port") and self.__serial_port.is_open:
+            try:
+                self.__serial_port.close()
+            except Exception:
+                pass
 
     def turn_left(self, degree, power):
         """
