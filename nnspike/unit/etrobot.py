@@ -298,22 +298,24 @@ class ETRobot(
             except Exception:
                 pass
 
-    def turn_left(self, degree, power):
+    def turn_left(self, degree, power, time_per_degree=None):
         """
         左に指定角度だけ回転する（degree単位、powerは回転速度）。
-        呼び出し側でdegree, powerを必ず指定すること。
+        time_per_degree: 1度あたりの回転時間（秒）。Noneならデフォルト値（0.5/90）を使用。
         """
-        time_per_degree = 0.5 / 90
+        if time_per_degree is None:
+            time_per_degree = 0.5 / 90
         self.set_motor_forward_power(left_power=0, right_power=power)
         time.sleep(abs(degree) * time_per_degree)
         self.brake()
 
-    def turn_right(self, degree, power):
+    def turn_right(self, degree, power, time_per_degree=None):
         """
         右に指定角度だけ回転する（degree単位、powerは回転速度）。
-        呼び出し側でdegree, powerを必ず指定すること。
+        time_per_degree: 1度あたりの回転時間（秒）。Noneならデフォルト値（0.5/90）を使用。
         """
-        time_per_degree = 0.5 / 90
+        if time_per_degree is None:
+            time_per_degree = 0.5 / 90
         self.set_motor_forward_power(left_power=power, right_power=0)
         time.sleep(abs(degree) * time_per_degree)
         self.brake()
