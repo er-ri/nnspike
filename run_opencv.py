@@ -197,10 +197,12 @@ def get_sensor_info(et, sensor_recorder=None):
     return color, distance, relative_position
 
 
-def prepare_driving_info(x1, y1, x2, y2, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour):
+def prepare_driving_info(roi, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour):
     """
     可視化用の走行情報を生成
+    roi: (x1, y1, x2, y2) タプル
     """
+    x1, y1, x2, y2 = roi
     def to_distance_cm(pos):
         return int(float(pos) * 0.0471) if pos is not None else 0
     left_distance_cm = to_distance_cm(relative_position['left'])
@@ -218,6 +220,7 @@ def prepare_driving_info(x1, y1, x2, y2, mx, my, offset_pixels, theta, pid_corre
         ultrasonic_data = "N/A cm"
     info = dict()
     info["offset_x"], info["offset_y"] = x1 + mx, y1 + my
+    info["roi"] = roi
     info["text"] = {
         "offset_pixels": f"{round(offset_pixels, 1)}px",
         "theta_deg": f"{round(math.degrees(theta), 2)}deg",
@@ -243,13 +246,14 @@ def prepare_driving_info(x1, y1, x2, y2, mx, my, offset_pixels, theta, pid_corre
     return info
 
 # --- 可視化フレーム生成（輪郭描画含む） ---
-def create_visualization_frame(frame, info, x1, y1, x2, y2, mx, my, max_contour):
+def create_visualization_frame(frame, info, roi, mx, my, max_contour):
     """
     Create visualization frame and draw contour on the visualization if found
-    ROI: x1, y1, x2, y2
+    roi: (x1, y1, x2, y2) タプル
     """
+    x1, y1, x2, y2 = roi
     gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
-    gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
+    gray = draw_driving_info(gray, info, roi)
     if max_contour is not None:
         # Adjust contour coordinates to full frame
         adjusted_contour = max_contour + np.array([x1, y1])
@@ -310,9 +314,9 @@ def main(record_sensor_data=False, save_camera_video=False):
                 right_power=right_power,
             )
             # 可視化用情報生成
-            info = prepare_driving_info(*ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour)
+            info = prepare_driving_info(ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour)
             # 可視化フレーム生成
-            gray = create_visualization_frame(frame, info, *ROI_OPENCV, mx, my, max_contour)
+            gray = create_visualization_frame(frame, info, ROI_OPENCV, mx, my, max_contour)
             # カメラ画像送信（リモートモニタ用）
             if not send_camera_capture(gray, client_socket):
                 break
