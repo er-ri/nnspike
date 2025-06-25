@@ -173,8 +173,7 @@ class ETRobot(
             received_data = self.__serial_port.read_until(expected=b"\r")
             if not received_data or len(received_data.strip()) == 0:
                 continue
-            # デバッグ: 受信した生バイト列をreprで表示
-            print(f"[DEBUG][get_spike_status] raw bytes: {repr(received_data)}")
+            # print(f"[DEBUG][get_spike_status] raw bytes: {repr(received_data)}")  # デバッグ用
             # 複数JSONが連結している場合に分割
             for chunk in received_data.split(b'}{'):
                 if not chunk:
@@ -186,12 +185,12 @@ class ETRobot(
                 try:
                     from nnspike.unit.spike_status import SpikeStatus
                     status = SpikeStatus(chunk)
-                    print(f"[DEBUG][get_spike_status] message_type: {status.message_type}")
+                    # print(f"[DEBUG][get_spike_status] message_type: {status.message_type}")  # デバッグ用
                     if status.message_type == 0:
                         self.last_spike_status = status
                         return status
                 except Exception as e:
-                    print(f"[DEBUG][get_spike_status] parse error: {e}")
+                    # print(f"[DEBUG][get_spike_status] parse error: {e}")  # デバッグ用
                     continue
 
     def set_motor_relative_position(
