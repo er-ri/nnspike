@@ -359,7 +359,15 @@ class ActionManager:
             return
         if self.state == 0:
             if not self.action_sent:
-                self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
+                print("[DEBUG] ActionManager.step(): state=0, calling et.turn_left() ...")
+                try:
+                    self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
+                except Exception as e:
+                    import traceback
+                    print(f"[EXCEPTION] et.turn_left error: {e}")
+                    traceback.print_exc()
+                    raise
+                print("[DEBUG] ActionManager.step(): state=0, et.turn_left() returned.")
                 self.start_time = now
                 self.action_sent = True
             duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
@@ -405,6 +413,7 @@ def main(record_sensor_data=False, save_camera_video=False):
 
     try:
         while et.is_running == True:
+            print(f"[DEBUG] Main loop: et.is_running={et.is_running}")
             loop_start = time.time()
             ret, frame = cap.read()
             if not ret:
