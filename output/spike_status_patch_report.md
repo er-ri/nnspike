@@ -39,6 +39,30 @@ class ColorSensorStatus:
   color_status = ColorSensorStatus.from_dict({'reflected': 22, 'ambient': 0, 'color': 116})
   ```
 
+### 3. etrobot.py の修正（デバッグ・安定化対応）
+- `get_spike_status` 内で受信JSONの分割・パース処理を強化し、連結JSONや不正データでも落ちないようにした。
+- デバッグ用の詳細printを一時的に追加し、カラーセンサー値の取得状況やパースエラーの有無を確認。
+- 最終的に不要なデバッグprintはコメントアウトし、通常運用時は出力が抑制されるよう整理。
+
+#### 主な修正例:
+```python
+# ...既存のコード...
+def get_spike_status(self):
+    # ...既存のコード...
+    # 受信データが連結JSONの場合も安全に分割・パース
+    for msg in raw_data.split(b'\r'):
+        if not msg.strip():
+            continue
+        try:
+            # ...パース処理...
+            # print(f"[DEBUG][get_spike_status] ...")  # ←デバッグ用
+        except Exception as e:
+            # print(f"[DEBUG][get_spike_status] parse error: {e}")  # ←デバッグ用
+            continue
+    # ...既存のコード...
+```
+- これにより、通信異常やデータ不整合時も例外で落ちず、安定してカラーセンサー値を取得できるようになった。
+
 ## 効果
 - これにより、Spike Prime Hub から送信されるリスト形式のカラーセンサーデータも安全にパースでき、
   `parse error: ColorSensorStatus() takes no arguments` エラーが解消される。

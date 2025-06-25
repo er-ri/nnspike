@@ -82,7 +82,10 @@ def main():
         print(f"エラー: {e}")
     finally:
         if et:
-            et.stop()
+            try:
+                et.stop()
+            except Exception as e:
+                print(f"et.stop() 実行時に例外: {e}")
         print("プログラム終了")
 
 
