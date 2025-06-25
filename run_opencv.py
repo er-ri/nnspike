@@ -431,10 +431,10 @@ def main(record_sensor_data=False, save_camera_video=False):
                 break
     except KeyboardInterrupt:
         print("Interrupted by user")
-        send_stop_signal(et, duration=5.0)
+        send_stop_signal(et, duration=3.0)
     except Exception as e:
         print(f"Error: {e}")
-        send_stop_signal(et, duration=5.0)
+        send_stop_signal(et, duration=3.0)
     finally:
         et.stop()
         cap.release()
