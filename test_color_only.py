@@ -9,6 +9,7 @@ Color Sensor Only Test Program (Synchronous Version)
 - 例外発生時は自動リカバリ（ETRobot再初期化）を最大3回まで試みます。
 - ログはflush=Trueでリアルタイム表示されます。
 """
+import sys
 import time
 from nnspike.unit import ETRobot
 
@@ -111,6 +112,7 @@ def main():
             except Exception as e:
                 print(f"et.stop() 実行時に例外: {e}", flush=True)
         print("プログラム終了", flush=True)
+        sys.exit(0)
 
 
 if __name__ == "__main__":
