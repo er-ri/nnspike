@@ -417,6 +417,7 @@ def main(record_sensor_data=False, save_camera_video=False):
                 # 固有動作ステップ実行（カラーセンサーは使わない）
                 action_manager.step()
                 left_power = right_power = 0
+                # stepが終わったタイミングで即座にライントレースモードへ切り替え
                 if action_manager.is_finished():
                     mode_manager.reset()
             # --- ここから共通処理 ---
