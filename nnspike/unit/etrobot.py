@@ -168,7 +168,25 @@ class ETRobot(
         Returns:
             SpikeStatus: Spike status object with consistent sensor data
         """
-        return self.last_spike_status
+        # 直近のType:0（センサーデータ）だけを返すように修正
+        while True:
+            # 受信バッファからデータを取得
+            received_data = self.__serial_port.read_until(expected=b"\r")
+            if not received_data or len(received_data.strip()) == 0:
+                continue
+            try:
+                from nnspike.unit.spike_status import SpikeStatus
+                status = SpikeStatus(received_data)
+                # デバッグ: 受信した生JSONとTypeを表示
+                print(f"[DEBUG][get_spike_status] raw: {received_data}")
+                print(f"[DEBUG][get_spike_status] message_type: {status.message_type}")
+                if status.message_type == 0:
+                    self.last_spike_status = status
+                    return status
+                # Type:0以外はスキップ
+            except Exception as e:
+                print(f"[DEBUG][get_spike_status] parse error: {e}")
+                continue
 
     def set_motor_relative_position(
         self, left_position: int, right_position: int
