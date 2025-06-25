@@ -370,30 +370,35 @@ class ActionManager:
                 print("[DEBUG] ActionManager.step(): state=0, et.turn_left() returned.")
                 self.start_time = now
                 self.action_sent = True
-            duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
-            if now - self.start_time >= duration:
-                self.et.stop()
-                self.state = 1
-                self.action_sent = False
+            else:
+                duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
+                if now - self.start_time >= duration:
+                    self.et.stop()
+                    self.state = 1
+                    self.action_sent = False
         elif self.state == 1:
             if not self.action_sent:
+                print("[DEBUG] ActionManager.step(): state=1, calling et.move_right_arc() ...")
                 self.et.move_right_arc(duration=self.ARC_DURATION, power=self.ARC_POWER, ratio=self.ARC_RATIO)
                 self.start_time = now
                 self.action_sent = True
-            if now - self.start_time >= self.ARC_DURATION:
-                self.et.stop()
-                self.state = 2
-                self.action_sent = False
+            else:
+                if now - self.start_time >= self.ARC_DURATION:
+                    self.et.stop()
+                    self.state = 2
+                    self.action_sent = False
         elif self.state == 2:
             if not self.action_sent:
+                print("[DEBUG] ActionManager.step(): state=2, calling et.turn_left() ...")
                 self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
                 self.start_time = now
                 self.action_sent = True
-            duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
-            if now - self.start_time >= duration:
-                self.et.stop()
-                self.state = 3
-                self.action_sent = False
+            else:
+                duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
+                if now - self.start_time >= duration:
+                    self.et.stop()
+                    self.state = 3
+                    self.action_sent = False
         elif self.state == 3:
             self.finished = True  # ここで回避動作終了
     def is_finished(self):
