@@ -353,60 +353,40 @@ class ActionManager:
         self.finished = False
         self.action_sent = False
     def step(self):
-        print(f"[DEBUG] step() called: state={self.state}, action_sent={self.action_sent}, finished={self.finished}")
         # 非ブロッキングな回避動作ステートマシン（blocking引数なし対応）
         now = time.time()
         if self.finished:
             return
         if self.state == 0:
             if not self.action_sent:
-                print("[DEBUG] ActionManager.step(): state=0, calling et.turn_left() ...")
-                try:
-                    self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
-                except Exception as e:
-                    import traceback
-                    print(f"[EXCEPTION] et.turn_left error: {e}")
-                    traceback.print_exc()
-                    raise
-                print("[DEBUG] ActionManager.step(): state=0, et.turn_left() returned.")
-                self.start_time = now
-                self.action_sent = True
-            else:
-                duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
-                print(f"[DEBUG] state=0: now={now}, start_time={self.start_time}, duration={duration}, elapsed={now - self.start_time}")
-                if now - self.start_time >= duration:
-                    print("[DEBUG] state=0: calling self.et.brake() (was stop)")
-                    try:
-                        self.et.brake()
-                    except Exception as e:
-                        import traceback
-                        print(f"[EXCEPTION] et.brake error: {e}")
-                        traceback.print_exc()
-                    print("[DEBUG] state=0: self.et.brake() returned")
-                    self.state = 1
-                    print(f"[DEBUG] state=0: self.state set to {self.state}")
-                    self.action_sent = False
-        elif self.state == 1:
-            if not self.action_sent:
-                print("[DEBUG] ActionManager.step(): state=1, calling et.move_right_arc() ...")
-                self.et.move_right_arc(duration=self.ARC_DURATION, power=self.ARC_POWER, ratio=self.ARC_RATIO)
-                self.start_time = now
-                self.action_sent = True
-            else:
-                if now - self.start_time >= self.ARC_DURATION:
-                    self.et.brake()  # ここもstop→brake
-                    self.state = 2
-                    self.action_sent = False
-        elif self.state == 2:
-            if not self.action_sent:
-                print("[DEBUG] ActionManager.step(): state=2, calling et.turn_left() ...")
                 self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
                 self.start_time = now
                 self.action_sent = True
             else:
                 duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
                 if now - self.start_time >= duration:
-                    self.et.brake()  # ここもstop→brake
+                    self.et.brake()
+                    self.state = 1
+                    self.action_sent = False
+        elif self.state == 1:
+            if not self.action_sent:
+                self.et.move_right_arc(duration=self.ARC_DURATION, power=self.ARC_POWER, ratio=self.ARC_RATIO)
+                self.start_time = now
+                self.action_sent = True
+            else:
+                if now - self.start_time >= self.ARC_DURATION:
+                    self.et.brake()
+                    self.state = 2
+                    self.action_sent = False
+        elif self.state == 2:
+            if not self.action_sent:
+                self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
+                self.start_time = now
+                self.action_sent = True
+            else:
+                duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
+                if now - self.start_time >= duration:
+                    self.et.brake()
                     self.state = 3
                     self.action_sent = False
         elif self.state == 3:
@@ -419,9 +399,6 @@ def main(record_sensor_data=False, save_camera_video=False):
     et, pid, calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
         record_sensor_data, save_camera_video
     )
-    print(f"[DEBUG] SensorRecorder instance: {sensor_recorder}")
-    if sensor_recorder is not None:
-        print(f"[DEBUG] SensorRecorder recording to: {getattr(sensor_recorder, 'filename', None)}")
     time.sleep(0.5)
     et.set_motor_relative_position(left_position=0, right_position=0)
 
@@ -431,9 +408,6 @@ def main(record_sensor_data=False, save_camera_video=False):
 
     try:
         while et.is_running == True:
-            print(f"[DEBUG] Main loop: et.is_running={et.is_running}")
-            if sensor_recorder is not None:
-                print(f"[DEBUG] SensorRecorder frame count: {sensor_recorder.get_frame_count()} | is_recording: {getattr(sensor_recorder, 'is_recording', None)}")
             loop_start = time.time()
             ret, frame = cap.read()
             if not ret:
@@ -467,27 +441,19 @@ def main(record_sensor_data=False, save_camera_video=False):
                 # 一時停止し、2秒間セミ回避モードで距離の再確認のみ行う（前進しない）
                 left_power = right_power = 0
             elif mode_manager.mode == Mode.OBSTACLE_AVOID:
-                print(f"[DEBUG] OBSTACLE_AVOID: state={action_manager.state}, finished={action_manager.finished}")
-                try:
-                    action_manager.step()
-                except Exception as e:
-                    import traceback
-                    print(f"[EXCEPTION] ActionManager.step() error: {e}")
-                    traceback.print_exc()
-                    break
+                # print(f"[DEBUG] OBSTACLE_AVOID: state={action_manager.state}, finished={action_manager.finished}")
+                action_manager.step()
                 left_power = right_power = 0
-                # stepが終わったタイミングで即座にライントレースモードへ切り替え
                 if action_manager.is_finished():
-                    print("[DEBUG] ActionManager finished. Resetting mode_manager.")
+                    # print("[DEBUG] ActionManager finished. Resetting mode_manager.")
                     mode_manager.reset()
             # --- ここから共通処理 ---
             # 計算したパワーでモーターを駆動
             try:
                 et.set_motor_forward_power(left_power=left_power, right_power=right_power)
             except Exception as e:
-                import traceback
-                print(f"[EXCEPTION] et.set_motor_forward_power error: {e}")
-                traceback.print_exc()
+                # print(f"[EXCEPTION] et.set_motor_forward_power error: {e}")
+                # traceback.print_exc()
                 break
             # 可視化用情報生成
             info = prepare_driving_info(ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour, mode=mode_manager.mode.name)
@@ -497,35 +463,14 @@ def main(record_sensor_data=False, save_camera_video=False):
             if not send_camera_capture(gray, client_socket):
                 print("[ERROR] send_camera_capture failed. Breaking main loop.")
                 break
-            # === 追加: et.is_runningがFalseになった直後の詳細デバッグ ===
-            if et.is_running is False:
-                print("[DEBUG] et.is_running became False inside main loop!")
-                print(f"[DEBUG] ActionManager state: {action_manager.state}, finished: {action_manager.finished}")
-                try:
-                    status = et.get_spike_status()
-                    print(f"[DEBUG] et.get_spike_status(): {status}")
-                except Exception as e:
-                    print(f"[DEBUG] et.get_spike_status() error: {e}")
-                # et内部のエラー情報や属性もprint（あれば）
-                if hasattr(et, 'last_error'):
-                    print(f"[DEBUG] et.last_error: {et.last_error}")
-                if hasattr(et, 'error_message'):
-                    print(f"[DEBUG] et.error_message: {et.error_message}")
-                # ここでbreakしてもよいが、既にwhile条件で抜けるはず
     except KeyboardInterrupt:
         print("Interrupted by user")
-        if sensor_recorder is not None:
-            print(f"[DEBUG] (KeyboardInterrupt) SensorRecorder frame count: {sensor_recorder.get_frame_count()} | is_recording: {getattr(sensor_recorder, 'is_recording', None)}")
         send_stop_signal(et, duration=3.0)
     except Exception as e:
-        import traceback
-        print(f"[EXCEPTION] Error: {e}")
-        if sensor_recorder is not None:
-            print(f"[DEBUG] (Exception) SensorRecorder frame count: {sensor_recorder.get_frame_count()} | is_recording: {getattr(sensor_recorder, 'is_recording', None)}")
-        traceback.print_exc()
+        # print(f"[EXCEPTION] Error: {e}")
+        # traceback.print_exc()
         send_stop_signal(et, duration=3.0)
     finally:
-        print(f"[DEBUG] (finally) SensorRecorder frame count: {sensor_recorder.get_frame_count() if sensor_recorder else None} | is_recording: {getattr(sensor_recorder, 'is_recording', None) if sensor_recorder else None}")
         et.stop()
         cap.release()
         client_socket.close()
