@@ -408,7 +408,7 @@ def main(record_sensor_data=False, save_camera_video=False):
             loop_start = time.time()
             ret, frame = cap.read()
             if not ret:
-                print("Can't receive frame (stream end?). Exiting ...")
+                print("[ERROR] Can't receive frame (stream end?). Exiting ...")
                 break
             # どのモードでも必ずフレームを保存
             if save_camera_video and video_writer is not None:
@@ -438,27 +438,43 @@ def main(record_sensor_data=False, save_camera_video=False):
                 # 一時停止し、2秒間セミ回避モードで距離の再確認のみ行う（前進しない）
                 left_power = right_power = 0
             elif mode_manager.mode == Mode.OBSTACLE_AVOID:
-                # 固有動作ステップ実行（カラーセンサーは使わない）
-                action_manager.step()
+                print(f"[DEBUG] OBSTACLE_AVOID: state={action_manager.state}, finished={action_manager.finished}")
+                try:
+                    action_manager.step()
+                except Exception as e:
+                    import traceback
+                    print(f"[EXCEPTION] ActionManager.step() error: {e}")
+                    traceback.print_exc()
+                    break
                 left_power = right_power = 0
                 # stepが終わったタイミングで即座にライントレースモードへ切り替え
                 if action_manager.is_finished():
+                    print("[DEBUG] ActionManager finished. Resetting mode_manager.")
                     mode_manager.reset()
             # --- ここから共通処理 ---
             # 計算したパワーでモーターを駆動
-            et.set_motor_forward_power(left_power=left_power, right_power=right_power)
+            try:
+                et.set_motor_forward_power(left_power=left_power, right_power=right_power)
+            except Exception as e:
+                import traceback
+                print(f"[EXCEPTION] et.set_motor_forward_power error: {e}")
+                traceback.print_exc()
+                break
             # 可視化用情報生成
             info = prepare_driving_info(ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour, mode=mode_manager.mode.name)
             # 可視化フレーム生成
             gray = create_visualization_frame(frame, info, ROI_OPENCV, mx, my, max_contour)
             # カメラ画像送信（リモートモニタ用）
             if not send_camera_capture(gray, client_socket):
+                print("[ERROR] send_camera_capture failed. Breaking main loop.")
                 break
     except KeyboardInterrupt:
         print("Interrupted by user")
         send_stop_signal(et, duration=3.0)
     except Exception as e:
-        print(f"Error: {e}")
+        import traceback
+        print(f"[EXCEPTION] Error: {e}")
+        traceback.print_exc()
         send_stop_signal(et, duration=3.0)
     finally:
         et.stop()
