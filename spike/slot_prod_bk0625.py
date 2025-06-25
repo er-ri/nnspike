@@ -1,3 +1,7 @@
+# --- ファイル名入れ替え用バックアップ ---
+# このファイルは2025-06-26時点の slot_prod_bk0625.py の内容です。
+# 元の slot_prod.py の内容は slot_prod_bk0625.py に移動しました。
+
 # LEGO type:standard slot:2 autostart
 """Main controlling program for LEGO Spike Prime Hub"""
 import gc
