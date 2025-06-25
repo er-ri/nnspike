@@ -341,19 +341,23 @@ class ActionManager:
         self.finished = False
     def step(self):
         # 回避動作：
-        # 1. 弧を描いて右旋回（距離指定）
-        # 2. ライントレースモードに切り替え
-        # ※現在は「弧を描いて右旋回」のみ実行し、45度回転は行わない
+        # 1. 45度左回転
+        # 2. 弧を描いて右旋回（距離指定）
+        # 3. ライントレースモードに切り替え
+        # ※カラーセンサーは使わず、距離・時間のみで制御
         if self.finished:
             return
-        # パラメータ（必要に応じて調整）
         ARC_POWER = 50
         ARC_DURATION = 5.0  # 弧を描く時間（5秒に設定）
+        TURN_ANGLE = 45     # 左回転角度（度）
         if self.state == 0:
-            self.et.move_right_arc(duration=ARC_DURATION, power=ARC_POWER)
+            self.et.turn_left(angle=TURN_ANGLE)  # 45度左回転
             self.state = 1
         elif self.state == 1:
-            self.finished = True  # 直進せず、ここで回避動作終了（LINE_TRACEモードへ）
+            self.et.move_right_arc(duration=ARC_DURATION, power=ARC_POWER)
+            self.state = 2
+        elif self.state == 2:
+            self.finished = True  # ここで回避動作終了（LINE_TRACEモードへ）
     def is_finished(self):
         return self.finished
 
