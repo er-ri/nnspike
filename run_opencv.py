@@ -293,7 +293,7 @@ class ModeManager:
     SEMI_AVOID: 障害物検知後の一時停止・確認（低速前進し距離変化を監視）
     OBSTACLE_AVOID: 障害物回避動作
     """
-    OBSTACLE_DETECT_DISTANCE = 45  # 障害物検知のしきい値[cm]
+    OBSTACLE_DETECT_DISTANCE = 50  # 障害物検知のしきい値[cm]
     SEMI_AVOID_DURATION = 2.0      # セミ回避モードの待機時間[秒]
     def __init__(self):
         self.mode = Mode.LINE_TRACE
