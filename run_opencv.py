@@ -2,17 +2,16 @@
 """
 OpenCV-Based Line Following Robot Control
 
-This script controls a line-following robot using OpenCV computer vision
-instead of neural network predictions. It uses the steer_by_camera function
-to detect the line centroid and follows it using PID control.
+このスクリプトは、OpenCV画像処理によるライン追従ロボット制御を行います。
+ニューラルネットワークは使わず、カメラ画像からラインの重心を検出し、PID制御で走行します。
 
-Speed Tuning Parameters:
-- BASE_POWER: Base power for straight lines (start here)
-- TURN_REDUCTION_FACTOR: Speed reduction in turns (0.0-1.0)
-- TURN_THRESHOLD: Pixel offset threshold to detect turns
+【速度調整パラメータ】
+- BASE_POWER: 直線時の基準パワー
+- TURN_REDUCTION_FACTOR: カーブ時の速度低減率（0.0-1.0）
+- TURN_THRESHOLD: カーブ判定のピクセル閾値
 
-PID Tuning Parameters:
-- Kp, Ki, Kd: Standard PID parameters for steering correction
+【PID調整パラメータ】
+- Kp, Ki, Kd: ステアリング補正用のPIDパラメータ
 """
 
 # ==== ユーザー調整用パラメータ（ここだけ編集すればOK） ====
@@ -52,12 +51,12 @@ from nnspike.utils import (
     SensorRecorder,
 )
 
-# Socket connection settings
+# --- ソケット通信設定 ---
 HOST_IP_ADDRESS = (
-    "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
+    "192.168.137.1"  # Raspberry PiがPCへ送信する宛先IP
 )
 
-# Camera setup
+# --- カメラ初期化 ---
 cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FPS, 30)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, IMAGE_WIDTH)
@@ -68,7 +67,9 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, IMAGE_HEIGHT)
 
 
 def run_initial_sensor_test(et, test_count=5, delay=0.2):
-    """SPIKEの初期センサーテストを簡素に実行"""
+    """
+    SPIKEの初期センサーテストを簡易実行
+    """
     print("初期センサーテスト...")
     for i in range(test_count):
         test_status = et.get_spike_status()
@@ -85,7 +86,9 @@ def run_initial_sensor_test(et, test_count=5, delay=0.2):
 
 
 def initialize_system(record_sensor_data, save_camera_video):
-    """ロボット・PID・センサーレコーダ・ビデオ・ソケット等の初期化をまとめて行う"""
+    """
+    ロボット・PID・センサーレコーダ・ビデオ・ソケット等の初期化をまとめて行う
+    """
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = (
         time.strftime("%Y%m%d%H%M%S", time.localtime())
@@ -145,7 +148,7 @@ def initialize_system(record_sensor_data, save_camera_video):
 
     print("メインループで直接センサー値を取得します")
 
-    # --- アームを1秒上げて1秒下げる処理を追加（test_color_only.py参考） ---
+    # --- アームを1秒上げて1秒下げる（動作確認） ---
     try:
         print("Arm up...")
         et.move_arm(1)  # 1 = up
@@ -156,13 +159,16 @@ def initialize_system(record_sensor_data, save_camera_video):
     except Exception as e:
         print(f"Arm move error: {e}")
 
-    # 初期センサーテストを関数で実行
+    # 初期センサーテスト
     run_initial_sensor_test(et)
 
     return et, pid, calc, sensor_recorder, video_writer, video_filename, client_socket
 
 
 def send_stop_signal(et, duration=3.0):
+    """
+    Spikeに一定時間ブレーキ信号を送り続ける
+    """
     print(f"Sending stop signals to Spike for {duration} seconds...")
     stop_start_time = time.time()
     while time.time() - stop_start_time < duration:
@@ -177,8 +183,7 @@ def send_stop_signal(et, duration=3.0):
 
 def get_sensor_info(et, sensor_recorder=None):
     """
-    Spikeの最新センサーステータス・カラー・超音波・モーター情報・判定をまとめて取得
-    - Spikeの最新センサーステータスを取得
+    Spikeの最新センサーステータス・カラー・超音波・モーター情報をまとめて取得
     - カラーセンサー値取得と黒・青判定
     - 超音波センサーデータ値取得
     - モーターB/C相対位置値・パワー値取得
@@ -257,7 +262,7 @@ def prepare_driving_info(roi, mx, my, offset_pixels, theta, pid_corrected_theta,
 # --- 可視化フレーム生成（輪郭描画含む） ---
 def create_visualization_frame(frame, info, roi, mx, my, max_contour):
     """
-    Create visualization frame and draw contour on the visualization if found
+    可視化フレームを生成し、輪郭があれば描画する
     roi: (x1, y1, x2, y2) タプル
     """
     x1, y1, x2, y2 = roi
@@ -273,7 +278,7 @@ def create_visualization_frame(frame, info, roi, mx, my, max_contour):
 # --- カメラ画像送信 ---
 def send_camera_capture(gray, client_socket):
     """
-    Send camera capture for remote monitoring
+    カメラ画像をリモート監視用に送信
     """
     try:
         ret, buffer = cv2.imencode(".jpg", gray, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
@@ -289,35 +294,49 @@ def send_camera_capture(gray, client_socket):
 from enum import Enum, auto
 
 class Mode(Enum):
-    LINE_TRACE = auto()
-    SEMI_AVOID = auto()
-    OBSTACLE_AVOID = auto()
+    LINE_TRACE = auto()         # 通常のライン走行
+    DIST_STOP = auto()          # 超音波距離停止モード（障害物検知後の一時停止・距離再確認）
+    OBSTACLE_AVOID = auto()     # 障害物回避動作（オブスタクルボトル回避）
+    SMART_CARRY_1 = auto()      # スマートキャリー1回目
+    SMART_CARRY_2 = auto()      # スマートキャリー2回目
+    GOAL = auto()               # ゴール到達モード（ゴールに向かう処理とゴール停止をこのモードで実装する構想）
 
 class ModeManager:
     """
     動作モードの状態遷移を管理するクラス。
     LINE_TRACE: 通常のライン走行
-    SEMI_AVOID: 障害物検知後の一時停止・確認（低速前進し距離変化を監視）
-    OBSTACLE_AVOID: 障害物回避動作
+    DIST_STOP: 超音波距離停止モード（障害物検知後の一時停止・距離再確認）
+    OBSTACLE_AVOID: 障害物回避動作（オブスタクルボトル回避）
+    SMART_CARRY_1: スマートキャリー1回目
+    SMART_CARRY_2: スマートキャリー2回目
+    GOAL: ゴール到達モード（ゴールに向かう処理とゴール停止をこのモードで実装する構想）
+
+    # MEMO:
+    # スマートキャリーモード(SMART_CARRY_1, SMART_CARRY_2)やGOALモードも、
+    # 超音波センサーやobject_detected（物体判定結果）、relative_position（モーター相対位置）等を組み合わせて遷移判定する構想。
+    # 例: object_detected==2（交差点やゴール判定値）でGOALモードへ遷移。
+    # 必要に応じてupdate()内でこれらの値を参照し、より柔軟なモード遷移を実装すること。
     """
     OBSTACLE_DETECT_DISTANCE = 50  # 障害物検知のしきい値[cm]
-    SEMI_AVOID_DURATION = 2.0      # セミ回避モードの待機時間[秒]
+    DIST_STOP_DURATION = 2.0       # 距離停止モードの待機時間[秒]
     def __init__(self):
         self.mode = Mode.LINE_TRACE
         self.obstacle_detected_time = None
     def update(self, distance):
+        # 距離センサー値に応じてモード遷移
         if self.mode == Mode.LINE_TRACE:
             if distance is not None and distance < self.OBSTACLE_DETECT_DISTANCE:
-                self.mode = Mode.SEMI_AVOID
+                self.mode = Mode.DIST_STOP
                 self.obstacle_detected_time = time.time()
-        elif self.mode == Mode.SEMI_AVOID:
+        elif self.mode == Mode.DIST_STOP:
             if distance is not None and distance >= self.OBSTACLE_DETECT_DISTANCE * (50/30):
                 self.mode = Mode.LINE_TRACE
                 self.obstacle_detected_time = None
-            elif time.time() - self.obstacle_detected_time >= self.SEMI_AVOID_DURATION:
+            elif time.time() - self.obstacle_detected_time >= self.DIST_STOP_DURATION:
                 self.mode = Mode.OBSTACLE_AVOID
         elif self.mode == Mode.OBSTACLE_AVOID:
             pass
+        # SMART_CARRY_1, SMART_CARRY_2, GOALへの遷移は必要に応じて追加
     def reset(self):
         self.mode = Mode.LINE_TRACE
         self.obstacle_detected_time = None
@@ -325,8 +344,14 @@ class ModeManager:
 # --- 固有動作管理クラス（回避・今後の特殊動作用） ---
 class ActionManager:
     """
-    障害物回避などの固有動作を管理する拡張用クラス。
+    障害物回避やゴール到達時などの固有動作を管理する拡張用クラス。
     例: 45度左回転→右弧旋回→45度左回転で回避（非ブロッキングで各動作を進める）
+
+    # MEMO:
+    # 今後、オブスタクルボトルの回避だけでなく、
+    # スマートキャリーモード(SMART_CARRY_1, SMART_CARRY_2)でキャリーボトルの運搬・制御、
+    # GOALモード時の固有動作（例: 停止、アーム動作、サウンド再生等）も追加予定。
+    # 必要に応じてstateやobstacle_avoid_step()の分岐・処理を拡張すること。
     """
     USER_TIME_PER_DEGREE = 1.0 / 90  # ←90度で何秒かかかるか実測値で調整
     ARC_POWER = 50
@@ -344,8 +369,8 @@ class ActionManager:
         self.start_time = None
         self.finished = False
         self.action_sent = False
-    def step(self):
-        # 非ブロッキング設計: sleep等のブロック処理は絶対に入れない
+    def obstacle_avoid_step(self):
+        # 障害物回避動作の非ブロッキング実装: sleep等のブロック処理は絶対に入れない
         now = time.time()
         if self.finished:
             return
@@ -387,6 +412,7 @@ class ActionManager:
         return self.finished
 
 
+# --- メイン処理 ---
 def main(record_sensor_data=False, save_camera_video=False):
     et, pid, calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
         record_sensor_data, save_camera_video
@@ -411,10 +437,33 @@ def main(record_sensor_data=False, save_camera_video=False):
                 break
             # Spikeの最新センサーステータス・カラー・超音波・モーター相対位置値を取得
             color, distance, motor_info = get_sensor_info(et, sensor_recorder)
-            # 画像処理（可視化用）は全モードで必ず実行
+            # --- モデル入出力設計例 ---
+            # ▼ニューラルネット統合例（必要に応じて有効化）
+            # 入力: 画像, motor_info（相対位置などを含むdict）, 超音波センサー値
+            # 出力: direction_coords（進行方向のx座標）, object_detected（0=なし, 1=ペットボトル, 2=交差点）
+            # 例:
+            # roi_area = process_image(
+            #     image=frame.copy(),
+            #     device=device,         # 推論デバイス（例: 'cpu' or 'cuda'）
+            #     roi=ROI_CNN            # モデル用ROI（必要に応じて指定）
+            # )
+            # # Todo: ステージ判定
+            # interval_idx = 0
+            # with torch.no_grad():  # ニューラルネット推論時のみ必要
+            #     direction_coords, object_detected = models[interval_idx](
+            #         roi_area,
+            #         motor_info,  # 相対位置情報などを含むdict
+            #         distance if distance is not None else 0
+            #     )
+            #     # direction_coords: 進行方向のx座標（単一値）
+            #     # object_detected: 前方物体判定（0=なし, 1=ペットボトル, 2=交差点）
+            #     mode_manager.update(motor_info, distance, object_detected)
+            #
+            # ※torch.no_grad()はニューラルネット推論時のみ必要。OpenCVのみの場合は不要。
             mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
-            # モード更新
-            mode_manager.update(distance)
+            # --- MEMO: object_detectedは将来的にモデル出力や画像処理で取得し、mode_manager.update()に渡す ---
+            object_detected = None  # 例: 0=なし, 1=ペットボトル, 2=交差点/ゴール
+            mode_manager.update(distance, object_detected)
             # --- モードごとの処理 ---
             if mode_manager.mode == Mode.LINE_TRACE:
                 # 進行角度thetaを計算
@@ -428,21 +477,33 @@ def main(record_sensor_data=False, save_camera_video=False):
                 left_power = int(current_power - power_adjustment)
                 right_power = int(current_power + power_adjustment)
                 et.set_motor_forward_power(left_power=left_power, right_power=right_power)
-            elif mode_manager.mode == Mode.SEMI_AVOID:
-                # 一時停止し、2秒間セミ回避モードで距離の再確認のみ行う（前進しない）
+            elif mode_manager.mode == Mode.DIST_STOP:
+                # 一時停止し、2秒間DIST_STOPモードで距離の再確認のみ行う（前進しない）
                 et.brake()
                 time.sleep(0.01)  # しっかり停止しCPU負荷も下げる
                 theta = pid_corrected_theta = current_power = 0
                 left_power = right_power = 0
             elif mode_manager.mode == Mode.OBSTACLE_AVOID:
-                # 回避動作のみ実行、実際のモーター出力値をspike_statusから反映
+                # 障害物回避動作（オブスタクルボトル回避）のみ実行、実際のモーター出力値をspike_statusから反映
                 # ※ action_manager.step()は必ず非ブロッキングで設計すること（sleep等を入れない）
                 theta = pid_corrected_theta = current_power = 0
-                action_manager.step()
+                action_manager.obstacle_avoid_step()
                 left_power = motor_info['left_power'] if 'left_power' in motor_info else 0
                 right_power = motor_info['right_power'] if 'right_power' in motor_info else 0
                 if action_manager.is_finished():
                     mode_manager.reset()
+            elif mode_manager.mode == Mode.SMART_CARRY_1:
+                # スマートキャリー1回目の処理（必要に応じて実装）
+                pass
+            elif mode_manager.mode == Mode.SMART_CARRY_2:
+                # スマートキャリー2回目の処理（必要に応じて実装）
+                pass
+            elif mode_manager.mode == Mode.GOAL:
+                # ゴール到達時の固有動作（例: 完全停止・アーム動作等）
+                action_manager.step(mode=Mode.GOAL)
+                left_power = right_power = 0
+                theta = pid_corrected_theta = current_power = 0
+                # MEMO: 完了判定後に必要ならmode_manager.reset()等で再スタート可能
             # --- ここから共通処理 ---
             # 可視化用情報生成
             info = prepare_driving_info(ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, motor_info, max_contour, mode=mode_manager.mode.name)
@@ -454,6 +515,7 @@ def main(record_sensor_data=False, save_camera_video=False):
             if not send_camera_capture(gray, client_socket):
                 print("[ERROR] send_camera_capture failed. Breaking main loop.")
                 break
+
             # --- ループ周期制御: 1サイクル30ms未満ならsleepで調整 ---
             elapsed = time.time() - loop_start
             if elapsed < 0.03:
