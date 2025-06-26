@@ -459,11 +459,7 @@ class ActionManager:
                     self.state = 3
                     self._reset_action_vars()
                     self.finished = True
-        elif self.state == 3:
-            # 完了状態
-            self.state = 3
-            self._reset_action_vars()
-            self.finished = True
+
         return 0, 0, 0
 
 
@@ -478,9 +474,6 @@ def main(record_sensor_data=False, save_camera_video=False):
     mode = ModeManager()
     action = ActionManager(et)
 
-    mx = my = offset_pixels = theta = pid_corrected_theta = current_power = left_power = right_power = 0
-    max_contour = None
-
     try:
         while et.is_running == True:
             loop_start = time.time()
@@ -490,30 +483,22 @@ def main(record_sensor_data=False, save_camera_video=False):
                 break
             color, distance, motor_info = get_sensor_info(et, sensor_recorder)
             # --- モデル入出力設計例 ---
-            # ▼ニューラルネット統合例（必要に応じて有効化）
-            # 入力: 画像, motor_info（相対位置などを含むdict）, 超音波センサー値
-            # 出力: direction_coords（進行方向のx座標）, object_detected（0=なし, 1=オブスタクルボトル, 2=交差点, 3=ゴール, 4=キャリーゲート, 5=キャリーボトル1, 6=キャリーボトル2 など拡張可）
+            # ▼ニューラルネット統合例（OOP設計・責務分離対応版）
+            # 入力: 画像（frame）、motor_info（相対位置dict）、distance（超音波）
+            # 出力: direction_coords（進行方向座標）、object_detected（物体種別ID: 0=なし, 1=障害物, 2=交差点, 3=ゴール, ...）
             # 例:
-            # roi_area = process_image(
-            #     image=frame.copy(),
-            #     device=device,         # 推論デバイス（例: 'cpu' or 'cuda'）
-            #     roi=ROI_CNN            # モデル用ROI（必要に応じて指定）
-            # )
-            # # ステージ判定や物体検出結果に応じてモード遷移を柔軟に実装可能
-            # interval_idx = 0
-            # with torch.no_grad():  # ニューラルネット推論時のみ必要
-            #     direction_coords, object_detected = models[interval_idx](
+            # roi_area = preprocess_for_nn(frame.copy(), roi=ROI_CNN)  # 必要に応じてROIや前処理関数を用意
+            # with torch.no_grad():
+            #     direction_coords, object_detected = nn_model.predict(
             #         roi_area,
-            #         motor_info,  # 相対位置情報などを含むdict
+            #         motor_info,
             #         distance if distance is not None else 0
             #     )
-            #     # direction_coords: 進行方向のx座標（単一値）
-            #     # object_detected: 前方物体判定（0=なし, 1=オブスタクル, 2=交差点, 3=ゴール, 4=キャリーボトル1, 5=キャリーボトル2 など拡張可）
-            #     mode.update_by_nn(motor_info, distance, object_detected)
+            # # NN出力に応じてモード遷移を柔軟に実装
+            # mode.update_by_nn(motor_info, distance, object_detected)
             #
-            # ※torch.no_grad()はニューラルネット推論時のみ必要。OpenCVのみの場合は不要。
+            # ※OpenCVのみの場合はこのブロックは不要。AI統合時のみ有効化。
             mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
-            theta = pid_corrected_theta = current_power = None
             # --- 新しい一括処理 ---
             theta, pid_corrected_theta, current_power = mode.update_and_act(
                 distance,
