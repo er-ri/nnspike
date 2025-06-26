@@ -66,225 +66,6 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, IMAGE_HEIGHT)
 # AsyncSensorReader クラスを削除 - メインループで直接センサー値を取得するように変更
 
 
-def run_initial_sensor_test(et, test_count=5, delay=0.2):
-    """
-    SPIKEの初期センサーテストを簡易実行
-    """
-    print("初期センサーテスト...")
-    for i in range(test_count):
-        test_status = et.get_spike_status()
-        if test_status and test_status.sensors:
-            color = test_status.sensors.color
-            dist = test_status.sensors.distance
-            color_str = f"R:{color.reflected} A:{color.ambient} C:{color.color}" if color else "N/A"
-            dist_str = f"{dist}cm" if dist is not None else "N/A"
-            print(f"{i+1}: OK  Color={color_str}  US={dist_str}")
-        else:
-            print(f"{i+1}: spike_status取得失敗")
-        time.sleep(delay)
-    print("初期センサーテスト完了")
-
-
-def initialize_system(record_sensor_data, save_camera_video):
-    """
-    ロボット・PID・センサーレコーダ・ビデオ・ソケット等の初期化をまとめて行う
-    """
-    # Generate timestamp for consistent naming if recording is enabled
-    TIMESTAMP = (
-        time.strftime("%Y%m%d%H%M%S", time.localtime())
-        if (record_sensor_data or save_camera_video)
-        else None
-    )
-
-    # Initialize sensor recorder conditionally
-    sensor_recorder = None
-    if record_sensor_data:
-        sensor_recorder = SensorRecorder(timestamp=TIMESTAMP)
-        sensor_recorder.start_recording()
-
-    # Initialize video writer conditionally
-    video_writer = None
-    video_filename = None
-    if save_camera_video:
-        fourcc = cv2.VideoWriter_fourcc(*"XVID")
-        video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
-        video_writer = cv2.VideoWriter(
-            filename=video_filename,
-            fourcc=fourcc,
-            fps=30,
-            frameSize=(IMAGE_WIDTH, IMAGE_HEIGHT),
-        )
-    # Socket connection for sending camera capture
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect((HOST_IP_ADDRESS, 8485))
-
-    # Initialize robot, PID, ControlCalculator（ユーザー調整値はグローバル参照）
-    et = ETRobot()
-    calc = ControlCalculator(
-        # steer_by_camera(frame):
-        #   入力画像からラインの重心座標(mx, my)、オフセットピクセル、最大輪郭を検出
-        ROI_OPENCV,
-        IMAGE_WIDTH,
-        # calculate_theta_from_pixels(offset_pixels):
-        #   ピクセル→theta変換感度
-        SENSITIVITY,
-        # calculate_adaptive_speed(abs_theta): theta角度（進行方向の絶対値, ラジアン）に応じて速度（パワー）を自動調整
-        #     （直線・緩カーブ・急カーブで推奨パワーを自動切替, センサー値は参照しない）
-        BASE_POWER,
-        CURVE_POWER,
-        STRAIGHT_POWER,
-        # カーブ判定閾値（CURVE_THRESHOLD_DEG, ラジアンに変換）
-        math.radians(CURVE_THRESHOLD_DEG),
-        # 直線判定閾値（STRAIGHT_THRESHOLD_DEG, ラジアンに変換）
-        math.radians(STRAIGHT_THRESHOLD_DEG)  # 直線判定のしきい値
-    )
-
-    print("メインループで直接センサー値を取得します")
-
-    # --- アームを1秒上げて1秒下げる（動作確認） ---
-    try:
-        print("Arm up...")
-        et.move_arm(1)  # 1 = up
-        time.sleep(1.0)
-        print("Arm down...")
-        et.move_arm(0)  # 0 = down
-        time.sleep(1.0)
-    except Exception as e:
-        print(f"Arm move error: {e}")
-
-    # 初期センサーテスト
-    run_initial_sensor_test(et)
-    return et, calc, sensor_recorder, video_writer, video_filename, client_socket
-
-
-def send_stop_signal(et, duration=3.0):
-    """
-    Spikeに一定時間ブレーキ信号を送り続ける
-    """
-    print(f"Sending stop signals to Spike for {duration} seconds...")
-    stop_start_time = time.time()
-    while time.time() - stop_start_time < duration:
-        try:
-            et.brake()
-            time.sleep(0.1)
-        except Exception as e:
-            print(f"Error sending stop signal: {e}")
-            break
-    print("Stop signal transmission completed")
-
-
-def get_sensor_info(et, sensor_recorder=None):
-    """
-    Spikeの最新センサーステータス・カラー・超音波・モーター情報をまとめて取得
-    - カラーセンサー値取得と黒・青判定
-    - 超音波センサーデータ値取得
-    - モーターA/B相対位置値・パワー値取得（A:右, B:左）
-    - センサーデータ記録が有効な場合はロガーに記録
-    """
-    spike_status = et.get_spike_status()
-    sensors = spike_status.sensors
-    color = sensors.color if sensors else None
-    distance = sensors.distance if sensors else None
-    motor_info = {
-        'left': spike_status.motors['B'].relative_position if 'B' in spike_status.motors and spike_status.motors['B'].relative_position is not None else 0,
-        'right': spike_status.motors['A'].relative_position if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0,
-        'left_power': spike_status.motors['B'].power if 'B' in spike_status.motors and hasattr(spike_status.motors['B'], 'power') else 0,
-        'right_power': spike_status.motors['A'].power if 'A' in spike_status.motors and hasattr(spike_status.motors['A'], 'power') else 0
-    }
-    if sensor_recorder is not None:
-        try:
-            sensor_recorder.log_frame_data(spike_status)
-        except Exception as e:
-            import traceback
-            print(f"[SensorRecorder] log_frame_data error: {e}")
-            traceback.print_exc()
-    return color, distance, motor_info
-
-
-def prepare_driving_info(roi, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour, mode=None):
-    """
-    可視化用の走行情報を生成
-    roi: (x1, y1, x2, y2) タプル
-    mode: 現在の動作モード（例: 'LINE_TRACE'）
-    """
-    x1, y1, x2, y2 = roi
-    def to_distance_cm(pos):
-        return int(float(pos) * 0.0471) if pos is not None else 0
-    left_distance_cm = to_distance_cm(relative_position['left'])
-    right_distance_cm = to_distance_cm(relative_position['right'])
-    if color:
-        color_reflected = color.reflected
-        color_ambient = color.ambient
-        color_color = color.color
-        color_data = f"R:{color_reflected if color_reflected is not None else 'N/A'} A:{color_ambient if color_ambient is not None else 'N/A'} C:{color_color if color_color is not None else 'N/A'}"
-    else:
-        color_data = "R:N/A A:N/A C:N/A"
-    if distance is not None:
-        ultrasonic_data = f"{distance} cm"
-    else:
-        ultrasonic_data = "N/A cm"
-    info = dict()
-    info["offset_x"], info["offset_y"] = x1 + mx, y1 + my
-    info["roi"] = roi
-    info["text"] = {
-        "offset_pixels": f"{round(offset_pixels, 1)}px",
-        "theta_deg": f"{round(math.degrees(theta), 2)}deg",
-        "pid_corrected_theta": f"{round(math.degrees(pid_corrected_theta), 2)}deg",
-        "power_status": (
-            "OFF_LINE" if theta == 0 else
-            "CURVE" if abs(theta) > math.radians(CURVE_THRESHOLD_DEG) else
-            "STRAIGHT" if abs(theta) < math.radians(STRAIGHT_THRESHOLD_DEG) else
-            "BASE"
-        ),
-        "current_power": f"{round(current_power, 1)}%",
-        "on_color": (
-            "BLACK" if (color and color.is_black) else ("BLUE" if (color and color.is_blue) else "N/A")
-        ),
-        "color_sensor": color_data,
-        "ultrasonic_sensor": ultrasonic_data,
-        "left_power": f"{left_power}%",
-        "right_power": f"{right_power}%",
-        "left_relative_position": f"{relative_position['left']}deg / {left_distance_cm}cm",
-        "right_relative_position": f"{relative_position['right']}deg / {right_distance_cm}cm",
-        "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
-        "mode": mode if mode is not None else "N/A"
-    }
-    return info
-
-# --- 可視化フレーム生成（輪郭描画含む） ---
-def create_visualization_frame(frame, info, roi, mx, my, max_contour):
-    """
-    可視化フレームを生成し、輪郭があれば描画する
-    roi: (x1, y1, x2, y2) タプル
-    """
-    x1, y1, x2, y2 = roi
-    gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
-    gray = draw_driving_info(gray, info, roi)
-    if max_contour is not None:
-        # Adjust contour coordinates to full frame
-        adjusted_contour = max_contour + np.array([x1, y1])
-        cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)  # Draw centroid
-        cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
-    return gray
-
-# --- カメラ画像送信 ---
-def send_camera_capture(gray, client_socket):
-    """
-    カメラ画像をリモート監視用に送信
-    """
-    try:
-        ret, buffer = cv2.imencode(".jpg", gray, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
-        img_encoded = buffer.tobytes()
-        data = pickle.dumps(img_encoded)
-        client_socket.sendall(struct.pack("L", len(data)) + data)
-    except Exception as e:
-        print(f"Socket error: {e}")
-        return False
-    return True
-
-# --- 動作モード管理クラス ---
-from enum import Enum, auto
-
 class Mode(Enum):
     LINE_TRACE = auto()         # 通常のライン走行
     DIST_STOP = auto()          # 超音波距離停止モード（障害物検知後の一時停止・距離再確認）
@@ -473,44 +254,288 @@ class ActionManager:
         self.apply_power()  # ←ここで即時モーター出力
         return 0, 0, 0
 
+    def test_initial_sensor(self, test_count=5, delay=0.2):
+        """
+        SPIKEの初期センサーテストを簡易実行
+        """
+        print("初期センサーテスト...")
+        for i in range(test_count):
+            test_status = self.et.get_spike_status()
+            if test_status and test_status.sensors:
+                color = test_status.sensors.color
+                dist = test_status.sensors.distance
+                color_str = f"R:{color.reflected} A:{color.ambient} C:{color.color}" if color else "N/A"
+                dist_str = f"{dist}cm" if dist is not None else "N/A"
+                print(f"{i+1}: OK  Color={color_str}  US={dist_str}")
+            else:
+                print(f"{i+1}: spike_status取得失敗")
+            time.sleep(delay)
+        print("初期センサーテスト完了")
+
+    def test_arm(self):
+        """
+        アームを1秒上げて1秒下げる動作テスト
+        """
+        try:
+            print("Arm up...")
+            self.et.move_arm(1)  # 1 = up
+            time.sleep(1.0)
+            print("Arm down...")
+            self.et.move_arm(0)  # 0 = down
+            time.sleep(1.0)
+        except Exception as e:
+            print(f"Arm move error: {e}")
+
+    def get_sensor_info(self, sensor_recorder=None):
+        """
+        Spikeの最新センサーステータス・カラー・超音波・モーター情報をまとめて取得
+        - カラーセンサー値取得と黒・青判定
+        - 超音波センサーデータ値取得
+        - モーターA/B相対位置値・パワー値取得（A:右, B:左）
+        - センサーデータ記録が有効な場合はロガーに記録
+        """
+        spike_status = self.et.get_spike_status()
+        sensors = spike_status.sensors
+        color = sensors.color if sensors else None
+        distance = sensors.distance if sensors else None
+        motor_info = {
+            'left': spike_status.motors['B'].relative_position if 'B' in spike_status.motors and spike_status.motors['B'].relative_position is not None else 0,
+            'right': spike_status.motors['A'].relative_position if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0,
+            'left_power': spike_status.motors['B'].power if 'B' in spike_status.motors and hasattr(spike_status.motors['B'], 'power') else 0,
+            'right_power': spike_status.motors['A'].power if 'A' in spike_status.motors and hasattr(spike_status.motors['A'], 'power') else 0
+        }
+        if sensor_recorder is not None:
+            try:
+                sensor_recorder.log_frame_data(spike_status)
+            except Exception as e:
+                import traceback
+                print(f"[SensorRecorder] log_frame_data error: {e}")
+                traceback.print_exc()
+        return color, distance, motor_info
+
+
+# --- システム初期化 ---
+def initialize_system(record_sensor_data, save_camera_video):
+    """
+    ロボット・PID・センサーレコーダ・ビデオ・ソケット等の初期化をまとめて行う
+    """
+    # Generate timestamp for consistent naming if recording is enabled
+    TIMESTAMP = (
+        time.strftime("%Y%m%d%H%M%S", time.localtime())
+        if (record_sensor_data or save_camera_video)
+        else None
+    )
+
+    # Initialize sensor recorder conditionally
+    sensor_recorder = None
+    if record_sensor_data:
+        sensor_recorder = SensorRecorder(timestamp=TIMESTAMP)
+        sensor_recorder.start_recording()
+
+    # Initialize video writer conditionally
+    video_writer = None
+    video_filename = None
+    if save_camera_video:
+        fourcc = cv2.VideoWriter_fourcc(*"XVID")
+        video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
+        video_writer = cv2.VideoWriter(
+            filename=video_filename,
+            fourcc=fourcc,
+            fps=30,
+            frameSize=(IMAGE_WIDTH, IMAGE_HEIGHT),
+        )
+    # Socket connection for sending camera capture
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect((HOST_IP_ADDRESS, 8485))
+
+    calc = ControlCalculator(
+        # steer_by_camera(frame):
+        #   入力画像からラインの重心座標(mx, my)、オフセットピクセル、最大輪郭を検出
+        ROI_OPENCV,
+        IMAGE_WIDTH,
+        # calculate_theta_from_pixels(offset_pixels):
+        #   ピクセル→theta変換感度
+        SENSITIVITY,
+        # calculate_adaptive_speed(abs_theta): theta角度（進行方向の絶対値, ラジアン）に応じて速度（パワー）を自動調整
+        #     （直線・緩カーブ・急カーブで推奨パワーを自動切替, センサー値は参照しない）
+        BASE_POWER,
+        CURVE_POWER,
+        STRAIGHT_POWER,
+        # カーブ判定閾値（CURVE_THRESHOLD_DEG, ラジアンに変換）
+        math.radians(CURVE_THRESHOLD_DEG),
+        # 直線判定閾値（STRAIGHT_THRESHOLD_DEG, ラジアンに変換）
+        math.radians(STRAIGHT_THRESHOLD_DEG)  # 直線判定のしきい値
+    )
+
+    print("メインループで直接センサー値を取得します")
+
+    return calc, sensor_recorder, video_writer, video_filename, client_socket
+
+def brake_for_duration(self, duration=3.0):
+    """
+    Spikeに一定時間ブレーキ信号を送り続ける
+    """
+    print(f"Sending stop signals to Spike for {duration} seconds...")
+    stop_start_time = time.time()
+    while time.time() - stop_start_time < duration:
+        try:
+            self.et.brake()
+            time.sleep(0.1)
+        except Exception as e:
+            print(f"Error sending stop signal: {e}")
+            break
+    print("Stop signal transmission completed")
+
+# --- 可視化フレーム生成（輪郭描画含む） ---
+def create_visualization_frame(frame, info, roi, mx, my, max_contour):
+    """
+    可視化フレームを生成し、輪郭があれば描画する
+    roi: (x1, y1, x2, y2) タプル
+    """
+    x1, y1, x2, y2 = roi
+    gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
+    gray = draw_driving_info(gray, info, roi)
+    if max_contour is not None:
+        # Adjust contour coordinates to full frame
+        adjusted_contour = max_contour + np.array([x1, y1])
+        cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)  # Draw centroid
+        cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
+    return gray
+
+# --- カメラ画像送信 ---
+def send_camera_capture(gray, client_socket):
+    """
+    カメラ画像をリモート監視用に送信
+    """
+    try:
+        ret, buffer = cv2.imencode(".jpg", gray, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+        img_encoded = buffer.tobytes()
+        data = pickle.dumps(img_encoded)
+        client_socket.sendall(struct.pack("L", len(data)) + data)
+    except Exception as e:
+        print(f"Socket error: {e}")
+        return False
+    return True
+
+def prepare_driving_info(roi, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour, mode=None):
+    """
+    可視化用の走行情報を生成
+    roi: (x1, y1, x2, y2) タプル
+    mode: 現在の動作モード（例: 'LINE_TRACE'）
+    """
+    x1, y1, x2, y2 = roi
+    def to_distance_cm(pos):
+        return int(float(pos) * 0.0471) if pos is not None else 0
+    left_distance_cm = to_distance_cm(relative_position['left'])
+    right_distance_cm = to_distance_cm(relative_position['right'])
+    if color:
+        color_reflected = color.reflected
+        color_ambient = color.ambient
+        color_color = color.color
+        color_data = f"R:{color_reflected if color_reflected is not None else 'N/A'} A:{color_ambient if color_ambient is not None else 'N/A'} C:{color_color if color_color is not None else 'N/A'}"
+    else:
+        color_data = "R:N/A A:N/A C:N/A"
+    if distance is not None:
+        ultrasonic_data = f"{distance} cm"
+    else:
+        ultrasonic_data = "N/A cm"
+    info = dict()
+    info["offset_x"], info["offset_y"] = x1 + mx, y1 + my
+    info["roi"] = roi
+    info["text"] = {
+        "offset_pixels": f"{round(offset_pixels, 1)}px",
+        "theta_deg": f"{round(math.degrees(theta), 2)}deg",
+        "pid_corrected_theta": f"{round(math.degrees(pid_corrected_theta), 2)}deg",
+        "power_status": (
+            "OFF_LINE" if theta == 0 else
+            "CURVE" if abs(theta) > math.radians(CURVE_THRESHOLD_DEG) else
+            "STRAIGHT" if abs(theta) < math.radians(STRAIGHT_THRESHOLD_DEG) else
+            "BASE"
+        ),
+        "current_power": f"{round(current_power, 1)}%",
+        "on_color": (
+            "BLACK" if (color and color.is_black) else ("BLUE" if (color and color.is_blue) else "N/A")
+        ),
+        "color_sensor": color_data,
+        "ultrasonic_sensor": ultrasonic_data,
+        "left_power": f"{left_power}%",
+        "right_power": f"{right_power}%",
+        "left_relative_position": f"{relative_position['left']}deg / {left_distance_cm}cm",
+        "right_relative_position": f"{relative_position['right']}deg / {right_distance_cm}cm",
+        "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
+        "mode": mode if mode is not None else "N/A"
+    }
+    return info
 
 # --- メイン処理 ---
 def main(record_sensor_data=False, save_camera_video=False):
-    et, calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
+    calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
         record_sensor_data, save_camera_video
     )
     time.sleep(0.5)
-    # et.set_motor_relative_position(left_position=0, right_position=0) ←削除
 
     mode = ModeManager()
-    action = ActionManager(et)
+    action = ActionManager()  # etはActionManager内で生成
+
+    # 初期センサーテスト
+    action.test_initial_sensor()
+    # アーム動作テスト
+    action.test_arm()
+
+    # --- mainループ処理の流れ ---
+    # 1. カメラ画像を取得（cap.read）
+    # 2. センサー情報（カラー・超音波・モーター相対位置/パワー）をActionManager経由で取得
+    # 3. （必要に応じて）モデル推論例（画像・motor_info・distanceを入力、進行方向や物体判定を出力）
+    # 4. 画像処理でライン重心・オフセット・最大輪郭を検出（calc.steer_by_camera）
+    # 5. モード遷移・制御出力（mode.update_and_act）
+    #    - LINE_TRACE: ライントレース制御
+    #    - DIST_STOP: 障害物検知時の一時停止
+    #    - OBSTACLE_AVOID: 障害物回避動作
+    #    - 必要に応じてGOALやSMART_CARRY等も拡張可
+    # 6. モードごとの制御値をActionManagerから取得し、可視化情報を生成
+    # 7. 可視化フレーム生成（輪郭・重心描画など）
+    # 8. カメラ画像の送信・保存（リモート監視や動画保存）
+    # 9. ループ周期制御（30ms未満ならsleepで調整）
+    # 10. 例外・割り込み時は安全停止（brake/stop）・リソース解放
+    #
+    # ※run_opencv_bk0626.pyの設計例を参考に、OOP設計・責務分担を明確化
+    #
+    # 各処理はActionManager/ModeManager/ControlCalculator等の責務に分離し、
+    # mainは「全体の流れ・状態遷移・例外処理・リソース管理」のみを記述
+    #
+    # モデル推論例や拡張例はコメント参照
 
     try:
-        while et.is_running == True:
+        while action.et.is_running == True:
             loop_start = time.time()
             ret, frame = cap.read()
             if not ret:
                 print("[ERROR] Can't receive frame (stream end?). Exiting ...")
                 break
-            color, distance, motor_info = get_sensor_info(et, sensor_recorder)
             # --- モデル入出力設計例 ---
-            # ▼ニューラルネット統合例（OOP設計・責務分離対応版）
-            # 入力: 画像（frame）、motor_info（相対位置dict）、distance（超音波）
-            # 出力: direction_coords（進行方向座標）、object_detected（物体種別ID: 0=なし, 1=障害物, 2=交差点, 3=ゴール, ...）
+            # ▼ニューラルネット統合例（必要に応じて有効化）
+            # 入力: 画像, motor_info（相対位置などを含むdict）, 超音波センサー値
+            # 出力: direction_coords（進行方向のx座標）, object_detected（0=なし, 1=オブスタクルボトル, 2=交差点, 3=ゴール, 4=キャリーゲート, 5=キャリーボトル1, 6=キャリーボトル2 など拡張可）
             # 例:
-            # roi_area = preprocess_for_nn(frame.copy(), roi=ROI_CNN)  # 必要に応じてROIや前処理関数を用意
-            # with torch.no_grad():
-            #     direction_coords, object_detected = nn_model.predict(
+            # roi_area = process_image(
+            #     image=frame.copy(),
+            #     device=device,         # 推論デバイス（例: 'cpu' or 'cuda'）
+            #     roi=ROI_CNN            # モデル用ROI（必要に応じて指定）
+            # )
+            # # ステージ判定や物体検出結果に応じてモード遷移を柔軟に実装可能
+            # interval_idx = 0
+            # with torch.no_grad():  # ニューラルネット推論時のみ必要
+            #     direction_coords, object_detected = models[interval_idx](
             #         roi_area,
-            #         motor_info,
+            #         motor_info,  # 相対位置情報などを含むdict
             #         distance if distance is not None else 0
             #     )
-            # # NN出力に応じてモード遷移を柔軟に実装
-            # mode.update_by_nn(motor_info, distance, object_detected)
+            #     # direction_coords: 進行方向のx座標（単一値）
+            #     # object_detected: 前方物体判定（0=なし, 1=オブスタクル, 2=交差点, 3=ゴール, 4=キャリーボトル1, 5=キャリーボトル2 など拡張可）
+            #     mode.update_by_nn(motor_info, distance, object_detected)
             #
-            # ※OpenCVのみの場合はこのブロックは不要。AI統合時のみ有効化。
+            # ※torch.no_grad()はニューラルネット推論時のみ必要。OpenCVのみの場合は不要。            color, distance, motor_info = action.get_sensor_info(sensor_recorder)
             mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
-            # --- 新しい一括処理 ---
             theta, pid_corrected_theta, current_power = mode.update_and_act(
                 distance,
                 action,
@@ -524,24 +549,21 @@ def main(record_sensor_data=False, save_camera_video=False):
             right_power = action.right_power
             info = prepare_driving_info(ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, motor_info, max_contour, mode=mode.mode.name)
             gray = create_visualization_frame(frame, info, ROI_OPENCV, mx, my, max_contour)
-            # --- ここで必ずカメラ画像を送信・保存 ---
             if save_camera_video and video_writer is not None:
                 video_writer.write(frame)
             if not send_camera_capture(gray, client_socket):
                 print("[ERROR] send_camera_capture failed. Breaking main loop.")
                 break
-
-            # --- ループ周期制御: 1サイクル30ms未満ならsleepで調整 ---
             elapsed = time.time() - loop_start
             if elapsed < 0.03:
                 time.sleep(0.03 - elapsed)
     except KeyboardInterrupt:
         print("Interrupted by user")
-        send_stop_signal(et, duration=3.0)
+        action.brake_for_duration(duration=3.0)
     except Exception as e:
-        send_stop_signal(et, duration=3.0)
+        action.brake_for_duration(duration=3.0)
     finally:
-        et.stop()
+        action.et.stop()
         cap.release()
         client_socket.close()
         if save_camera_video and video_writer is not None:
