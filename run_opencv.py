@@ -429,6 +429,7 @@ def main(record_sensor_data=False, save_camera_video=False):
                 et.set_motor_forward_power(left_power=left_power, right_power=right_power)
             elif mode_manager.mode == Mode.SEMI_AVOID:
                 # 一時停止し、2秒間セミ回避モードで距離の再確認のみ行う（前進しない）
+                et.brake()
                 theta = pid_corrected_theta = current_power = 0
                 left_power = right_power = 0
             elif mode_manager.mode == Mode.OBSTACLE_AVOID:
