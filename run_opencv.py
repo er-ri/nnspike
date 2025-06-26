@@ -47,8 +47,8 @@ from nnspike.unit import ETRobot
 from nnspike.utils.control import ControlCalculator
 from nnspike.utils import (
     draw_driving_info,
-    PIDController,
     SensorRecorder,
+    PIDController,
 )
 
 # --- ソケット通信設定 ---
@@ -120,13 +120,6 @@ def initialize_system(record_sensor_data, save_camera_video):
 
     # Initialize robot, PID, ControlCalculator（ユーザー調整値はグローバル参照）
     et = ETRobot()
-    pid = PIDController(
-        Kp=2.0,  # 比例項: 反応をやや抑える（従来3→2.0）
-        Ki=0,    # 積分項: 通常0でOK
-        Kd=0.4,  # 微分項: 揺れ抑制を強める（従来0.2→0.4）
-        setpoint=0,
-        output_limits=(-0.25, 0.25),  # Direct radian limits for steering correction
-    )
     calc = ControlCalculator(
         # steer_by_camera(frame):
         #   入力画像からラインの重心座標(mx, my)、オフセットピクセル、最大輪郭を検出
@@ -161,8 +154,7 @@ def initialize_system(record_sensor_data, save_camera_video):
 
     # 初期センサーテスト
     run_initial_sensor_test(et)
-
-    return et, pid, calc, sensor_recorder, video_writer, video_filename, client_socket
+    return et, calc, sensor_recorder, video_writer, video_filename, client_socket
 
 
 def send_stop_signal(et, duration=3.0):
@@ -342,10 +334,10 @@ class ModeManager:
         self.mode = Mode.LINE_TRACE
         self.obstacle_detected_time = None
 
-    def update_and_act(self, distance, action_manager, offset_pixels=None, calc=None, pid=None):
+    def update_and_act(self, distance, action_manager, offset_pixels=None, calc=None):
         self.update(distance)
         if self.mode == Mode.LINE_TRACE:
-            return action_manager.do_line_trace(offset_pixels, calc, pid)
+            return action_manager.do_line_trace(offset_pixels, calc)
         elif self.mode == Mode.DIST_STOP:
             return action_manager.do_dist_stop()
         elif self.mode == Mode.OBSTACLE_AVOID:
@@ -369,14 +361,26 @@ class ActionManager:
     # GOALモード時の固有動作（例: 停止、アーム動作、サウンド再生等）も追加予定。
     # 必要に応じてstateやobstacle_avoid_step()の分岐・処理を拡張すること。
     """
-    def __init__(self, et):
-        self.et = et
+    def __init__(self, et=None):
+        if et is None:
+            self.et = ETRobot()
+        else:
+            self.et = et
         self.state = 0
         self._reset_action_vars()
+        self.pid = PIDController(
+            Kp=2.0,
+            Ki=0,
+            Kd=0.4,
+            setpoint=0,
+            output_limits=(-0.25, 0.25),
+        )
+        self.et.set_motor_relative_position(left_position=0, right_position=0)
 
     def reset(self):
         self.state = 0
         self._reset_action_vars()
+        # self.et.set_motor_relative_position(left_position=0, right_position=0) ←リセット時は呼ばない
 
     def _reset_action_vars(self):
         self.action_sent = False
@@ -388,24 +392,28 @@ class ActionManager:
     def is_finished(self):
         return self.finished
 
-    def do_line_trace(self, offset_pixels, calc, pid):
+    def apply_power(self):
+        """現在のleft_power, right_powerをロボットに反映"""
+        self.et.set_motor_forward_power(left_power=self.left_power, right_power=self.right_power)
+
+    def do_line_trace(self, offset_pixels, calc):
         # --- ライントレース時の進行角度・推奨速度・PID補正・左右パワー計算 ---
-        # mode引数はEnum型を推奨だが、strで来てもEnumに変換して受ける（移行期の安全策）
         MAX_THETA_DEG = 50
         MAX_POWER_DIFF = 40
         theta = calc.calculate_theta_from_pixels(offset_pixels)
         current_power = calc.calculate_adaptive_speed(abs(theta))
-        pid_corrected_theta = pid.update(theta)
+        pid_corrected_theta = self.pid.update(theta)
         max_theta = math.radians(MAX_THETA_DEG)
         power_adjustment = int((pid_corrected_theta / max_theta) * MAX_POWER_DIFF)
         self.left_power = int(current_power - power_adjustment)
         self.right_power = int(current_power + power_adjustment)
+        self.apply_power()  # ←ここで即時モーター出力
         return theta, pid_corrected_theta, current_power
 
     def do_dist_stop(self):
-        # 停止状態（左右パワー0）
         self.left_power = 0
         self.right_power = 0
+        self.apply_power()  # ←ここで即時モーター出力
         return 0, 0, 0
 
     def do_obstacle_avoid(self):
@@ -418,7 +426,10 @@ class ActionManager:
         ARC_RATIO = 0.8  # カーブ時の弱い側のパワー比
         now = time.time()
         if self.finished:
-            return 0, 0, 0  # 完了後は何もしない
+            self.left_power = 0
+            self.right_power = 0
+            self.apply_power()
+            return 0, 0, 0
         if self.state == 0:
             # 1段階目: 左回転
             if not self.action_sent:
@@ -459,17 +470,17 @@ class ActionManager:
                     self.state = 3
                     self._reset_action_vars()
                     self.finished = True
-
+        self.apply_power()  # ←ここで即時モーター出力
         return 0, 0, 0
 
 
 # --- メイン処理 ---
 def main(record_sensor_data=False, save_camera_video=False):
-    et, pid, calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
+    et, calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
         record_sensor_data, save_camera_video
     )
     time.sleep(0.5)
-    et.set_motor_relative_position(left_position=0, right_position=0)
+    # et.set_motor_relative_position(left_position=0, right_position=0) ←削除
 
     mode = ModeManager()
     action = ActionManager(et)
@@ -504,15 +515,13 @@ def main(record_sensor_data=False, save_camera_video=False):
                 distance,
                 action,
                 offset_pixels=offset_pixels,
-                calc=calc,
-                pid=pid
+                calc=calc
             )
             if mode.mode == Mode.OBSTACLE_AVOID:
                 if action.is_finished():
                     mode.reset()
             left_power = action.left_power
             right_power = action.right_power
-            et.set_motor_forward_power(left_power=left_power, right_power=right_power)
             info = prepare_driving_info(ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, motor_info, max_contour, mode=mode.mode.name)
             gray = create_visualization_frame(frame, info, ROI_OPENCV, mx, my, max_contour)
             # --- ここで必ずカメラ画像を送信・保存 ---
