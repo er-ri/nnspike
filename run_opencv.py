@@ -372,20 +372,6 @@ def initialize_system(record_sensor_data, save_camera_video):
 
     return calc, sensor_recorder, video_writer, video_filename, client_socket
 
-def brake_for_duration(self, duration=3.0):
-    """
-    Spikeに一定時間ブレーキ信号を送り続ける
-    """
-    print(f"Sending stop signals to Spike for {duration} seconds...")
-    stop_start_time = time.time()
-    while time.time() - stop_start_time < duration:
-        try:
-            self.et.brake()
-            time.sleep(0.1)
-        except Exception as e:
-            print(f"Error sending stop signal: {e}")
-            break
-    print("Stop signal transmission completed")
 
 # --- 可視化フレーム生成（輪郭描画含む） ---
 def create_visualization_frame(frame, info, roi, mx, my, max_contour):
@@ -535,7 +521,8 @@ def main(record_sensor_data=False, save_camera_video=False):
             #     # object_detected: 前方物体判定（0=なし, 1=オブスタクル, 2=交差点, 3=ゴール, 4=キャリーボトル1, 5=キャリーボトル2 など拡張可）
             #     mode.update_by_nn(motor_info, distance, object_detected)
             #
-            # ※torch.no_grad()はニューラルネット推論時のみ必要。OpenCVのみの場合は不要。            color, distance, motor_info = action.get_sensor_info(sensor_recorder)
+            # ※torch.no_grad()はニューラルネット推論時のみ必要。OpenCVのみの場合は不要。
+            color, distance, motor_info = action.get_sensor_info(sensor_recorder)
             mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
             theta, pid_corrected_theta, current_power = mode.update_and_act(
                 distance,
