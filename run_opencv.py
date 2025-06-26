@@ -433,7 +433,6 @@ def main(record_sensor_data=False, save_camera_video=False):
                 time.sleep(0.01)  # しっかり停止しCPU負荷も下げる
                 theta = pid_corrected_theta = current_power = 0
                 left_power = right_power = 0
-                time.sleep(2.0)  # 2秒間停止
             elif mode_manager.mode == Mode.OBSTACLE_AVOID:
                 # 回避動作のみ実行、実際のモーター出力値をspike_statusから反映
                 theta = pid_corrected_theta = current_power = 0
