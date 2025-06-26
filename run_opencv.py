@@ -186,7 +186,7 @@ def get_sensor_info(et, sensor_recorder=None):
     Spikeの最新センサーステータス・カラー・超音波・モーター情報をまとめて取得
     - カラーセンサー値取得と黒・青判定
     - 超音波センサーデータ値取得
-    - モーターB/C相対位置値・パワー値取得
+    - モーターA/B相対位置値・パワー値取得（A:右, B:左）
     - センサーデータ記録が有効な場合はロガーに記録
     """
     spike_status = et.get_spike_status()
@@ -440,7 +440,7 @@ def main(record_sensor_data=False, save_camera_video=False):
             # --- モデル入出力設計例 ---
             # ▼ニューラルネット統合例（必要に応じて有効化）
             # 入力: 画像, motor_info（相対位置などを含むdict）, 超音波センサー値
-            # 出力: direction_coords（進行方向のx座標）, object_detected（0=なし, 1=ペットボトル, 2=交差点）
+            # 出力: direction_coords（進行方向のx座標）, object_detected（0=なし, 1=オブスタクルボトル（黄ペットボトル）, 2=交差点, 3=ゴール, 4=キャリーゲート, 5=キャリーボトル1（赤ペットボトル）, 6=キャリーボトル2（青ペットボトル）等拡張予定）
             # 例:
             # roi_area = process_image(
             #     image=frame.copy(),
@@ -456,14 +456,14 @@ def main(record_sensor_data=False, save_camera_video=False):
             #         distance if distance is not None else 0
             #     )
             #     # direction_coords: 進行方向のx座標（単一値）
-            #     # object_detected: 前方物体判定（0=なし, 1=ペットボトル, 2=交差点）
+            #     # object_detected: 前方物体判定（0=なし, 1=オブスタクルボトル（黄ペットボトル）, 2=交差点, 3=ゴール, 4=キャリーゲート, 5=キャリーボトル1（赤ペットボトル）, 6=キャリーボトル2（青ペットボトル）等拡張予定）
             #     mode_manager.update(motor_info, distance, object_detected)
             #
             # ※torch.no_grad()はニューラルネット推論時のみ必要。OpenCVのみの場合は不要。
             mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
-            # --- MEMO: object_detectedは将来的にモデル出力や画像処理で取得し、mode_manager.update()に渡す ---
-            object_detected = None  # 例: 0=なし, 1=ペットボトル, 2=交差点/ゴール
-            mode_manager.update(distance, object_detected)
+            # --- MEMO: object_detectedは将来的にモデル出力や画像処理で取得し、mode_manager.update()に渡す（オブスタクルボトル・キャリーボトル1/2・キャリーゲート・交差点・ゴール等も拡張予定） ---
+            # object_detected = None  # 例: 0=なし, 1=オブスタクルボトル（黄）, 2=交差点, 3=ゴール, 4=キャリーゲート, 5=キャリーボトル1（赤）, 6=キャリーボトル2（青）
+            mode_manager.update(distance)
             # --- モードごとの処理 ---
             if mode_manager.mode == Mode.LINE_TRACE:
                 # 進行角度thetaを計算
