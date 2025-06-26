@@ -50,6 +50,7 @@ from nnspike.utils import (
     SensorRecorder,
     PIDController,
 )
+from enum import Enum, auto
 
 # --- ソケット通信設定 ---
 HOST_IP_ADDRESS = (
