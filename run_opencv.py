@@ -345,14 +345,13 @@ class ActionManager:
         self.finished = False
         self.action_sent = False
     def step(self):
-        # 完全非ブロッキング: set_motor_forward_powerで分割制御
+        # 非ブロッキング設計: sleep等のブロック処理は絶対に入れない
         now = time.time()
         if self.finished:
             return
         if self.state == 0:
-            # 左回転開始
             if not self.action_sent:
-                self.et.set_motor_forward_power(left_power=-self.ARC_POWER, right_power=self.ARC_POWER)
+                self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
                 self.start_time = now
                 self.action_sent = True
             else:
@@ -362,9 +361,8 @@ class ActionManager:
                     self.state = 1
                     self.action_sent = False
         elif self.state == 1:
-            # 右弧旋回
             if not self.action_sent:
-                self.et.set_motor_forward_power(left_power=int(self.ARC_POWER * self.ARC_RATIO), right_power=self.ARC_POWER)
+                self.et.move_right_arc(duration=self.ARC_DURATION, power=self.ARC_POWER, ratio=self.ARC_RATIO)
                 self.start_time = now
                 self.action_sent = True
             else:
@@ -373,9 +371,8 @@ class ActionManager:
                     self.state = 2
                     self.action_sent = False
         elif self.state == 2:
-            # 左回転
             if not self.action_sent:
-                self.et.set_motor_forward_power(left_power=-self.ARC_POWER, right_power=self.ARC_POWER)
+                self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
                 self.start_time = now
                 self.action_sent = True
             else:
