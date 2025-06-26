@@ -317,22 +317,23 @@ class ModeManager:
     # 例: object_detected==2（交差点やゴール判定値）でGOALモードへ遷移。
     # 必要に応じてupdate()内でこれらの値を参照し、より柔軟なモード遷移を実装すること。
     """
-    OBSTACLE_DETECT_DISTANCE = 50  # 障害物検知のしきい値[cm]
-    DIST_STOP_DURATION = 2.0       # 距離停止モードの待機時間[秒]
     def __init__(self):
         self.mode = Mode.LINE_TRACE
         self.obstacle_detected_time = None
     def update(self, distance):
+        # --- 障害物検知・停止用パラメータをローカル変数で定義 ---
+        OBSTACLE_DETECT_DISTANCE = 50  # 障害物検知のしきい値[cm]
+        DIST_STOP_DURATION = 2.0       # 距離停止モードの待機時間[秒]
         # 距離センサー値に応じてモード遷移
         if self.mode == Mode.LINE_TRACE:
-            if distance is not None and distance < self.OBSTACLE_DETECT_DISTANCE:
+            if distance is not None and distance < OBSTACLE_DETECT_DISTANCE:
                 self.mode = Mode.DIST_STOP
                 self.obstacle_detected_time = time.time()
         elif self.mode == Mode.DIST_STOP:
-            if distance is not None and distance >= self.OBSTACLE_DETECT_DISTANCE * (50/30):
+            if distance is not None and distance >= OBSTACLE_DETECT_DISTANCE * (50/30):
                 self.mode = Mode.LINE_TRACE
                 self.obstacle_detected_time = None
-            elif time.time() - self.obstacle_detected_time >= self.DIST_STOP_DURATION:
+            elif time.time() - self.obstacle_detected_time >= DIST_STOP_DURATION:
                 self.mode = Mode.OBSTACLE_AVOID
         elif self.mode == Mode.OBSTACLE_AVOID:
             pass
@@ -353,63 +354,129 @@ class ActionManager:
     # GOALモード時の固有動作（例: 停止、アーム動作、サウンド再生等）も追加予定。
     # 必要に応じてstateやobstacle_avoid_step()の分岐・処理を拡張すること。
     """
-    USER_TIME_PER_DEGREE = 1.0 / 90  # ←90度で何秒かかかるか実測値で調整
-    ARC_POWER = 50
-    ARC_DURATION = 5.0
-    TURN_ANGLE = 45
-    ARC_RATIO = 0.8  # カーブ時の弱い側のパワー比
     def __init__(self, et):
         self.et = et
         self.state = 0
-        self.start_time = None
-        self.finished = False
-        self.action_sent = False
+        self._reset_action_vars()
+
     def reset(self):
         self.state = 0
+        self._reset_action_vars()
+
+    def _reset_action_vars(self):
+        self.action_sent = False
         self.start_time = None
         self.finished = False
-        self.action_sent = False
-    def obstacle_avoid_step(self):
-        # 障害物回避動作の非ブロッキング実装: sleep等のブロック処理は絶対に入れない
-        now = time.time()
-        if self.finished:
-            return
-        if self.state == 0:
-            if not self.action_sent:
-                self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
-                self.start_time = now
-                self.action_sent = True
-            else:
-                duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
-                if now - self.start_time >= duration:
-                    self.et.brake()
-                    self.state = 1
-                    self.action_sent = False
-        elif self.state == 1:
-            if not self.action_sent:
-                self.et.move_right_arc(duration=self.ARC_DURATION, power=self.ARC_POWER, ratio=self.ARC_RATIO)
-                self.start_time = now
-                self.action_sent = True
-            else:
-                if now - self.start_time >= self.ARC_DURATION:
-                    self.et.brake()
-                    self.state = 2
-                    self.action_sent = False
-        elif self.state == 2:
-            if not self.action_sent:
-                self.et.turn_left(degree=self.TURN_ANGLE, power=self.ARC_POWER, time_per_degree=self.USER_TIME_PER_DEGREE)
-                self.start_time = now
-                self.action_sent = True
-            else:
-                duration = self.TURN_ANGLE * self.USER_TIME_PER_DEGREE
-                if now - self.start_time >= duration:
-                    self.et.brake()
-                    self.state = 3
-                    self.action_sent = False
-        elif self.state == 3:
-            self.finished = True
+        self.left_power = 0
+        self.right_power = 0
+
     def is_finished(self):
         return self.finished
+
+    # updateのみ残し、未使用のset_stop_power, update_action, calc_line_trace_powerを削除
+    def update(self, mode, offset_pixels=None, calc=None, pid=None):
+        """
+        現在のモードに応じてアクション・パワー計算・状態遷移を一括管理
+        - mode: 現在のMode（Enum）
+        - offset_pixels, calc, pid: ライントレース用パラメータ（LINE_TRACE時のみ必須）
+        戻り値: (theta, pid_corrected_theta, current_power)
+        
+        モードごとの動作:
+        - LINE_TRACE: ライントレース時の進行角度・推奨速度・PID補正・左右パワー計算
+        - DIST_STOP, GOAL: 停止（左右パワー0）
+        - OBSTACLE_AVOID: 障害物回避動作（状態遷移あり）
+        - SMART_CARRY_1, SMART_CARRY_2: 今後の拡張用（現状は停止）
+        """
+        # --- 固定パラメータをクラス属性から取得 ---
+        MAX_THETA_DEG = 50
+        MAX_POWER_DIFF = 40
+        if mode == "LINE_TRACE":
+            # --- ライントレース時の進行角度・推奨速度・PID補正・左右パワー計算 ---
+            if offset_pixels is not None and calc is not None and pid is not None:
+                theta = calc.calculate_theta_from_pixels(offset_pixels)
+                current_power = calc.calculate_adaptive_speed(abs(theta))
+                pid_corrected_theta = pid.update(theta)
+                max_theta = math.radians(MAX_THETA_DEG)
+                power_adjustment = int((pid_corrected_theta / max_theta) * MAX_POWER_DIFF)
+                self.left_power = int(current_power - power_adjustment)
+                self.right_power = int(current_power + power_adjustment)
+                return theta, pid_corrected_theta, current_power
+            else:
+                return 0, 0, 0
+        elif mode == "DIST_STOP" or mode == "GOAL":
+            # 停止状態（左右パワー0）
+            self.left_power = 0
+            self.right_power = 0
+            return 0, 0, 0
+        elif mode == "OBSTACLE_AVOID":
+            # --- 障害物回避専用パラメータをここでローカル定義 ---
+            USER_TIME_PER_DEGREE = 1.0 / 90  # ←90度で何秒かかかるか実測値で調整
+            ARC_POWER = 50
+            ARC_DURATION = 5.0
+            TURN_ANGLE = 45
+            ARC_RATIO = 0.8  # カーブ時の弱い側のパワー比
+            now = time.time()
+            if self.finished:
+                self.state = 3
+                self._reset_action_vars()
+                self.finished = True
+                return 0, 0, 0
+            if self.state == 0:
+                # 1段階目: 左回転
+                if not self.action_sent:
+                    self.start_time = now
+                    self.action_sent = True
+                    self.turn_duration = TURN_ANGLE * USER_TIME_PER_DEGREE
+                    self.left_power = 0
+                    self.right_power = ARC_POWER
+                else:
+                    if now - self.start_time >= self.turn_duration:
+                        self.et.brake()
+                        self.state = 1
+                        self._reset_action_vars()
+            elif self.state == 1:
+                # 2段階目: 右弧旋回
+                if not self.action_sent:
+                    self.start_time = now
+                    self.action_sent = True
+                    self.arc_end_time = now + ARC_DURATION
+                    self.left_power = ARC_POWER
+                    self.right_power = int(ARC_POWER * ARC_RATIO)
+                else:
+                    if now >= self.arc_end_time:
+                        self.et.brake()
+                        self.state = 2
+                        self._reset_action_vars()
+            elif self.state == 2:
+                # 3段階目: 左回転
+                if not self.action_sent:
+                    self.start_time = now
+                    self.action_sent = True
+                    self.turn_duration = TURN_ANGLE * USER_TIME_PER_DEGREE
+                    self.left_power = 0
+                    self.right_power = ARC_POWER
+                else:
+                    if now - self.start_time >= self.turn_duration:
+                        self.et.brake()
+                        self.state = 3
+                        self._reset_action_vars()
+                        self.finished = True
+            elif self.state == 3:
+                # 完了状態
+                self.state = 3
+                self._reset_action_vars()
+                self.finished = True
+            return 0, 0, 0
+        elif mode == Mode.SMART_CARRY_1 or mode == Mode.SMART_CARRY_2:
+            # 今後の拡張用（現状は停止）
+            self.left_power = 0
+            self.right_power = 0
+            return 0, 0, 0
+        else:
+            # 未定義モード（安全のため停止）
+            self.left_power = 0
+            self.right_power = 0
+            return 0, 0, 0
 
 
 # --- メイン処理 ---
@@ -420,9 +487,11 @@ def main(record_sensor_data=False, save_camera_video=False):
     time.sleep(0.5)
     et.set_motor_relative_position(left_position=0, right_position=0)
 
-    # モード管理クラス・固有動作管理クラスのインスタンス生成
-    mode_manager = ModeManager()
-    action_manager = ActionManager(et)
+    # --- モード管理クラス・固有動作管理クラスのインスタンス生成 ---
+    # mode: 走行モード（ライン走行・障害物回避・停止など）の状態遷移を管理
+    # action: モードごとの固有動作やパワー計算を管理
+    mode = ModeManager()
+    action = ActionManager(et)
 
     # --- 直前の画像処理結果を保持する変数を初期化 ---
     mx = my = offset_pixels = theta = pid_corrected_theta = current_power = left_power = right_power = 0
@@ -440,14 +509,14 @@ def main(record_sensor_data=False, save_camera_video=False):
             # --- モデル入出力設計例 ---
             # ▼ニューラルネット統合例（必要に応じて有効化）
             # 入力: 画像, motor_info（相対位置などを含むdict）, 超音波センサー値
-            # 出力: direction_coords（進行方向のx座標）, object_detected（0=なし, 1=オブスタクルボトル（黄ペットボトル）, 2=交差点, 3=ゴール, 4=キャリーゲート, 5=キャリーボトル1（赤ペットボトル）, 6=キャリーボトル2（青ペットボトル）等拡張予定）
+            # 出力: direction_coords（進行方向のx座標）, object_detected（0=なし, 1=オブスタクルボトル, 2=交差点, 3=ゴール, 4=キャリーゲート, 5=キャリーボトル1, 6=キャリーボトル2 など拡張可）
             # 例:
             # roi_area = process_image(
             #     image=frame.copy(),
             #     device=device,         # 推論デバイス（例: 'cpu' or 'cuda'）
             #     roi=ROI_CNN            # モデル用ROI（必要に応じて指定）
             # )
-            # # Todo: ステージ判定
+            # # ステージ判定や物体検出結果に応じてモード遷移を柔軟に実装可能
             # interval_idx = 0
             # with torch.no_grad():  # ニューラルネット推論時のみ必要
             #     direction_coords, object_detected = models[interval_idx](
@@ -456,57 +525,30 @@ def main(record_sensor_data=False, save_camera_video=False):
             #         distance if distance is not None else 0
             #     )
             #     # direction_coords: 進行方向のx座標（単一値）
-            #     # object_detected: 前方物体判定（0=なし, 1=オブスタクルボトル（黄ペットボトル）, 2=交差点, 3=ゴール, 4=キャリーゲート, 5=キャリーボトル1（赤ペットボトル）, 6=キャリーボトル2（青ペットボトル）等拡張予定）
-            #     mode_manager.update(motor_info, distance, object_detected)
+            #     # object_detected: 前方物体判定（0=なし, 1=オブスタクル, 2=交差点, 3=ゴール, 4=キャリーゲート, 5=キャリーボトル1, 6=キャリーボトル2 など拡張可）
+            #     mode.update_by_nn(motor_info, distance, object_detected)
             #
             # ※torch.no_grad()はニューラルネット推論時のみ必要。OpenCVのみの場合は不要。
             mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
-            # --- MEMO: object_detectedは将来的にモデル出力や画像処理で取得し、mode_manager.update()に渡す（オブスタクルボトル・キャリーボトル1/2・キャリーゲート・交差点・ゴール等も拡張予定） ---
-            # object_detected = None  # 例: 0=なし, 1=オブスタクルボトル（黄）, 2=交差点, 3=ゴール, 4=キャリーゲート, 5=キャリーボトル1（赤）, 6=キャリーボトル2（青）
-            mode_manager.update(distance)
+            # theta, pid_corrected_theta, current_power を初期化（action.updateで必ず上書きされるため、Noneで十分）
+            theta = pid_corrected_theta = current_power = None
+            mode.update(distance)
             # --- モードごとの処理 ---
-            if mode_manager.mode == Mode.LINE_TRACE:
-                # 進行角度thetaを計算
-                theta = calc.calculate_theta_from_pixels(offset_pixels)
-                # 推奨速度を計算（カーブ時は減速）
-                current_power = calc.calculate_adaptive_speed(abs(theta))
-                # PID制御でthetaを補正し、左右パワー差を計算
-                pid_corrected_theta = pid.update(theta)
-                max_theta = math.radians(MAX_STEERING_THETA_DEG)
-                power_adjustment = int((pid_corrected_theta / max_theta) * MAX_STEERING_POWER_DIFF)
-                left_power = int(current_power - power_adjustment)
-                right_power = int(current_power + power_adjustment)
-                et.set_motor_forward_power(left_power=left_power, right_power=right_power)
-            elif mode_manager.mode == Mode.DIST_STOP:
-                # 一時停止し、2秒間DIST_STOPモードで距離の再確認のみ行う（前進しない）
-                et.brake()
-                time.sleep(0.01)  # しっかり停止しCPU負荷も下げる
-                theta = pid_corrected_theta = current_power = 0
-                left_power = right_power = 0
-            elif mode_manager.mode == Mode.OBSTACLE_AVOID:
-                # 障害物回避動作（オブスタクルボトル回避）のみ実行、実際のモーター出力値をspike_statusから反映
-                # ※ action_manager.step()は必ず非ブロッキングで設計すること（sleep等を入れない）
-                theta = pid_corrected_theta = current_power = 0
-                action_manager.obstacle_avoid_step()
-                left_power = motor_info['left_power'] if 'left_power' in motor_info else 0
-                right_power = motor_info['right_power'] if 'right_power' in motor_info else 0
-                if action_manager.is_finished():
-                    mode_manager.reset()
-            elif mode_manager.mode == Mode.SMART_CARRY_1:
-                # スマートキャリー1回目の処理（必要に応じて実装）
-                pass
-            elif mode_manager.mode == Mode.SMART_CARRY_2:
-                # スマートキャリー2回目の処理（必要に応じて実装）
-                pass
-            elif mode_manager.mode == Mode.GOAL:
-                # ゴール到達時の固有動作（例: 完全停止・アーム動作等）
-                action_manager.step(mode=Mode.GOAL)
-                left_power = right_power = 0
-                theta = pid_corrected_theta = current_power = 0
-                # MEMO: 完了判定後に必要ならmode_manager.reset()等で再スタート可能
+            theta, pid_corrected_theta, current_power = action.update(
+                mode.mode,
+                offset_pixels=offset_pixels,
+                calc=calc,
+                pid=pid
+            )
+            if mode.mode == Mode.OBSTACLE_AVOID:
+                if action.is_finished():
+                    mode.reset()
             # --- ここから共通処理 ---
+            left_power = action.left_power
+            right_power = action.right_power
+            et.set_motor_forward_power(left_power=left_power, right_power=right_power)
             # 可視化用情報生成
-            info = prepare_driving_info(ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, motor_info, max_contour, mode=mode_manager.mode.name)
+            info = prepare_driving_info(ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, motor_info, max_contour, mode=mode.mode.name)
             # 可視化フレーム生成
             gray = create_visualization_frame(frame, info, ROI_OPENCV, mx, my, max_contour)
             # --- ここで必ずカメラ画像を送信・保存 ---
