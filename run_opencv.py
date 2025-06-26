@@ -177,20 +177,22 @@ def send_stop_signal(et, duration=3.0):
 
 def get_sensor_info(et, sensor_recorder=None):
     """
-    Spikeの最新センサーステータス・カラー・超音波・モーター相対位置値・判定をまとめて取得
+    Spikeの最新センサーステータス・カラー・超音波・モーター情報・判定をまとめて取得
     - Spikeの最新センサーステータスを取得
     - カラーセンサー値取得と黒・青判定
     - 超音波センサーデータ値取得
-    - モーターB/C相対位置値取得
+    - モーターB/C相対位置値・パワー値取得
     - センサーデータ記録が有効な場合はロガーに記録
     """
     spike_status = et.get_spike_status()
     sensors = spike_status.sensors
     color = sensors.color if sensors else None
     distance = sensors.distance if sensors else None
-    relative_position = {
+    motor_info = {
         'left': spike_status.motors['B'].relative_position if 'B' in spike_status.motors and spike_status.motors['B'].relative_position is not None else 0,
-        'right': spike_status.motors['A'].relative_position if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0
+        'right': spike_status.motors['A'].relative_position if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0,
+        'left_power': spike_status.motors['B'].power if 'B' in spike_status.motors and hasattr(spike_status.motors['B'], 'power') else 0,
+        'right_power': spike_status.motors['A'].power if 'A' in spike_status.motors and hasattr(spike_status.motors['A'], 'power') else 0
     }
     if sensor_recorder is not None:
         try:
@@ -199,7 +201,7 @@ def get_sensor_info(et, sensor_recorder=None):
             import traceback
             print(f"[SensorRecorder] log_frame_data error: {e}")
             traceback.print_exc()
-    return color, distance, relative_position
+    return color, distance, motor_info
 
 
 def prepare_driving_info(roi, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour, mode=None):
@@ -303,32 +305,22 @@ class ModeManager:
     def __init__(self):
         self.mode = Mode.LINE_TRACE
         self.obstacle_detected_time = None
-        self.avoid_start_time = None
-        self.last_distance = None
     def update(self, distance):
         if self.mode == Mode.LINE_TRACE:
             if distance is not None and distance < self.OBSTACLE_DETECT_DISTANCE:
                 self.mode = Mode.SEMI_AVOID
                 self.obstacle_detected_time = time.time()
-                self.last_distance = distance
         elif self.mode == Mode.SEMI_AVOID:
-            # 2秒経過したらOBSTACLE_AVOIDへ（距離が縮まっても即移行しない）
             if distance is not None and distance >= self.OBSTACLE_DETECT_DISTANCE * (50/30):
                 self.mode = Mode.LINE_TRACE
                 self.obstacle_detected_time = None
-                self.last_distance = None
             elif time.time() - self.obstacle_detected_time >= self.SEMI_AVOID_DURATION:
                 self.mode = Mode.OBSTACLE_AVOID
-                self.avoid_start_time = time.time()
-            # 距離の更新は維持（次回の判定用）
-            self.last_distance = distance if distance is not None else self.last_distance
         elif self.mode == Mode.OBSTACLE_AVOID:
             pass
     def reset(self):
         self.mode = Mode.LINE_TRACE
         self.obstacle_detected_time = None
-        self.avoid_start_time = None
-        self.last_distance = None
 
 # --- 固有動作管理クラス（回避・今後の特殊動作用） ---
 class ActionManager:
@@ -336,7 +328,7 @@ class ActionManager:
     障害物回避などの固有動作を管理する拡張用クラス。
     例: 45度左回転→右弧旋回→45度左回転で回避（非ブロッキングで各動作を進める）
     """
-    USER_TIME_PER_DEGREE = 1.0 / 90  # ←90度で何秒かかるか実測値で調整
+    USER_TIME_PER_DEGREE = 1.0 / 90  # ←90度で何秒かかかるか実測値で調整
     ARC_POWER = 50
     ARC_DURATION = 5.0
     TURN_ANGLE = 45
@@ -353,7 +345,6 @@ class ActionManager:
         self.finished = False
         self.action_sent = False
     def step(self):
-        # 非ブロッキングな回避動作ステートマシン（blocking引数なし対応）
         now = time.time()
         if self.finished:
             return
@@ -390,7 +381,7 @@ class ActionManager:
                     self.state = 3
                     self.action_sent = False
         elif self.state == 3:
-            self.finished = True  # ここで回避動作終了
+            self.finished = True
     def is_finished(self):
         return self.finished
 
@@ -418,13 +409,13 @@ def main(record_sensor_data=False, save_camera_video=False):
                 print("[ERROR] Can't receive frame (stream end?). Exiting ...")
                 break
             # Spikeの最新センサーステータス・カラー・超音波・モーター相対位置値を取得
-            color, distance, relative_position = get_sensor_info(et, sensor_recorder)
+            color, distance, motor_info = get_sensor_info(et, sensor_recorder)
+            # 画像処理（可視化用）は全モードで必ず実行
+            mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
             # モード更新
             mode_manager.update(distance)
             # --- モードごとの処理 ---
             if mode_manager.mode == Mode.LINE_TRACE:
-                # ラインの重心座標・オフセット・最大輪郭を取得
-                mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
                 # 進行角度thetaを計算
                 theta = calc.calculate_theta_from_pixels(offset_pixels)
                 # 推奨速度を計算（カーブ時は減速）
@@ -435,24 +426,22 @@ def main(record_sensor_data=False, save_camera_video=False):
                 power_adjustment = int((pid_corrected_theta / max_theta) * MAX_STEERING_POWER_DIFF)
                 left_power = int(current_power - power_adjustment)
                 right_power = int(current_power + power_adjustment)
+                et.set_motor_forward_power(left_power=left_power, right_power=right_power)
             elif mode_manager.mode == Mode.SEMI_AVOID:
                 # 一時停止し、2秒間セミ回避モードで距離の再確認のみ行う（前進しない）
+                theta = pid_corrected_theta = current_power = 0
                 left_power = right_power = 0
             elif mode_manager.mode == Mode.OBSTACLE_AVOID:
-                # 回避動作中も画像処理を行い、可視化情報を生成する
-                mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
+                # 回避動作のみ実行、実際のモーター出力値をspike_statusから反映
+                theta = pid_corrected_theta = current_power = 0
                 action_manager.step()
-                left_power = right_power = 0
+                left_power = motor_info['left_power'] if 'left_power' in motor_info else 0
+                right_power = motor_info['right_power'] if 'right_power' in motor_info else 0
                 if action_manager.is_finished():
                     mode_manager.reset()
             # --- ここから共通処理 ---
-            # 計算したパワーでモーターを駆動
-            try:
-                et.set_motor_forward_power(left_power=left_power, right_power=right_power)
-            except Exception as e:
-                break
             # 可視化用情報生成
-            info = prepare_driving_info(ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour, mode=mode_manager.mode.name)
+            info = prepare_driving_info(ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, motor_info, max_contour, mode=mode_manager.mode.name)
             # 可視化フレーム生成
             gray = create_visualization_frame(frame, info, ROI_OPENCV, mx, my, max_contour)
             # --- ここで必ずカメラ画像を送信・保存 ---
