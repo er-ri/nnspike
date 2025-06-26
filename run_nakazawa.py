@@ -547,9 +547,9 @@ def main(record_sensor_data=False, save_camera_video=False):
                 time.sleep(0.03 - elapsed)
     except KeyboardInterrupt:
         print("Interrupted by user")
-        action.et.stop()
+        action.brake_and_stop(duration=3.0)
     except Exception as e:
-        action.et.stop()
+        action.brake_and_stop(duration=3.0)
     finally:
         action.et.stop()
         cap.release()
