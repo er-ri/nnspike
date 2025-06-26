@@ -12,6 +12,13 @@ OpenCV-Based Line Following Robot Control
 
 【PID調整パラメータ】
 - Kp, Ki, Kd: ステアリング補正用のPIDパラメータ
+
+【全体設計方針】
+- main関数は「全体の流れ・状態遷移・例外処理・リソース管理」のみを記述し、
+  各種ハードウェア操作や状態取得はActionManager等の専用クラスに集約。
+- mainループの各処理段階（画像取得→センサー取得→画像処理→制御→可視化→送信/保存→周期調整）を明確にコメントで区切る。
+- 例外発生時も安全停止・リソース解放を徹底。
+- OOP設計・責務分担を明確化し、拡張性・保守性を重視。
 """
 
 # ==== ユーザー調整用パラメータ（ここだけ編集すればOK） ====
@@ -456,6 +463,20 @@ def prepare_driving_info(roi, mx, my, offset_pixels, theta, pid_corrected_theta,
 
 # --- メイン処理 ---
 def main(record_sensor_data=False, save_camera_video=False):
+    """
+    メイン制御ループ
+    - 各種初期化（ロボット・センサーレコーダ・ビデオ・ソケット等）
+    - 初期センサーテスト・アーム動作テスト
+    - メインループで以下を繰り返す：
+        1. カメラ画像取得
+        2. ActionManager経由でセンサー情報取得
+        3. 画像処理でライン重心・オフセット検出
+        4. モード遷移・制御出力（ModeManager/ActionManager）
+        5. 可視化情報生成・フレーム描画
+        6. 画像送信・動画保存
+        7. ループ周期調整
+    - 例外・割り込み時は安全停止・リソース解放
+    """
     calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
         record_sensor_data, save_camera_video
     )
@@ -464,16 +485,15 @@ def main(record_sensor_data=False, save_camera_video=False):
     mode = ModeManager()
     action = ActionManager()  # etはActionManager内で生成
 
-    # 初期センサーテスト
-    action.test_initial_sensor()
-    # アーム動作テスト
-    action.test_arm()
+    # --- 初期動作テスト ---
+    action.test_initial_sensor()  # SPIKEの初期センサーテスト
+    action.test_arm()            # アーム動作テスト
 
     # --- mainループ処理の流れ ---
     # 1. カメラ画像を取得（cap.read）
     # 2. センサー情報（カラー・超音波・モーター相対位置/パワー）をActionManager経由で取得
     # 3. （必要に応じて）モデル推論例（画像・motor_info・distanceを入力、進行方向や物体判定を出力）
-    # 4. 画像処理でライン重心・オフセット・最大輪郭を検出（calc.steer_by_camera）
+    # 4. 画像処理でライン重心・オフセット・最大輪郭を検出
     # 5. モード遷移・制御出力（mode.update_and_act）
     #    - LINE_TRACE: ライントレース制御
     #    - DIST_STOP: 障害物検知時の一時停止
@@ -495,71 +515,77 @@ def main(record_sensor_data=False, save_camera_video=False):
     try:
         while action.et.is_running == True:
             loop_start = time.time()
+            # 1. カメラ画像取得
             ret, frame = cap.read()
             if not ret:
                 print("[ERROR] Can't receive frame (stream end?). Exiting ...")
                 break
-            # --- モデル入出力設計例 ---
-            # ▼ニューラルネット統合例（必要に応じて有効化）
-            # 入力: 画像, motor_info（相対位置などを含むdict）, 超音波センサー値
-            # 出力: direction_coords（進行方向のx座標）, object_detected（0=なし, 1=オブスタクルボトル, 2=交差点, 3=ゴール, 4=キャリーゲート, 5=キャリーボトル1, 6=キャリーボトル2 など拡張可）
-            # 例:
-            # roi_area = process_image(
-            #     image=frame.copy(),
-            #     device=device,         # 推論デバイス（例: 'cpu' or 'cuda'）
-            #     roi=ROI_CNN            # モデル用ROI（必要に応じて指定）
-            # )
-            # # ステージ判定や物体検出結果に応じてモード遷移を柔軟に実装可能
-            # interval_idx = 0
-            # with torch.no_grad():  # ニューラルネット推論時のみ必要
-            #     direction_coords, object_detected = models[interval_idx](
-            #         roi_area,
-            #         motor_info,  # 相対位置情報などを含むdict
-            #         distance if distance is not None else 0
-            #     )
-            #     # direction_coords: 進行方向のx座標（単一値）
-            #     # object_detected: 前方物体判定（0=なし, 1=オブスタクル, 2=交差点, 3=ゴール, 4=キャリーボトル1, 5=キャリーボトル2 など拡張可）
-            #     mode.update_by_nn(motor_info, distance, object_detected)
-            #
-            # ※torch.no_grad()はニューラルネット推論時のみ必要。OpenCVのみの場合は不要。
+            # 2. センサー情報取得（ActionManager経由で一括取得）
             color, distance, motor_info = action.get_sensor_info(sensor_recorder)
+            # 3. （必要に応じて）モデル推論例（コメント参照）
+            # 4. 画像処理でライン重心・オフセット・最大輪郭を検出
             mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
+            # 5. モード遷移・制御出力（ModeManager/ActionManager）
             theta, pid_corrected_theta, current_power = mode.update_and_act(
                 distance,
                 action,
                 offset_pixels=offset_pixels,
                 calc=calc
             )
+            # OBSTACLE_AVOIDモード終了時はモードリセット
             if mode.mode == Mode.OBSTACLE_AVOID:
                 if action.is_finished():
                     mode.reset()
             left_power = action.left_power
             right_power = action.right_power
+            # 6. 可視化情報生成
             info = prepare_driving_info(ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, motor_info, max_contour, mode=mode.mode.name)
+            # 7. 可視化フレーム生成
             gray = create_visualization_frame(frame, info, ROI_OPENCV, mx, my, max_contour)
+            # 8. カメラ画像の送信・保存
             if save_camera_video and video_writer is not None:
                 video_writer.write(frame)
             if not send_camera_capture(gray, client_socket):
                 print("[ERROR] send_camera_capture failed. Breaking main loop.")
                 break
+            # 9. ループ周期調整（30ms未満ならsleep）
             elapsed = time.time() - loop_start
             if elapsed < 0.03:
                 time.sleep(0.03 - elapsed)
     except KeyboardInterrupt:
+        # ユーザーによる割り込み（Ctrl+C）時：安全のため一定時間ブレーキ信号を連続送信
         print("Interrupted by user")
-        action.et.stop()
+        send_stop_signal(action.et)  # Spikeに3秒間ブレーキ信号を送り続ける
     except Exception as e:
-        action.et.stop()
+        # 予期しない例外発生時も必ずロボットを安全に停止（3秒間ブレーキ信号送信）し、例外内容を表示
+        print(f"[ERROR] Unexpected exception: {e}")
+        send_stop_signal(action.et)  # Spikeに3秒間ブレーキ信号を送り続ける
     finally:
-        action.et.stop()
-        cap.release()
-        client_socket.close()
+        # いかなる場合もリソースを必ず解放し、安全停止を徹底
+        action.et.stop()  # モーター・アクチュエータを安全停止（多重呼び出しでも安全）
+        cap.release()     # カメラリソース解放
+        client_socket.close()  # ソケット通信終了
         if save_camera_video and video_writer is not None:
-            video_writer.release()
+            video_writer.release()  # 動画ファイル保存終了
             print(f"Video saved to: {video_filename}")
         if sensor_recorder is not None:
-            sensor_recorder.stop_recording()
+            sensor_recorder.stop_recording()  # センサーログ記録終了
             print(f"Total frames recorded: {sensor_recorder.get_frame_count()}")
+
+def send_stop_signal(et, duration=3.0):
+    """
+    Spikeに一定時間ブレーキ信号を送り続ける
+    """
+    print(f"Sending stop signals to Spike for {duration} seconds...")
+    stop_start_time = time.time()
+    while time.time() - stop_start_time < duration:
+        try:
+            et.brake()
+            time.sleep(0.1)
+        except Exception as e:
+            print(f"Error sending stop signal: {e}")
+            break
+    print("Stop signal transmission completed")
 
 
 if __name__ == "__main__":
