@@ -430,8 +430,10 @@ def main(record_sensor_data=False, save_camera_video=False):
             elif mode_manager.mode == Mode.SEMI_AVOID:
                 # 一時停止し、2秒間セミ回避モードで距離の再確認のみ行う（前進しない）
                 et.brake()
+                time.sleep(0.01)  # しっかり停止しCPU負荷も下げる
                 theta = pid_corrected_theta = current_power = 0
                 left_power = right_power = 0
+                time.sleep(2.0)  # 2秒間停止
             elif mode_manager.mode == Mode.OBSTACLE_AVOID:
                 # 回避動作のみ実行、実際のモーター出力値をspike_statusから反映
                 theta = pid_corrected_theta = current_power = 0
@@ -451,6 +453,10 @@ def main(record_sensor_data=False, save_camera_video=False):
             if not send_camera_capture(gray, client_socket):
                 print("[ERROR] send_camera_capture failed. Breaking main loop.")
                 break
+            # --- ループ周期制御: 1サイクル30ms未満ならsleepで調整 ---
+            elapsed = time.time() - loop_start
+            if elapsed < 0.03:
+                time.sleep(0.03 - elapsed)
     except KeyboardInterrupt:
         print("Interrupted by user")
         send_stop_signal(et, duration=3.0)
