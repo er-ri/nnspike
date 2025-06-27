@@ -134,11 +134,6 @@ class ModeManager:
             action_manager.do_obstacle_avoid()
             if action_manager.is_finished():
                 self.reset()
-        elif self.mode == Mode.GOAL:
-            pass
-        else:
-            pass
-
 
 # --- 固有動作管理クラス（回避・今後の特殊動作用） ---
 class ActionManager:
