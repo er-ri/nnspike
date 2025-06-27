@@ -26,9 +26,9 @@ OpenCV-Based Line Following Robot Control
 ROI_OPENCV = (150, 300, 490, 400)  # 必ずタプルで定義すること
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480                 # カメラ画像の高さ
-BASE_POWER = 40                    # カーブ時の基準パワー
-STRAIGHT_POWER = 60                # 直線時の推奨パワー
-CURVE_POWER = 30                   # 急カーブ時の最低パワー
+BASE_POWER = 30                    # カーブ時の基準パワー
+STRAIGHT_POWER = 50                # 直線時の推奨パワー
+CURVE_POWER = 20                   # 急カーブ時の最低パワー
 CURVE_THRESHOLD_DEG = 10           # カーブ判定閾値（度数法, SENSITIVITY=1.0時の推奨値）
 STRAIGHT_THRESHOLD_DEG = 3         # 直線判定のしきい値（ユーザー調整用, デフォルト3度, STRAIGHT_THRESHOLD_DEGで指定）
 SENSITIVITY = 1.0                  # ピクセル→theta変換感度
@@ -160,7 +160,7 @@ class ActionManager:
         self.state = 0
         self._reset_action_vars()
         self.pid = PIDController(
-            Kp=2.0,
+            Kp=1.5,
             Ki=0,
             Kd=0.4,
             setpoint=0,
