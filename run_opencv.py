@@ -495,25 +495,7 @@ class VideoManager:
         if self.client_socket is not None:
             self.client_socket.close()
 
-    def create_visualization_frame(self, frame, info, roi, steer_result):
-        """
-        可視化フレームを生成し、輪郭があれば描画する
-        roi: (x1, y1, x2, y2) タプル
-        steer_result: steer_by_cameraの辞書
-        """
-        x1, y1, x2, y2 = roi
-        mx = steer_result["mx"]
-        my = steer_result["my"]
-        max_contour = steer_result["max_contour"]
-        gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
-        gray = draw_driving_info(gray, info, roi)
-        if max_contour is not None:
-            adjusted_contour = max_contour + np.array([x1, y1])
-            cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)
-            cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
-        return gray
-
-    def prepare_driving_info(self, roi, steer_result, mode, action):
+    def prepare_driving_info(self, steer_result, roi, mode, action):
         """
         可視化用の走行情報を生成
         roi: (x1, y1, x2, y2) タプル
@@ -573,6 +555,30 @@ class VideoManager:
         }
         return info
 
+    def create_visualization_frame(self, frame, steer_result, roi, info):
+        """
+        可視化フレームを生成し、輪郭があれば描画する
+        roi: (x1, y1, x2, y2) タプル
+        steer_result: steer_by_cameraの辞書
+        """
+        x1, y1, x2, y2 = roi
+        mx = steer_result["mx"]
+        my = steer_result["my"]
+        max_contour = steer_result["max_contour"]
+        gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
+        gray = draw_driving_info(gray, info, roi)
+        if max_contour is not None:
+            adjusted_contour = max_contour + np.array([x1, y1])
+            cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)
+            cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
+        return gray
+
+    def process_and_send(self, frame, steer_result, roi, mode, action):
+        info = self.prepare_driving_info(steer_result, roi, mode, action)
+        gray = self.create_visualization_frame(frame, steer_result, roi, info)
+        self.write_video(frame)
+        return self.send_frame(gray)
+
 def get_timestamp():
     """
     現在時刻のタイムスタンプ（YYYYMMDDHHMMSS形式）を返す共通関数。
@@ -614,20 +620,7 @@ def main(record_sensor_data=False, save_camera_video=False):
 
             # 動画保存・フレーム送信を一括でVideoManagerに集約
             if save_camera_video and video is not None:
-                info = video.prepare_driving_info(
-                    ROI_OPENCV,
-                    steer_result,
-                    mode,
-                    action
-                )
-                gray = video.create_visualization_frame(
-                    frame,
-                    info,
-                    ROI_OPENCV,
-                    steer_result
-                )
-                video.write_video(frame)
-                if not video.send_frame(gray):
+                if not video.process_and_send(frame, steer_result, ROI_OPENCV, mode, action):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
             # ループ周期調整（必要ならsleep）
