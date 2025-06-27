@@ -138,8 +138,6 @@ class ModeManager:
             pass
         else:
             pass
-        # 返り値は不要
-        # return 0, 0, 0
 
 
 # --- 固有動作管理クラス（回避・今後の特殊動作用） ---
@@ -211,14 +209,12 @@ class ActionManager:
         self.theta = theta
         self.pid_corrected_theta = pid_corrected_theta
         self.current_power = current_power
-        # 返り値を削除
 
     def do_dist_stop(self):
         self.left_power = 0
         self.right_power = 0
         self.reset_control_values()
         self.apply_power()  # ←ここで即時モーター出力
-        # return 0, 0, 0
 
     def do_obstacle_avoid(self):
         # --- 障害物回避動作（状態遷移あり） ---
@@ -274,7 +270,6 @@ class ActionManager:
                     self.state = 3
                     self.finished = True
                     self._reset_action_vars()
-        # apply_powerの後のreset_control_values()は削除
         self.apply_power()  # ←ここで即時モーター出力
 
     def test_initial_sensor(self, test_count=5, delay=0.2):
