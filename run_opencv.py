@@ -65,10 +65,11 @@ HOST_IP_ADDRESS = (
 )
 
 # --- カメラ初期化 ---
-cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FPS, 30)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, IMAGE_WIDTH)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, IMAGE_HEIGHT)
+# cap = cv2.VideoCapture(0)
+# cap.set(cv2.CAP_PROP_FPS, 30)
+# cap.set(cv2.CAP_PROP_FRAME_WIDTH, IMAGE_WIDTH)
+# cap.set(cv2.CAP_PROP_FRAME_HEIGHT, IMAGE_HEIGHT)
+# Cameraクラスで一元管理するため、ここでの初期化は不要
 
 
 # AsyncSensorReader クラスを削除 - メインループで直接センサー値を取得するように変更
@@ -124,10 +125,10 @@ class ModeManager:
         self.mode = Mode.LINE_TRACE
         self.obstacle_detected_time = None
 
-    def update_and_act(self, action_manager, offset_pixels=None, calc=None):
+    def update_and_act(self, action_manager, offset_pixels=None):
         self.update(action_manager.distance)
         if self.mode == Mode.LINE_TRACE:
-            action_manager.do_line_trace(offset_pixels, calc)
+            action_manager.do_line_trace(offset_pixels)
         elif self.mode == Mode.DIST_STOP:
             action_manager.do_dist_stop()
         elif self.mode == Mode.OBSTACLE_AVOID:
@@ -167,6 +168,13 @@ class ActionManager:
             Kd=0.4,
             setpoint=0,
             output_limits=(-0.25, 0.25),
+        )
+        self.calc = ControlCalculator(
+            BASE_POWER,
+            CURVE_POWER,
+            STRAIGHT_POWER,
+            math.radians(CURVE_THRESHOLD_DEG),
+            math.radians(STRAIGHT_THRESHOLD_DEG)
         )
         self.et.set_motor_relative_position(left_position=0, right_position=0)
         self.reset_control_values()  # theta, pid_corrected_theta, current_powerをまとめてリセット
@@ -209,14 +217,13 @@ class ActionManager:
         self.pid_corrected_theta = 0
         self.current_power = 0
 
-    def do_line_trace(self, offset_pixels, calc):
+    def do_line_trace(self, offset_pixels):
         # --- ライントレース時の進行角度・推奨速度・PID補正・左右パワー計算 ---
         # MAX_THETA_DEG: 最大旋回角（度数法, ユーザー調整パラメータで一元管理）
         # MAX_POWER_DIFF: 最大旋回時の左右パワー差（%）, ユーザー調整パラメータで一元管理
         # offset_pixels: ライン重心のオフセット（ピクセル単位, 画像中心からのズレ）
-        # calc: ControlCalculatorインスタンス（theta計算や速度調整ロジックを内包）
-        theta = calc.calculate_theta_from_pixels(offset_pixels)  # オフセットピクセル→進行角度（ラジアン）へ変換
-        current_power = calc.calculate_adaptive_speed(abs(theta))  # 進行角度に応じて推奨速度（パワー）を自動調整
+        theta = self.calc.calculate_theta_from_pixels(offset_pixels, IMAGE_WIDTH, SENSITIVITY)  # オフセットピクセル→進行角度（ラジアン）へ変換
+        current_power = self.calc.calculate_adaptive_speed(abs(theta))  # 進行角度に応じて推奨速度（パワー）を自動調整
         pid_corrected_theta = self.pid.update(theta)  # PID制御で進行角度を補正
         max_theta = math.radians(MAX_THETA_DEG)  # 最大旋回角をラジアンに変換（ユーザー調整パラメータを参照）
         power_adjustment = int((pid_corrected_theta / max_theta) * MAX_POWER_DIFF)  # PID補正値をパワー差分に変換
@@ -342,12 +349,12 @@ class ActionManager:
             spike_status.motors['A'].relative_position
             if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0
         )
-        if sensor_recorder is not None:
+        if sensor_recorder is not None and sensor_recorder.is_enabled():
             try:
-                sensor_recorder.log_frame_data(spike_status)
+                sensor_recorder.log(spike_status)
             except Exception as e:
                 import traceback
-                print(f"[SensorRecorder] log_frame_data error: {e}")
+                print(f"[SensorRecorderManager] log error: {e}")
                 traceback.print_exc()
         # returnは不要
 
@@ -366,25 +373,92 @@ class ActionManager:
                 break
         print("[SAFETY] Brake command transmission completed (brake_for_duration)")
 
+class Camera:
+    """
+    カメラ操作をカプセル化するクラス。
+    cap.read() などのOpenCVカメラ操作を分離し、mainから直接触らない設計。
+    画像取得と画像処理（steer_by_camera）も一元化。
+    """
+    def __init__(self, device_index=0, width=IMAGE_WIDTH, height=IMAGE_HEIGHT, fps=30, roi=ROI_OPENCV):
+        self.cap = cv2.VideoCapture(device_index)
+        self.cap.set(cv2.CAP_PROP_FPS, fps)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        self.roi = roi
+        self.image_width = width
+
+    def read(self):
+        return self.cap.read()
+
+    def release(self):
+        self.cap.release()
+
+    def steer_by_camera(self, frame):
+        """
+        カメラフレームからROI内の輪郭検出を行い、進行方向の判断に必要な情報を辞書で返す。
+        """
+        x1, y1, x2, y2 = self.roi
+        roi_area = frame[y1:y2, x1:x2]
+        image = cv2.cvtColor(roi_area, cv2.COLOR_BGR2GRAY)
+        blur = cv2.GaussianBlur(image, (5, 5), 0)
+        _, thresh = cv2.threshold(blur, 100, 255, cv2.THRESH_BINARY_INV)
+        mask = cv2.erode(thresh, None, iterations=2)
+        mask = cv2.dilate(mask, None, iterations=2)
+        contours, _ = cv2.findContours(mask.copy(), 1, cv2.CHAIN_APPROX_NONE)
+        if len(contours) > 0:
+            max_contour = max(contours, key=cv2.contourArea)
+            mu = cv2.moments(max_contour)
+            mx = mu["m10"] / (mu["m00"] + 1e-5)
+            my = mu["m01"] / (mu["m00"] + 1e-5)
+        else:
+            mx = image.shape[1] / 2
+            my = image.shape[0] / 2
+            max_contour = None
+        roi_center_x = image.shape[1] / 2
+        offset_pixels = mx - roi_center_x
+        return {
+            "mx": mx,
+            "my": my,
+            "offset_pixels": offset_pixels,
+            "max_contour": max_contour
+        }
+
+class SensorRecorderManager:
+    """
+    SensorRecorderの生成・管理・利用を一元化するクラス。
+    mainやActionManager等からはこのクラス経由でセンサーログ記録を行う。
+    """
+    def __init__(self, enable_recording: bool, timestamp: str = None):
+        self.enable_recording = enable_recording
+        self.recorder = None
+        if enable_recording:
+            self.recorder = SensorRecorder(timestamp=timestamp)
+            self.recorder.start_recording()
+
+    def log(self, spike_status):
+        if self.recorder is not None:
+            self.recorder.log_frame_data(spike_status)
+
+    def stop(self):
+        if self.recorder is not None:
+            self.recorder.stop_recording()
+
+    def get_frame_count(self):
+        if self.recorder is not None:
+            return self.recorder.get_frame_count()
+        return 0
+
+    def is_enabled(self):
+        return self.enable_recording
+
 # --- システム初期化 ---
 def initialize_system(record_sensor_data, save_camera_video):
-    """
-    ロボット・PID・センサーレコーダ・ビデオ・ソケット等の初期化をまとめて行う
-    """
-    # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = (
         time.strftime("%Y%m%d%H%M%S", time.localtime())
         if (record_sensor_data or save_camera_video)
         else None
     )
-
-    # Initialize sensor recorder conditionally
-    sensor_recorder = None
-    if record_sensor_data:
-        sensor_recorder = SensorRecorder(timestamp=TIMESTAMP)
-        sensor_recorder.start_recording()
-
-    # Initialize video writer conditionally
+    sensor_recorder = SensorRecorderManager(record_sensor_data, timestamp=TIMESTAMP)
     video_writer = None
     video_filename = None
     if save_camera_video:
@@ -396,81 +470,51 @@ def initialize_system(record_sensor_data, save_camera_video):
             fps=30,
             frameSize=(IMAGE_WIDTH, IMAGE_HEIGHT),
         )
-    # Socket connection for sending camera capture
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((HOST_IP_ADDRESS, 8485))
-
-    calc = ControlCalculator(
-        # steer_by_camera(frame):
-        #   入力画像からラインの重心座標(mx, my)、オフセットピクセル、最大輪郭を検出
-        ROI_OPENCV,
-        IMAGE_WIDTH,
-        # calculate_theta_from_pixels(offset_pixels):
-        #   ピクセル→theta変換感度
-        SENSITIVITY,
-        # calculate_adaptive_speed(abs_theta): theta角度（進行方向の絶対値, ラジアン）に応じて速度（パワー）を自動調整
-        #     （直線・緩カーブ・急カーブで推奨パワーを自動切替, センサー値は参照しない）
-        BASE_POWER,
-        CURVE_POWER,
-        STRAIGHT_POWER,
-        # カーブ判定閾値（CURVE_THRESHOLD_DEG, ラジアンに変換）
-        math.radians(CURVE_THRESHOLD_DEG),
-        # 直線判定閾値（STRAIGHT_THRESHOLD_DEG, ラジアンに変換）
-        math.radians(STRAIGHT_THRESHOLD_DEG)  # 直線判定のしきい値
-    )
-
     print("メインループで直接センサー値を取得します")
-
-    return calc, sensor_recorder, video_writer, video_filename, client_socket
+    return sensor_recorder, video_writer, video_filename, client_socket
 
 
 # --- 可視化フレーム生成（輪郭描画含む） ---
-def create_visualization_frame(frame, info, roi, mx, my, max_contour):
+def create_visualization_frame(frame, info, roi, steer_result):
     """
     可視化フレームを生成し、輪郭があれば描画する
     roi: (x1, y1, x2, y2) タプル
+    steer_result: steer_by_cameraの辞書
     """
     x1, y1, x2, y2 = roi
+    mx = steer_result["mx"]
+    my = steer_result["my"]
+    max_contour = steer_result["max_contour"]
     gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
     gray = draw_driving_info(gray, info, roi)
     if max_contour is not None:
-        # Adjust contour coordinates to full frame
         adjusted_contour = max_contour + np.array([x1, y1])
-        cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)  # Draw centroid
+        cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)
         cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
     return gray
 
-# --- カメラ画像送信 ---
-def send_camera_capture(gray, client_socket):
-    """
-    カメラ画像をリモート監視用に送信
-    """
-    try:
-        #ret, buffer = cv2.imencode(".jpg", gray, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
-        ret, buffer = cv2.imencode(".png", gray)
-        img_encoded = buffer.tobytes()
-        data = pickle.dumps(img_encoded)
-        client_socket.sendall(struct.pack("L", len(data)) + data)
-    except Exception as e:
-        print(f"Socket error: {e}")
-        return False
-    return True
 
-def prepare_driving_info(roi, mx, my, offset_pixels, mode, action, max_contour):
+def prepare_driving_info(roi, steer_result, mode, action):
     """
     可視化用の走行情報を生成
     roi: (x1, y1, x2, y2) タプル
+    steer_result: steer_by_cameraの辞書
     mode: ModeManagerインスタンス
     action: ActionManagerインスタンス
     """
     x1, y1, x2, y2 = roi
+    mx = steer_result["mx"]
+    my = steer_result["my"]
+    offset_pixels = steer_result["offset_pixels"]
+    max_contour = steer_result["max_contour"]
     def to_distance_cm(pos):
         return int(float(pos) * 0.0471) if pos is not None else 0
     left_distance_cm = to_distance_cm(action.left_relative_position)
     right_distance_cm = to_distance_cm(action.right_relative_position)
     color = action.color
     distance = action.distance
-    # --- ActionManagerで取得済みの受信左右パワー値を参照 ---
     left_actual = action.left_actual_power
     right_actual = action.right_actual_power
     if color:
@@ -503,7 +547,6 @@ def prepare_driving_info(roi, mx, my, offset_pixels, mode, action, max_contour):
         ),
         "color_sensor": color_data,
         "ultrasonic_sensor": ultrasonic_data,
-        # 並列表記: 送信(left_power, right_power) | 受信(left_actual, right_actual)
         "left_power": f"{action.left_power}% | {left_actual if left_actual is not None else 'N/A'}%",
         "right_power": f"{action.right_power}% | {right_actual if right_actual is not None else 'N/A'}%",
         "left_relative_position": f"{action.left_relative_position}deg / {left_distance_cm}cm",
@@ -515,56 +558,39 @@ def prepare_driving_info(roi, mx, my, offset_pixels, mode, action, max_contour):
 
 # --- メイン処理 ---
 def main(record_sensor_data=False, save_camera_video=False):
-    """
-    メイン制御ループ（全体の流れ・例外処理・リソース管理のみ記述）
-    各種初期化→初期テスト→メインループ（画像取得→センサー取得→画像処理→制御→可視化→送信/保存）
-    """
-    calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
+    sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
         record_sensor_data, save_camera_video
     )
     time.sleep(0.5)
-
     mode = ModeManager()
-    action = ActionManager()  # etはActionManager内で生成
-
-    # --- 初期動作テスト ---
-    action.test_initial_sensor()  # SPIKEの初期センサーテスト
-    action.test_arm()            # アーム動作テスト
-
+    action = ActionManager()
+    camera = Camera()
+    action.test_initial_sensor()
+    action.test_arm()
     try:
         while action.et.is_running == True:
             loop_start = time.time()
-            ret, frame = cap.read()
+            ret, frame = camera.read()
             if not ret:
                 print("[ERROR] Can't receive frame (stream end?). Exiting ...")
                 break
             action.update_sensor_info(sensor_recorder)
-            steer_result = calc.steer_by_camera(frame)
-            mx = steer_result["mx"]
-            my = steer_result["my"]
-            offset_pixels = steer_result["offset_pixels"]
-            max_contour = steer_result["max_contour"]
+            steer_result = camera.steer_by_camera(frame)
             mode.update_and_act(
                 action,
-                offset_pixels=offset_pixels,
-                calc=calc
+                offset_pixels=steer_result["offset_pixels"]
             )
             info = prepare_driving_info(
                 ROI_OPENCV,
-                mx,
-                my,
-                offset_pixels,
+                steer_result,
                 mode,
-                action,
-                max_contour
+                action
             )
             gray = create_visualization_frame(
                 frame,
                 info,
                 ROI_OPENCV,
-                mx,
-                my,
-                max_contour
+                steer_result
             )
             if save_camera_video and video_writer is not None:
                 video_writer.write(frame)
@@ -583,13 +609,13 @@ def main(record_sensor_data=False, save_camera_video=False):
         action.brake_for_duration()
     finally:
         action.et.stop()
-        cap.release()
+        camera.release()
         client_socket.close()
         if save_camera_video and video_writer is not None:
             video_writer.release()
             print(f"Video saved to: {video_filename}")
-        if sensor_recorder is not None:
-            sensor_recorder.stop_recording()
+        if sensor_recorder is not None and sensor_recorder.is_enabled():
+            sensor_recorder.stop()
             print(f"Total frames recorded: {sensor_recorder.get_frame_count()}")
 
 
