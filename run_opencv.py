@@ -169,9 +169,7 @@ class ActionManager:
             output_limits=(-0.25, 0.25),
         )
         self.et.set_motor_relative_position(left_position=0, right_position=0)
-        self.theta = 0
-        self.pid_corrected_theta = 0
-        self.current_power = 0
+        self.reset_control_values()  # theta, pid_corrected_theta, current_powerをまとめてリセット
 
     def reset(self):
         self.state = 0
