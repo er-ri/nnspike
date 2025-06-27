@@ -169,7 +169,6 @@ class ActionManager:
     def reset(self):
         self.state = 0
         self._reset_action_vars()
-        # self.et.set_motor_relative_position(left_position=0, right_position=0) ←リセット時は呼ばない
 
     def _reset_action_vars(self):
         self.action_sent = False
