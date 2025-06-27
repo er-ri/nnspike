@@ -133,6 +133,7 @@ class ModeManager:
         elif self.mode == Mode.OBSTACLE_AVOID:
             action_manager.do_obstacle_avoid()
             if action_manager.is_finished():
+                self.mode = Mode.LINE_TRACE
                 self.reset()
 
 # --- 固有動作管理クラス（回避・今後の特殊動作用） ---
