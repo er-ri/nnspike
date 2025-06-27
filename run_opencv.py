@@ -133,8 +133,14 @@ class ModeManager:
         elif self.mode == Mode.OBSTACLE_AVOID:
             action_manager.do_obstacle_avoid()
             if action_manager.is_finished():
-                self.mode = Mode.LINE_TRACE
-                self.reset()
+                print(f"[DEBUG] OBSTACLE_AVOID終了: state={action_manager.state}, finished={action_manager.finished}, 時刻={time.strftime('%H:%M:%S')}")
+                self.mode = Mode.LINE_TRACE  # state3後に必ずLINE_TRACEへ遷移
+                self.obstacle_detected_time = None
+                action_manager.reset()  # 回避動作の状態もリセット
+        elif self.mode == Mode.GOAL:
+            pass
+        else:
+            pass
 
 # --- 固有動作管理クラス（回避・今後の特殊動作用） ---
 class ActionManager:
@@ -266,6 +272,10 @@ class ActionManager:
                     self.state = 3
                     self.finished = True
                     self._reset_action_vars()
+        elif self.state == 3:
+            # state3: 回避完了後、即座にLINE_TRACEへ戻す
+            self.finished = True
+            # ここで何もしない（ModeManager側でLINE_TRACEへ遷移）
         self.reset_control_values()  # 最初に一度だけリセット
         self.apply_power()  # ←ここで即時モーター出力
 
