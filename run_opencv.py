@@ -224,10 +224,10 @@ class ActionManager:
         TURN_ANGLE = 45
         ARC_RATIO = 0.8  # カーブ時の弱い側のパワー比
         now = time.time()
-        self.reset_control_values()  # 最初に一度だけリセット
         if self.finished:
             self.left_power = 0
             self.right_power = 0
+            self.reset_control_values()  # 最初に一度だけリセット
             self.apply_power()
             return
         if self.state == 0:
@@ -270,6 +270,7 @@ class ActionManager:
                     self.state = 3
                     self.finished = True
                     self._reset_action_vars()
+        self.reset_control_values()  # 最初に一度だけリセット
         self.apply_power()  # ←ここで即時モーター出力
 
     def test_initial_sensor(self, test_count=5, delay=0.2):
