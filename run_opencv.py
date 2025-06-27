@@ -32,8 +32,8 @@ CURVE_POWER = 30                   # 急カーブ時の最低パワー
 CURVE_THRESHOLD_DEG = 10           # カーブ判定閾値（度数法, SENSITIVITY=1.0時の推奨値）
 STRAIGHT_THRESHOLD_DEG = 3         # 直線判定のしきい値（ユーザー調整用, デフォルト3度, STRAIGHT_THRESHOLD_DEGで指定）
 SENSITIVITY = 1.0                  # ピクセル→theta変換感度
-MAX_STEERING_POWER_DIFF = 40       # 最大旋回時の左右パワー差（%）
-MAX_STEERING_THETA_DEG = 50        # 最大旋回角（度数法, 例: 50度）
+MAX_POWER_DIFF = 40       # 最大旋回時の左右パワー差（%）
+MAX_THETA_DEG = 50        # 最大旋回角（度数法, 例: 50度）
 # 黒判定の閾値（反射光R: 40以下, color: 150以下なら黒と判定）
 BLACK_REFLECTED_THRESHOLD = 40
 BLACK_COLOR_THRESHOLD = 150
@@ -186,14 +186,16 @@ class ActionManager:
 
     def do_line_trace(self, offset_pixels, calc):
         # --- ライントレース時の進行角度・推奨速度・PID補正・左右パワー計算 ---
-        MAX_THETA_DEG = 50
-        MAX_POWER_DIFF = 40
-        theta = calc.calculate_theta_from_pixels(offset_pixels)
-        current_power = calc.calculate_adaptive_speed(abs(theta))
-        pid_corrected_theta = self.pid.update(theta)
-        max_theta = math.radians(MAX_THETA_DEG)
-        power_adjustment = int((pid_corrected_theta / max_theta) * MAX_POWER_DIFF)
-        self.left_power = int(current_power - power_adjustment)
+        # MAX_THETA_DEG: 最大旋回角（度数法, ユーザー調整パラメータで一元管理）
+        # MAX_POWER_DIFF: 最大旋回時の左右パワー差（%）, ユーザー調整パラメータで一元管理
+        # offset_pixels: ライン重心のオフセット（ピクセル単位, 画像中心からのズレ）
+        # calc: ControlCalculatorインスタンス（theta計算や速度調整ロジックを内包）
+        theta = calc.calculate_theta_from_pixels(offset_pixels)  # オフセットピクセル→進行角度（ラジアン）へ変換
+        current_power = calc.calculate_adaptive_speed(abs(theta))  # 進行角度に応じて推奨速度（パワー）を自動調整
+        pid_corrected_theta = self.pid.update(theta)  # PID制御で進行角度を補正
+        max_theta = math.radians(MAX_THETA_DEG)  # 最大旋回角をラジアンに変換（ユーザー調整パラメータを参照）
+        power_adjustment = int((pid_corrected_theta / max_theta) * MAX_POWER_DIFF)  # PID補正値をパワー差分に変換
+        self.left_power = int(current_power - power_adjustment)   # 左右パワーを計算
         self.right_power = int(current_power + power_adjustment)
         self.apply_power()  # ←ここで即時モーター出力
         return theta, pid_corrected_theta, current_power
