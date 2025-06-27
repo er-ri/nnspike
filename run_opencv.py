@@ -101,6 +101,7 @@ class ModeManager:
     def __init__(self):
         self.mode = Mode.LINE_TRACE
         self.obstacle_detected_time = None
+        # theta, pid_corrected_theta, current_powerはActionManagerに移動
     def update(self, distance):
         # --- 障害物検知・停止用パラメータをローカル変数で定義 ---
         OBSTACLE_DETECT_DISTANCE = 50  # 障害物検知のしきい値[cm]
@@ -123,23 +124,22 @@ class ModeManager:
         self.mode = Mode.LINE_TRACE
         self.obstacle_detected_time = None
 
-    def update_and_act(self, distance, action_manager, offset_pixels=None, calc=None):
-        self.update(distance)
+    def update_and_act(self, action_manager, offset_pixels=None, calc=None):
+        self.update(action_manager.distance)
         if self.mode == Mode.LINE_TRACE:
-            return action_manager.do_line_trace(offset_pixels, calc)
+            action_manager.do_line_trace(offset_pixels, calc)
         elif self.mode == Mode.DIST_STOP:
-            return action_manager.do_dist_stop()
+            action_manager.do_dist_stop()
         elif self.mode == Mode.OBSTACLE_AVOID:
-            result = action_manager.do_obstacle_avoid()
-            # OBSTACLE_AVOIDモード終了時は自動でモードリセット
+            action_manager.do_obstacle_avoid()
             if action_manager.is_finished():
                 self.reset()
-            return result
         elif self.mode == Mode.GOAL:
-            pass  # GOALモード時は何もしない（将来の拡張用）
+            pass
         else:
-            pass  # 未定義モードは何もしない（安全策として停止動作も行わない）
-        return 0, 0, 0  # どの分岐にも該当しない場合は必ずタプルで返す
+            pass
+        # 返り値は不要
+        # return 0, 0, 0
 
 
 # --- 固有動作管理クラス（回避・今後の特殊動作用） ---
@@ -169,6 +169,9 @@ class ActionManager:
             output_limits=(-0.25, 0.25),
         )
         self.et.set_motor_relative_position(left_position=0, right_position=0)
+        self.theta = 0
+        self.pid_corrected_theta = 0
+        self.current_power = 0
 
     def reset(self):
         self.state = 0
@@ -188,6 +191,11 @@ class ActionManager:
         """現在のleft_power, right_powerをロボットに反映"""
         self.et.set_motor_forward_power(left_power=self.left_power, right_power=self.right_power)
 
+    def reset_control_values(self):
+        self.theta = 0
+        self.pid_corrected_theta = 0
+        self.current_power = 0
+
     def do_line_trace(self, offset_pixels, calc):
         # --- ライントレース時の進行角度・推奨速度・PID補正・左右パワー計算 ---
         # MAX_THETA_DEG: 最大旋回角（度数法, ユーザー調整パラメータで一元管理）
@@ -202,17 +210,20 @@ class ActionManager:
         self.left_power = int(current_power - power_adjustment)   # 左右パワーを計算
         self.right_power = int(current_power + power_adjustment)
         self.apply_power()  # ←ここで即時モーター出力
-        return theta, pid_corrected_theta, current_power
+        self.theta = theta
+        self.pid_corrected_theta = pid_corrected_theta
+        self.current_power = current_power
+        # 返り値を削除
 
     def do_dist_stop(self):
         self.left_power = 0
         self.right_power = 0
+        self.reset_control_values()
         self.apply_power()  # ←ここで即時モーター出力
-        return 0, 0, 0
+        # return 0, 0, 0
 
     def do_obstacle_avoid(self):
         # --- 障害物回避動作（状態遷移あり） ---
-        # 1段階目: 左回転 → 2段階目: 右弧旋回 → 3段階目: 左回転
         USER_TIME_PER_DEGREE = 1.0 / 90  # ←90度で何秒かかかるか実測値で調整
         ARC_POWER = 50
         ARC_DURATION = 5.0
@@ -222,8 +233,9 @@ class ActionManager:
         if self.finished:
             self.left_power = 0
             self.right_power = 0
+            self.reset_control_values()
             self.apply_power()
-            return 0, 0, 0
+            return
         if self.state == 0:
             # 1段階目: 左回転
             if not self.action_sent:
@@ -264,8 +276,9 @@ class ActionManager:
                     self.state = 3
                     self._reset_action_vars()
                     self.finished = True
+        # ライントレース以外なので必ずリセット
+        self.reset_control_values()
         self.apply_power()  # ←ここで即時モーター出力
-        return 0, 0, 0
 
     def test_initial_sensor(self, test_count=5, delay=0.2):
         """
@@ -299,22 +312,22 @@ class ActionManager:
         except Exception as e:
             print(f"Arm move error: {e}")
 
-    def get_sensor_info(self, sensor_recorder=None):
+    def update_sensor_info(self, sensor_recorder=None):
         """
-        Spikeの最新センサーステータス・カラー・超音波・モーター情報をまとめて取得
-        - カラーセンサー値取得と黒・青判定
-        - 超音波センサーデータ値取得
-        - モーターA/B相対位置値取得（A:右, B:左）
-        - センサーデータ記録が有効な場合はロガーに記録
+        Spikeの最新センサーステータス・カラー・超音波・モーター情報をまとめて取得し、インスタンス変数に格納
         """
         spike_status = self.et.get_spike_status()
         sensors = spike_status.sensors
-        color = sensors.color if sensors else None
-        distance = sensors.distance if sensors else None
-        motor_info = {
-            'left': spike_status.motors['B'].relative_position if 'B' in spike_status.motors and spike_status.motors['B'].relative_position is not None else 0,
-            'right': spike_status.motors['A'].relative_position if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0
-        }
+        self.color = sensors.color if sensors else None
+        self.distance = sensors.distance if sensors else None
+        self.left_relative_position = (
+            spike_status.motors['B'].relative_position
+            if 'B' in spike_status.motors and spike_status.motors['B'].relative_position is not None else 0
+        )
+        self.right_relative_position = (
+            spike_status.motors['A'].relative_position
+            if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0
+        )
         if sensor_recorder is not None:
             try:
                 sensor_recorder.log_frame_data(spike_status)
@@ -322,7 +335,7 @@ class ActionManager:
                 import traceback
                 print(f"[SensorRecorder] log_frame_data error: {e}")
                 traceback.print_exc()
-        return color, distance, motor_info
+        # returnは不要
 
     def brake_for_duration(self, duration=3.0):
         """
@@ -428,17 +441,20 @@ def send_camera_capture(gray, client_socket):
         return False
     return True
 
-def prepare_driving_info(roi, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, relative_position, max_contour, mode=None):
+def prepare_driving_info(roi, mx, my, offset_pixels, mode, action, max_contour):
     """
     可視化用の走行情報を生成
     roi: (x1, y1, x2, y2) タプル
-    mode: 現在の動作モード（例: 'LINE_TRACE'）
+    mode: ModeManagerインスタンス
+    action: ActionManagerインスタンス
     """
     x1, y1, x2, y2 = roi
     def to_distance_cm(pos):
         return int(float(pos) * 0.0471) if pos is not None else 0
-    left_distance_cm = to_distance_cm(relative_position['left'])
-    right_distance_cm = to_distance_cm(relative_position['right'])
+    left_distance_cm = to_distance_cm(action.left_relative_position)
+    right_distance_cm = to_distance_cm(action.right_relative_position)
+    color = action.color
+    distance = action.distance
     if color:
         color_reflected = color.reflected
         color_ambient = color.ambient
@@ -455,26 +471,26 @@ def prepare_driving_info(roi, mx, my, offset_pixels, theta, pid_corrected_theta,
     info["roi"] = roi
     info["text"] = {
         "offset_pixels": f"{round(offset_pixels, 1)}px",
-        "theta_deg": f"{round(math.degrees(theta), 2)}deg",
-        "pid_corrected_theta": f"{round(math.degrees(pid_corrected_theta), 2)}deg",
+        "theta_deg": f"{round(math.degrees(action.theta), 2)}deg",
+        "pid_corrected_theta": f"{round(math.degrees(action.pid_corrected_theta), 2)}deg",
         "power_status": (
-            "OFF_LINE" if theta == 0 else
-            "CURVE" if abs(theta) > math.radians(CURVE_THRESHOLD_DEG) else
-            "STRAIGHT" if abs(theta) < math.radians(STRAIGHT_THRESHOLD_DEG) else
+            "OFF_LINE" if action.theta == 0 else
+            "CURVE" if abs(action.theta) > math.radians(CURVE_THRESHOLD_DEG) else
+            "STRAIGHT" if abs(action.theta) < math.radians(STRAIGHT_THRESHOLD_DEG) else
             "BASE"
         ),
-        "current_power": f"{round(current_power, 1)}%",
+        "current_power": f"{round(action.current_power, 1)}%",
         "on_color": (
             "BLACK" if (color and color.is_black) else ("BLUE" if (color and color.is_blue) else "N/A")
         ),
         "color_sensor": color_data,
         "ultrasonic_sensor": ultrasonic_data,
-        "left_power": f"{left_power}%",
-        "right_power": f"{right_power}%",
-        "left_relative_position": f"{relative_position['left']}deg / {left_distance_cm}cm",
-        "right_relative_position": f"{relative_position['right']}deg / {right_distance_cm}cm",
+        "left_power": f"{action.left_power}%",
+        "right_power": f"{action.right_power}%",
+        "left_relative_position": f"{action.left_relative_position}deg / {left_distance_cm}cm",
+        "right_relative_position": f"{action.right_relative_position}deg / {right_distance_cm}cm",
         "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
-        "mode": mode if mode is not None else "N/A"
+        "mode": mode.mode.name if hasattr(mode, 'mode') else str(mode)
     }
     return info
 
@@ -527,7 +543,7 @@ def main(record_sensor_data=False, save_camera_video=False):
                 print("[ERROR] Can't receive frame (stream end?). Exiting ...")
                 break
             # 2. センサー情報取得（ActionManager経由で一括取得）
-            color, distance, motor_info = action.get_sensor_info(sensor_recorder)
+            action.update_sensor_info(sensor_recorder)
             # 3. （必要に応じて）AIモデル推論例（コメント参照）
             # 例: ニューラルネットワークによる進行方向推定や物体検出を組み込む場合は、
             # 必要な入力（画像、distance、motor_infoなど）をaction.update_by_nn等で渡し、
@@ -536,8 +552,8 @@ def main(record_sensor_data=False, save_camera_video=False):
             # 例（コメントアウト）：
             #   nn_result = action.update_by_nn(
             #       frame=frame,
-            #       distance=distance,
-            #       motor_info=motor_info
+            #       distance=action.distance,
+            #       motor_info=action.motor_info
             #   )
             #   # nn_resultの内容（例: {'center_x': ..., 'object_detected': ...}）
             #   center_x = nn_result['center_x']
@@ -548,30 +564,20 @@ def main(record_sensor_data=False, save_camera_video=False):
             # 4. 画像処理でライン重心・オフセット・最大輪郭を検出
             mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
             # 5. モード遷移・制御出力（ModeManager/ActionManager）
-            theta, pid_corrected_theta, current_power = mode.update_and_act(
-                distance,
+            mode.update_and_act(
                 action,
                 offset_pixels=offset_pixels,
                 calc=calc
             )
-            left_power = action.left_power
-            right_power = action.right_power
             # 6. 可視化情報生成
             info = prepare_driving_info(
                 ROI_OPENCV,
                 mx,
                 my,
                 offset_pixels,
-                theta,
-                pid_corrected_theta,
-                current_power,
-                left_power,
-                right_power,
-                color,
-                distance,
-                motor_info,
-                max_contour,
-                mode=mode.mode.name
+                mode,
+                action,
+                max_contour
             )
             # 7. 可視化フレーム生成
             gray = create_visualization_frame(
