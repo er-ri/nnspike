@@ -23,7 +23,7 @@ OpenCV-Based Line Following Robot Control
 
 # ==== ユーザー調整用パラメータ（ここだけ編集すればOK） ====
 # ROI_OPENCV: OpenCV画像処理で使用する領域（左上x, 左上y, 右下x, 右下y）
-ROI_OPENCV = (150, 300, 490, 400)  # 必ずタプルで定義すること
+ROI_OPENCV = (180, 300, 460, 400)  # 左右をそれぞれ30pxずつ内側に狭めた例
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480                 # カメラ画像の高さ
 BASE_POWER = 30                    # カーブ時の基準パワー
