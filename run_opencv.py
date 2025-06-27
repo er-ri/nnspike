@@ -272,11 +272,11 @@ class ActionManager:
                 if now - self.start_time >= self.turn_duration:
                     self.et.brake()
                     self.state = 3
-                    self._reset_action_vars()
                     self.finished = True
-        # ライントレース以外なので必ずリセット
-        self.reset_control_values()
+                    self._reset_action_vars()
+        # ライントレース以外なので必ずリセット（apply_powerの後に1回だけ呼ぶ）
         self.apply_power()  # ←ここで即時モーター出力
+        self.reset_control_values()
 
     def test_initial_sensor(self, test_count=5, delay=0.2):
         """
