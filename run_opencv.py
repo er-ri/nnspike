@@ -170,6 +170,9 @@ class ActionManager:
         )
         self.et.set_motor_relative_position(left_position=0, right_position=0)
         self.reset_control_values()  # theta, pid_corrected_theta, current_powerをまとめてリセット
+        # --- 受信した実際の左右パワー値を初期化 ---
+        self.left_actual_power = None
+        self.right_actual_power = None
 
     def reset(self):
         self.state = 0
@@ -186,8 +189,20 @@ class ActionManager:
         return self.finished
 
     def apply_power(self):
-        """現在のleft_power, right_powerをロボットに反映"""
+        """現在のleft_power, right_powerをロボットに反映し、spikeから実際の左右パワーを取得"""
         self.et.set_motor_forward_power(left_power=self.left_power, right_power=self.right_power)
+        # spikeから実際の左右パワーを取得
+        status = self.et.get_spike_status()
+        left_actual = None
+        right_actual = None
+        if status and hasattr(status, 'motors'):
+            # B:左, A:右（設計に応じて要確認）
+            left_actual = status.motors['B'].power if 'B' in status.motors and hasattr(status.motors['B'], 'power') else None
+            right_actual = status.motors['A'].power if 'A' in status.motors and hasattr(status.motors['A'], 'power') else None
+            print(f"[DEBUG] SPIKE実パワー: left={left_actual}, right={right_actual}")
+        # --- 取得した値をインスタンス変数に格納 ---
+        self.left_actual_power = left_actual
+        self.right_actual_power = right_actual
 
     def reset_control_values(self):
         self.theta = 0
@@ -455,6 +470,9 @@ def prepare_driving_info(roi, mx, my, offset_pixels, mode, action, max_contour):
     right_distance_cm = to_distance_cm(action.right_relative_position)
     color = action.color
     distance = action.distance
+    # --- ActionManagerで取得済みの受信左右パワー値を参照 ---
+    left_actual = action.left_actual_power
+    right_actual = action.right_actual_power
     if color:
         color_reflected = color.reflected
         color_ambient = color.ambient
@@ -485,8 +503,9 @@ def prepare_driving_info(roi, mx, my, offset_pixels, mode, action, max_contour):
         ),
         "color_sensor": color_data,
         "ultrasonic_sensor": ultrasonic_data,
-        "left_power": f"{action.left_power}%",
-        "right_power": f"{action.right_power}%",
+        # 並列表記: 送信(left_power, right_power) | 受信(left_actual, right_actual)
+        "left_power": f"{action.left_power}% | {left_actual if left_actual is not None else 'N/A'}%",
+        "right_power": f"{action.right_power}% | {right_actual if right_actual is not None else 'N/A'}%",
         "left_relative_position": f"{action.left_relative_position}deg / {left_distance_cm}cm",
         "right_relative_position": f"{action.right_relative_position}deg / {right_distance_cm}cm",
         "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
@@ -497,29 +516,8 @@ def prepare_driving_info(roi, mx, my, offset_pixels, mode, action, max_contour):
 # --- メイン処理 ---
 def main(record_sensor_data=False, save_camera_video=False):
     """
-    メイン制御ループ
-    - 各種初期化（ロボット・センサーレコーダ・ビデオ・ソケット等）
-    - 初期センサーテスト・アーム動作テスト
-    - メインループで以下を繰り返す：
-        1. カメラ画像取得
-        2. ActionManager経由でセンサー情報取得（カラー・超音波・モーター相対位置/パワー）
-        3. （必要に応じて）AIモデル推論例（画像・distance・motor_infoを入力、center_xとobject_detectedを出力）
-        4. 画像処理でライン重心・オフセット・最大輪郭を検出
-        5. モード遷移・制御出力（ModeManager/ActionManager）
-           - LINE_TRACE: ライントレース制御
-           - DIST_STOP: 障害物検知時の一時停止
-           - OBSTACLE_AVOID: 障害物回避動作
-           - 必要に応じてGOALやSMART_CARRY等も拡張可
-        6. モードごとの制御値をActionManagerから取得し、可視化情報を生成
-        7. 可視化フレーム生成（輪郭・重心描画など）
-        8. カメラ画像の送信・保存（リモート監視や動画保存）
-        9. ループ周期調整（30ms未満ならsleepで調整）
-        10. 例外・割り込み時は安全停止（brake/stop）・リソース解放
-
-    - 各処理はActionManager/ModeManager/ControlCalculator等の責務に分離し、
-      mainは「全体の流れ・状態遷移・例外処理・リソース管理」のみを記述
-    - AIモデル推論例は「画像・distance・motor_info→center_x, object_detected」設計例をコメントで明記
-    - 例外発生時も必ず安全停止・リソース解放を徹底
+    メイン制御ループ（全体の流れ・例外処理・リソース管理のみ記述）
+    各種初期化→初期テスト→メインループ（画像取得→センサー取得→画像処理→制御→可視化→送信/保存）
     """
     calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
         record_sensor_data, save_camera_video
@@ -533,43 +531,24 @@ def main(record_sensor_data=False, save_camera_video=False):
     action.test_initial_sensor()  # SPIKEの初期センサーテスト
     action.test_arm()            # アーム動作テスト
 
-    # --- mainループ ---
     try:
         while action.et.is_running == True:
             loop_start = time.time()
-            # 1. カメラ画像取得
             ret, frame = cap.read()
             if not ret:
                 print("[ERROR] Can't receive frame (stream end?). Exiting ...")
                 break
-            # 2. センサー情報取得（ActionManager経由で一括取得）
             action.update_sensor_info(sensor_recorder)
-            # 3. （必要に応じて）AIモデル推論例（コメント参照）
-            # 例: ニューラルネットワークによる進行方向推定や物体検出を組み込む場合は、
-            # 必要な入力（画像、distance、motor_infoなど）をaction.update_by_nn等で渡し、
-            # 推論結果として「進行方向x座標（center_x）」および「物体検出結果（object_detected）」の2つを返す設計が推奨されます。
-            #
-            # 例（コメントアウト）：
-            #   nn_result = action.update_by_nn(
-            #       frame=frame,
-            #       distance=action.distance,
-            #       motor_info=action.motor_info
-            #   )
-            #   # nn_resultの内容（例: {'center_x': ..., 'object_detected': ...}）
-            #   center_x = nn_result['center_x']
-            #   object_detected = nn_result['object_detected']
-            #
-            # ※AIモデルの統合時は、mainループのこの位置で推論・状態更新を行うと保守性・拡張性が高まります。
-            # -------------------------------------------------------------
-            # 4. 画像処理でライン重心・オフセット・最大輪郭を検出
-            mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
-            # 5. モード遷移・制御出力（ModeManager/ActionManager）
+            steer_result = calc.steer_by_camera(frame)
+            mx = steer_result["mx"]
+            my = steer_result["my"]
+            offset_pixels = steer_result["offset_pixels"]
+            max_contour = steer_result["max_contour"]
             mode.update_and_act(
                 action,
                 offset_pixels=offset_pixels,
                 calc=calc
             )
-            # 6. 可視化情報生成
             info = prepare_driving_info(
                 ROI_OPENCV,
                 mx,
@@ -579,7 +558,6 @@ def main(record_sensor_data=False, save_camera_video=False):
                 action,
                 max_contour
             )
-            # 7. 可視化フレーム生成
             gray = create_visualization_frame(
                 frame,
                 info,
@@ -588,34 +566,30 @@ def main(record_sensor_data=False, save_camera_video=False):
                 my,
                 max_contour
             )
-            # 8. カメラ画像の送信・保存
             if save_camera_video and video_writer is not None:
                 video_writer.write(frame)
             if not send_camera_capture(gray, client_socket):
                 print("[ERROR] send_camera_capture failed. Breaking main loop.")
                 break
-            # 9. ループ周期調整（30ms未満ならsleep）
+            # ループ周期調整（必要ならsleep）
             # elapsed = time.time() - loop_start
             # if elapsed < 0.03:
             #     time.sleep(0.03 - elapsed)
     except KeyboardInterrupt:
-        # ユーザーによる割り込み（Ctrl+C）時：安全のため一定時間ブレーキ信号を連続送信
         print("Interrupted by user")
-        action.brake_for_duration()  # Spikeに3秒間ブレーキ信号を送り続ける
+        action.brake_for_duration()
     except Exception as e:
-        # 予期しない例外発生時も必ずロボットを安全に停止（3秒間ブレーキ信号送信）し、例外内容を表示
         print(f"[ERROR] Unexpected exception: {e}")
-        action.brake_for_duration()  # Spikeに3秒間ブレーキ信号を送り続ける
+        action.brake_for_duration()
     finally:
-        # いかなる場合もリソースを必ず解放し、安全停止を徹底
-        action.et.stop()  # モーター・アクチュエータを安全停止（多重呼び出しでも安全）
-        cap.release()     # カメラリソース解放
-        client_socket.close()  # ソケット通信終了
+        action.et.stop()
+        cap.release()
+        client_socket.close()
         if save_camera_video and video_writer is not None:
-            video_writer.release()  # 動画ファイル保存終了
+            video_writer.release()
             print(f"Video saved to: {video_filename}")
         if sensor_recorder is not None:
-            sensor_recorder.stop_recording()  # センサーログ記録終了
+            sensor_recorder.stop_recording()
             print(f"Total frames recorded: {sensor_recorder.get_frame_count()}")
 
 
