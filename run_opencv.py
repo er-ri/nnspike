@@ -322,20 +322,20 @@ class ActionManager:
                 traceback.print_exc()
         return color, distance, motor_info
 
-    def send_stop_signal(self, duration=3.0):
+    def brake_for_duration(self, duration=3.0):
         """
-        Spikeに一定時間ブレーキ信号を送り続ける
+        Spike本体に一定時間ブレーキ信号を連続送信し、安全停止を強制する
         """
-        print(f"Sending stop signals to Spike for {duration} seconds...")
+        print(f"[SAFETY] Sending BRAKE command to Spike for {duration} seconds (brake_for_duration)")
         stop_start_time = time.time()
         while time.time() - stop_start_time < duration:
             try:
                 self.et.brake()
                 time.sleep(0.1)
             except Exception as e:
-                print(f"Error sending stop signal: {e}")
+                print(f"[SAFETY][ERROR] Exception during brake command: {e}")
                 break
-        print("Stop signal transmission completed")
+        print("[SAFETY] Brake command transmission completed (brake_for_duration)")
 
 # --- システム初期化 ---
 def initialize_system(record_sensor_data, save_camera_video):
@@ -570,11 +570,11 @@ def main(record_sensor_data=False, save_camera_video=False):
     except KeyboardInterrupt:
         # ユーザーによる割り込み（Ctrl+C）時：安全のため一定時間ブレーキ信号を連続送信
         print("Interrupted by user")
-        action.send_stop_signal()  # Spikeに3秒間ブレーキ信号を送り続ける
+        action.brake_for_duration()  # Spikeに3秒間ブレーキ信号を送り続ける
     except Exception as e:
         # 予期しない例外発生時も必ずロボットを安全に停止（3秒間ブレーキ信号送信）し、例外内容を表示
         print(f"[ERROR] Unexpected exception: {e}")
-        action.send_stop_signal()  # Spikeに3秒間ブレーキ信号を送り続ける
+        action.brake_for_duration()  # Spikeに3秒間ブレーキ信号を送り続ける
     finally:
         # いかなる場合もリソースを必ず解放し、安全停止を徹底
         action.et.stop()  # モーター・アクチュエータを安全停止（多重呼び出しでも安全）
