@@ -121,9 +121,6 @@ class ModeManager:
         elif self.mode == Mode.OBSTACLE_AVOID:
             pass
         # SMART_CARRY_1, SMART_CARRY_2, GOALへの遷移は必要に応じて追加
-    def reset(self):
-        self.mode = Mode.LINE_TRACE
-        self.obstacle_detected_time = None
 
     def update_and_act(self, action_manager, offset_pixels=None):
         self.update(action_manager.distance)
@@ -134,7 +131,6 @@ class ModeManager:
         elif self.mode == Mode.OBSTACLE_AVOID:
             action_manager.do_obstacle_avoid()
             if action_manager.is_finished():
-                print(f"[DEBUG] OBSTACLE_AVOID終了: state={action_manager.state}, finished={action_manager.finished}, 時刻={time.strftime('%H:%M:%S')}")
                 self.mode = Mode.LINE_TRACE  # state3後に必ずLINE_TRACEへ遷移
                 self.obstacle_detected_time = None
                 action_manager.reset()  # 回避動作の状態もリセット
@@ -428,10 +424,11 @@ class SensorRecorderManager:
     SensorRecorderの生成・管理・利用を一元化するクラス。
     mainやActionManager等からはこのクラス経由でセンサーログ記録を行う。
     """
-    def __init__(self, enable_recording: bool, timestamp: str = None):
+    def __init__(self, enable_recording: bool):
         self.enable_recording = enable_recording
         self.recorder = None
         if enable_recording:
+            timestamp = get_timestamp()
             self.recorder = SensorRecorder(timestamp=timestamp)
             self.recorder.start_recording()
 
@@ -451,122 +448,146 @@ class SensorRecorderManager:
     def is_enabled(self):
         return self.enable_recording
 
-# --- システム初期化 ---
-def initialize_system(record_sensor_data, save_camera_video):
-    TIMESTAMP = (
-        time.strftime("%Y%m%d%H%M%S", time.localtime())
-        if (record_sensor_data or save_camera_video)
-        else None
-    )
-    sensor_recorder = SensorRecorderManager(record_sensor_data, timestamp=TIMESTAMP)
-    video_writer = None
-    video_filename = None
-    if save_camera_video:
-        fourcc = cv2.VideoWriter_fourcc(*"XVID")
-        video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
-        video_writer = cv2.VideoWriter(
-            filename=video_filename,
-            fourcc=fourcc,
-            fps=30,
-            frameSize=(IMAGE_WIDTH, IMAGE_HEIGHT),
-        )
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect((HOST_IP_ADDRESS, 8485))
-    print("メインループで直接センサー値を取得します")
-    return sensor_recorder, video_writer, video_filename, client_socket
-
-
-# --- 可視化フレーム生成（輪郭描画含む） ---
-def create_visualization_frame(frame, info, roi, steer_result):
+class VideoManager:
     """
-    可視化フレームを生成し、輪郭があれば描画する
-    roi: (x1, y1, x2, y2) タプル
-    steer_result: steer_by_cameraの辞書
+    カメラ動画保存とソケット通信の初期化・管理を一元化するクラス。
+    可視化フレーム生成や走行情報生成も担当する。
     """
-    x1, y1, x2, y2 = roi
-    mx = steer_result["mx"]
-    my = steer_result["my"]
-    max_contour = steer_result["max_contour"]
-    gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
-    gray = draw_driving_info(gray, info, roi)
-    if max_contour is not None:
-        adjusted_contour = max_contour + np.array([x1, y1])
-        cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)
-        cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
-    return gray
+    def __init__(self, save_camera_video, image_width, image_height, host_ip_address, port=8485):
+        self.video_writer = None
+        self.video_filename = None
+        self.client_socket = None
+        if save_camera_video:
+            timestamp = get_timestamp()
+            fourcc = cv2.VideoWriter_fourcc(*"XVID")
+            self.video_filename = f"storage/videos/{timestamp}_picamera.avi"
+            self.video_writer = cv2.VideoWriter(
+                filename=self.video_filename,
+                fourcc=fourcc,
+                fps=30,
+                frameSize=(image_width, image_height),
+            )
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client_socket.connect((host_ip_address, port))
 
+    def write_video(self, frame):
+        if self.video_writer is not None:
+            self.video_writer.write(frame)
 
-def prepare_driving_info(roi, steer_result, mode, action):
+    def send_frame(self, frame):
+        # send_camera_capture相当の処理をここに実装することも可能
+        # 既存のsend_camera_capture関数を使う場合はここで呼び出し
+        pass  # 必要に応じて実装
+
+    def release(self):
+        if self.video_writer is not None:
+            self.video_writer.release()
+        if self.client_socket is not None:
+            self.client_socket.close()
+
+    def create_visualization_frame(self, frame, info, roi, steer_result):
+        """
+        可視化フレームを生成し、輪郭があれば描画する
+        roi: (x1, y1, x2, y2) タプル
+        steer_result: steer_by_cameraの辞書
+        """
+        x1, y1, x2, y2 = roi
+        mx = steer_result["mx"]
+        my = steer_result["my"]
+        max_contour = steer_result["max_contour"]
+        gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
+        gray = draw_driving_info(gray, info, roi)
+        if max_contour is not None:
+            adjusted_contour = max_contour + np.array([x1, y1])
+            cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)
+            cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
+        return gray
+
+    def prepare_driving_info(self, roi, steer_result, mode, action):
+        """
+        可視化用の走行情報を生成
+        roi: (x1, y1, x2, y2) タプル
+        steer_result: steer_by_cameraの辞書
+        mode: ModeManagerインスタンス
+        action: ActionManagerインスタンス
+        """
+        x1, y1, x2, y2 = roi
+        mx = steer_result["mx"]
+        my = steer_result["my"]
+        offset_pixels = steer_result["offset_pixels"]
+        max_contour = steer_result["max_contour"]
+        def to_distance_cm(pos):
+            return int(float(pos) * 0.0471) if pos is not None else 0
+        left_distance_cm = to_distance_cm(action.left_relative_position)
+        right_distance_cm = to_distance_cm(action.right_relative_position)
+        color = action.color
+        distance = action.distance
+        left_actual = action.left_actual_power
+        right_actual = action.right_actual_power
+        if color:
+            color_reflected = color.reflected
+            color_ambient = color.ambient
+            color_color = color.color
+            color_data = f"R:{color_reflected if color_reflected is not None else 'N/A'} A:{color_ambient if color_ambient is not None else 'N/A'} C:{color_color if color_color is not None else 'N/A'}"
+        else:
+            color_data = "R:N/A A:N/A C:N/A"
+        if distance is not None:
+            ultrasonic_data = f"{distance} cm"
+        else:
+            ultrasonic_data = "N/A cm"
+        info = dict()
+        info["offset_x"], info["offset_y"] = x1 + mx, y1 + my
+        info["roi"] = roi
+        info["text"] = {
+            "offset_pixels": f"{round(offset_pixels, 1)}px",
+            "theta_deg": f"{round(math.degrees(action.theta), 2)}deg",
+            "pid_corrected_theta": f"{round(math.degrees(action.pid_corrected_theta), 2)}deg",
+            "power_status": (
+                "OFF_LINE" if action.theta == 0 else
+                "CURVE" if abs(action.theta) > math.radians(CURVE_THRESHOLD_DEG) else
+                "STRAIGHT" if abs(action.theta) < math.radians(STRAIGHT_THRESHOLD_DEG) else
+                "BASE"
+            ),
+            "current_power": f"{round(action.current_power, 1)}%",
+            "on_color": (
+                "BLACK" if (color and color.is_black) else ("BLUE" if (color and color.is_blue) else "N/A")
+            ),
+            "color_sensor": color_data,
+            "ultrasonic_sensor": ultrasonic_data,
+            "left_power": f"{action.left_power}% | {left_actual if left_actual is not None else 'N/A'}%",
+            "right_power": f"{action.right_power}% | {right_actual if right_actual is not None else 'N/A'}%",
+            "left_relative_position": f"{action.left_relative_position}deg / {left_distance_cm}cm",
+            "right_relative_position": f"{action.right_relative_position}deg / {right_distance_cm}cm",
+            "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
+            "mode": mode.mode.name if hasattr(mode, 'mode') else str(mode)
+        }
+        return info
+
+def get_timestamp():
     """
-    可視化用の走行情報を生成
-    roi: (x1, y1, x2, y2) タプル
-    steer_result: steer_by_cameraの辞書
-    mode: ModeManagerインスタンス
-    action: ActionManagerインスタンス
+    現在時刻のタイムスタンプ（YYYYMMDDHHMMSS形式）を返す共通関数。
     """
-    x1, y1, x2, y2 = roi
-    mx = steer_result["mx"]
-    my = steer_result["my"]
-    offset_pixels = steer_result["offset_pixels"]
-    max_contour = steer_result["max_contour"]
-    def to_distance_cm(pos):
-        return int(float(pos) * 0.0471) if pos is not None else 0
-    left_distance_cm = to_distance_cm(action.left_relative_position)
-    right_distance_cm = to_distance_cm(action.right_relative_position)
-    color = action.color
-    distance = action.distance
-    left_actual = action.left_actual_power
-    right_actual = action.right_actual_power
-    if color:
-        color_reflected = color.reflected
-        color_ambient = color.ambient
-        color_color = color.color
-        color_data = f"R:{color_reflected if color_reflected is not None else 'N/A'} A:{color_ambient if color_ambient is not None else 'N/A'} C:{color_color if color_color is not None else 'N/A'}"
-    else:
-        color_data = "R:N/A A:N/A C:N/A"
-    if distance is not None:
-        ultrasonic_data = f"{distance} cm"
-    else:
-        ultrasonic_data = "N/A cm"
-    info = dict()
-    info["offset_x"], info["offset_y"] = x1 + mx, y1 + my
-    info["roi"] = roi
-    info["text"] = {
-        "offset_pixels": f"{round(offset_pixels, 1)}px",
-        "theta_deg": f"{round(math.degrees(action.theta), 2)}deg",
-        "pid_corrected_theta": f"{round(math.degrees(action.pid_corrected_theta), 2)}deg",
-        "power_status": (
-            "OFF_LINE" if action.theta == 0 else
-            "CURVE" if abs(action.theta) > math.radians(CURVE_THRESHOLD_DEG) else
-            "STRAIGHT" if abs(action.theta) < math.radians(STRAIGHT_THRESHOLD_DEG) else
-            "BASE"
-        ),
-        "current_power": f"{round(action.current_power, 1)}%",
-        "on_color": (
-            "BLACK" if (color and color.is_black) else ("BLUE" if (color and color.is_blue) else "N/A")
-        ),
-        "color_sensor": color_data,
-        "ultrasonic_sensor": ultrasonic_data,
-        "left_power": f"{action.left_power}% | {left_actual if left_actual is not None else 'N/A'}%",
-        "right_power": f"{action.right_power}% | {right_actual if right_actual is not None else 'N/A'}%",
-        "left_relative_position": f"{action.left_relative_position}deg / {left_distance_cm}cm",
-        "right_relative_position": f"{action.right_relative_position}deg / {right_distance_cm}cm",
-        "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
-        "mode": mode.mode.name if hasattr(mode, 'mode') else str(mode)
-    }
-    return info
+    return time.strftime("%Y%m%d%H%M%S", time.localtime())
 
 # --- メイン処理 ---
 def main(record_sensor_data=False, save_camera_video=False):
-    sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
-        record_sensor_data, save_camera_video
+    # --- システム初期化（sensor_recorder, videoの初期化をmain内で直接実施） ---
+    sensor_recorder = SensorRecorderManager(record_sensor_data)
+    video = VideoManager(
+        save_camera_video,
+        IMAGE_WIDTH,
+        IMAGE_HEIGHT,
+        HOST_IP_ADDRESS,
+        port=8485
     )
-    time.sleep(0.5)
     mode = ModeManager()
     action = ActionManager()
     camera = Camera()
     action.test_initial_sensor()
     action.test_arm()
+
+    time.sleep(0.5)
+
     try:
         while action.et.is_running == True:
             loop_start = time.time()
@@ -580,21 +601,24 @@ def main(record_sensor_data=False, save_camera_video=False):
                 action,
                 offset_pixels=steer_result["offset_pixels"]
             )
-            info = prepare_driving_info(
+            info = video.prepare_driving_info(
                 ROI_OPENCV,
                 steer_result,
                 mode,
                 action
             )
-            gray = create_visualization_frame(
+            gray = video.create_visualization_frame(
                 frame,
                 info,
                 ROI_OPENCV,
                 steer_result
             )
-            if save_camera_video and video_writer is not None:
-                video_writer.write(frame)
-            if not send_camera_capture(gray, client_socket):
+            if save_camera_video and video is not None:
+                video.write_video(frame)
+            # ここでソケット通信によるフレーム送信を行うことも可能
+            # video.send_frame(gray)
+            # 既存のsend_camera_capture関数を使う場合はここで呼び出し
+            if not send_camera_capture(gray, video.client_socket):
                 print("[ERROR] send_camera_capture failed. Breaking main loop.")
                 break
             # ループ周期調整（必要ならsleep）
@@ -610,10 +634,10 @@ def main(record_sensor_data=False, save_camera_video=False):
     finally:
         action.et.stop()
         camera.release()
-        client_socket.close()
-        if save_camera_video and video_writer is not None:
-            video_writer.release()
-            print(f"Video saved to: {video_filename}")
+        video.release()
+        if save_camera_video and video.video_writer is not None:
+            video.video_writer.release()
+            print(f"Video saved to: {video.video_filename}")
         if sensor_recorder is not None and sensor_recorder.is_enabled():
             sensor_recorder.stop()
             print(f"Total frames recorded: {sensor_recorder.get_frame_count()}")
