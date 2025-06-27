@@ -424,8 +424,7 @@ def send_camera_capture(gray, client_socket):
     カメラ画像をリモート監視用に送信
     """
     try:
-        #ret, buffer = cv2.imencode(".jpg", gray, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
-        ret, buffer = cv2.imencode(".png", gray)
+        ret, buffer = cv2.imencode(".jpg", gray, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
         img_encoded = buffer.tobytes()
         data = pickle.dumps(img_encoded)
         client_socket.sendall(struct.pack("L", len(data)) + data)
@@ -588,9 +587,9 @@ def main(record_sensor_data=False, save_camera_video=False):
                 print("[ERROR] send_camera_capture failed. Breaking main loop.")
                 break
             # 9. ループ周期調整（30ms未満ならsleep）
-            # elapsed = time.time() - loop_start
-            # if elapsed < 0.03:
-            #     time.sleep(0.03 - elapsed)
+            elapsed = time.time() - loop_start
+            if elapsed < 0.03:
+                time.sleep(0.03 - elapsed)
     except KeyboardInterrupt:
         # ユーザーによる割り込み（Ctrl+C）時：安全のため一定時間ブレーキ信号を連続送信
         print("Interrupted by user")
