@@ -474,10 +474,20 @@ class VideoManager:
         if self.video_writer is not None:
             self.video_writer.write(frame)
 
-    def send_frame(self, frame):
-        # send_camera_capture相当の処理をここに実装することも可能
-        # 既存のsend_camera_capture関数を使う場合はここで呼び出し
-        pass  # 必要に応じて実装
+    def send_frame(self, gray):
+        """
+        カメラ画像をリモート監視用に送信
+        """
+        try:
+            #ret, buffer = cv2.imencode(".jpg", gray, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+            ret, buffer = cv2.imencode(".png", gray)
+            img_encoded = buffer.tobytes()
+            data = pickle.dumps(img_encoded)
+            self.client_socket.sendall(struct.pack("L", len(data)) + data)
+        except Exception as e:
+            print(f"Socket error: {e}")
+            return False
+        return True
 
     def release(self):
         if self.video_writer is not None:
@@ -601,26 +611,25 @@ def main(record_sensor_data=False, save_camera_video=False):
                 action,
                 offset_pixels=steer_result["offset_pixels"]
             )
-            info = video.prepare_driving_info(
-                ROI_OPENCV,
-                steer_result,
-                mode,
-                action
-            )
-            gray = video.create_visualization_frame(
-                frame,
-                info,
-                ROI_OPENCV,
-                steer_result
-            )
+
+            # 動画保存・フレーム送信を一括でVideoManagerに集約
             if save_camera_video and video is not None:
+                info = video.prepare_driving_info(
+                    ROI_OPENCV,
+                    steer_result,
+                    mode,
+                    action
+                )
+                gray = video.create_visualization_frame(
+                    frame,
+                    info,
+                    ROI_OPENCV,
+                    steer_result
+                )
                 video.write_video(frame)
-            # ここでソケット通信によるフレーム送信を行うことも可能
-            # video.send_frame(gray)
-            # 既存のsend_camera_capture関数を使う場合はここで呼び出し
-            if not send_camera_capture(gray, video.client_socket):
-                print("[ERROR] send_camera_capture failed. Breaking main loop.")
-                break
+                if not video.send_frame(gray):
+                    print("[ERROR] send_camera_capture failed. Breaking main loop.")
+                    break
             # ループ周期調整（必要ならsleep）
             # elapsed = time.time() - loop_start
             # if elapsed < 0.03:
