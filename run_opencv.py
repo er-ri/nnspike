@@ -26,9 +26,9 @@ OpenCV-Based Line Following Robot Control
 ROI_OPENCV = (180, 300, 460, 400)  # 左右をそれぞれ30pxずつ内側に狭めた例
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480                 # カメラ画像の高さ
-BASE_POWER = 45                    # カーブ時の基準パワー 40→45にUP
+BASE_POWER = 50                    # カーブ時の基準パワー 40→45にUP
 STRAIGHT_POWER = 60                # 直線時の推奨パワー 50→60にUP
-CURVE_POWER = 35                   # 急カーブ時の最低パワー 30→35にUP
+CURVE_POWER = 30                   # 急カーブ時の最低パワー 30→35にUP
 CURVE_THRESHOLD_DEG = 10           # カーブ判定閾値（度数法, SENSITIVITY=1.0時の推奨値）
 STRAIGHT_THRESHOLD_DEG = 3         # 直線判定のしきい値（ユーザー調整用, デフォルト3度, STRAIGHT_THRESHOLD_DEGで指定）
 SENSITIVITY = 1.0                  # ピクセル→theta変換感度
