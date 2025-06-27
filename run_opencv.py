@@ -326,7 +326,7 @@ class ActionManager:
         """
         Spike本体に一定時間ブレーキ信号を連続送信し、安全停止を強制する
         """
-        print(f"[SAFETY] Sending BRAKE command to Spike for {duration} seconds (brake_for_duration)")
+        print(f"[SAFETY] Sending brake command to Spike for {duration} seconds (brake_for_duration)")
         stop_start_time = time.time()
         while time.time() - stop_start_time < duration:
             try:
