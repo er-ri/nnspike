@@ -130,7 +130,11 @@ class ModeManager:
         elif self.mode == Mode.DIST_STOP:
             return action_manager.do_dist_stop()
         elif self.mode == Mode.OBSTACLE_AVOID:
-            return action_manager.do_obstacle_avoid()
+            result = action_manager.do_obstacle_avoid()
+            # OBSTACLE_AVOIDモード終了時は自動でモードリセット
+            if action_manager.is_finished():
+                self.reset()
+            return result
         elif self.mode == Mode.GOAL:
             pass  # GOALモード時は何もしない（将来の拡張用）
         else:
@@ -552,10 +556,6 @@ def main(record_sensor_data=False, save_camera_video=False):
                 offset_pixels=offset_pixels,
                 calc=calc
             )
-            # OBSTACLE_AVOIDモード終了時はモードリセット
-            if mode.mode == Mode.OBSTACLE_AVOID:
-                if action.is_finished():
-                    mode.reset()
             left_power = action.left_power
             right_power = action.right_power
             # 6. 可視化情報生成
