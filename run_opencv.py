@@ -304,7 +304,7 @@ class ActionManager:
         Spikeの最新センサーステータス・カラー・超音波・モーター情報をまとめて取得
         - カラーセンサー値取得と黒・青判定
         - 超音波センサーデータ値取得
-        - モーターA/B相対位置値・パワー値取得（A:右, B:左）
+        - モーターA/B相対位置値取得（A:右, B:左）
         - センサーデータ記録が有効な場合はロガーに記録
         """
         spike_status = self.et.get_spike_status()
@@ -313,9 +313,7 @@ class ActionManager:
         distance = sensors.distance if sensors else None
         motor_info = {
             'left': spike_status.motors['B'].relative_position if 'B' in spike_status.motors and spike_status.motors['B'].relative_position is not None else 0,
-            'right': spike_status.motors['A'].relative_position if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0,
-            'left_power': spike_status.motors['B'].power if 'B' in spike_status.motors and hasattr(spike_status.motors['B'], 'power') else 0,
-            'right_power': spike_status.motors['A'].power if 'A' in spike_status.motors and hasattr(spike_status.motors['A'], 'power') else 0
+            'right': spike_status.motors['A'].relative_position if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0
         }
         if sensor_recorder is not None:
             try:
@@ -559,9 +557,31 @@ def main(record_sensor_data=False, save_camera_video=False):
             left_power = action.left_power
             right_power = action.right_power
             # 6. 可視化情報生成
-            info = prepare_driving_info(ROI_OPENCV, mx, my, offset_pixels, theta, pid_corrected_theta, current_power, left_power, right_power, color, distance, motor_info, max_contour, mode=mode.mode.name)
+            info = prepare_driving_info(
+                ROI_OPENCV,
+                mx,
+                my,
+                offset_pixels,
+                theta,
+                pid_corrected_theta,
+                current_power,
+                left_power,
+                right_power,
+                color,
+                distance,
+                motor_info,
+                max_contour,
+                mode=mode.mode.name
+            )
             # 7. 可視化フレーム生成
-            gray = create_visualization_frame(frame, info, ROI_OPENCV, mx, my, max_contour)
+            gray = create_visualization_frame(
+                frame,
+                info,
+                ROI_OPENCV,
+                mx,
+                my,
+                max_contour
+            )
             # 8. カメラ画像の送信・保存
             if save_camera_video and video_writer is not None:
                 video_writer.write(frame)
