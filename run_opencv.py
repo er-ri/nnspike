@@ -587,23 +587,14 @@ def get_timestamp():
 
 # --- メイン処理 ---
 def main(record_sensor_data=False, save_camera_video=False):
-    # --- システム初期化（sensor_recorder, videoの初期化をmain内で直接実施） ---
-    sensor_recorder = SensorRecorderManager(record_sensor_data)
-    video = VideoManager(
-        save_camera_video,
-        IMAGE_WIDTH,
-        IMAGE_HEIGHT,
-        HOST_IP_ADDRESS,
-        port=8485
-    )
     mode = ModeManager()
     action = ActionManager()
     camera = Camera()
+    video = VideoManager(save_camera_video, IMAGE_WIDTH, IMAGE_HEIGHT, HOST_IP_ADDRESS, port=8485)
+    sensor_recorder = SensorRecorderManager(record_sensor_data)
     action.test_initial_sensor()
     action.test_arm()
-
     time.sleep(0.5)
-
     try:
         while action.et.is_running == True:
             loop_start = time.time()
@@ -613,17 +604,12 @@ def main(record_sensor_data=False, save_camera_video=False):
                 break
             action.update_sensor_info(sensor_recorder)
             steer_result = camera.steer_by_camera(frame)
-            mode.update_and_act(
-                action,
-                offset_pixels=steer_result["offset_pixels"]
-            )
-
-            # 動画保存・フレーム送信を一括でVideoManagerに集約
+            mode.update_and_act(action, offset_pixels=steer_result["offset_pixels"])
             if save_camera_video and video is not None:
                 if not video.process_and_send(frame, steer_result, ROI_OPENCV, mode, action):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
-            # ループ周期調整（必要ならsleep）
+            # 周期調整（必要ならsleep）
             # elapsed = time.time() - loop_start
             # if elapsed < 0.03:
             #     time.sleep(0.03 - elapsed)
