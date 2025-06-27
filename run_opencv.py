@@ -216,7 +216,7 @@ class ActionManager:
         # --- 障害物回避動作（状態遷移あり） ---
         USER_TIME_PER_DEGREE = 1.0 / 90  # ←90度で何秒かかかるか実測値で調整
         ARC_POWER = 50
-        ARC_DURATION = 5.0
+        ARC_DURATION = 4.0
         TURN_ANGLE = 45
         ARC_RATIO = 0.8  # カーブ時の弱い側のパワー比
         now = time.time()
