@@ -484,13 +484,24 @@ def main(record_sensor_data=False, save_camera_video=False):
     - 初期センサーテスト・アーム動作テスト
     - メインループで以下を繰り返す：
         1. カメラ画像取得
-        2. ActionManager経由でセンサー情報取得
-        3. 画像処理でライン重心・オフセット検出
-        4. モード遷移・制御出力（ModeManager/ActionManager）
-        5. 可視化情報生成・フレーム描画
-        6. 画像送信・動画保存
-        7. ループ周期調整
-    - 例外・割り込み時は安全停止・リソース解放
+        2. ActionManager経由でセンサー情報取得（カラー・超音波・モーター相対位置/パワー）
+        3. （必要に応じて）AIモデル推論例（画像・distance・motor_infoを入力、center_xとobject_detectedを出力）
+        4. 画像処理でライン重心・オフセット・最大輪郭を検出
+        5. モード遷移・制御出力（ModeManager/ActionManager）
+           - LINE_TRACE: ライントレース制御
+           - DIST_STOP: 障害物検知時の一時停止
+           - OBSTACLE_AVOID: 障害物回避動作
+           - 必要に応じてGOALやSMART_CARRY等も拡張可
+        6. モードごとの制御値をActionManagerから取得し、可視化情報を生成
+        7. 可視化フレーム生成（輪郭・重心描画など）
+        8. カメラ画像の送信・保存（リモート監視や動画保存）
+        9. ループ周期調整（30ms未満ならsleepで調整）
+        10. 例外・割り込み時は安全停止（brake/stop）・リソース解放
+
+    - 各処理はActionManager/ModeManager/ControlCalculator等の責務に分離し、
+      mainは「全体の流れ・状態遷移・例外処理・リソース管理」のみを記述
+    - AIモデル推論例は「画像・distance・motor_info→center_x, object_detected」設計例をコメントで明記
+    - 例外発生時も必ず安全停止・リソース解放を徹底
     """
     calc, sensor_recorder, video_writer, video_filename, client_socket = initialize_system(
         record_sensor_data, save_camera_video
@@ -504,29 +515,7 @@ def main(record_sensor_data=False, save_camera_video=False):
     action.test_initial_sensor()  # SPIKEの初期センサーテスト
     action.test_arm()            # アーム動作テスト
 
-    # --- mainループ処理の流れ ---
-    # 1. カメラ画像を取得（cap.read）
-    # 2. センサー情報（カラー・超音波・モーター相対位置/パワー）をActionManager経由で取得
-    # 3. （必要に応じて）モデル推論例（画像・motor_info・distanceを入力、進行方向や物体判定を出力）
-    # 4. 画像処理でライン重心・オフセット・最大輪郭を検出
-    # 5. モード遷移・制御出力（mode.update_and_act）
-    #    - LINE_TRACE: ライントレース制御
-    #    - DIST_STOP: 障害物検知時の一時停止
-    #    - OBSTACLE_AVOID: 障害物回避動作
-    #    - 必要に応じてGOALやSMART_CARRY等も拡張可
-    # 6. モードごとの制御値をActionManagerから取得し、可視化情報を生成
-    # 7. 可視化フレーム生成（輪郭・重心描画など）
-    # 8. カメラ画像の送信・保存（リモート監視や動画保存）
-    # 9. ループ周期制御（30ms未満ならsleepで調整）
-    # 10. 例外・割り込み時は安全停止（brake/stop）・リソース解放
-    #
-    # ※run_opencv_bk0626.pyの設計例を参考に、OOP設計・責務分担を明確化
-    #
-    # 各処理はActionManager/ModeManager/ControlCalculator等の責務に分離し、
-    # mainは「全体の流れ・状態遷移・例外処理・リソース管理」のみを記述
-    #
-    # モデル推論例や拡張例はコメント参照
-
+    # --- mainループ ---
     try:
         while action.et.is_running == True:
             loop_start = time.time()
@@ -537,7 +526,23 @@ def main(record_sensor_data=False, save_camera_video=False):
                 break
             # 2. センサー情報取得（ActionManager経由で一括取得）
             color, distance, motor_info = action.get_sensor_info(sensor_recorder)
-            # 3. （必要に応じて）モデル推論例（コメント参照）
+            # 3. （必要に応じて）AIモデル推論例（コメント参照）
+            # 例: ニューラルネットワークによる進行方向推定や物体検出を組み込む場合は、
+            # 必要な入力（画像、distance、motor_infoなど）をaction.update_by_nn等で渡し、
+            # 推論結果として「進行方向x座標（center_x）」および「物体検出結果（object_detected）」の2つを返す設計が推奨されます。
+            #
+            # 例（コメントアウト）：
+            #   nn_result = action.update_by_nn(
+            #       frame=frame,
+            #       distance=distance,
+            #       motor_info=motor_info
+            #   )
+            #   # nn_resultの内容（例: {'center_x': ..., 'object_detected': ...}）
+            #   center_x = nn_result['center_x']
+            #   object_detected = nn_result['object_detected']
+            #
+            # ※AIモデルの統合時は、mainループのこの位置で推論・状態更新を行うと保守性・拡張性が高まります。
+            # -------------------------------------------------------------
             # 4. 画像処理でライン重心・オフセット・最大輪郭を検出
             mx, my, offset_pixels, max_contour = calc.steer_by_camera(frame)
             # 5. モード遷移・制御出力（ModeManager/ActionManager）
