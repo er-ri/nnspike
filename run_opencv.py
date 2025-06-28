@@ -24,6 +24,7 @@ OpenCV-Based Line Following Robot Control
 # ==== ユーザー調整用パラメータ（ここだけ編集すればOK） ====
 # ROI_OPENCV: OpenCV画像処理で使用する領域（左上x, 左上y, 右下x, 右下y）
 ROI_OPENCV = (180, 300, 460, 400)  # 左右をそれぞれ30pxずつ内側に狭めた例
+ROI_BOTTLE = (180, 0, 460, 400)  # 上部をさらに80px上に拡張（y1=300→220）
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480                 # カメラ画像の高さ
 BASE_POWER = 80                    # カーブ時の基準パワー 40→45にUP
@@ -97,6 +98,7 @@ class Mode(Enum):
     MANUAL_A = auto()             # マニュアル操作モード（手動制御用）
     MANUAL_B = auto()             # マニュアル操作モード（手動制御用）
     MANUAL_C = auto()             # マニュアル操作モード（手動制御用）
+    MANUAL_D = auto()             # マニュアル操作モード（手動制御用）
 
 class ActionManager:
     """
@@ -258,7 +260,7 @@ class ActionManager:
         self.reset_control_values()
         self.apply_power()  # ←ここで即時モーター出力
 
-    def do_obstacle_avoid_aggressive(self):
+    def do_obstacle_avoid_no_bottle(self):
         # --- 障害物回避動作（状態遷移あり, 8段階） ---
         now = time.time()
         if self.finished:
@@ -690,6 +692,9 @@ class ManualScenario(DefaultScenario):
             elif key == 'b':
                 self.mode = Mode.MANUAL_B
                 self.manual_start_time = time.time()
+            elif key == 'd':
+                self.mode = Mode.MANUAL_D
+                self.manual_start_time = time.time()
         elif self.mode == Mode.MANUAL_A:
             # Ignore all key input in MANUAL_A mode
             if time.time() - self.manual_start_time >= 1.0:
@@ -697,22 +702,38 @@ class ManualScenario(DefaultScenario):
         elif self.mode == Mode.MANUAL_B:
             # MANUAL_Bの遷移条件が必要ならここに追加
             pass
+        elif self.mode == Mode.MANUAL_D:
+            # MANUAL_Dの遷移条件が必要ならここに追加
+            pass
         elif self.mode == Mode.STOP:
             self.mode = Mode.MANUAL
 
-    def execute_mode_action(self, action, key=None):
+    def execute_mode_action(self, action, bottle=None, key=None):
+        """
+        マニュアルシナリオのアクション実行
+        Args:
+            action: ActionManagerインスタンス
+            bottle: ペットボトル検出結果（boolやdict等、camera.detect_bottleの返り値）
+            key: キーボード入力（'a', 'b', 'd'等）
+        """
         self.transition_mode(key=key)
         if self.mode == Mode.MANUAL:
             pass
         elif self.mode == Mode.MANUAL_A:
-            action.do_straight()  # MANUAL_Aモードで直進
+            action.do_straight()
         elif self.mode == Mode.MANUAL_B:
-            action.do_obstacle_avoid_aggressive()  # MANUAL_Bモードで障害物回避
+            action.do_obstacle_avoid_no_bottle()
             if action.is_finished():
                 self.mode = Mode.STOP
-                action.reset()  # 回避動作の状態もリセット
+                action.reset()
+        elif self.mode == Mode.MANUAL_D:
+            # bottle引数を今後の分岐や判定に利用可能
+            action.do_obstacle_avoid_with_bottle()  # 必要に応じてbottleを渡す設計も可
+            if action.is_finished():
+                self.mode = Mode.STOP
+                action.reset()
         elif self.mode == Mode.STOP:
-            action.do_stop()  # STOPモードで停止
+            action.do_stop()
 
 # --- キーボードコントローラー（Windows/Unix両対応） ---
 class KeyboardController:
@@ -795,7 +816,8 @@ def main(config: Config):
             if config.log_manual:
                 steer_result = {"mx": 0, "my": 0, "offset_pixels": 0, "max_contour": None}
                 key_input = key.get_key() if config.log_manual else None
-                scenario.execute_mode_action(action, key=key_input)
+                bottle = camera.detect_bottle(frame,ROI_BOTTLE)
+                scenario.execute_mode_action(action, bottle, key=key_input)
             else:
                 steer_result = camera.steer_by_camera(frame)
                 scenario.execute_mode_action(action, steer_result)
