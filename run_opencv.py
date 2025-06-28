@@ -665,40 +665,30 @@ class KeyboardController:
             key = None
             while msvcrt.kbhit():
                 ch = msvcrt.getch()
-                print(f"[DEBUG][WIN] raw: {ch}")  # デバッグ
                 if ch in (b'\x00', b'\xe0'):
                     msvcrt.getch()  # 特殊キーの2バイト目を消費
                     continue
                 try:
                     decoded = ch.decode('utf-8')
-                    print(f"[DEBUG][WIN] decoded: {decoded}")  # デバッグ
                     if decoded.lower() == 'a':
                         found_a = True
                     elif key is None and decoded.isprintable():
                         key = decoded.lower()
                 except Exception as e:
-                    print(f"[DEBUG][WIN] decode error: {e}")
                     continue
             if found_a:
-                print("[DEBUG][WIN] return 'a'")
                 return 'a'
-            print(f"[DEBUG][WIN] return key: {key}")
             return key
         else:
-            import sys, select, tty, termios
             tty.setcbreak(self.fd)
             try:
                 rlist, _, _ = select.select([sys.stdin], [], [], 0.01)  # タイムアウトを0.01秒に
                 if rlist:
                     ch = sys.stdin.read(1)
-                    print(f"[DEBUG][LINUX] ch: {repr(ch)}")
                     if ch.lower() == 'a':
-                        print("[DEBUG][LINUX] return 'a'")
                         return 'a'
                     elif ch.isprintable():
-                        print(f"[DEBUG][LINUX] return key: {ch.lower()}")
                         return ch.lower()
-                print(f"[DEBUG][LINUX] return key: None")
                 return None
             finally:
                 termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
