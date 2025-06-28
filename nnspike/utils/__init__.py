@@ -9,3 +9,5 @@ from .image import (
 from .pid import PIDController
 
 from .recorder import SensorRecorder
+
+from .camera import Camera

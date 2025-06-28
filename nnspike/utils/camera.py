@@ -1,6 +1,11 @@
 import cv2
 import numpy as np
-from ..constants import ROI_OPENCV, IMAGE_WIDTH, IMAGE_HEIGHT
+# from nnspike.constants import ROI_OPENCV, IMAGE_WIDTH, IMAGE_HEIGHT
+
+ROI_OPENCV = (180, 300, 460, 400)  # 左右をそれぞれ30pxずつ内側に狭めた例
+ROI_BOTTLE = (180, 0, 460, 400)  # 上部をさらに80px上に拡張（y1=300→220）
+IMAGE_WIDTH = 640                  # カメラ画像の幅
+IMAGE_HEIGHT = 480     
 
 class Camera:
     """
@@ -51,3 +56,36 @@ class Camera:
             "offset_pixels": offset_pixels,
             "max_contour": max_contour
         }
+
+    def detect_bottle(self, frame, min_area=2000, aspect_min=1.8, aspect_max=4.5, roi=ROI_BOTTLE):
+        """
+        画像内からペットボトルらしい輪郭を検出する。
+        - min_area: 輪郭の最小面積
+        - aspect_min, aspect_max: アスペクト比(高さ/幅)の範囲
+        - roi: (x1, y1, x2, y2) 独自のROIを指定可能。Noneならデフォルトself.roi。
+        戻り値: (bottle_found: bool, bottle_contour: np.ndarray or None)
+        """
+        # --- 独自ROIを使う場合はそちらを優先 ---
+        if roi is None:
+            x1, y1, x2, y2 = self.roi
+        else:
+            x1, y1, x2, y2 = roi
+        # 上方向にROIを拡張（例: y1を小さくする）
+        y1 = max(0, y1 - 80)  # 80px分上に拡張（必要に応じて調整）
+        roi_area = frame[y1:y2, x1:x2]
+        image = cv2.cvtColor(roi_area, cv2.COLOR_BGR2GRAY)
+        blur = cv2.GaussianBlur(image, (5, 5), 0)
+        _, thresh = cv2.threshold(blur, 100, 255, cv2.THRESH_BINARY_INV)
+        mask = cv2.erode(thresh, None, iterations=2)
+        mask = cv2.dilate(mask, None, iterations=2)
+        contours, _ = cv2.findContours(mask.copy(), 1, cv2.CHAIN_APPROX_NONE)
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            if area < min_area:
+                continue
+            x, y, w, h = cv2.boundingRect(cnt)
+            aspect = h / (w + 1e-5)
+            if aspect_min < aspect < aspect_max:
+                # ペットボトルらしい縦長の輪郭
+                return True, cnt
+        return False, None
