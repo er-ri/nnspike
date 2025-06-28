@@ -272,8 +272,8 @@ class ActionManager:
                 self.start_time = now
                 self.action_sent = True
                 self.arc_end_time = now + 2.0
-                self.left_power = 50
-                self.right_power = 50
+                self.left_power = 80
+                self.right_power = 80
             else:
                 if now >= self.arc_end_time:
                     self.et.brake()
@@ -286,7 +286,7 @@ class ActionManager:
                 self.action_sent = True
                 self.turn_duration = 45 * 1.0 / 90
                 self.left_power = 0
-                self.right_power = 50
+                self.right_power = 30
             else:
                 if now - self.start_time >= self.turn_duration:
                     self.et.brake()
@@ -298,8 +298,8 @@ class ActionManager:
                 self.start_time = now
                 self.action_sent = True
                 self.arc_end_time = now + 1.0
-                self.left_power = 50
-                self.right_power = 50
+                self.left_power = 80
+                self.right_power = 80
             else:
                 if now >= self.arc_end_time:
                     self.et.brake()
@@ -324,8 +324,8 @@ class ActionManager:
                 self.start_time = now
                 self.action_sent = True
                 self.arc_end_time = now + 1.0
-                self.left_power = 50
-                self.right_power = 50
+                self.left_power = 80
+                self.right_power = 80
             else:
                 if now >= self.arc_end_time:
                     self.et.brake()
@@ -350,8 +350,8 @@ class ActionManager:
                 self.start_time = now
                 self.action_sent = True
                 self.arc_end_time = now + 1.0
-                self.left_power = 50
-                self.right_power = 50
+                self.left_power = 80
+                self.right_power = 80
             else:
                 if now >= self.arc_end_time:
                     self.et.brake()
