@@ -248,7 +248,7 @@ class ActionManager:
         if self.finished:
             self.left_power = 0
             self.right_power = 0
-            self.reset_control_values()  # 最初に一度だけリセット
+            self.reset_control_values()  # 毎回リセット（安全のため）
             self.apply_power()
             return
         if self.state == 0:
@@ -289,13 +289,12 @@ class ActionManager:
                 if now - self.start_time >= self.turn_duration:
                     self.et.brake()
                     self.state = 3
-                    self.finished = True
-                    self._reset_action_vars()
+                    self.finished = True  # ここで回避完了フラグを立てる
+                    # self._reset_action_vars() は呼ばない（finishedが消されるため）
         elif self.state == 3:
             # state3: 回避完了後、即座にLINE_TRACEへ戻す
-            self.finished = True
-            # ここで何もしない（ModeManager側でLINE_TRACEへ遷移）
-        self.reset_control_values()  # 最初に一度だけリセット
+            pass  # ここで何もしない（ModeManager側でLINE_TRACEへ遷移）
+        self.reset_control_values()  # 各ステップごとに制御値をリセット
         self.apply_power()  # ←ここで即時モーター出力
 
     def test_initial_sensor(self, test_count=5, delay=0.2):
