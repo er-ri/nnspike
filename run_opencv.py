@@ -664,8 +664,16 @@ class KeyboardController:
         if self.is_windows:
             if msvcrt.kbhit():
                 ch = msvcrt.getch()
+                # --- ここで特殊キー（矢印キー等）を除外し、ASCII文字のみ処理 ---
+                if ch in (b'\x00', b'\xe0'):
+                    msvcrt.getch()  # 特殊キーの2バイト目を消費
+                    return None
                 try:
-                    return ch.decode('utf-8')
+                    decoded = ch.decode('utf-8')
+                    # print(f"[DEBUG] key: {repr(decoded)}")  # デバッグ用
+                    if decoded.lower() == 'a':
+                        return 'a'
+                    return decoded
                 except Exception:
                     return None
             return None
@@ -676,6 +684,8 @@ class KeyboardController:
             if rlist:
                 ch = sys.stdin.read(1)
                 termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
+                if ch.lower() == 'a':
+                    return 'a'
                 return ch
             termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
             return None
