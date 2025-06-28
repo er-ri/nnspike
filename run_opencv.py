@@ -94,11 +94,12 @@ class Mode(Enum):
     SMART_CARRY_2 = auto()      # スマートキャリー2回目
     GOAL = auto()               # ゴール到達モード（ゴールに向かう処理とゴール停止をこのモードで実装する構想）
     MANUAL = auto()             # マニュアル操作モード（手動制御用）
-    STOP = auto()             # マニュアル操作モード（手動制御用）
-    MANUAL_A = auto()             # マニュアル操作モード（手動制御用）
-    MANUAL_B = auto()             # マニュアル操作モード（手動制御用）
-    MANUAL_C = auto()             # マニュアル操作モード（手動制御用）
-    MANUAL_D = auto()             # マニュアル操作モード（手動制御用）
+    STOP = auto()               # マニュアル操作モード（手動制御用）
+    MANUAL_A = auto()           # マニュアル操作モード（手動制御用）
+    MANUAL_B = auto()           # マニュアル操作モード（手動制御用）
+    MANUAL_C = auto()           # マニュアル操作モード（手動制御用）
+    MANUAL_D = auto()           # マニュアル操作モード（手動制御用）
+    MANUAL_BOTTLE = auto()      # ボトル検出時のマニュアル分岐
 
 class ActionManager:
     """
@@ -365,6 +366,99 @@ class ActionManager:
             self.finished = True
         self.reset_control_values()
         self.apply_power()
+        
+    def do_obstacle_avoid_with_bottle(self):
+            # --- 障害物回避動作（状態遷移あり, 7段階, state=0から開始） ---
+            now = time.time()
+            if self.finished:
+                self.left_power = 0
+                self.right_power = 0
+                self.reset_control_values()
+                self.apply_power()
+                return
+            if self.state == 0:
+                # 45度右旋回
+                if not self.action_sent:
+                    self.start_time = now
+                    self.action_sent = True
+                    self.turn_duration = 45 * 1.0 / 90
+                    self.left_power = 0
+                    self.right_power = 30
+                else:
+                    if now - self.start_time >= self.turn_duration:
+                        self.et.brake()
+                        self.state = 1
+                        self._reset_action_vars()
+            elif self.state == 1:
+                # 直進
+                if not self.action_sent:  
+                    self.start_time = now
+                    self.action_sent = True
+                    self.arc_end_time = now + 1.0
+                    self.left_power = 80
+                    self.right_power = 80
+                else:
+                    if now >= self.arc_end_time:
+                        self.et.brake()
+                        self.state = 2
+                        self._reset_action_vars()
+            elif self.state == 2:
+                # 90度左旋回
+                if not self.action_sent:
+                    self.start_time = now
+                    self.action_sent = True
+                    self.turn_duration = 90 * 1.0 / 90
+                    self.left_power = 30
+                    self.right_power = 0
+                else:
+                    if now - self.start_time >= self.turn_duration:
+                        self.et.brake()
+                        self.state = 3
+                        self._reset_action_vars()
+            elif self.state == 3:
+                # 直進
+                if not self.action_sent:  
+                    self.start_time = now
+                    self.action_sent = True
+                    self.arc_end_time = now + 1.0
+                    self.left_power = 80
+                    self.right_power = 80
+                else:
+                    if now >= self.arc_end_time:
+                        self.et.brake()
+                        self.state = 4
+                        self._reset_action_vars()
+            elif self.state == 4:
+                # 45度右旋回
+                if not self.action_sent:
+                    self.start_time = now
+                    self.action_sent = True
+                    self.turn_duration = 45 * 1.0 / 90
+                    self.left_power = 0
+                    self.right_power = 30
+                else:
+                    if now - self.start_time >= self.turn_duration:
+                        self.et.brake()
+                        self.state = 5
+                        self._reset_action_vars()
+            elif self.state == 5:
+                # 直進
+                if not self.action_sent:
+                    self.start_time = now
+                    self.action_sent = True
+                    self.arc_end_time = now + 2.0
+                    self.left_power = 80
+                    self.right_power = 80
+                else:
+                    if now >= self.arc_end_time:
+                        self.et.brake()
+                        self.state = 6
+                        self._reset_action_vars()
+            elif self.state == 6:
+                # 完了
+                self.finished = True
+            self.reset_control_values()
+            self.apply_power()
         
     def test_initial_sensor(self, test_count=5, delay=0.2):
         """
@@ -683,9 +777,8 @@ class ManualScenario(DefaultScenario):
         self.mode = Mode.MANUAL
         self.manual_start_time = None
 
-    def transition_mode(self, key=None):
+    def transition_mode(self, bottle, key=None):
         if self.mode == Mode.MANUAL:
-            # Only accept key input in MANUAL mode
             if key == 'a':
                 self.mode = Mode.MANUAL_A
                 self.manual_start_time = time.time()
@@ -696,14 +789,15 @@ class ManualScenario(DefaultScenario):
                 self.mode = Mode.MANUAL_D
                 self.manual_start_time = time.time()
         elif self.mode == Mode.MANUAL_A:
-            # Ignore all key input in MANUAL_A mode
             if time.time() - self.manual_start_time >= 1.0:
                 self.mode = Mode.STOP
         elif self.mode == Mode.MANUAL_B:
-            # MANUAL_Bの遷移条件が必要ならここに追加
             pass
         elif self.mode == Mode.MANUAL_D:
-            # MANUAL_Dの遷移条件が必要ならここに追加
+            if bottle:
+                self.mode = Mode.MANUAL_BOTTLE
+        elif self.mode == Mode.MANUAL_BOTTLE:
+            # MANUAL_BOTTLEの遷移条件が必要ならここに追加
             pass
         elif self.mode == Mode.STOP:
             self.mode = Mode.MANUAL
@@ -716,7 +810,7 @@ class ManualScenario(DefaultScenario):
             bottle: ペットボトル検出結果（boolやdict等、camera.detect_bottleの返り値）
             key: キーボード入力（'a', 'b', 'd'等）
         """
-        self.transition_mode(key=key)
+        self.transition_mode(bottle, key=key)
         if self.mode == Mode.MANUAL:
             pass
         elif self.mode == Mode.MANUAL_A:
@@ -727,8 +821,10 @@ class ManualScenario(DefaultScenario):
                 self.mode = Mode.STOP
                 action.reset()
         elif self.mode == Mode.MANUAL_D:
-            # bottle引数を今後の分岐や判定に利用可能
-            action.do_obstacle_avoid_with_bottle()  # 必要に応じてbottleを渡す設計も可
+            action.do_straight()
+        elif self.mode == Mode.MANUAL_BOTTLE:
+            # ボトル検出時の特別な回避や動作をここで実装
+            action.do_obstacle_avoid_with_bottle()
             if action.is_finished():
                 self.mode = Mode.STOP
                 action.reset()
