@@ -95,7 +95,7 @@ class ModeManager:
     def __init__(self):
         self.mode = Mode.LINE_TRACE
         self.obstacle_detected_time = None
-    def update(self, distance):
+    def transition_mode(self, distance):
         # --- 障害物検知・停止用パラメータをローカル変数で定義 ---
         OBSTACLE_DETECT_DISTANCE = 50  # 障害物検知のしきい値[cm]
         DIST_STOP_DURATION = 2.0       # 距離停止モードの待機時間[秒]
@@ -114,9 +114,9 @@ class ModeManager:
             pass
         # SMART_CARRY_1, SMART_CARRY_2, GOALへの遷移は必要に応じて追加
 
-    def update_and_act(self, action_manager, steer_result):
+    def run_mode_action(self, action_manager, steer_result):
         offset_pixels = steer_result.get("offset_pixels", 0)
-        self.update(action_manager.distance)
+        self.transition_mode(action_manager.distance)
         if self.mode == Mode.LINE_TRACE:
             action_manager.do_line_trace(offset_pixels)
         elif self.mode == Mode.DIST_STOP:
@@ -589,7 +589,7 @@ def main(config: Config):
                 break
             action.update_sensor_info(sensor_recorder)
             steer_result = camera.steer_by_camera(frame)
-            mode.update_and_act(action, steer_result)
+            mode.run_mode_action(action, steer_result)
             if (config.log_save_video or config.log_send_video) and video is not None:
                 if not video.process_and_send(frame, steer_result, ROI_OPENCV, mode, action):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
