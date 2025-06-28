@@ -706,19 +706,19 @@ class KeyboardController:
 # --- メイン処理 ---
 # python run_opencv.py --record-sensor --send-video
 def main(config: Config):
-    # scenario = NormalScenario()
-    scenario = ManualScenario()
+    # --- シナリオ・コントローラ初期化 ---
+    if config.log_manual:
+        scenario = ManualScenario()
+        key = KeyboardController()
+    else:
+        scenario = NormalScenario()
+        key = None
     action = ActionManager()
     camera = Camera()
     video = VideoManager(config.log_save_video, config.log_send_video, IMAGE_WIDTH, IMAGE_HEIGHT, HOST_IP_ADDRESS, port=8485)
     sensor_recorder = SensorRecorderManager(config.log_sensor)
     action.test_initial_sensor()
     action.test_arm()
-    # --- KeyboardControllerのインスタンス化（log_manualがTrueの場合のみ） ---
-    if config.log_manual:
-        key = KeyboardController()
-    else:
-        key = None
     time.sleep(0.5)
     try:
         while action.et.is_running == True:
