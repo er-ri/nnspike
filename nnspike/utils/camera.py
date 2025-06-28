@@ -57,43 +57,26 @@ class Camera:
             "max_contour": max_contour
         }
 
-    def detect_bottle(self, frame, min_area=2000, aspect_min=1.8, aspect_max=4.5, roi=ROI_BOTTLE):
+    def detect_bottle(self, frame, roi=ROI_BOTTLE):
         """
         画像内からペットボトルらしい輪郭を検出する。
-        - min_area: 輪郭の最小面積
-        - aspect_min, aspect_max: アスペクト比(高さ/幅)の範囲
         - roi: (x1, y1, x2, y2) 独自のROIを指定可能。Noneならデフォルトself.roi。
         戻り値: (bottle_found: bool, bottle_contour: np.ndarray or None)
         """
-        # --- 独自ROIを使う場合はそちらを優先 ---
-        if roi is None:
-            x1, y1, x2, y2 = self.roi
-        else:
-            x1, y1, x2, y2 = roi
-        # 上方向にROIを拡張（例: y1を小さくする）
-        y1 = max(0, y1 - 80)  # 80px分上に拡張（必要に応じて調整）
-        roi_area = frame[y1:y2, x1:x2]
-        image = cv2.cvtColor(roi_area, cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(image, (5, 5), 0)
-        _, thresh = cv2.threshold(blur, 100, 255, cv2.THRESH_BINARY_INV)
-        mask = cv2.erode(thresh, None, iterations=2)
-        mask = cv2.dilate(mask, None, iterations=2)
-        contours, _ = cv2.findContours(mask.copy(), 1, cv2.CHAIN_APPROX_NONE)
+        x1, y1, x2, y2 = roi
+        roi_img = frame[y1:y2, x1:x2]
+        gray = cv2.cvtColor(roi_img, cv2.COLOR_BGR2GRAY)
+        blur = cv2.GaussianBlur(gray, (5, 5), 0)
+        _, binary_img = cv2.threshold(blur, 180, 255, cv2.THRESH_BINARY_INV)
+        contours, _ = cv2.findContours(binary_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours:
             area = cv2.contourArea(cnt)
             x, y, w, h = cv2.boundingRect(cnt)
-            aspect = h / (w + 1e-5)
-            # 許容幅を持たせた条件
-            if (
-                100000 < area < 120000 and
-                1.3 < aspect < 1.6 and
-                x < 10 and y < 10 and 250 < w < 300 and 380 < h < 420
-            ):
-                return True, cnt
-            # 既存の条件（縦長の輪郭）
-            if area < min_area:
-                continue
-            if aspect_min < aspect < aspect_max:
-                # ペットボトルらしい縦長の輪郭
+            aspect = h / w if w > 0 else 0
+            # 条件を緩めに: 面積・アスペクト比・bbox
+            if (90000 < area < 130000 and
+                1.2 < aspect < 1.7 and
+                0 <= x <= 10 and 0 <= y <= 10 and
+                250 <= w <= 300 and 350 <= h <= 420):
                 return True, cnt
         return False, None
