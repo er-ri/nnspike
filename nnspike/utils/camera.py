@@ -81,10 +81,18 @@ class Camera:
         contours, _ = cv2.findContours(mask.copy(), 1, cv2.CHAIN_APPROX_NONE)
         for cnt in contours:
             area = cv2.contourArea(cnt)
-            if area < min_area:
-                continue
             x, y, w, h = cv2.boundingRect(cnt)
             aspect = h / (w + 1e-5)
+            # 許容幅を持たせた条件
+            if (
+                100000 < area < 120000 and
+                1.3 < aspect < 1.6 and
+                x < 10 and y < 10 and 250 < w < 300 and 380 < h < 420
+            ):
+                return True, cnt
+            # 既存の条件（縦長の輪郭）
+            if area < min_area:
+                continue
             if aspect_min < aspect < aspect_max:
                 # ペットボトルらしい縦長の輪郭
                 return True, cnt
