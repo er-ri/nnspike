@@ -662,21 +662,22 @@ class KeyboardController:
 
     def get_key(self):
         if self.is_windows:
-            if msvcrt.kbhit():
+            # --- ループ内で複数回キー取得し、バッファに溜まったキーをすべて消費する ---
+            key = None
+            while msvcrt.kbhit():
                 ch = msvcrt.getch()
-                # --- ここで特殊キー（矢印キー等）を除外し、ASCII文字のみ処理 ---
                 if ch in (b'\x00', b'\xe0'):
                     msvcrt.getch()  # 特殊キーの2バイト目を消費
-                    return None
+                    continue
                 try:
                     decoded = ch.decode('utf-8')
-                    # print(f"[DEBUG] key: {repr(decoded)}")  # デバッグ用
                     if decoded.lower() == 'a':
-                        return 'a'
-                    return decoded
+                        key = 'a'
+                    else:
+                        key = decoded
                 except Exception:
-                    return None
-            return None
+                    continue
+            return key
         else:
             import sys, select, tty, termios
             tty.setraw(self.fd)
