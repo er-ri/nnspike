@@ -95,11 +95,13 @@ class ModeManager:
     def __init__(self):
         self.mode = Mode.LINE_TRACE
         self.obstacle_detected_time = None
-    def transition_mode(self, distance):
-        # --- 障害物検知・停止用パラメータをローカル変数で定義 ---
+    def _transition_mode(self, distance):
+        """
+        状態遷移のみを担当する内部メソッド。
+        必ずrun_mode_actionからのみ呼び出すこと。
+        """
         OBSTACLE_DETECT_DISTANCE = 50  # 障害物検知のしきい値[cm]
         DIST_STOP_DURATION = 2.0       # 距離停止モードの待機時間[秒]
-        # 距離センサー値に応じてモード遷移
         if self.mode == Mode.LINE_TRACE:
             if distance is not None and distance < OBSTACLE_DETECT_DISTANCE:
                 self.mode = Mode.DIST_STOP
@@ -115,8 +117,12 @@ class ModeManager:
         # SMART_CARRY_1, SMART_CARRY_2, GOALへの遷移は必要に応じて追加
 
     def run_mode_action(self, action_manager, steer_result):
+        """
+        モード遷移とアクション実行を一括で行う唯一の窓口。
+        必ずこのメソッド経由で制御すること。
+        """
         offset_pixels = steer_result.get("offset_pixels", 0)
-        self.transition_mode(action_manager.distance)
+        self._transition_mode(action_manager.distance)
         if self.mode == Mode.LINE_TRACE:
             action_manager.do_line_trace(offset_pixels)
         elif self.mode == Mode.DIST_STOP:
