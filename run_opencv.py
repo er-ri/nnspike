@@ -686,24 +686,20 @@ class KeyboardController:
             return key
         else:
             import sys, select, tty, termios
-            tty.setcbreak(self.fd)  # setraw から setcbreak へ変更
+            tty.setcbreak(self.fd)
             try:
                 rlist, _, _ = select.select([sys.stdin], [], [], 0)
-                found_a = False
-                key = None
-                while rlist:
+                if rlist:
                     ch = sys.stdin.read(1)
-                    print(f"[DEBUG][LINUX] ch: {repr(ch)}")  # デバッグ
+                    print(f"[DEBUG][LINUX] ch: {repr(ch)}")
                     if ch.lower() == 'a':
-                        found_a = True
-                    elif key is None and ch.isprintable():
-                        key = ch.lower()
-                    rlist, _, _ = select.select([sys.stdin], [], [], 0)
-                if found_a:
-                    print("[DEBUG][LINUX] return 'a'")
-                    return 'a'
-                print(f"[DEBUG][LINUX] return key: {key}")
-                return key
+                        print("[DEBUG][LINUX] return 'a'")
+                        return 'a'
+                    elif ch.isprintable():
+                        print(f"[DEBUG][LINUX] return key: {ch.lower()}")
+                        return ch.lower()
+                print(f"[DEBUG][LINUX] return key: None")
+                return None
             finally:
                 termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
 
