@@ -752,6 +752,7 @@ class KeyboardController:
         if self.is_windows:
             found_a = False
             found_b = False
+            found_d = False
             key = None
             while msvcrt.kbhit():
                 ch = msvcrt.getch()
@@ -764,6 +765,8 @@ class KeyboardController:
                         found_a = True
                     elif decoded.lower() == 'b':
                         found_b = True
+                    elif decoded.lower() == 'd':
+                        found_d = True
                     elif key is None and decoded.isprintable():
                         key = decoded.lower()
                 except Exception as e:
@@ -772,6 +775,8 @@ class KeyboardController:
                 return 'a'
             if found_b:
                 return 'b'
+            if found_d:
+                return 'd'
             return key
         else:
             tty.setcbreak(self.fd)
@@ -783,6 +788,8 @@ class KeyboardController:
                         return 'a'
                     elif ch.lower() == 'b':
                         return 'b'
+                    elif ch.lower() == 'd':
+                        return 'd'
                     elif ch.isprintable():
                         return ch.lower()
                 return None
@@ -816,8 +823,10 @@ def main(config: Config):
             if config.log_manual:
                 steer_result = {"mx": 0, "my": 0, "offset_pixels": 0, "max_contour": None}
                 key_input = key.get_key() if config.log_manual else None
-                bottle = camera.detect_bottle(frame,ROI_BOTTLE)
-                scenario.execute_mode_action(action, bottle, key=key_input)
+                # ペットボトル検出結果を明示的にbottle変数へ格納
+                bottle = camera.detect_bottle(frame, ROI_BOTTLE)
+                # execute_mode_actionの引数をキーワード引数で明示
+                scenario.execute_mode_action(action, bottle=bottle, key=key_input)
             else:
                 steer_result = camera.steer_by_camera(frame)
                 scenario.execute_mode_action(action, steer_result)
