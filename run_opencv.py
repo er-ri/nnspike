@@ -688,7 +688,7 @@ class KeyboardController:
             import sys, select, tty, termios
             tty.setcbreak(self.fd)
             try:
-                rlist, _, _ = select.select([sys.stdin], [], [], 0)
+                rlist, _, _ = select.select([sys.stdin], [], [], 0.01)  # タイムアウトを0.01秒に
                 if rlist:
                     ch = sys.stdin.read(1)
                     print(f"[DEBUG][LINUX] ch: {repr(ch)}")
