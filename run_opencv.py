@@ -730,6 +730,7 @@ def main(config: Config):
             if config.log_manual:
                 steer_result = {"mx": 0, "my": 0, "offset_pixels": 0, "max_contour": None}
                 key_input = key.get_key() if config.log_manual else None
+                time.sleep(0.005)  # 入力取りこぼし防止のためループに短いsleepを追加
                 scenario.execute_mode_action(action, key=key_input)
             else:
                 steer_result = camera.steer_by_camera(frame)
