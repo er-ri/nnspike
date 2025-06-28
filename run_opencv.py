@@ -730,7 +730,6 @@ def main(config: Config):
             if config.log_manual:
                 steer_result = {"mx": 0, "my": 0, "offset_pixels": 0, "max_contour": None}
                 key_input = key.get_key() if config.log_manual else None
-                time.sleep(0.005)  # 入力取りこぼし防止のためループに短いsleepを追加
                 scenario.execute_mode_action(action, key=key_input)
             else:
                 steer_result = camera.steer_by_camera(frame)
@@ -739,6 +738,8 @@ def main(config: Config):
                 if not video.process_and_send(frame, steer_result, ROI_OPENCV, scenario, action):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
+            if config.log_manual:
+                time.sleep(0.001)  # 入力取りこぼし防止のため、マニュアル時のみループ末尾でsleep
     except KeyboardInterrupt:
         print("Interrupted by user")
         action.brake_for_duration()
