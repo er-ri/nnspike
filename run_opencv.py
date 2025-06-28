@@ -662,22 +662,18 @@ class KeyboardController:
 
     def get_key(self):
         if self.is_windows:
-            # --- ループ内で複数回キー取得し、バッファに溜まったキーをすべて消費する ---
-            key = None
-            while msvcrt.kbhit():
+            if msvcrt.kbhit():
                 ch = msvcrt.getch()
                 if ch in (b'\x00', b'\xe0'):
                     msvcrt.getch()  # 特殊キーの2バイト目を消費
-                    continue
+                    return None
                 try:
                     decoded = ch.decode('utf-8')
-                    if decoded.lower() == 'a':
-                        key = 'a'
-                    else:
-                        key = decoded
+                    if decoded.isprintable():
+                        return decoded.lower()
                 except Exception:
-                    continue
-            return key
+                    return None
+            return None
         else:
             import sys, select, tty, termios
             tty.setraw(self.fd)
@@ -685,9 +681,9 @@ class KeyboardController:
             if rlist:
                 ch = sys.stdin.read(1)
                 termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
-                if ch.lower() == 'a':
-                    return 'a'
-                return ch
+                if ch.isprintable():
+                    return ch.lower()
+                return None
             termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
             return None
 
