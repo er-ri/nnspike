@@ -257,6 +257,112 @@ class ActionManager:
         self.reset_control_values()
         self.apply_power()  # ←ここで即時モーター出力
 
+    def do_obstacle_avoid_aggressive(self):
+        # --- 障害物回避動作（状態遷移あり, 8段階） ---
+        now = time.time()
+        if self.finished:
+            self.left_power = 0
+            self.right_power = 0
+            self.reset_control_values()
+            self.apply_power()
+            return
+        if self.state == 0:
+            # 直進
+            if not self.action_sent:
+                self.start_time = now
+                self.action_sent = True
+                self.arc_end_time = now + 2.0
+                self.left_power = 50
+                self.right_power = 50
+            else:
+                if now >= self.arc_end_time:
+                    self.et.brake()
+                    self.state = 1
+                    self._reset_action_vars()
+        elif self.state == 1:
+            # 45度右旋回
+            if not self.action_sent:
+                self.start_time = now
+                self.action_sent = True
+                self.turn_duration = 45 * 1.0 / 90
+                self.left_power = 0
+                self.right_power = 50
+            else:
+                if now - self.start_time >= self.turn_duration:
+                    self.et.brake()
+                    self.state = 2
+                    self._reset_action_vars()
+        elif self.state == 2:
+            # 直進
+            if not self.action_sent:  
+                self.start_time = now
+                self.action_sent = True
+                self.arc_end_time = now + 1.0
+                self.left_power = 50
+                self.right_power = 50
+            else:
+                if now >= self.arc_end_time:
+                    self.et.brake()
+                    self.state = 3
+                    self._reset_action_vars()
+        elif self.state == 3:
+            # 90度左旋回
+            if not self.action_sent:
+                self.start_time = now
+                self.action_sent = True
+                self.turn_duration = 90 * 1.0 / 90
+                self.left_power = 50
+                self.right_power = 0
+            else:
+                if now - self.start_time >= self.turn_duration:
+                    self.et.brake()
+                    self.state = 4
+                    self._reset_action_vars()
+        elif self.state == 4:
+            # 直進
+            if not self.action_sent:  
+                self.start_time = now
+                self.action_sent = True
+                self.arc_end_time = now + 1.0
+                self.left_power = 50
+                self.right_power = 50
+            else:
+                if now >= self.arc_end_time:
+                    self.et.brake()
+                    self.state = 5
+                    self._reset_action_vars()
+        elif self.state == 5:
+            # 45度右旋回
+            if not self.action_sent:
+                self.start_time = now
+                self.action_sent = True
+                self.turn_duration = 45 * 1.0 / 90
+                self.left_power = 0
+                self.right_power = 50
+            else:
+                if now - self.start_time >= self.turn_duration:
+                    self.et.brake()
+                    self.state = 6
+                    self._reset_action_vars()
+        elif self.state == 6:
+            # 直進
+            if not self.action_sent:
+                self.start_time = now
+                self.action_sent = True
+                self.arc_end_time = now + 1.0
+                self.left_power = 50
+                self.right_power = 50
+            else:
+                if now >= self.arc_end_time:
+                    self.et.brake()
+                    self.state = 7
+                    self._reset_action_vars()
+        elif self.state == 7:
+            # 完了
+            self.finished = True
+        self.reset_control_values()
+        self.apply_power()
+        
     def test_initial_sensor(self, test_count=5, delay=0.2):
         """
         SPIKEの初期センサーテストを簡易実行
@@ -629,11 +735,17 @@ class ManualScenario(DefaultScenario):
             # Only accept key input in MANUAL mode
             if key == 'a':
                 self.mode = Mode.MANUAL_A
-                self.manual_a_start_time = time.time()
+                self.manual_start_time = time.time()
+            elif key == 'b':
+                self.mode = Mode.MANUAL_B
+                self.manual_start_time = time.time()
         elif self.mode == Mode.MANUAL_A:
             # Ignore all key input in MANUAL_A mode
-            if time.time() - self.manual_a_start_time >= 1.0:
+            if time.time() - self.manual_start_time >= 1.0:
                 self.mode = Mode.STOP
+        elif self.mode == Mode.MANUAL_B:
+            # MANUAL_Bの遷移条件が必要ならここに追加
+            pass
         elif self.mode == Mode.STOP:
             self.mode = Mode.MANUAL
 
@@ -643,6 +755,11 @@ class ManualScenario(DefaultScenario):
             pass
         elif self.mode == Mode.MANUAL_A:
             action.do_straight()  # MANUAL_Aモードで直進
+        elif self.mode == Mode.MANUAL_B:
+            action.do_obstacle_avoid_aggressive()  # MANUAL_Bモードで障害物回避
+            if action.is_finished():
+                self.mode = Mode.STOP
+                action.reset()  # 回避動作の状態もリセット
         elif self.mode == Mode.STOP:
             action.do_stop()  # STOPモードで停止
 
@@ -662,6 +779,7 @@ class KeyboardController:
     def get_key(self):
         if self.is_windows:
             found_a = False
+            found_b = False
             key = None
             while msvcrt.kbhit():
                 ch = msvcrt.getch()
@@ -672,12 +790,16 @@ class KeyboardController:
                     decoded = ch.decode('utf-8')
                     if decoded.lower() == 'a':
                         found_a = True
+                    elif decoded.lower() == 'b':
+                        found_b = True
                     elif key is None and decoded.isprintable():
                         key = decoded.lower()
                 except Exception as e:
                     continue
             if found_a:
                 return 'a'
+            if found_b:
+                return 'b'
             return key
         else:
             tty.setcbreak(self.fd)
@@ -687,6 +809,8 @@ class KeyboardController:
                     ch = sys.stdin.read(1)
                     if ch.lower() == 'a':
                         return 'a'
+                    elif ch.lower() == 'b':
+                        return 'b'
                     elif ch.isprintable():
                         return ch.lower()
                 return None
