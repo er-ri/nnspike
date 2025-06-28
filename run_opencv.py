@@ -547,88 +547,6 @@ def get_timestamp():
     """
     return time.strftime("%Y%m%d%H%M%S", time.localtime())
 
-# --- メイン処理 ---
-# python run_opencv.py --record-sensor --send-video
-def main(config: Config):
-    # scenario = NormalScenario()
-    scenario = ManualScenario()
-    action = ActionManager()
-    camera = Camera()
-    video = VideoManager(config.log_save_video, config.log_send_video, IMAGE_WIDTH, IMAGE_HEIGHT, HOST_IP_ADDRESS, port=8485)
-    sensor_recorder = SensorRecorderManager(config.log_sensor)
-    action.test_initial_sensor()
-    action.test_arm()
-    # --- KeyboardControllerのインスタンス化（log_manualがTrueの場合のみ） ---
-    if config.log_manual:
-        key = KeyboardController()
-    time.sleep(0.5)
-    try:
-        while action.et.is_running == True:
-            ret, frame = camera.read()
-            if not ret:
-                print("[ERROR] Can't receive frame (stream end?). Exiting ...")
-                break
-            action.update_sensor_info(sensor_recorder)
-            if config.log_manual:
-                steer_result = {"mx": 0, "my": 0, "offset_pixels": 0, "max_contour": None}
-            else:
-                steer_result = camera.steer_by_camera(frame)
-            # scenario.execute_mode_action(action, steer_result)
-            scenario.execute_mode_action(action, key=key)
-            if (config.log_save_video or config.log_send_video) and video is not None:
-                if not video.process_and_send(frame, steer_result, ROI_OPENCV, scenario, action):
-                    print("[ERROR] send_camera_capture failed. Breaking main loop.")
-                    break
-    except KeyboardInterrupt:
-        print("Interrupted by user")
-        action.brake_for_duration()
-    except Exception as e:
-        print(f"[ERROR] Unexpected exception: {e}")
-        action.brake_for_duration()
-    finally:
-        action.et.stop()
-        camera.release()
-        video.release()
-        if config.log_save_video and video.video_writer is not None:
-            video.video_writer.release()
-            print(f"Video saved to: {video.video_filename}")
-        if sensor_recorder is not None and sensor_recorder.is_enabled():
-            sensor_recorder.stop()
-            print(f"Total frames recorded: {sensor_recorder.get_frame_count()}")
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Run the OpenCV-based line following robot with optional sensor recording, video saving, and PC transfer"
-    )
-    parser.add_argument(
-        "--record-sensor", action="store_true", help="Record sensor data to file"
-    )
-    parser.add_argument(
-        "--save-video", action="store_true", help="Save camera video to file (on Raspberry Pi)"
-    )
-    parser.add_argument(
-        "--send-video", action="store_true", help="Send camera video to PC via socket"
-    )
-    parser.add_argument(
-        "--manual", action="store_true", help="Control robot with keyboard input"
-    )
-
-    args = parser.parse_args()
-
-    print("Starting OpenCV-based line following robot...")
-    print(f"Using ROI: {ROI_OPENCV}")
-    print(f"Base power: {BASE_POWER}")
-    print("Press Ctrl+C to stop")
-
-    config = Config(
-        log_sensor=args.record_sensor,
-        log_save_video=args.save_video,
-        log_send_video=args.send_video,
-        log_manual=args.manual
-    )
-    main(config)
-
 # --- デフォルトシナリオパターン用ベースクラス ---
 class DefaultScenario:
     """
@@ -768,3 +686,86 @@ class KeyboardController:
                 termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
             except Exception:
                 pass
+
+# --- メイン処理 ---
+# python run_opencv.py --record-sensor --send-video
+def main(config: Config):
+    # scenario = NormalScenario()
+    scenario = ManualScenario()
+    action = ActionManager()
+    camera = Camera()
+    video = VideoManager(config.log_save_video, config.log_send_video, IMAGE_WIDTH, IMAGE_HEIGHT, HOST_IP_ADDRESS, port=8485)
+    sensor_recorder = SensorRecorderManager(config.log_sensor)
+    action.test_initial_sensor()
+    action.test_arm()
+    # --- KeyboardControllerのインスタンス化（log_manualがTrueの場合のみ） ---
+    if config.log_manual:
+        key = KeyboardController()
+    time.sleep(0.5)
+    try:
+        while action.et.is_running == True:
+            ret, frame = camera.read()
+            if not ret:
+                print("[ERROR] Can't receive frame (stream end?). Exiting ...")
+                break
+            action.update_sensor_info(sensor_recorder)
+            if config.log_manual:
+                steer_result = {"mx": 0, "my": 0, "offset_pixels": 0, "max_contour": None}
+            else:
+                steer_result = camera.steer_by_camera(frame)
+            # scenario.execute_mode_action(action, steer_result)
+            scenario.execute_mode_action(action, key=key)
+            if (config.log_save_video or config.log_send_video) and video is not None:
+                if not video.process_and_send(frame, steer_result, ROI_OPENCV, scenario, action):
+                    print("[ERROR] send_camera_capture failed. Breaking main loop.")
+                    break
+    except KeyboardInterrupt:
+        print("Interrupted by user")
+        action.brake_for_duration()
+    except Exception as e:
+        print(f"[ERROR] Unexpected exception: {e}")
+        action.brake_for_duration()
+    finally:
+        action.et.stop()
+        camera.release()
+        video.release()
+        if config.log_save_video and video.video_writer is not None:
+            video.video_writer.release()
+            print(f"Video saved to: {video.video_filename}")
+        if sensor_recorder is not None and sensor_recorder.is_enabled():
+            sensor_recorder.stop()
+            print(f"Total frames recorded: {sensor_recorder.get_frame_count()}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Run the OpenCV-based line following robot with optional sensor recording, video saving, and PC transfer"
+    )
+    parser.add_argument(
+        "--record-sensor", action="store_true", help="Record sensor data to file"
+    )
+    parser.add_argument(
+        "--save-video", action="store_true", help="Save camera video to file (on Raspberry Pi)"
+    )
+    parser.add_argument(
+        "--send-video", action="store_true", help="Send camera video to PC via socket"
+    )
+    parser.add_argument(
+        "--manual", action="store_true", help="Control robot with keyboard input"
+    )
+
+    args = parser.parse_args()
+
+    print("Starting OpenCV-based line following robot...")
+    print(f"Using ROI: {ROI_OPENCV}")
+    print(f"Base power: {BASE_POWER}")
+    print("Press Ctrl+C to stop")
+
+    config = Config(
+        log_sensor=args.record_sensor,
+        log_save_video=args.save_video,
+        log_send_video=args.send_video,
+        log_manual=args.manual
+    )
+    main(config)
+
