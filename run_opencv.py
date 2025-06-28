@@ -609,13 +609,14 @@ class VideoManager:
         if self.send_video and self.client_socket is not None:
             self.client_socket.close()
 
-    def prepare_driving_info(self, steer_result, roi, scenario, action):
+    def prepare_driving_info(self, steer_result, roi, scenario, action, bottle=None):
         """
         可視化用の走行情報を生成
         roi: (x1, y1, x2, y2) タプル
         steer_result: steer_by_cameraの辞書
         scenario: NormalScenarioインスタンス
         action: ActionManagerインスタンス
+        bottle: ペットボトル検出結果（boolやdict等）
         """
         x1, y1, x2, y2 = roi
         mx = steer_result["mx"]
@@ -665,7 +666,8 @@ class VideoManager:
             "left_relative_position": f"{action.left_relative_position}deg / {left_distance_cm}cm",
             "right_relative_position": f"{action.right_relative_position}deg / {right_distance_cm}cm",
             "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
-            "mode": scenario.mode.name
+            "mode": scenario.mode.name,
+            "bottle": str(bottle) if bottle is not None else "N/A"
         }
         return info
 
@@ -687,8 +689,8 @@ class VideoManager:
             cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
         return gray
 
-    def process_and_send(self, frame, steer_result, roi, scenario, action):
-        info = self.prepare_driving_info(steer_result, roi, scenario, action)
+    def process_and_send(self, frame, steer_result, roi, scenario, action, bottle=None):
+        info = self.prepare_driving_info(steer_result, roi, scenario, action, bottle=bottle)
         gray = self.create_visualization_frame(frame, steer_result, roi, info)
         self.write_video(frame)
         return self.send_frame(gray)
@@ -927,7 +929,7 @@ def main(config: Config):
                 steer_result = camera.steer_by_camera(frame)
                 scenario.execute_mode_action(action, steer_result)
             if (config.log_save_video or config.log_send_video) and video is not None:
-                if not video.process_and_send(frame, steer_result, ROI_OPENCV, scenario, action):
+                if not video.process_and_send(frame, steer_result, ROI_OPENCV, scenario, action, bottle):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
             if config.log_manual:
