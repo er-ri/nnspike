@@ -122,7 +122,8 @@ class ModeManager:
             pass
         # SMART_CARRY_1, SMART_CARRY_2, GOALへの遷移は必要に応じて追加
 
-    def update_and_act(self, action_manager, offset_pixels=None):
+    def update_and_act(self, action_manager, steer_result):
+        offset_pixels = steer_result.get("offset_pixels", 0)
         self.update(action_manager.distance)
         if self.mode == Mode.LINE_TRACE:
             action_manager.do_line_trace(offset_pixels)
@@ -604,7 +605,7 @@ def main(record_sensor_data=False, save_camera_video=False):
                 break
             action.update_sensor_info(sensor_recorder)
             steer_result = camera.steer_by_camera(frame)
-            mode.update_and_act(action, offset_pixels=steer_result["offset_pixels"])
+            mode.update_and_act(action, steer_result)
             if save_camera_video and video is not None:
                 if not video.process_and_send(frame, steer_result, ROI_OPENCV, mode, action):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
