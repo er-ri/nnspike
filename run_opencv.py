@@ -593,10 +593,10 @@ if __name__ == "__main__":
     )
     main(config)
 
-# --- デフォルト戦略パターン用ベースクラス ---
+# --- デフォルトシナリオパターン用ベースクラス ---
 class DefaultScenario:
     """
-    モード遷移・アクション戦略のデフォルト基底クラス。
+    モード遷移・アクション遷移のデフォルト基底クラス。
     すべてのシナリオクラスはこの基底クラスを継承すること。
     共通状態（modeなど）もここで初期化する。
     execute_mode_actionの引数は派生シナリオごとに異なるため、*args, **kwargsで受ける。
@@ -616,7 +616,7 @@ class DefaultScenario:
         """
         raise NotImplementedError
 
-# --- 通常（ノーマル）戦略の実装例 ---
+# --- 通常（ノーマル）シナリオの実装例 ---
 class NormalScenario(DefaultScenario):
     """
     状態遷移と動作遷移を1つのクラスで管理する通常（ノーマル）シナリオの実装例。
@@ -660,12 +660,12 @@ class NormalScenario(DefaultScenario):
         else:
             pass
 
-# --- 戦略クラスの利用例 ---
-# aggressive_strategy = AggressiveModeStrategy()
-# strategy = aggressive_strategy
+# --- シナリオクラスの利用例 ---
+# aggressive_scenario = AggressiveScenario()
+# scenario = aggressive_scenario
 # while running:
-#     strategy.update_and_act(action, steer_result)
+#     scenario.execute_mode_action(action, steer_result)
 #
-# 現在はNormalModeStrategyなどの戦略クラスを直接インスタンス化し、
-# strategy.update_and_act(action, steer_result) のように利用します。
+# 現在はNormalScenarioなどのシナリオクラスを直接インスタンス化し、
+# scenario.execute_mode_action(action, steer_result) のように利用します。
 # ModeManagerやContextクラスは不要です。
