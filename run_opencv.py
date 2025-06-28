@@ -60,6 +60,16 @@ from nnspike.utils import (
 )
 from enum import Enum, auto
 from dataclasses import dataclass
+import sys
+import time
+try:
+    import msvcrt
+    WINDOWS = True
+except ImportError:
+    import termios
+    import tty
+    import select
+    WINDOWS = False
 
 @dataclass
 class Config:
@@ -81,6 +91,11 @@ class Mode(Enum):
     SMART_CARRY_1 = auto()      # スマートキャリー1回目
     SMART_CARRY_2 = auto()      # スマートキャリー2回目
     GOAL = auto()               # ゴール到達モード（ゴールに向かう処理とゴール停止をこのモードで実装する構想）
+    MANUAL = auto()             # マニュアル操作モード（手動制御用）
+    STOP = auto()             # マニュアル操作モード（手動制御用）
+    MANUAL_A = auto()             # マニュアル操作モード（手動制御用）
+    MANUAL_B = auto()             # マニュアル操作モード（手動制御用）
+    MANUAL_C = auto()             # マニュアル操作モード（手動制御用）
 
 class ActionManager:
     """
@@ -171,6 +186,19 @@ class ActionManager:
         self.right_power = 0
         self.reset_control_values()
         self.apply_power()  # ←ここで即時モーター出力
+
+    def do_stop(self):
+        self.left_power = 0
+        self.right_power = 0
+        self.apply_power()
+
+    def do_straight(self):
+        """
+        直進するだけのアクション
+        """
+        self.left_power = BASE_POWER
+        self.right_power = BASE_POWER
+        self.apply_power()
 
     def do_obstacle_avoid(self):
         # --- 障害物回避動作（状態遷移あり） ---
@@ -522,13 +550,18 @@ def get_timestamp():
 # --- メイン処理 ---
 # python run_opencv.py --record-sensor --send-video
 def main(config: Config):
-    scenario = NormalScenario()
+    # scenario = NormalScenario()
+    scenario = ManualScenario()
     action = ActionManager()
     camera = Camera()
     video = VideoManager(config.log_save_video, config.log_send_video, IMAGE_WIDTH, IMAGE_HEIGHT, HOST_IP_ADDRESS, port=8485)
     sensor_recorder = SensorRecorderManager(config.log_sensor)
     action.test_initial_sensor()
     action.test_arm()
+    # --- KeyboardControllerのインスタンス化（log_manualがTrueの場合のみ） ---
+    keyboard_controller = None
+    if config.log_manual:
+        key = KeyboardController()
     time.sleep(0.5)
     try:
         while action.et.is_running == True:
@@ -537,8 +570,12 @@ def main(config: Config):
                 print("[ERROR] Can't receive frame (stream end?). Exiting ...")
                 break
             action.update_sensor_info(sensor_recorder)
-            steer_result = camera.steer_by_camera(frame)
-            scenario.execute_mode_action(action, steer_result)
+            if config.log_manual:
+                steer_result = {"mx": 0, "my": 0, "offset_pixels": 0, "max_contour": None}
+            else:
+                steer_result = camera.steer_by_camera(frame)
+            # scenario.execute_mode_action(action, steer_result)
+            scenario.execute_mode_action(action, key=key)
             if (config.log_save_video or config.log_send_video) and video is not None:
                 if not video.process_and_send(frame, steer_result, ROI_OPENCV, scenario, action):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
@@ -575,7 +612,7 @@ if __name__ == "__main__":
         "--send-video", action="store_true", help="Send camera video to PC via socket"
     )
     parser.add_argument(
-        "--manual", action="store_true", help="マニュアルモードを有効化（将来拡張用、現状はmainにlog_manualとして渡されるのみ）"
+        "--manual", action="store_true", help="Enable manual mode (for future extension; currently only passed as log_manual to main)"
     )
 
     args = parser.parse_args()
@@ -660,12 +697,77 @@ class NormalScenario(DefaultScenario):
         else:
             pass
 
-# --- シナリオクラスの利用例 ---
-# aggressive_scenario = AggressiveScenario()
-# scenario = aggressive_scenario
-# while running:
-#     scenario.execute_mode_action(action, steer_result)
-#
-# 現在はNormalScenarioなどのシナリオクラスを直接インスタンス化し、
-# scenario.execute_mode_action(action, steer_result) のように利用します。
-# ModeManagerやContextクラスは不要です。
+# --- マニュアルシナリオの実装例 ---
+class ManualScenario(DefaultScenario):
+    """
+    キーボード入力による手動操作専用のシナリオ。
+    DefaultScenarioを継承し、execute_mode_actionで手動制御用のロジックを実装する。
+    """
+    def __init__(self):
+        super().__init__()
+        self.mode = Mode.MANUAL
+        self.manual_start_time = None
+
+    def transition_mode(self, key=None):
+        if self.mode == Mode.MANUAL:
+            # aキーが押されたらMANUAL_Aに遷移
+            if key == 'a':
+                self.mode = Mode.MANUAL_A
+                self.manual_a_start_time = time.time()
+        elif self.mode == Mode.MANUAL_A:
+            # MANUAL_Aモードなら1秒経過後にSTOPモードへ遷移
+            if time.time() - self.manual_a_start_time >= 1.0:
+                self.mode = Mode.STOP
+                self.manual_a_start_time = None
+        elif self.mode == Mode.STOP:
+            # STOPモードならマニュアルモードに遷移
+            self.mode = Mode.MANUAL
+
+    def execute_mode_action(self, action, key=None):
+        self.transition_mode(key=key)
+        if self.mode == Mode.MANUAL:
+            pass
+        elif self.mode == Mode.MANUAL_A:
+            action.do_straight()  # MANUAL_Aモードで直進
+        elif self.mode == Mode.STOP:
+            action.do_stop()  # STOPモードで停止
+
+# --- キーボードコントローラー（Windows/Unix両対応） ---
+class KeyboardController:
+    """
+    キーボード入力を非ブロッキングで取得するコントローラー。
+    Windows: msvcrt、Unix: termios/tty/select を利用。
+    get_key()で1文字取得、何も押されていなければNone。
+    """
+    def __init__(self):
+        self.is_windows = WINDOWS
+        if not self.is_windows:
+            self.fd = sys.stdin.fileno()
+            self.old_settings = termios.tcgetattr(self.fd)
+
+    def get_key(self):
+        if self.is_windows:
+            if msvcrt.kbhit():
+                ch = msvcrt.getch()
+                try:
+                    return ch.decode('utf-8')
+                except Exception:
+                    return None
+            return None
+        else:
+            import sys, select, tty, termios
+            tty.setraw(self.fd)
+            rlist, _, _ = select.select([sys.stdin], [], [], 0)
+            if rlist:
+                ch = sys.stdin.read(1)
+                termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
+                return ch
+            termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
+            return None
+
+    def __del__(self):
+        if not self.is_windows:
+            try:
+                termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
+            except Exception:
+                pass
