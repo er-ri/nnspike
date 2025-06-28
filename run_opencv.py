@@ -559,7 +559,6 @@ def main(config: Config):
     action.test_initial_sensor()
     action.test_arm()
     # --- KeyboardControllerのインスタンス化（log_manualがTrueの場合のみ） ---
-    keyboard_controller = None
     if config.log_manual:
         key = KeyboardController()
     time.sleep(0.5)
@@ -612,7 +611,7 @@ if __name__ == "__main__":
         "--send-video", action="store_true", help="Send camera video to PC via socket"
     )
     parser.add_argument(
-        "--manual", action="store_true", help="Enable manual mode (for future extension; currently only passed as log_manual to main)"
+        "--manual", action="store_true", help="Control robot with keyboard input"
     )
 
     args = parser.parse_args()
@@ -710,17 +709,15 @@ class ManualScenario(DefaultScenario):
 
     def transition_mode(self, key=None):
         if self.mode == Mode.MANUAL:
-            # aキーが押されたらMANUAL_Aに遷移
+            # Only accept key input in MANUAL mode
             if key == 'a':
                 self.mode = Mode.MANUAL_A
                 self.manual_a_start_time = time.time()
         elif self.mode == Mode.MANUAL_A:
-            # MANUAL_Aモードなら1秒経過後にSTOPモードへ遷移
+            # Ignore all key input in MANUAL_A mode
             if time.time() - self.manual_a_start_time >= 1.0:
                 self.mode = Mode.STOP
-                self.manual_a_start_time = None
         elif self.mode == Mode.STOP:
-            # STOPモードならマニュアルモードに遷移
             self.mode = Mode.MANUAL
 
     def execute_mode_action(self, action, key=None):
