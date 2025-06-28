@@ -59,6 +59,15 @@ from nnspike.utils import (
     PIDController,
 )
 from enum import Enum, auto
+from dataclasses import dataclass
+
+@dataclass
+class Config:
+    log_sensor: bool = False
+    log_save_video: bool = False
+    log_send_video: bool = False
+    log_manual: bool = False
+    # 必要に応じて他の設定も追加
 
 # --- ソケット通信設定 ---
 HOST_IP_ADDRESS = (
@@ -563,12 +572,12 @@ def get_timestamp():
 
 # --- メイン処理 ---
 # python run_opencv.py --record-sensor --send-video
-def main(log_sensor=False, log_save_video=False, log_send_video=False):
+def main(config: Config):
     mode = ModeManager()
     action = ActionManager()
     camera = Camera()
-    video = VideoManager(log_save_video, log_send_video, IMAGE_WIDTH, IMAGE_HEIGHT, HOST_IP_ADDRESS, port=8485)
-    sensor_recorder = SensorRecorderManager(log_sensor)
+    video = VideoManager(config.log_save_video, config.log_send_video, IMAGE_WIDTH, IMAGE_HEIGHT, HOST_IP_ADDRESS, port=8485)
+    sensor_recorder = SensorRecorderManager(config.log_sensor)
     action.test_initial_sensor()
     action.test_arm()
     time.sleep(0.5)
@@ -581,7 +590,7 @@ def main(log_sensor=False, log_save_video=False, log_send_video=False):
             action.update_sensor_info(sensor_recorder)
             steer_result = camera.steer_by_camera(frame)
             mode.update_and_act(action, steer_result)
-            if (log_save_video or log_send_video) and video is not None:
+            if (config.log_save_video or config.log_send_video) and video is not None:
                 if not video.process_and_send(frame, steer_result, ROI_OPENCV, mode, action):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
@@ -595,7 +604,7 @@ def main(log_sensor=False, log_save_video=False, log_send_video=False):
         action.et.stop()
         camera.release()
         video.release()
-        if log_save_video and video.video_writer is not None:
+        if config.log_save_video and video.video_writer is not None:
             video.video_writer.release()
             print(f"Video saved to: {video.video_filename}")
         if sensor_recorder is not None and sensor_recorder.is_enabled():
@@ -616,6 +625,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--send-video", action="store_true", help="Send camera video to PC via socket"
     )
+    parser.add_argument(
+        "--manual", action="store_true", help="マニュアルモードを有効化（将来拡張用、現状はmainにlog_manualとして渡されるのみ）"
+    )
 
     args = parser.parse_args()
 
@@ -624,8 +636,10 @@ if __name__ == "__main__":
     print(f"Base power: {BASE_POWER}")
     print("Press Ctrl+C to stop")
 
-    main(
+    config = Config(
         log_sensor=args.record_sensor,
         log_save_video=args.save_video,
-        log_send_video=args.send_video
+        log_send_video=args.send_video,
+        log_manual=args.manual
     )
+    main(config)
