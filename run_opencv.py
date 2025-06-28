@@ -665,44 +665,47 @@ class KeyboardController:
             key = None
             while msvcrt.kbhit():
                 ch = msvcrt.getch()
+                print(f"[DEBUG][WIN] raw: {ch}")  # デバッグ
                 if ch in (b'\x00', b'\xe0'):
                     msvcrt.getch()  # 特殊キーの2バイト目を消費
                     continue
                 try:
                     decoded = ch.decode('utf-8')
+                    print(f"[DEBUG][WIN] decoded: {decoded}")  # デバッグ
                     if decoded.lower() == 'a':
                         found_a = True
                     elif key is None and decoded.isprintable():
                         key = decoded.lower()
-                except Exception:
+                except Exception as e:
+                    print(f"[DEBUG][WIN] decode error: {e}")
                     continue
             if found_a:
+                print("[DEBUG][WIN] return 'a'")
                 return 'a'
+            print(f"[DEBUG][WIN] return key: {key}")
             return key
         else:
             import sys, select, tty, termios
-            tty.setraw(self.fd)
-            rlist, _, _ = select.select([sys.stdin], [], [], 0)
-            found_a = False
-            key = None
-            while rlist:
-                ch = sys.stdin.read(1)
-                if ch.lower() == 'a':
-                    found_a = True
-                elif key is None and ch.isprintable():
-                    key = ch.lower()
-                rlist, _, _ = select.select([sys.stdin], [], [], 0)
-            termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
-            if found_a:
-                return 'a'
-            return key
-
-    def __del__(self):
-        if not self.is_windows:
+            tty.setcbreak(self.fd)  # setraw から setcbreak へ変更
             try:
+                rlist, _, _ = select.select([sys.stdin], [], [], 0)
+                found_a = False
+                key = None
+                while rlist:
+                    ch = sys.stdin.read(1)
+                    print(f"[DEBUG][LINUX] ch: {repr(ch)}")  # デバッグ
+                    if ch.lower() == 'a':
+                        found_a = True
+                    elif key is None and ch.isprintable():
+                        key = ch.lower()
+                    rlist, _, _ = select.select([sys.stdin], [], [], 0)
+                if found_a:
+                    print("[DEBUG][LINUX] return 'a'")
+                    return 'a'
+                print(f"[DEBUG][LINUX] return key: {key}")
+                return key
+            finally:
                 termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
-            except Exception:
-                pass
 
 # --- メイン処理 ---
 # python run_opencv.py --record-sensor --send-video
