@@ -563,12 +563,12 @@ def get_timestamp():
 
 # --- メイン処理 ---
 # python run_opencv.py --record-sensor --send-video
-def main(record_sensor_data=False, save_video=False, send_video=False):
+def main(log_sensor=False, log_save_video=False, log_send_video=False):
     mode = ModeManager()
     action = ActionManager()
     camera = Camera()
-    video = VideoManager(save_video, send_video, IMAGE_WIDTH, IMAGE_HEIGHT, HOST_IP_ADDRESS, port=8485)
-    sensor_recorder = SensorRecorderManager(record_sensor_data)
+    video = VideoManager(log_save_video, log_send_video, IMAGE_WIDTH, IMAGE_HEIGHT, HOST_IP_ADDRESS, port=8485)
+    sensor_recorder = SensorRecorderManager(log_sensor)
     action.test_initial_sensor()
     action.test_arm()
     time.sleep(0.5)
@@ -581,7 +581,7 @@ def main(record_sensor_data=False, save_video=False, send_video=False):
             action.update_sensor_info(sensor_recorder)
             steer_result = camera.steer_by_camera(frame)
             mode.update_and_act(action, steer_result)
-            if (save_video or send_video) and video is not None:
+            if (log_save_video or log_send_video) and video is not None:
                 if not video.process_and_send(frame, steer_result, ROI_OPENCV, mode, action):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
@@ -595,7 +595,7 @@ def main(record_sensor_data=False, save_video=False, send_video=False):
         action.et.stop()
         camera.release()
         video.release()
-        if save_video and video.video_writer is not None:
+        if log_save_video and video.video_writer is not None:
             video.video_writer.release()
             print(f"Video saved to: {video.video_filename}")
         if sensor_recorder is not None and sensor_recorder.is_enabled():
@@ -624,4 +624,8 @@ if __name__ == "__main__":
     print(f"Base power: {BASE_POWER}")
     print("Press Ctrl+C to stop")
 
-    main(record_sensor_data=args.record_sensor, save_video=args.save_video, send_video=args.send_video)
+    main(
+        log_sensor=args.record_sensor,
+        log_save_video=args.save_video,
+        log_send_video=args.send_video
+    )
