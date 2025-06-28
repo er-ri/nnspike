@@ -311,7 +311,7 @@ class ActionManager:
                 self.start_time = now
                 self.action_sent = True
                 self.turn_duration = 90 * 1.0 / 90
-                self.left_power = 50
+                self.left_power = 30
                 self.right_power = 0
             else:
                 if now - self.start_time >= self.turn_duration:
@@ -338,7 +338,7 @@ class ActionManager:
                 self.action_sent = True
                 self.turn_duration = 45 * 1.0 / 90
                 self.left_power = 0
-                self.right_power = 50
+                self.right_power = 30
             else:
                 if now - self.start_time >= self.turn_duration:
                     self.et.brake()
