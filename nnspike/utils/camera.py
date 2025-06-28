@@ -74,7 +74,7 @@ class Camera:
             x, y, w, h = cv2.boundingRect(cnt)
             aspect = h / w if w > 0 else 0
             # 条件を緩めに: 面積・アスペクト比・bbox
-            if (90000 < area < 130000 and
+            if (110000 < area < 130000 and
                 1.2 < aspect < 1.7 and
                 0 <= x <= 10 and 0 <= y <= 10 and
                 250 <= w <= 300 and 350 <= h <= 420):
