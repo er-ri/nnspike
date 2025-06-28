@@ -427,13 +427,13 @@ class VideoManager:
     カメラ動画保存とソケット通信の初期化・管理を一元化するクラス。
     可視化フレーム生成や走行情報生成も担当する。
     """
-    def __init__(self, save_camera_video, send_video_to_pc, image_width, image_height, host_ip_address, port=8485):
+    def __init__(self, save_video, send_video, image_width, image_height, host_ip_address, port=8485):
         self.video_writer = None
         self.video_filename = None
         self.client_socket = None
-        self.save_camera_video = save_camera_video
-        self.send_video_to_pc = send_video_to_pc
-        if save_camera_video:
+        self.save_video = save_video
+        self.send_video = send_video
+        if save_video:
             timestamp = get_timestamp()
             fourcc = cv2.VideoWriter_fourcc(*"XVID")
             self.video_filename = f"storage/videos/{timestamp}_picamera.avi"
@@ -443,17 +443,17 @@ class VideoManager:
                 fps=30,
                 frameSize=(image_width, image_height),
             )
-        if send_video_to_pc:
+        if send_video:
             # --- 注意: PC側でレシーバ（サーバ）が起動していない場合、ここで例外が発生しプログラムは停止します ---
             self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.client_socket.connect((host_ip_address, port))
 
     def write_video(self, frame):
-        if self.save_camera_video and self.video_writer is not None:
+        if self.save_video and self.video_writer is not None:
             self.video_writer.write(frame)
 
     def send_frame(self, gray):
-        if not self.send_video_to_pc or self.client_socket is None:
+        if not self.send_video or self.client_socket is None:
             return True
         try:
             ret, buffer = cv2.imencode(".png", gray)
@@ -466,9 +466,9 @@ class VideoManager:
         return True
 
     def release(self):
-        if self.save_camera_video and self.video_writer is not None:
+        if self.save_video and self.video_writer is not None:
             self.video_writer.release()
-        if self.send_video_to_pc and self.client_socket is not None:
+        if self.send_video and self.client_socket is not None:
             self.client_socket.close()
 
     def prepare_driving_info(self, steer_result, roi, mode, action):
@@ -562,12 +562,12 @@ def get_timestamp():
     return time.strftime("%Y%m%d%H%M%S", time.localtime())
 
 # --- メイン処理 ---
-# python run_opencv.py --record-sensor --save-video
-def main(record_sensor_data=False, save_camera_video=False, send_video_to_pc=False):
+# python run_opencv.py --record-sensor --send-video
+def main(record_sensor_data=False, save_video=False, send_video=False):
     mode = ModeManager()
     action = ActionManager()
     camera = Camera()
-    video = VideoManager(save_camera_video, send_video_to_pc, IMAGE_WIDTH, IMAGE_HEIGHT, HOST_IP_ADDRESS, port=8485)
+    video = VideoManager(save_video, send_video, IMAGE_WIDTH, IMAGE_HEIGHT, HOST_IP_ADDRESS, port=8485)
     sensor_recorder = SensorRecorderManager(record_sensor_data)
     action.test_initial_sensor()
     action.test_arm()
@@ -581,7 +581,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_to_pc=Fal
             action.update_sensor_info(sensor_recorder)
             steer_result = camera.steer_by_camera(frame)
             mode.update_and_act(action, steer_result)
-            if (save_camera_video or send_video_to_pc) and video is not None:
+            if (save_video or send_video) and video is not None:
                 if not video.process_and_send(frame, steer_result, ROI_OPENCV, mode, action):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
@@ -595,7 +595,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_to_pc=Fal
         action.et.stop()
         camera.release()
         video.release()
-        if save_camera_video and video.video_writer is not None:
+        if save_video and video.video_writer is not None:
             video.video_writer.release()
             print(f"Video saved to: {video.video_filename}")
         if sensor_recorder is not None and sensor_recorder.is_enabled():
@@ -624,4 +624,4 @@ if __name__ == "__main__":
     print(f"Base power: {BASE_POWER}")
     print("Press Ctrl+C to stop")
 
-    main(record_sensor_data=args.record_sensor, save_camera_video=args.save_video, send_video_to_pc=args.send_video)
+    main(record_sensor_data=args.record_sensor, save_video=args.save_video, send_video=args.send_video)
