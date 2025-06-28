@@ -349,7 +349,7 @@ class ActionManager:
             if not self.action_sent:
                 self.start_time = now
                 self.action_sent = True
-                self.arc_end_time = now + 1.0
+                self.arc_end_time = now + 2.0
                 self.left_power = 80
                 self.right_power = 80
             else:
