@@ -701,6 +701,8 @@ def main(config: Config):
     # --- KeyboardControllerのインスタンス化（log_manualがTrueの場合のみ） ---
     if config.log_manual:
         key = KeyboardController()
+    else:
+        key = None
     time.sleep(0.5)
     try:
         while action.et.is_running == True:
@@ -711,10 +713,11 @@ def main(config: Config):
             action.update_sensor_info(sensor_recorder)
             if config.log_manual:
                 steer_result = {"mx": 0, "my": 0, "offset_pixels": 0, "max_contour": None}
+                key_input = key.get_key() if config.log_manual else None
+                scenario.execute_mode_action(action, key=key_input)
             else:
                 steer_result = camera.steer_by_camera(frame)
-            # scenario.execute_mode_action(action, steer_result)
-            scenario.execute_mode_action(action, key=key)
+                scenario.execute_mode_action(action, steer_result)
             if (config.log_save_video or config.log_send_video) and video is not None:
                 if not video.process_and_send(frame, steer_result, ROI_OPENCV, scenario, action):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
