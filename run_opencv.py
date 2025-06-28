@@ -154,7 +154,6 @@ class ActionManager:
             # B:左, A:右（設計に応じて要確認）
             left_actual = status.motors['B'].power if 'B' in status.motors and hasattr(status.motors['B'], 'power') else None
             right_actual = status.motors['A'].power if 'A' in status.motors and hasattr(status.motors['A'], 'power') else None
-            print(f"[DEBUG] SPIKE実パワー: left={left_actual}, right={right_actual}")
         # --- 取得した値をインスタンス変数に格納 ---
         self.left_actual_power = left_actual
         self.right_actual_power = right_actual
