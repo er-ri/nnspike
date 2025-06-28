@@ -50,6 +50,7 @@ import pickle
 import struct
 import argparse
 import numpy as np
+import traceback
 from nnspike.unit import ETRobot
 from nnspike.utils.control import ControlCalculator
 from nnspike.utils import (
@@ -349,7 +350,6 @@ class ActionManager:
             try:
                 sensor_recorder.log(spike_status)
             except Exception as e:
-                import traceback
                 print(f"[SensorRecorderManager] log error: {e}")
                 traceback.print_exc()
         # returnは不要
