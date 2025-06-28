@@ -597,7 +597,7 @@ def main(record_sensor_data=False, save_camera_video=False):
     time.sleep(0.5)
     try:
         while action.et.is_running == True:
-            loop_start = time.time()
+            #loop_start = time.time()
             ret, frame = camera.read()
             if not ret:
                 print("[ERROR] Can't receive frame (stream end?). Exiting ...")
