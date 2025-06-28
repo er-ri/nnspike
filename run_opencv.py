@@ -65,17 +65,6 @@ HOST_IP_ADDRESS = (
     "192.168.137.1"  # Raspberry PiがPCへ送信する宛先IP
 )
 
-# --- カメラ初期化 ---
-# cap = cv2.VideoCapture(0)
-# cap.set(cv2.CAP_PROP_FPS, 30)
-# cap.set(cv2.CAP_PROP_FRAME_WIDTH, IMAGE_WIDTH)
-# cap.set(cv2.CAP_PROP_FRAME_HEIGHT, IMAGE_HEIGHT)
-# Cameraクラスで一元管理するため、ここでの初期化は不要
-
-
-# AsyncSensorReader クラスを削除 - メインループで直接センサー値を取得するように変更
-
-
 class Mode(Enum):
     LINE_TRACE = auto()         # 通常のライン走行
     DIST_STOP = auto()          # 超音波距離停止モード（障害物検知後の一時停止・距離再確認）
@@ -93,17 +82,10 @@ class ModeManager:
     SMART_CARRY_1: スマートキャリー1回目
     SMART_CARRY_2: スマートキャリー2回目
     GOAL: ゴール到達モード（ゴールに向かう処理とゴール停止をこのモードで実装する構想）
-
-    # MEMO:
-    # スマートキャリーモード(SMART_CARRY_1, SMART_CARRY_2)やGOALモードも、
-    # 超音波センサーやobject_detected（物体判定結果）、relative_position（モーター相対位置）等を組み合わせて遷移判定する構想。
-    # 例: object_detected==2（交差点やゴール判定値）でGOALモードへ遷移。
-    # 必要に応じてupdate()内でこれらの値を参照し、より柔軟なモード遷移を実装すること。
     """
     def __init__(self):
         self.mode = Mode.LINE_TRACE
         self.obstacle_detected_time = None
-        # theta, pid_corrected_theta, current_powerはActionManagerに移動
     def update(self, distance):
         # --- 障害物検知・停止用パラメータをローカル変数で定義 ---
         OBSTACLE_DETECT_DISTANCE = 50  # 障害物検知のしきい値[cm]
@@ -146,12 +128,6 @@ class ActionManager:
     """
     障害物回避やゴール到達時などの固有動作を管理する拡張用クラス。
     例: 45度左回転→右弧旋回→45度左回転で回避（非ブロッキングで各動作を進める）
-
-    # MEMO:
-    # 今後、オブスタクルボトルの回避だけでなく、
-    # スマートキャリーモード(SMART_CARRY_1, SMART_CARRY_2)でキャリーボトルの運搬・制御、
-    # GOALモード時の固有動作（例: 停止、アーム動作、サウンド再生等）も追加予定。
-    # 必要に応じてstateやobstacle_avoid_step()の分岐・処理を拡張すること。
     """
     def __init__(self, et=None):
         if et is None:
@@ -451,10 +427,12 @@ class VideoManager:
     カメラ動画保存とソケット通信の初期化・管理を一元化するクラス。
     可視化フレーム生成や走行情報生成も担当する。
     """
-    def __init__(self, save_camera_video, image_width, image_height, host_ip_address, port=8485):
+    def __init__(self, save_camera_video, send_video_to_pc, image_width, image_height, host_ip_address, port=8485):
         self.video_writer = None
         self.video_filename = None
         self.client_socket = None
+        self.save_camera_video = save_camera_video
+        self.send_video_to_pc = send_video_to_pc
         if save_camera_video:
             timestamp = get_timestamp()
             fourcc = cv2.VideoWriter_fourcc(*"XVID")
@@ -465,19 +443,19 @@ class VideoManager:
                 fps=30,
                 frameSize=(image_width, image_height),
             )
-        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client_socket.connect((host_ip_address, port))
+        if send_video_to_pc:
+            # --- 注意: PC側でレシーバ（サーバ）が起動していない場合、ここで例外が発生しプログラムは停止します ---
+            self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.client_socket.connect((host_ip_address, port))
 
     def write_video(self, frame):
-        if self.video_writer is not None:
+        if self.save_camera_video and self.video_writer is not None:
             self.video_writer.write(frame)
 
     def send_frame(self, gray):
-        """
-        カメラ画像をリモート監視用に送信
-        """
+        if not self.send_video_to_pc or self.client_socket is None:
+            return True
         try:
-            #ret, buffer = cv2.imencode(".jpg", gray, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
             ret, buffer = cv2.imencode(".png", gray)
             img_encoded = buffer.tobytes()
             data = pickle.dumps(img_encoded)
@@ -488,9 +466,9 @@ class VideoManager:
         return True
 
     def release(self):
-        if self.video_writer is not None:
+        if self.save_camera_video and self.video_writer is not None:
             self.video_writer.release()
-        if self.client_socket is not None:
+        if self.send_video_to_pc and self.client_socket is not None:
             self.client_socket.close()
 
     def prepare_driving_info(self, steer_result, roi, mode, action):
@@ -584,18 +562,18 @@ def get_timestamp():
     return time.strftime("%Y%m%d%H%M%S", time.localtime())
 
 # --- メイン処理 ---
-def main(record_sensor_data=False, save_camera_video=False):
+# python run_opencv.py --record-sensor --save-video
+def main(record_sensor_data=False, save_camera_video=False, send_video_to_pc=False):
     mode = ModeManager()
     action = ActionManager()
     camera = Camera()
-    video = VideoManager(save_camera_video, IMAGE_WIDTH, IMAGE_HEIGHT, HOST_IP_ADDRESS, port=8485)
+    video = VideoManager(save_camera_video, send_video_to_pc, IMAGE_WIDTH, IMAGE_HEIGHT, HOST_IP_ADDRESS, port=8485)
     sensor_recorder = SensorRecorderManager(record_sensor_data)
     action.test_initial_sensor()
     action.test_arm()
     time.sleep(0.5)
     try:
         while action.et.is_running == True:
-            #loop_start = time.time()
             ret, frame = camera.read()
             if not ret:
                 print("[ERROR] Can't receive frame (stream end?). Exiting ...")
@@ -603,14 +581,10 @@ def main(record_sensor_data=False, save_camera_video=False):
             action.update_sensor_info(sensor_recorder)
             steer_result = camera.steer_by_camera(frame)
             mode.update_and_act(action, steer_result)
-            if save_camera_video and video is not None:
+            if (save_camera_video or send_video_to_pc) and video is not None:
                 if not video.process_and_send(frame, steer_result, ROI_OPENCV, mode, action):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
-            # 周期調整（必要ならsleep）
-            # elapsed = time.time() - loop_start
-            # if elapsed < 0.03:
-            #     time.sleep(0.03 - elapsed)
     except KeyboardInterrupt:
         print("Interrupted by user")
         action.brake_for_duration()
@@ -631,13 +605,16 @@ def main(record_sensor_data=False, save_camera_video=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Run the OpenCV-based line following robot with optional sensor recording and video saving"
+        description="Run the OpenCV-based line following robot with optional sensor recording, video saving, and PC transfer"
     )
     parser.add_argument(
         "--record-sensor", action="store_true", help="Record sensor data to file"
     )
     parser.add_argument(
-        "--save-video", action="store_true", help="Save camera video to file"
+        "--save-video", action="store_true", help="Save camera video to file (on Raspberry Pi)"
+    )
+    parser.add_argument(
+        "--send-video", action="store_true", help="Send camera video to PC via socket"
     )
 
     args = parser.parse_args()
@@ -647,4 +624,4 @@ if __name__ == "__main__":
     print(f"Base power: {BASE_POWER}")
     print("Press Ctrl+C to stop")
 
-    main(record_sensor_data=args.record_sensor, save_camera_video=args.save_video)
+    main(record_sensor_data=args.record_sensor, save_camera_video=args.save_video, send_video_to_pc=args.send_video)
