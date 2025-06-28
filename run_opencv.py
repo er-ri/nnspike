@@ -82,63 +82,6 @@ class Mode(Enum):
     SMART_CARRY_2 = auto()      # スマートキャリー2回目
     GOAL = auto()               # ゴール到達モード（ゴールに向かう処理とゴール停止をこのモードで実装する構想）
 
-class ModeManager:
-    """
-    動作モードの状態遷移を管理するクラス。
-    LINE_TRACE: 通常のライン走行
-    DIST_STOP: 超音波距離停止モード（障害物検知後の一時停止・距離再確認）
-    OBSTACLE_AVOID: 障害物回避動作（オブスタクルボトル回避）
-    SMART_CARRY_1: スマートキャリー1回目
-    SMART_CARRY_2: スマートキャリー2回目
-    GOAL: ゴール到達モード（ゴールに向かう処理とゴール停止をこのモードで実装する構想）
-    """
-    def __init__(self):
-        self.mode = Mode.LINE_TRACE
-        self.obstacle_detected_time = None
-    def _transition_mode(self, distance):
-        """
-        状態遷移のみを担当する内部メソッド。
-        必ずrun_mode_actionからのみ呼び出すこと。
-        """
-        OBSTACLE_DETECT_DISTANCE = 50  # 障害物検知のしきい値[cm]
-        DIST_STOP_DURATION = 2.0       # 距離停止モードの待機時間[秒]
-        if self.mode == Mode.LINE_TRACE:
-            if distance is not None and distance < OBSTACLE_DETECT_DISTANCE:
-                self.mode = Mode.DIST_STOP
-                self.obstacle_detected_time = time.time()
-        elif self.mode == Mode.DIST_STOP:
-            if distance is not None and distance >= OBSTACLE_DETECT_DISTANCE * (50/30):
-                self.mode = Mode.LINE_TRACE
-                self.obstacle_detected_time = None
-            elif time.time() - self.obstacle_detected_time >= DIST_STOP_DURATION:
-                self.mode = Mode.OBSTACLE_AVOID
-        elif self.mode == Mode.OBSTACLE_AVOID:
-            pass
-        # SMART_CARRY_1, SMART_CARRY_2, GOALへの遷移は必要に応じて追加
-
-    def run_mode_action(self, action_manager, steer_result):
-        """
-        モード遷移とアクション実行を一括で行う唯一の窓口。
-        必ずこのメソッド経由で制御すること。
-        """
-        offset_pixels = steer_result.get("offset_pixels", 0)
-        self._transition_mode(action_manager.distance)
-        if self.mode == Mode.LINE_TRACE:
-            action_manager.do_line_trace(offset_pixels)
-        elif self.mode == Mode.DIST_STOP:
-            action_manager.do_dist_stop()
-        elif self.mode == Mode.OBSTACLE_AVOID:
-            action_manager.do_obstacle_avoid()
-            if action_manager.is_finished():
-                self.mode = Mode.LINE_TRACE  # state3後に必ずLINE_TRACEへ遷移
-                self.obstacle_detected_time = None
-                action_manager.reset()  # 回避動作の状態もリセット
-        elif self.mode == Mode.GOAL:
-            pass
-        else:
-            pass
-
-# --- 固有動作管理クラス（回避・今後の特殊動作用） ---
 class ActionManager:
     """
     障害物回避やゴール到達時などの固有動作を管理する拡張用クラス。
@@ -486,12 +429,12 @@ class VideoManager:
         if self.send_video and self.client_socket is not None:
             self.client_socket.close()
 
-    def prepare_driving_info(self, steer_result, roi, mode, action):
+    def prepare_driving_info(self, steer_result, roi, scenario, action):
         """
         可視化用の走行情報を生成
         roi: (x1, y1, x2, y2) タプル
         steer_result: steer_by_cameraの辞書
-        mode: ModeManagerインスタンス
+        scenario: NormalScenarioインスタンス
         action: ActionManagerインスタンス
         """
         x1, y1, x2, y2 = roi
@@ -542,7 +485,7 @@ class VideoManager:
             "left_relative_position": f"{action.left_relative_position}deg / {left_distance_cm}cm",
             "right_relative_position": f"{action.right_relative_position}deg / {right_distance_cm}cm",
             "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
-            "mode": mode.mode.name if hasattr(mode, 'mode') else str(mode)
+            "mode": scenario.mode.name
         }
         return info
 
@@ -564,8 +507,8 @@ class VideoManager:
             cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
         return gray
 
-    def process_and_send(self, frame, steer_result, roi, mode, action):
-        info = self.prepare_driving_info(steer_result, roi, mode, action)
+    def process_and_send(self, frame, steer_result, roi, scenario, action):
+        info = self.prepare_driving_info(steer_result, roi, scenario, action)
         gray = self.create_visualization_frame(frame, steer_result, roi, info)
         self.write_video(frame)
         return self.send_frame(gray)
@@ -579,7 +522,7 @@ def get_timestamp():
 # --- メイン処理 ---
 # python run_opencv.py --record-sensor --send-video
 def main(config: Config):
-    mode = ModeManager()
+    scenario = NormalScenario()
     action = ActionManager()
     camera = Camera()
     video = VideoManager(config.log_save_video, config.log_send_video, IMAGE_WIDTH, IMAGE_HEIGHT, HOST_IP_ADDRESS, port=8485)
@@ -595,9 +538,9 @@ def main(config: Config):
                 break
             action.update_sensor_info(sensor_recorder)
             steer_result = camera.steer_by_camera(frame)
-            mode.run_mode_action(action, steer_result)
+            scenario.execute_mode_action(action, steer_result)
             if (config.log_save_video or config.log_send_video) and video is not None:
-                if not video.process_and_send(frame, steer_result, ROI_OPENCV, mode, action):
+                if not video.process_and_send(frame, steer_result, ROI_OPENCV, scenario, action):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
     except KeyboardInterrupt:
@@ -649,3 +592,80 @@ if __name__ == "__main__":
         log_manual=args.manual
     )
     main(config)
+
+# --- デフォルト戦略パターン用ベースクラス ---
+class DefaultScenario:
+    """
+    モード遷移・アクション戦略のデフォルト基底クラス。
+    すべてのシナリオクラスはこの基底クラスを継承すること。
+    共通状態（modeなど）もここで初期化する。
+    execute_mode_actionの引数は派生シナリオごとに異なるため、*args, **kwargsで受ける。
+    """
+    def __init__(self):
+        self.mode = Mode.LINE_TRACE
+
+    def transition_mode(self, *args, **kwargs):
+        """
+        モード遷移を行う。引数は派生クラスで適切に定義すること。
+        """
+        raise NotImplementedError
+
+    def execute_mode_action(self, *args, **kwargs):
+        """
+        モード遷移とアクション実行を行う。引数は派生クラスで適切に定義すること。
+        """
+        raise NotImplementedError
+
+# --- 通常（ノーマル）戦略の実装例 ---
+class NormalScenario(DefaultScenario):
+    """
+    状態遷移と動作遷移を1つのクラスで管理する通常（ノーマル）シナリオの実装例。
+    """
+    def __init__(self):
+        self.mode = Mode.LINE_TRACE
+        self.obstacle_detected_time = None
+
+    def transition_mode(self, distance):
+        OBSTACLE_DETECT_DISTANCE = 70
+        DIST_STOP_DURATION = 1.0
+        if self.mode == Mode.LINE_TRACE:
+            if distance is not None and distance < OBSTACLE_DETECT_DISTANCE:
+                self.mode = Mode.DIST_STOP
+                self.obstacle_detected_time = time.time()
+        elif self.mode == Mode.DIST_STOP:
+            if distance is not None and distance >= OBSTACLE_DETECT_DISTANCE * (60/30):
+                self.mode = Mode.LINE_TRACE
+                self.obstacle_detected_time = None
+            elif time.time() - self.obstacle_detected_time >= DIST_STOP_DURATION:
+                self.mode = Mode.OBSTACLE_AVOID
+        elif self.mode == Mode.OBSTACLE_AVOID:
+            pass
+        # SMART_CARRY_1, SMART_CARRY_2, GOALへの遷移は必要に応じて追加
+
+    def execute_mode_action(self, action, steer_result):
+        offset_pixels = steer_result.get("offset_pixels", 0)
+        self.transition_mode(action.distance)
+        if self.mode == Mode.LINE_TRACE:
+            action.do_line_trace(offset_pixels)
+        elif self.mode == Mode.DIST_STOP:
+            action.do_dist_stop()
+        elif self.mode == Mode.OBSTACLE_AVOID:
+            action.do_obstacle_avoid()
+            if action.is_finished():
+                self.mode = Mode.LINE_TRACE  # state3後に必ずLINE_TRACEへ遷移
+                self.obstacle_detected_time = None
+                action.reset()  # 回避動作の状態もリセット
+        elif self.mode == Mode.GOAL:
+            pass
+        else:
+            pass
+
+# --- 戦略クラスの利用例 ---
+# aggressive_strategy = AggressiveModeStrategy()
+# strategy = aggressive_strategy
+# while running:
+#     strategy.update_and_act(action, steer_result)
+#
+# 現在はNormalModeStrategyなどの戦略クラスを直接インスタンス化し、
+# strategy.update_and_act(action, steer_result) のように利用します。
+# ModeManagerやContextクラスは不要です。
