@@ -613,7 +613,7 @@ class VideoManager:
             ),
             "color_sensor": color_data,
             "ultrasonic_sensor": ultrasonic_data,
-            "left_power": f"{action.left_power}% | {left_actual if left_actual is not None else 'N/A'}%",
+            "left_power": f"{action.left_power}% | {-left_actual if left_actual is not None else 'N/A'}%",
             "right_power": f"{action.right_power}% | {right_actual if right_actual is not None else 'N/A'}%",
             "left_relative_position": f"{action.left_relative_position}deg / {left_distance_cm}cm",
             "right_relative_position": f"{action.right_relative_position}deg / {right_distance_cm}cm",
