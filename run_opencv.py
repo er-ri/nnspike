@@ -661,30 +661,41 @@ class KeyboardController:
 
     def get_key(self):
         if self.is_windows:
-            if msvcrt.kbhit():
+            found_a = False
+            key = None
+            while msvcrt.kbhit():
                 ch = msvcrt.getch()
                 if ch in (b'\x00', b'\xe0'):
                     msvcrt.getch()  # 特殊キーの2バイト目を消費
-                    return None
+                    continue
                 try:
                     decoded = ch.decode('utf-8')
-                    if decoded.isprintable():
-                        return decoded.lower()
+                    if decoded.lower() == 'a':
+                        found_a = True
+                    elif key is None and decoded.isprintable():
+                        key = decoded.lower()
                 except Exception:
-                    return None
-            return None
+                    continue
+            if found_a:
+                return 'a'
+            return key
         else:
             import sys, select, tty, termios
             tty.setraw(self.fd)
             rlist, _, _ = select.select([sys.stdin], [], [], 0)
-            if rlist:
+            found_a = False
+            key = None
+            while rlist:
                 ch = sys.stdin.read(1)
-                termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
-                if ch.isprintable():
-                    return ch.lower()
-                return None
+                if ch.lower() == 'a':
+                    found_a = True
+                elif key is None and ch.isprintable():
+                    key = ch.lower()
+                rlist, _, _ = select.select([sys.stdin], [], [], 0)
             termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
-            return None
+            if found_a:
+                return 'a'
+            return key
 
     def __del__(self):
         if not self.is_windows:
