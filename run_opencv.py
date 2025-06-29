@@ -927,6 +927,7 @@ def main(config: Config):
     time.sleep(0.5)
     try:
         while action.et.is_running == True:
+            loop_start = time.time()
             ret, frame = camera.read()
             if not ret:
                 print("[ERROR] Can't receive frame (stream end?). Exiting ...")
@@ -945,8 +946,10 @@ def main(config: Config):
                 if not video.process_and_send(frame, steer_result, ROI_OPENCV, scenario, action, bottle_result if config.log_manual else None):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
-            if config.log_manual:
-                time.sleep(0.001)  # 入力取りこぼし防止のため、マニュアル時のみループ末尾でsleep
+            loop_elapsed = time.time() - loop_start
+            sleep_time = max(0, 0.05 - loop_elapsed)
+            if sleep_time > 0:
+                time.sleep(sleep_time)
     except KeyboardInterrupt:
         print("Interrupted by user")
         action.brake_for_duration()
