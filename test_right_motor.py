@@ -32,7 +32,7 @@ def main():
         print("  回数 | 左モーター | 右モーター | 指令値 (L, R)")
         print("------------------------------------------")
         total_time = 20.0  # 合計10秒
-        interval = 0.03    # 30msごと
+        interval = 0.05    # 50msごと
         switch_interval = 1.0  # 1.0秒ごとに切り替え
         start_time = time.time()
         left_cmd, right_cmd = 0, 100
