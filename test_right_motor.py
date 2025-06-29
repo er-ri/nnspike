@@ -35,7 +35,7 @@ def main():
         interval = 0.05    # 50msごと
         switch_interval = 1.0  # 1.0秒ごとに切り替え
         start_time = time.time()
-        left_cmd, right_cmd = 0, 100
+        left_cmd, right_cmd = 0, 50
         left_disp, right_disp = "OFF", "ON  "
         switch_count = 0
         print(f" {switch_count+1:2d}回 | {left_disp:^7} | {right_disp:^7} | L={left_cmd:3d}, R={right_cmd:3d}")
@@ -49,10 +49,10 @@ def main():
             if new_switch_count != switch_count:
                 switch_count = new_switch_count
                 if switch_count % 2 == 0:
-                    left_cmd, right_cmd = 0, 100
+                    left_cmd, right_cmd = 0, 50
                     left_disp, right_disp = "OFF", "ON  "
                 else:
-                    left_cmd, right_cmd = 100, 0
+                    left_cmd, right_cmd = 50, 0
                     left_disp, right_disp = "ON  ", "OFF"
                 print(f" {switch_count+1:2d}回 | {left_disp:^7} | {right_disp:^7} | L={left_cmd:3d}, R={right_cmd:3d}")
             et.set_motor_forward_power(left_power=left_cmd, right_power=right_cmd)
