@@ -4,6 +4,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+import sys
 
 def calculate_red_area(image_path_or_array) -> float:
     """
@@ -53,6 +54,46 @@ def calculate_red_area(image_path_or_array) -> float:
     red_area = cv2.countNonZero(red_mask)
     
     return float(red_area)
+
+
+def calculate_yellow_area(image_path_or_array) -> float:
+    """
+    Calculate the area of yellow regions in an image using HSV color space.
+    
+    Args:
+        image_path_or_array: Either a file path (string) or numpy array of the image
+        
+    Returns:
+        float: Area of yellow regions in pixels
+    """
+    # Load image if path is provided, otherwise use the array directly
+    if isinstance(image_path_or_array, str):
+        image = cv2.imread(image_path_or_array)
+    else:
+        image = image_path_or_array.copy()
+    
+    if image is None:
+        return 0.0
+    
+    # Convert BGR to HSV color space
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    
+    # Define range for yellow color in HSV
+    lower_yellow = np.array([20, 100, 100])
+    upper_yellow = np.array([35, 255, 255])
+    
+    # Create mask for yellow range
+    yellow_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+    
+    # Apply morphological operations to reduce noise
+    kernel = np.ones((3, 3), np.uint8)
+    yellow_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_OPEN, kernel)
+    yellow_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_CLOSE, kernel)
+    
+    # Calculate the area (number of white pixels in the mask)
+    yellow_area = cv2.countNonZero(yellow_mask)
+    
+    return float(yellow_area)
 
 
 def visualize_red_detection(image_path_or_array, save_path=None) -> None:
@@ -146,22 +187,94 @@ def visualize_red_detection(image_path_or_array, save_path=None) -> None:
     print(f"Total red area detected: {red_area} pixels")
 
 
+def visualize_yellow_detection(image_path_or_array, save_path=None) -> None:
+    """
+    Visualize the detected yellow areas in an image.
+    
+    Args:
+        image_path_or_array: Either a file path (string) or numpy array of the image
+        save_path: Optional path to save the visualization
+    """
+    # Load image if path is provided, otherwise use the array directly
+    if isinstance(image_path_or_array, str):
+        image = cv2.imread(image_path_or_array)
+    else:
+        image = image_path_or_array.copy()
+    
+    if image is None:
+        print("Error: Could not load image")
+        return
+    
+    # Convert BGR to HSV color space
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    
+    # Define range for yellow color in HSV
+    lower_yellow = np.array([20, 100, 100])
+    upper_yellow = np.array([35, 255, 255])
+    
+    # Create mask for yellow range
+    yellow_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+    
+    # Apply morphological operations to reduce noise
+    kernel = np.ones((3, 3), np.uint8)
+    yellow_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_OPEN, kernel)
+    yellow_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_CLOSE, kernel)
+    
+    # Create visualization
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    highlighted = image_rgb.copy()
+    highlighted[yellow_mask > 0] = [255, 255, 0]  # Detected yellow areas bright yellow
+    overlay = image_rgb.copy()
+    overlay[yellow_mask > 0] = [0, 255, 255]  # Cyan overlay on detected areas
+    result = cv2.addWeighted(image_rgb, 0.7, overlay, 0.3, 0)
+    yellow_area = cv2.countNonZero(yellow_mask)
+    plt.figure(figsize=(15, 10))
+    plt.subplot(2, 2, 1)
+    plt.imshow(image_rgb)
+    plt.title('Original Image')
+    plt.axis('off')
+    plt.subplot(2, 2, 2)
+    plt.imshow(yellow_mask, cmap='gray')
+    plt.title(f'Yellow Detection Mask\nArea: {yellow_area} pixels')
+    plt.axis('off')
+    plt.subplot(2, 2, 3)
+    plt.imshow(highlighted)
+    plt.title('Detected Yellow Areas (Highlighted)')
+    plt.axis('off')
+    plt.subplot(2, 2, 4)
+    plt.imshow(result)
+    plt.title('Yellow Areas with Cyan Overlay')
+    plt.axis('off')
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"Visualization saved to: {save_path}")
+    plt.show()
+    print(f"Total yellow area detected: {yellow_area} pixels")
+
+
 # ROI座標を画像サイズに合わせてクリップ
-image = cv2.imread("frame_bottle.png")
+image = cv2.imread(r"C:\Users\MSAD\github\nnspike\storage\record\Snapshot_7.PNG")
 if image is None:
     raise FileNotFoundError("frame_bottle.png が見つかりません")
 
 height, width = image.shape[:2]
-x1, y1, x2, y2 = 20, 50, 620, 400  # Region of Interest
+x1, y1, x2, y2 = 130, 50, 510, 400
 x1 = max(0, min(x1, width-1))
 x2 = max(0, min(x2, width))
 y1 = max(0, min(y1, height-1))
 y2 = max(0, min(y2, height))
 
 roi_image = image[y1:y2, x1:x2]
-area = calculate_red_area(roi_image)
+# area = calculate_red_area(roi_image)
+area = calculate_yellow_area(roi_image)
 
-print(f"Red area: {area} pixels")
+# print(f"Red area: {area} pixels")
+
+print(f"Yellow area: {area} pixels")
 
 # visualize_red_detection("frame_bottle.png")
-visualize_red_detection(roi_image)
+# visualize_red_detection(roi_image)
+visualize_yellow_detection(roi_image)
+
+sys.exit(0)
