@@ -809,8 +809,7 @@ class ManualScenario(DefaultScenario):
         elif self.mode == Mode.MANUAL_D:
             # yellow_pixelsがBOTTLE_YELLOW_THRESHOLD以上、またはyellow_pixelsが5000以上かつ超音波センサー値が50未満
             yellow_pixels = bottle.get('yellow', 0) if bottle else 0
-            distance = action.distance if hasattr(action, 'distance') else None
-            if (yellow_pixels >= BOTTLE_YELLOW_THRESHOLD) or (yellow_pixels >= 5000 and distance is not None and distance < 60):
+            if (yellow_pixels >= BOTTLE_YELLOW_THRESHOLD):
                 self.mode = Mode.MANUAL_YELLOW_BOTTLE
         elif self.mode == Mode.MANUAL_YELLOW_BOTTLE:
             # ボトル検出時の特別な回避や動作をここで実装
