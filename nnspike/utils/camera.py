@@ -80,3 +80,4 @@ class Camera:
                 250 <= w <= 300 and 350 <= h <= 420):
                 return True, cnt
         return False, None
+

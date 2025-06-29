@@ -144,3 +144,24 @@ def visualize_red_detection(image_path_or_array, save_path=None) -> None:
     plt.show()
     
     print(f"Total red area detected: {red_area} pixels")
+
+
+# ROI座標を画像サイズに合わせてクリップ
+image = cv2.imread("frame_bottle.png")
+if image is None:
+    raise FileNotFoundError("frame_bottle.png が見つかりません")
+
+height, width = image.shape[:2]
+x1, y1, x2, y2 = 20, 50, 620, 400  # Region of Interest
+x1 = max(0, min(x1, width-1))
+x2 = max(0, min(x2, width))
+y1 = max(0, min(y1, height-1))
+y2 = max(0, min(y2, height))
+
+roi_image = image[y1:y2, x1:x2]
+area = calculate_red_area(roi_image)
+
+print(f"Red area: {area} pixels")
+
+# visualize_red_detection("frame_bottle.png")
+visualize_red_detection(roi_image)
