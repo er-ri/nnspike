@@ -83,7 +83,7 @@ class Camera:
 
     def detect_yellow_bottle(self, frame, roi=ROI_BOTTLE):
         """
-        ROI内の黄色領域の面積が35000.0ピクセル以上ならTrueを返す。
+        ROI内の黄色領域の面積が20000.0ピクセル以上ならTrueを返す。
         Args:
             frame: BGR画像(numpy array)
             roi: (x1, y1, x2, y2)のタプル
@@ -103,6 +103,6 @@ class Camera:
         yellow_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_OPEN, kernel)
         yellow_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_CLOSE, kernel)
         yellow_area = int(cv2.countNonZero(yellow_mask))
-        yellow = yellow_area >= 35000.0
+        yellow = yellow_area >= 20000.0
         bottle_result = {'result': yellow, 'color': 'yellow', 'pixels': yellow_area}
         return bottle_result
