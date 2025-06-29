@@ -31,9 +31,9 @@ def main():
         print("右・左モーターを1秒ごとに交互に動かします（合計10秒）")
         print("  回数 | 左モーター | 右モーター | 指令値 (L, R)")
         print("------------------------------------------")
-        total_time = 10.0  # 合計10秒
+        total_time = 20.0  # 合計10秒
         interval = 0.03    # 30msごと
-        switch_interval = 0.5  # 0.5秒ごとに切り替え
+        switch_interval = 1.0  # 1.0秒ごとに切り替え
         start_time = time.time()
         left_cmd, right_cmd = 0, 100
         left_disp, right_disp = "OFF", "ON  "
@@ -44,7 +44,7 @@ def main():
             elapsed = now - start_time
             if elapsed >= total_time:
                 break
-            # 0.5秒ごとに切り替え（経過秒数で判定）
+            # 1.0秒ごとに切り替え（経過秒数で判定）
             new_switch_count = int(elapsed // switch_interval)
             if new_switch_count != switch_count:
                 switch_count = new_switch_count
