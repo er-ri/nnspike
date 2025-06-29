@@ -24,7 +24,7 @@ OpenCV-Based Line Following Robot Control
 # ==== ユーザー調整用パラメータ（ここだけ編集すればOK） ====
 # ROI_OPENCV: OpenCV画像処理で使用する領域（左上x, 左上y, 右下x, 右下y）
 ROI_OPENCV = (180, 300, 460, 400)  # 左右をそれぞれ30pxずつ内側に狭めた例
-ROI_BOTTLE = (180, 0, 460, 400)  # 上部をさらに80px上に拡張（y1=300→220）
+ROI_BOTTLE = (130, 50, 510, 400)   
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480                 # カメラ画像の高さ
 BASE_POWER = 80                    # カーブ時の基準パワー 40→45にUP
@@ -922,7 +922,7 @@ def main(config: Config):
                 steer_result = {"mx": 0, "my": 0, "offset_pixels": 0, "max_contour": None}
                 key_input = key.get_key() if config.log_manual else None
                 # ペットボトル検出結果を明示的にbottle変数へ格納
-                bottle = camera.detect_bottle(frame, ROI_BOTTLE)
+                bottle = camera.detect_yellow_bottle(frame, ROI_BOTTLE)
                 # execute_mode_actionの引数をキーワード引数で明示
                 scenario.execute_mode_action(action, bottle=bottle, key=key_input)
             else:
