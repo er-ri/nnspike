@@ -41,6 +41,9 @@ BLACK_COLOR_THRESHOLD = 150
 # 青判定の閾値（色値: 30以下, 反射光: 60以下なら青と判定）
 BLUE_COLOR_THRESHOLD = 30
 BLUE_REFLECTED_THRESHOLD = 60
+BOTTLE_YELLOW_THRESHOLD = 12000
+BOTTLE_BLUE_THRESHOLD = 12000
+BOTTLE_RED_THRESHOLD = 12000
 # ================================================
 
 import cv2
@@ -618,7 +621,7 @@ class VideoManager:
         steer_result: steer_by_cameraの辞書
         scenario: NormalScenarioインスタンス
         action: ActionManagerインスタンス
-        bottle: ペットボトル検出結果（boolやdict等）
+        bottle: ペットボトル検出結果（色ごとのピクセル数辞書など）
         """
         x1, y1, x2, y2 = roi
         mx = steer_result["mx"]
@@ -644,9 +647,9 @@ class VideoManager:
             ultrasonic_data = f"{distance} cm"
         else:
             ultrasonic_data = "N/A cm"
-        # --- bottle情報を横並びで表示 ---
+        # --- bottle情報を色ごとのピクセル数で表示 ---
         if bottle and isinstance(bottle, dict):
-            bottle_str = f"{bottle.get('result', False)} | {bottle.get('color', 'N/A')} | {bottle.get('pixels', 0)}"
+            bottle_str = f"Y:{bottle.get('yellow', 0)} B:{bottle.get('blue', 0)} R:{bottle.get('red', 0)}"
         else:
             bottle_str = "N/A"
         info = dict()
@@ -804,7 +807,10 @@ class ManualScenario(DefaultScenario):
         elif self.mode == Mode.MANUAL_B:
             pass
         elif self.mode == Mode.MANUAL_D:
-            if bottle and isinstance(bottle, dict) and bottle.get('result', False) and bottle.get('color') == 'yellow':
+            # yellow_pixelsがBOTTLE_YELLOW_THRESHOLD以上、またはyellow_pixelsが5000以上かつ超音波センサー値が50未満
+            yellow_pixels = bottle.get('yellow', 0) if bottle else 0
+            distance = action.distance if hasattr(action, 'distance') else None
+            if (yellow_pixels >= BOTTLE_YELLOW_THRESHOLD) or (yellow_pixels >= 5000 and distance is not None and distance < 60):
                 self.mode = Mode.MANUAL_YELLOW_BOTTLE
         elif self.mode == Mode.MANUAL_YELLOW_BOTTLE:
             # ボトル検出時の特別な回避や動作をここで実装

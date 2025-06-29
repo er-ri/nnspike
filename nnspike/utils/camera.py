@@ -83,21 +83,18 @@ class Camera:
 
     def detect_color_bottle(self, frame, roi=ROI_BOTTLE):
         """
-        ROI内の黄色・青・赤領域の面積が各色ごとのしきい値ピクセル以上ならTrueを返す。
-        優先順位: 黄色→青→赤
+        ROI内の黄色・青・赤領域の面積をそれぞれ計算し、色名とピクセル数を返す。
         Args:
             frame: BGR画像(numpy array)
             roi: (x1, y1, x2, y2)のタプル
         Returns:
-            dict: {'result': bool, 'color': str or None, 'pixels': int}
+            dict: {'yellow': int, 'blue': int, 'red': int}
         """
-        THRESHOLD_YELLOW = 12000
-        THRESHOLD_BLUE = 12000
-        THRESHOLD_RED = 12000
+
         x1, y1, x2, y2 = roi
         roi_img = frame[y1:y2, x1:x2]
         if roi_img is None or roi_img.size == 0:
-            return {'result': False, 'color': None, 'pixels': 0}
+            return {'yellow': 0, 'blue': 0, 'red': 0}
         hsv = cv2.cvtColor(roi_img, cv2.COLOR_BGR2HSV)
         # 赤（2つの範囲）
         lower_red1 = np.array([0, 100, 100])
@@ -117,12 +114,4 @@ class Camera:
         red_pixels = int(cv2.countNonZero(red_mask))
         blue_pixels = int(cv2.countNonZero(blue_mask))
         yellow_pixels = int(cv2.countNonZero(yellow_mask))
-        # 判定（優先順位: 黄→青→赤）
-        if yellow_pixels >= THRESHOLD_YELLOW:
-            return {'result': True, 'color': 'yellow', 'pixels': yellow_pixels}
-        elif blue_pixels >= THRESHOLD_BLUE:
-            return {'result': True, 'color': 'blue', 'pixels': blue_pixels}
-        elif red_pixels >= THRESHOLD_RED:
-            return {'result': True, 'color': 'red', 'pixels': red_pixels}
-        else:
-            return {'result': False, 'color': None, 'pixels': 0}
+        return {'yellow': yellow_pixels, 'blue': blue_pixels, 'red': red_pixels}
