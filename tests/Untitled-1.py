@@ -1,0 +1,1 @@
+# carry_bottle_sequenceはActionManagerクラスへ移動しました

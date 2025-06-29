@@ -464,7 +464,60 @@ class ActionManager:
                 self.finished = True
             self.reset_control_values()
             self.apply_power()
-        
+
+    def carry_bottle_sequence(self):
+        # --- キャリーボトル運搬動作（state=0から開始、直進→停止→運搬→完了） ---
+        now = time.time()
+        if self.finished:
+            self.left_power = 0
+            self.right_power = 0
+            self.reset_control_values()
+            self.apply_power()
+            return
+        if self.state == 0:
+            # ゆっくり直進してボトルキャッチ
+            if not self.action_sent:  
+                self.start_time = now
+                self.action_sent = True
+                self.end_time = now + 2.0
+                self.left_power = 10
+                self.right_power = 10
+            else:
+                if now >= self.end_time:
+                    self.et.brake()
+                    self.state = 1
+                    self._reset_action_vars()
+        elif self.state == 1:
+            # 1秒間停止
+            if not self.action_sent:
+                self.start_time = now
+                self.action_sent = True
+                self.left_power = 0
+                self.right_power = 0
+            else:
+                if now - self.start_time >= 1.0:
+                    self.et.brake()
+                    self.state = 2
+                    self._reset_action_vars()
+        elif self.state == 2:
+            # 3秒間power30で運ぶ
+            if not self.action_sent:  
+                self.start_time = now
+                self.action_sent = True
+                self.end_time = now + 3.0
+                self.left_power = 30
+                self.right_power = 30
+            else:
+                if now >= self.end_time:
+                    self.et.brake()
+                    self.state = 3
+                    self._reset_action_vars()
+        elif self.state == 3:
+            # 完了フラグのみ
+            self.finished = True
+        self.reset_control_values()
+        self.apply_power()
+
     def test_initial_sensor(self, test_count=5, delay=0.2):
         """
         SPIKEの初期センサーテストを簡易実行
@@ -587,9 +640,16 @@ class VideoManager:
                 frameSize=(image_width, image_height),
             )
         if send_video:
-            # --- 注意: PC側でレシーバ（サーバ）が起動していない場合、ここで例外が発生しプログラムは停止します ---
+            # --- サーバが起動するまで2秒ごとにリトライし続ける ---
             self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.client_socket.connect((host_ip_address, port))
+            while True:
+                try:
+                    self.client_socket.connect((host_ip_address, port))
+                    print(f"[VideoManager] Connected to server at {host_ip_address}:{port}")
+                    break
+                except Exception as e:
+                    print(f"[VideoManager] Waiting for server at {host_ip_address}:{port}... ({e})")
+                    time.sleep(2)
 
     def write_video(self, frame):
         if self.save_video and self.video_writer is not None:
@@ -809,8 +869,14 @@ class ManualScenario(DefaultScenario):
         elif self.mode == Mode.MANUAL_D:
             # yellow_pixelsがBOTTLE_YELLOW_THRESHOLD以上、またはyellow_pixelsが5000以上かつ超音波センサー値が50未満
             yellow_pixels = bottle.get('yellow', 0) if bottle else 0
-            if (yellow_pixels >= BOTTLE_YELLOW_THRESHOLD):
+            blue_pixels = bottle.get('blue', 0) if bottle else 0
+            red_pixels = bottle.get('red', 0) if bottle else 0
+            if yellow_pixels >= BOTTLE_YELLOW_THRESHOLD:
                 self.mode = Mode.MANUAL_YELLOW_BOTTLE
+            elif blue_pixels >= BOTTLE_BLUE_THRESHOLD:
+                self.mode = Mode.MANUAL_BLUE_BOTTLE
+            elif red_pixels >= BOTTLE_RED_THRESHOLD:
+                self.mode = Mode.MANUAL_RED_BOTTLE
         elif self.mode == Mode.MANUAL_YELLOW_BOTTLE:
             # ボトル検出時の特別な回避や動作をここで実装
             pass
@@ -840,6 +906,12 @@ class ManualScenario(DefaultScenario):
         elif self.mode == Mode.MANUAL_YELLOW_BOTTLE:
             # ボトル検出時の特別な回避や動作をここで実装
             action.do_obstacle_avoid_with_bottle()
+            if action.is_finished():
+                self.mode = Mode.STOP
+                action.reset()
+        elif self.mode == Mode.MANUAL_BLUE_BOTTLE or self.mode == Mode.MANUAL_RED_BOTTLE:
+            # 青または赤ボトル検出時の特別な回避や動作をここで実装
+            action.carry_bottle_sequence()
             if action.is_finished():
                 self.mode = Mode.STOP
                 action.reset()
@@ -965,7 +1037,6 @@ def main(config: Config):
         if sensor_recorder is not None and sensor_recorder.is_enabled():
             sensor_recorder.stop()
             print(f"Total frames recorded: {sensor_recorder.get_frame_count()}")
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
