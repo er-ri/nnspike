@@ -99,7 +99,9 @@ class Mode(Enum):
     MANUAL_B = auto()           # マニュアル操作モード（手動制御用）
     MANUAL_C = auto()           # マニュアル操作モード（手動制御用）
     MANUAL_D = auto()           # マニュアル操作モード（手動制御用）
-    MANUAL_BOTTLE = auto()      # ボトル検出時のマニュアル分岐
+    MANUAL_YELLOW_BOTTLE = auto()      # ボトル検出時のマニュアル分岐（黄色）
+    MANUAL_BLUE_BOTTLE = auto()        # ボトル検出時のマニュアル分岐（青）
+    MANUAL_RED_BOTTLE = auto()         # ボトル検出時のマニュアル分岐（赤）
 
 class ActionManager:
     """
@@ -738,9 +740,10 @@ class NormalScenario(DefaultScenario):
         self.mode = Mode.LINE_TRACE
         self.obstacle_detected_time = None
 
-    def transition_mode(self, distance):
+    def transition_mode(self, action):
         OBSTACLE_DETECT_DISTANCE = 70
         DIST_STOP_DURATION = 1.0
+        distance = action.distance
         if self.mode == Mode.LINE_TRACE:
             if distance is not None and distance < OBSTACLE_DETECT_DISTANCE:
                 self.mode = Mode.DIST_STOP
@@ -757,7 +760,7 @@ class NormalScenario(DefaultScenario):
 
     def execute_mode_action(self, action, steer_result):
         offset_pixels = steer_result.get("offset_pixels", 0)
-        self.transition_mode(action.distance)
+        self.transition_mode(action)
         if self.mode == Mode.LINE_TRACE:
             action.do_line_trace(offset_pixels)
         elif self.mode == Mode.DIST_STOP:
@@ -784,7 +787,7 @@ class ManualScenario(DefaultScenario):
         self.mode = Mode.MANUAL
         self.manual_start_time = None
 
-    def transition_mode(self, bottle, key=None):
+    def transition_mode(self, action, bottle, key=None):
         if self.mode == Mode.MANUAL:
             if key == 'a':
                 self.mode = Mode.MANUAL_A
@@ -801,10 +804,10 @@ class ManualScenario(DefaultScenario):
         elif self.mode == Mode.MANUAL_B:
             pass
         elif self.mode == Mode.MANUAL_D:
-            if bottle and isinstance(bottle, dict) and bottle.get('result', False):
-                self.mode = Mode.MANUAL_BOTTLE
-        elif self.mode == Mode.MANUAL_BOTTLE:
-            # MANUAL_BOTTLEの遷移条件が必要ならここに追加
+            if bottle and isinstance(bottle, dict) and bottle.get('result', False) and bottle.get('color') == 'yellow':
+                self.mode = Mode.MANUAL_YELLOW_BOTTLE
+        elif self.mode == Mode.MANUAL_YELLOW_BOTTLE:
+            # ボトル検出時の特別な回避や動作をここで実装
             pass
         elif self.mode == Mode.STOP:
             self.mode = Mode.MANUAL
@@ -817,7 +820,7 @@ class ManualScenario(DefaultScenario):
             bottle: ペットボトル検出結果（boolやdict等、camera.detect_bottleの返り値）
             key: キーボード入力（'a', 'b', 'd'等）
         """
-        self.transition_mode(bottle, key=key)
+        self.transition_mode(action, bottle, key=key)
         if self.mode == Mode.MANUAL:
             pass
         elif self.mode == Mode.MANUAL_A:
@@ -829,7 +832,7 @@ class ManualScenario(DefaultScenario):
                 action.reset()
         elif self.mode == Mode.MANUAL_D:
             action.do_straight()
-        elif self.mode == Mode.MANUAL_BOTTLE:
+        elif self.mode == Mode.MANUAL_YELLOW_BOTTLE:
             # ボトル検出時の特別な回避や動作をここで実装
             action.do_obstacle_avoid_with_bottle()
             if action.is_finished():
@@ -927,7 +930,7 @@ def main(config: Config):
                 steer_result = {"mx": 0, "my": 0, "offset_pixels": 0, "max_contour": None}
                 key_input = key.get_key() if config.log_manual else None
                 # ペットボトル検出結果をbottle_resultという辞書で受け渡し
-                bottle_result = camera.detect_yellow_bottle(frame, ROI_BOTTLE)
+                bottle_result = camera.detect_color_bottle(frame, ROI_BOTTLE)
                 scenario.execute_mode_action(action, bottle=bottle_result, key=key_input)
             else:
                 steer_result = camera.steer_by_camera(frame)

@@ -81,28 +81,48 @@ class Camera:
                 return True, cnt
         return False, None
 
-    def detect_yellow_bottle(self, frame, roi=ROI_BOTTLE):
+    def detect_color_bottle(self, frame, roi=ROI_BOTTLE):
         """
-        ROI内の黄色領域の面積が20000.0ピクセル以上ならTrueを返す。
+        ROI内の黄色・青・赤領域の面積が各色ごとのしきい値ピクセル以上ならTrueを返す。
+        優先順位: 黄色→青→赤
         Args:
             frame: BGR画像(numpy array)
             roi: (x1, y1, x2, y2)のタプル
         Returns:
-            dict: {'result': bool, 'color': str, 'pixels': int}
+            dict: {'result': bool, 'color': str or None, 'pixels': int}
         """
+        THRESHOLD_YELLOW = 12000
+        THRESHOLD_BLUE = 12000
+        THRESHOLD_RED = 12000
         x1, y1, x2, y2 = roi
         roi_img = frame[y1:y2, x1:x2]
         if roi_img is None or roi_img.size == 0:
-            bottle_result = {'result': False, 'color': 'yellow', 'pixels': 0}
-            return bottle_result
+            return {'result': False, 'color': None, 'pixels': 0}
         hsv = cv2.cvtColor(roi_img, cv2.COLOR_BGR2HSV)
+        # 赤（2つの範囲）
+        lower_red1 = np.array([0, 100, 100])
+        upper_red1 = np.array([10, 255, 255])
+        lower_red2 = np.array([160, 100, 100])
+        upper_red2 = np.array([180, 255, 255])
+        red_mask = cv2.inRange(hsv, lower_red1, upper_red1) + cv2.inRange(hsv, lower_red2, upper_red2)
+        # 青
+        lower_blue = np.array([100, 100, 100])
+        upper_blue = np.array([130, 255, 255])
+        blue_mask = cv2.inRange(hsv, lower_blue, upper_blue)
+        # 黄
         lower_yellow = np.array([20, 100, 100])
         upper_yellow = np.array([35, 255, 255])
         yellow_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
-        kernel = np.ones((3, 3), np.uint8)
-        yellow_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_OPEN, kernel)
-        yellow_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_CLOSE, kernel)
-        yellow_area = int(cv2.countNonZero(yellow_mask))
-        yellow = yellow_area >= 12000.0
-        bottle_result = {'result': yellow, 'color': 'yellow', 'pixels': yellow_area}
-        return bottle_result
+        # 面積計算
+        red_pixels = int(cv2.countNonZero(red_mask))
+        blue_pixels = int(cv2.countNonZero(blue_mask))
+        yellow_pixels = int(cv2.countNonZero(yellow_mask))
+        # 判定（優先順位: 黄→青→赤）
+        if yellow_pixels >= THRESHOLD_YELLOW:
+            return {'result': True, 'color': 'yellow', 'pixels': yellow_pixels}
+        elif blue_pixels >= THRESHOLD_BLUE:
+            return {'result': True, 'color': 'blue', 'pixels': blue_pixels}
+        elif red_pixels >= THRESHOLD_RED:
+            return {'result': True, 'color': 'red', 'pixels': red_pixels}
+        else:
+            return {'result': False, 'color': None, 'pixels': 0}
