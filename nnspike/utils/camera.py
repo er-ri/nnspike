@@ -88,12 +88,13 @@ class Camera:
             frame: BGR画像(numpy array)
             roi: (x1, y1, x2, y2)のタプル
         Returns:
-            bool: 黄色領域が閾値以上ならTrue, それ以外はFalse
+            dict: {'result': bool, 'color': str, 'pixels': int}
         """
         x1, y1, x2, y2 = roi
         roi_img = frame[y1:y2, x1:x2]
         if roi_img is None or roi_img.size == 0:
-            return False
+            bottle_result = {'result': False, 'color': 'yellow', 'pixels': 0}
+            return bottle_result
         hsv = cv2.cvtColor(roi_img, cv2.COLOR_BGR2HSV)
         lower_yellow = np.array([20, 100, 100])
         upper_yellow = np.array([35, 255, 255])
@@ -101,5 +102,7 @@ class Camera:
         kernel = np.ones((3, 3), np.uint8)
         yellow_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_OPEN, kernel)
         yellow_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_CLOSE, kernel)
-        yellow_area = cv2.countNonZero(yellow_mask)
-        return yellow_area >= 35000.0
+        yellow_area = int(cv2.countNonZero(yellow_mask))
+        yellow = yellow_area >= 35000.0
+        bottle_result = {'result': yellow, 'color': 'yellow', 'pixels': yellow_area}
+        return bottle_result

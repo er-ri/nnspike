@@ -642,6 +642,11 @@ class VideoManager:
             ultrasonic_data = f"{distance} cm"
         else:
             ultrasonic_data = "N/A cm"
+        # --- bottle情報を横並びで表示 ---
+        if bottle and isinstance(bottle, dict):
+            bottle_str = f"{bottle.get('result', False)} | {bottle.get('color', 'N/A')} | {bottle.get('pixels', 0)}"
+        else:
+            bottle_str = "N/A"
         info = dict()
         info["offset_x"], info["offset_y"] = x1 + mx, y1 + my
         info["roi"] = roi
@@ -667,7 +672,7 @@ class VideoManager:
             "right_relative_position": f"{action.right_relative_position}deg / {right_distance_cm}cm",
             "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
             "mode": scenario.mode.name,
-            "bottle": str(bottle) if bottle is not None else "N/A"
+            "bottle": bottle_str
         }
         return info
 
@@ -796,7 +801,7 @@ class ManualScenario(DefaultScenario):
         elif self.mode == Mode.MANUAL_B:
             pass
         elif self.mode == Mode.MANUAL_D:
-            if bottle:
+            if bottle and isinstance(bottle, dict) and bottle.get('result', False):
                 self.mode = Mode.MANUAL_BOTTLE
         elif self.mode == Mode.MANUAL_BOTTLE:
             # MANUAL_BOTTLEの遷移条件が必要ならここに追加
@@ -921,15 +926,14 @@ def main(config: Config):
             if config.log_manual:
                 steer_result = {"mx": 0, "my": 0, "offset_pixels": 0, "max_contour": None}
                 key_input = key.get_key() if config.log_manual else None
-                # ペットボトル検出結果を明示的にbottle変数へ格納
-                bottle = camera.detect_yellow_bottle(frame, ROI_BOTTLE)
-                # execute_mode_actionの引数をキーワード引数で明示
-                scenario.execute_mode_action(action, bottle=bottle, key=key_input)
+                # ペットボトル検出結果をbottle_resultという辞書で受け渡し
+                bottle_result = camera.detect_yellow_bottle(frame, ROI_BOTTLE)
+                scenario.execute_mode_action(action, bottle=bottle_result, key=key_input)
             else:
                 steer_result = camera.steer_by_camera(frame)
                 scenario.execute_mode_action(action, steer_result)
             if (config.log_save_video or config.log_send_video) and video is not None:
-                if not video.process_and_send(frame, steer_result, ROI_OPENCV, scenario, action, bottle):
+                if not video.process_and_send(frame, steer_result, ROI_OPENCV, scenario, action, bottle_result if config.log_manual else None):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
             if config.log_manual:
