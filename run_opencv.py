@@ -155,6 +155,17 @@ class ActionManager:
 
     def apply_power(self):
         """現在のleft_power, right_powerをロボットに反映し、spikeから実際の左右パワーを取得"""
+        # --- 送信間隔50ms厳密保証: 直前送信から50ms未満なら1ms単位でsleepし続ける ---
+        now = time.time()
+        if hasattr(self, 'last_send_time') and self.last_send_time is not None:
+            elapsed = now - self.last_send_time
+            wait = 0.05 - elapsed
+            while wait > 0:
+                time.sleep(min(wait, 0.001))  # 1ms単位で小刻みにsleep
+                now = time.time()
+                elapsed = now - self.last_send_time
+                wait = 0.05 - elapsed
+        # --- ここから送信処理 ---
         self.et.set_motor_forward_power(left_power=self.left_power, right_power=self.right_power)
         # spikeから実際の左右パワーを取得
         status = self.et.get_spike_status()
