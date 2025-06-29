@@ -155,26 +155,7 @@ class ActionManager:
 
     def apply_power(self):
         """現在のleft_power, right_powerをロボットに反映し、spikeから実際の左右パワーを取得"""
-        now = time.time()
-        send_command = False
-        # --- 値が変化した場合は即送信（50ms間隔はmainループで保証） ---
-        if (self.left_power != getattr(self, '_last_left_power', None) or
-            self.right_power != getattr(self, '_last_right_power', None)):
-            send_command = True
-            self._last_power_change_time = now
-        else:
-            # 値が変化していない場合は、前回送信から50ms以上経過していれば送信
-            last_send = getattr(self, '_last_power_send_time', None)
-            if last_send is None or (now - last_send) >= 0.05:
-                # さらに「前回値変化から50ms以上経過」も条件に加える
-                last_change = getattr(self, '_last_power_change_time', None)
-                if last_change is not None and (now - last_change) >= 0.05:
-                    send_command = True
-        if send_command:
-            self.et.set_motor_forward_power(left_power=self.left_power, right_power=self.right_power)
-            self._last_left_power = self.left_power
-            self._last_right_power = self.right_power
-            self._last_power_send_time = now
+        self.et.set_motor_forward_power(left_power=self.left_power, right_power=self.right_power)
         # spikeから実際の左右パワーを取得
         status = self.et.get_spike_status()
         left_actual = None
@@ -186,6 +167,7 @@ class ActionManager:
         self.left_actual_power = left_actual
         self.right_actual_power = right_actual
         # --- ms単位で送信タイミングと前回からの差分をデバッグ出力 ---
+        now = time.time()
         ts = time.strftime("%Y%m%d%H%M%S", time.localtime(now))
         ms = int((now - int(now)) * 1000)
         if hasattr(self, 'last_send_time') and self.last_send_time is not None:
