@@ -102,9 +102,9 @@ class Mode(Enum):
     MANUAL_B = auto()           # マニュアル操作モード（手動制御用）
     MANUAL_C = auto()           # マニュアル操作モード（手動制御用）
     MANUAL_D = auto()           # マニュアル操作モード（手動制御用）
-    MANUAL_YELLOW_BOTTLE = auto()      # ボトル検出時のマニュアル分岐（黄色）
-    MANUAL_BLUE_BOTTLE = auto()        # ボトル検出時のマニュアル分岐（青）
-    MANUAL_RED_BOTTLE = auto()         # ボトル検出時のマニュアル分岐（赤）
+    YELLOW_BOTTLE = auto()      # ボトル検出時の分岐（黄色）
+    BLUE_BOTTLE = auto()        # ボトル検出時の分岐（青）
+    RED_BOTTLE = auto()         # ボトル検出時の分岐（赤）
 
 class ActionManager:
     """
@@ -137,6 +137,7 @@ class ActionManager:
         # --- 受信した実際の左右パワー値を初期化 ---
         self.left_actual_power = None
         self.right_actual_power = None
+        self.last_send_time = None  # 送信タイムスタンプ（ms差分計算用）
 
     def reset(self):
         self.state = 0
@@ -166,6 +167,16 @@ class ActionManager:
         # --- 取得した値をインスタンス変数に格納 ---
         self.left_actual_power = left_actual
         self.right_actual_power = right_actual
+        # --- ms単位で送信タイミングと前回からの差分をデバッグ出力 ---
+        now = time.time()
+        ts = time.strftime("%Y%m%d%H%M%S", time.localtime(now))
+        ms = int((now - int(now)) * 1000)
+        if self.last_send_time is not None:
+            diff_ms = int((now - self.last_send_time) * 1000)
+            print(f"[DEBUG][apply_power] sent at {ts}.{ms:03d} (+{diff_ms}ms)")
+        else:
+            print(f"[DEBUG][apply_power] sent at {ts}.{ms:03d} (first)")
+        self.last_send_time = now
 
     def reset_control_values(self):
         self.theta = 0
@@ -640,14 +651,20 @@ class VideoManager:
                 frameSize=(image_width, image_height),
             )
         if send_video:
-            # --- サーバが起動するまで2秒ごとにリトライし続ける ---
+            # --- サーバが起動するまで2秒ごとにリトライ（最大30秒でタイムアウト） ---
             self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            start_time = time.time()
             while True:
                 try:
                     self.client_socket.connect((host_ip_address, port))
                     print(f"[VideoManager] Connected to server at {host_ip_address}:{port}")
                     break
                 except Exception as e:
+                    elapsed = time.time() - start_time
+                    if elapsed >= 30:
+                        print(f"[VideoManager] Connection timeout after 30 seconds. Could not connect to server at {host_ip_address}:{port}.")
+                        self.client_socket = None
+                        break
                     print(f"[VideoManager] Waiting for server at {host_ip_address}:{port}... ({e})")
                     time.sleep(2)
 
@@ -797,53 +814,78 @@ class DefaultScenario:
 # --- 通常（ノーマル）シナリオの実装例 ---
 class NormalScenario(DefaultScenario):
     """
-    状態遷移と動作遷移を1つのクラスで管理する通常（ノーマル）シナリオの実装例。
+    【ノーマルシナリオ】
+    - 自動走行（ライン検出→ボトル検出→回避/運搬）を一括管理。
+    - 状態（mode）に応じてアクションを切り替え、状態遷移も自動で行う。
+    - 各分岐・遷移条件はボトル検出ピクセル数やアクション完了フラグで判定。
     """
     def __init__(self):
+        super().__init__()
         self.mode = Mode.LINE_TRACE
-        self.obstacle_detected_time = None
 
-    def transition_mode(self, action):
-        OBSTACLE_DETECT_DISTANCE = 70
-        DIST_STOP_DURATION = 1.0
-        distance = action.distance
+    def transition_mode(self, action, bottle=None):
+        # --- 状態遷移: ボトル検出ピクセル数に応じて分岐 ---
+        yellow_pixels = bottle.get('yellow', 0) if bottle else 0
+        blue_pixels = bottle.get('blue', 0) if bottle else 0
+        red_pixels = bottle.get('red', 0) if bottle else 0
         if self.mode == Mode.LINE_TRACE:
-            if distance is not None and distance < OBSTACLE_DETECT_DISTANCE:
-                self.mode = Mode.DIST_STOP
-                self.obstacle_detected_time = time.time()
-        elif self.mode == Mode.DIST_STOP:
-            if distance is not None and distance >= OBSTACLE_DETECT_DISTANCE * (60/30):
-                self.mode = Mode.LINE_TRACE
-                self.obstacle_detected_time = None
-            elif time.time() - self.obstacle_detected_time >= DIST_STOP_DURATION:
-                self.mode = Mode.OBSTACLE_AVOID
-        elif self.mode == Mode.OBSTACLE_AVOID:
+            # ライントレース中に各色ボトルを検出したら該当モードへ遷移
+            if yellow_pixels >= BOTTLE_YELLOW_THRESHOLD:
+                self.mode = Mode.YELLOW_BOTTLE
+            elif blue_pixels >= BOTTLE_BLUE_THRESHOLD:
+                self.mode = Mode.BLUE_BOTTLE
+            elif red_pixels >= BOTTLE_RED_THRESHOLD:
+                self.mode = Mode.RED_BOTTLE
+        elif self.mode == Mode.YELLOW_BOTTLE:
+            # 黄色ボトル回避中（完了はアクション側で判定）
             pass
-        # SMART_CARRY_1, SMART_CARRY_2, GOALへの遷移は必要に応じて追加
+        elif self.mode == Mode.BLUE_BOTTLE:
+            # 青ボトル運搬中
+            pass
+        elif self.mode == Mode.RED_BOTTLE:
+            # 赤ボトル運搬中
+            pass
+        elif self.mode == Mode.STOP:
+            # 停止状態（未実装）
+            self.mode = Mode.STOP
+        # SMART_CARRY_1, SMART_CARRY_2, GOAL等は必要に応じて追加
 
-    def execute_mode_action(self, action, steer_result):
+    def execute_mode_action(self, action, steer_result, bottle=None):
+        """
+        --- 状態ごとにアクションを分岐実行 ---
+        - LINE_TRACE: 通常のライン追従
+        - YELLOW_BOTTLE: 黄色ボトル回避（完了後はLINE_TRACE復帰）
+        - BLUE_BOTTLE/RED_BOTTLE: 青/赤ボトル運搬（完了後はSTOP）
+        """
         offset_pixels = steer_result.get("offset_pixels", 0)
-        self.transition_mode(action)
+        self.transition_mode(action, bottle)
         if self.mode == Mode.LINE_TRACE:
             action.do_line_trace(offset_pixels)
-        elif self.mode == Mode.DIST_STOP:
-            action.do_dist_stop()
-        elif self.mode == Mode.OBSTACLE_AVOID:
-            action.do_obstacle_avoid()
+        elif self.mode == Mode.YELLOW_BOTTLE:
+            action.do_obstacle_avoid_with_bottle()  # 黄色ボトル回避動作
             if action.is_finished():
-                self.mode = Mode.LINE_TRACE  # state3後に必ずLINE_TRACEへ遷移
-                self.obstacle_detected_time = None
-                action.reset()  # 回避動作の状態もリセット
+                self.mode = Mode.LINE_TRACE  # 回避完了で通常走行に復帰
+                action.reset()
+        elif self.mode == Mode.BLUE_BOTTLE or self.mode == Mode.RED_BOTTLE:
+            action.carry_bottle_sequence()  # 青/赤ボトル運搬動作
+            if action.is_finished():
+                self.mode = Mode.STOP  # 運搬完了で停止
+                action.reset()
+        elif self.mode == Mode.STOP:
+            action.do_stop()
         elif self.mode == Mode.GOAL:
-            pass
+            pass  # ゴール到達時の処理（未実装）
         else:
             pass
 
-# --- マニュアルシナリオの実装例 ---
 class ManualScenario(DefaultScenario):
     """
-    キーボード入力による手動操作専用のシナリオ。
-    DefaultScenarioを継承し、execute_mode_actionで手動制御用のロジックを実装する。
+    【マニュアルシナリオ】
+    - キーボード入力で手動操作。
+    - 一部モードはキー入力やボトル検出で自動遷移。
+    - MANUAL_A/B/D: 特定キーで直進や回避動作を実行。
+    - YELLOW/BLUE/RED_BOTTLE: ボトル検出時は自動で運搬/回避。
+    - STOP: 停止状態（一定時間後やアクション完了で復帰）。
     """
     def __init__(self):
         super().__init__()
@@ -851,7 +893,9 @@ class ManualScenario(DefaultScenario):
         self.manual_start_time = None
 
     def transition_mode(self, action, bottle, key=None):
+        # --- 状態遷移: キー入力・ボトル検出に応じて分岐 ---
         if self.mode == Mode.MANUAL:
+            # a/b/dキーで手動モード遷移
             if key == 'a':
                 self.mode = Mode.MANUAL_A
                 self.manual_start_time = time.time()
@@ -862,38 +906,50 @@ class ManualScenario(DefaultScenario):
                 self.mode = Mode.MANUAL_D
                 self.manual_start_time = time.time()
         elif self.mode == Mode.MANUAL_A:
+            # MANUAL_Aは1秒経過でSTOP
             if time.time() - self.manual_start_time >= 1.0:
                 self.mode = Mode.STOP
         elif self.mode == Mode.MANUAL_B:
+            # MANUAL_Bはアクション完了でSTOP（アクション側で判定）
             pass
         elif self.mode == Mode.MANUAL_D:
-            # yellow_pixelsがBOTTLE_YELLOW_THRESHOLD以上、またはyellow_pixelsが5000以上かつ超音波センサー値が50未満
+            # MANUAL_D中にボトル検出で自動遷移
             yellow_pixels = bottle.get('yellow', 0) if bottle else 0
             blue_pixels = bottle.get('blue', 0) if bottle else 0
             red_pixels = bottle.get('red', 0) if bottle else 0
             if yellow_pixels >= BOTTLE_YELLOW_THRESHOLD:
-                self.mode = Mode.MANUAL_YELLOW_BOTTLE
+                self.mode = Mode.YELLOW_BOTTLE
             elif blue_pixels >= BOTTLE_BLUE_THRESHOLD:
-                self.mode = Mode.MANUAL_BLUE_BOTTLE
+                self.mode = Mode.BLUE_BOTTLE
             elif red_pixels >= BOTTLE_RED_THRESHOLD:
-                self.mode = Mode.MANUAL_RED_BOTTLE
-        elif self.mode == Mode.MANUAL_YELLOW_BOTTLE:
-            # ボトル検出時の特別な回避や動作をここで実装
+                self.mode = Mode.RED_BOTTLE
+        elif self.mode == Mode.YELLOW_BOTTLE:
+            # 黄色ボトル回避中
+            pass
+        elif self.mode == Mode.BLUE_BOTTLE:
+            # 青ボトル運搬中
+            pass
+        elif self.mode == Mode.RED_BOTTLE:
+            # 赤ボトル運搬中
             pass
         elif self.mode == Mode.STOP:
+            # 停止後はMANUALに復帰
             self.mode = Mode.MANUAL
 
     def execute_mode_action(self, action, bottle=None, key=None):
         """
-        マニュアルシナリオのアクション実行
-        Args:
-            action: ActionManagerインスタンス
-            bottle: ペットボトル検出結果（boolやdict等、camera.detect_bottleの返り値）
-            key: キーボード入力（'a', 'b', 'd'等）
+        --- 状態ごとにアクションを分岐実行 ---
+        - MANUAL: 入力待ち（何もしない）
+        - MANUAL_A: 直進（1秒後STOP）
+        - MANUAL_B: 障害物回避（完了後STOP）
+        - MANUAL_D: 直進（ボトル検出で自動遷移）
+        - YELLOW_BOTTLE: 黄色ボトル回避（完了後STOP）
+        - BLUE/RED_BOTTLE: 青/赤ボトル運搬（完了後STOP）
+        - STOP: 停止
         """
         self.transition_mode(action, bottle, key=key)
         if self.mode == Mode.MANUAL:
-            pass
+            pass  # 入力待ち
         elif self.mode == Mode.MANUAL_A:
             action.do_straight()
         elif self.mode == Mode.MANUAL_B:
@@ -903,14 +959,12 @@ class ManualScenario(DefaultScenario):
                 action.reset()
         elif self.mode == Mode.MANUAL_D:
             action.do_straight()
-        elif self.mode == Mode.MANUAL_YELLOW_BOTTLE:
-            # ボトル検出時の特別な回避や動作をここで実装
+        elif self.mode == Mode.YELLOW_BOTTLE:
             action.do_obstacle_avoid_with_bottle()
             if action.is_finished():
                 self.mode = Mode.STOP
                 action.reset()
-        elif self.mode == Mode.MANUAL_BLUE_BOTTLE or self.mode == Mode.MANUAL_RED_BOTTLE:
-            # 青または赤ボトル検出時の特別な回避や動作をここで実装
+        elif self.mode == Mode.BLUE_BOTTLE or self.mode == Mode.RED_BOTTLE:
             action.carry_bottle_sequence()
             if action.is_finished():
                 self.mode = Mode.STOP
@@ -1004,17 +1058,17 @@ def main(config: Config):
                 print("[ERROR] Can't receive frame (stream end?). Exiting ...")
                 break
             action.update_sensor_info(sensor_recorder)
+            # ペットボトル検出結果をbottle_resultという辞書で受け渡し
+            bottle_result = camera.detect_color_bottle(frame, ROI_BOTTLE)
             if config.log_manual:
                 steer_result = {"mx": 0, "my": 0, "offset_pixels": 0, "max_contour": None}
                 key_input = key.get_key() if config.log_manual else None
-                # ペットボトル検出結果をbottle_resultという辞書で受け渡し
-                bottle_result = camera.detect_color_bottle(frame, ROI_BOTTLE)
                 scenario.execute_mode_action(action, bottle=bottle_result, key=key_input)
             else:
                 steer_result = camera.steer_by_camera(frame)
-                scenario.execute_mode_action(action, steer_result)
+                scenario.execute_mode_action(action, steer_result, bottle=bottle_result)
             if (config.log_save_video or config.log_send_video) and video is not None:
-                if not video.process_and_send(frame, steer_result, ROI_OPENCV, scenario, action, bottle_result if config.log_manual else None):
+                if not video.process_and_send(frame, steer_result, ROI_OPENCV, scenario, action, bottle_result):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
             loop_elapsed = time.time() - loop_start
