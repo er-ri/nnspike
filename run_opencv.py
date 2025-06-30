@@ -151,11 +151,12 @@ class ActionManager:
     def is_finished(self):
         return self.finished
 
-    def _apply_power_common(self, forward=True):
-        """forward=True: set_motor_forward_power, False: set_motor_backward_power"""
-        # --- 送信間隔50ms厳密保証: 直前送信から50ms未満なら1ms単位でsleepし続ける ---
+    def _apply_power_common(self, forward=True, force_immediate=False):
+        """forward=True: set_motor_forward_power, False: set_motor_backward_power
+        force_immediate=Trueの場合は送信間隔待ちをスキップし即時送信"""
+        # --- 送信間隔50ms厳密保証: 直前送信から50ms未満なら1ms単位でsleepし続ける（ただしforce_immediate時はスキップ） ---
         now = time.time()
-        if hasattr(self, 'last_send_time') and self.last_send_time is not None:
+        if not force_immediate and hasattr(self, 'last_send_time') and self.last_send_time is not None:
             elapsed = now - self.last_send_time
             wait = 0.05 - elapsed
             while wait > 0:
@@ -198,6 +199,33 @@ class ActionManager:
         """現在のleft_power, right_powerをロボットに反映（バック用: set_motor_backward_power使用）、spikeから実際の左右パワーを取得"""
         self._apply_power_common(forward=False)
 
+    def apply_power_immediate(self):
+        """送信間隔待ちをせず即時に現在のパワー値を送信（停止命令用）"""
+        self._apply_power_common(forward=True, force_immediate=True)
+
+    def do_stop(self):
+        self.left_power = 0
+        self.right_power = 0
+        self.apply_power_immediate()
+
+    def brake_for_duration(self, duration=3.0):
+        """
+        Spike本体に一定時間ブレーキ信号を連続送信し、安全停止を強制する
+        """
+        print(f"[SAFETY] Sending brake command to Spike for {duration} seconds (brake_for_duration)")
+        stop_start_time = time.time()
+        while time.time() - stop_start_time < duration:
+            try:
+                self.left_power = 0
+                self.right_power = 0
+                self.apply_power_immediate()
+                self.et.brake()
+                time.sleep(0.1)
+            except Exception as e:
+                print(f"[SAFETY][ERROR] Exception during brake command: {e}")
+                break
+        print("[SAFETY] Brake command transmission completed (brake_for_duration)")
+
     def reset_control_values(self):
         self.theta = 0
         self.pid_corrected_theta = 0
@@ -224,14 +252,6 @@ class ActionManager:
     def do_stop(self):
         self.left_power = 0
         self.right_power = 0
-        self.apply_power()
-
-    def do_straight(self):
-        """
-        直進するだけのアクション
-        """
-        self.left_power = BASE_POWER
-        self.right_power = BASE_POWER
         self.apply_power()
 
     def do_obstacle_avoid(self):
@@ -615,6 +635,9 @@ class ActionManager:
         stop_start_time = time.time()
         while time.time() - stop_start_time < duration:
             try:
+                self.left_power = 0
+                self.right_power = 0
+                self.apply_power_immediate()
                 self.et.brake()
                 time.sleep(0.1)
             except Exception as e:
