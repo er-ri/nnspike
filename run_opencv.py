@@ -99,8 +99,8 @@ class Mode(Enum):
     STOP = auto()               # 停止モード
     MANUAL_A = auto()           # マニュアル直進モード
     MANUAL_B = auto()           # マニュアル障害物回避モード
-    MANUAL_C = auto()           # マニュアル予備モードC
     MANUAL_D = auto()           # マニュアル直進＋ボトル検出モード
+    MANUAL_E = auto()           # マニュアルEモード（新規追加）
     YELLOW_BOTTLE = auto()      # 黄色ボトル検出時モード
     BLUE_BOTTLE = auto()        # 青ボトル検出時モード
     RED_BOTTLE = auto()         # 赤ボトル検出時モード
@@ -747,8 +747,9 @@ class VideoManager:
         else:
             ultrasonic_data = "N/A cm"
         # --- bottle情報を色ごとのピクセル数で表示 ---
-        if bottle and isinstance(bottle, dict):
-            bottle_str = f"Y:{bottle.get('yellow', 0)} B:{bottle.get('blue', 0)} R:{bottle.get('red', 0)}"
+        pixel_dict = bottle[0] if (bottle and isinstance(bottle, tuple)) else (bottle if isinstance(bottle, dict) else {})
+        if pixel_dict:
+            bottle_str = f"Y:{pixel_dict.get('yellow', 0)} B:{pixel_dict.get('blue', 0)} R:{pixel_dict.get('red', 0)}"
         else:
             bottle_str = "N/A"
         info = dict()
@@ -847,9 +848,10 @@ class NormalScenario(DefaultScenario):
 
     def transition_mode(self, action, bottle=None):
         # --- 状態遷移: ボトル検出ピクセル数に応じて分岐 ---
-        yellow_pixels = bottle.get('yellow', 0) if bottle else 0
-        blue_pixels = bottle.get('blue', 0) if bottle else 0
-        red_pixels = bottle.get('red', 0) if bottle else 0
+        pixel_dict = bottle[0] if (bottle and isinstance(bottle, tuple)) else (bottle if isinstance(bottle, dict) else {})
+        yellow_pixels = pixel_dict.get('yellow', 0)
+        blue_pixels = pixel_dict.get('blue', 0)
+        red_pixels = pixel_dict.get('red', 0)
         prev_mode = self.mode
         if self.mode == Mode.LINE_TRACE:
             # ライントレース中に各色ボトルを検出したら該当モードへ遷移
@@ -909,7 +911,7 @@ class ManualScenario(DefaultScenario):
     【マニュアルシナリオ】
     - キーボード入力で手動操作。
     - 一部モードはキー入力やボトル検出で自動遷移。
-    - MANUAL_A/B/D: 特定キーで直進や回避動作を実行。
+    - MANUAL_A/B/D/E: 特定キーで直進や回避動作を実行。
     - YELLOW/BLUE/RED_BOTTLE: ボトル検出時は自動で運搬/回避。
     - STOP: 停止状態（一定時間後やアクション完了で復帰）。
     """
@@ -919,9 +921,9 @@ class ManualScenario(DefaultScenario):
         self.manual_start_time = None
 
     def transition_mode(self, action, bottle, key=None):
-        # --- 状態遷移: キー入力・ボトル検出に応じて分岐 ---
+        pixel_dict = bottle[0] if (bottle and isinstance(bottle, tuple)) else (bottle if isinstance(bottle, dict) else {})
         if self.mode == Mode.MANUAL:
-            # a/b/dキーで手動モード遷移
+            # a/b/d/eキーで手動モード遷移
             if key == 'a':
                 self.mode = Mode.MANUAL_A
                 self.manual_start_time = time.time()
@@ -931,6 +933,9 @@ class ManualScenario(DefaultScenario):
             elif key == 'd':
                 self.mode = Mode.MANUAL_D
                 self.manual_start_time = time.time()
+            elif key == 'e':
+                self.mode = Mode.MANUAL_E
+                self.manual_start_time = time.time()
         elif self.mode == Mode.MANUAL_A:
             # MANUAL_Aは1秒経過でSTOP
             if time.time() - self.manual_start_time >= 1.0:
@@ -938,11 +943,11 @@ class ManualScenario(DefaultScenario):
         elif self.mode == Mode.MANUAL_B:
             # MANUAL_Bはアクション完了でSTOP（アクション側で判定）
             pass
-        elif self.mode == Mode.MANUAL_D:
-            # MANUAL_D中にボトル検出で自動遷移
-            yellow_pixels = bottle.get('yellow', 0) if bottle else 0
-            blue_pixels = bottle.get('blue', 0) if bottle else 0
-            red_pixels = bottle.get('red', 0) if bottle else 0
+        elif self.mode == Mode.MANUAL_D or self.mode == Mode.MANUAL_E:
+            # MANUAL_D/E中にボトル検出で自動遷移
+            yellow_pixels = pixel_dict.get('yellow', 0)
+            blue_pixels = pixel_dict.get('blue', 0)
+            red_pixels = pixel_dict.get('red', 0)
             if yellow_pixels >= BOTTLE_YELLOW_THRESHOLD:
                 self.mode = Mode.YELLOW_BOTTLE
             elif blue_pixels >= BOTTLE_BLUE_THRESHOLD:
@@ -962,18 +967,11 @@ class ManualScenario(DefaultScenario):
             # 停止後はMANUALに復帰
             self.mode = Mode.MANUAL
 
-    def execute_mode_action(self, action, bottle=None, key=None):
-        """
-        --- 状態ごとにアクションを分岐実行 ---
-        - MANUAL: 入力待ち（何もしない）
-        - MANUAL_A: 直進（1秒後STOP）
-        - MANUAL_B: 障害物回避（完了後STOP）
-        - MANUAL_D: 直進（ボトル検出で自動遷移）
-        - YELLOW_BOTTLE: 黄色ボトル回避（完了後STOP）
-        - BLUE/RED_BOTTLE: 青/赤ボトル運搬（完了後STOP）
-        - STOP: 停止
-        """
-        self.transition_mode(action, bottle, key=key)
+    def execute_mode_action(self, action, steer_result=None, bottle=None, key=None):
+        offset_pixels = 0
+        if steer_result is not None:
+            offset_pixels = steer_result.get("offset_pixels", 0)
+        self.transition_mode(action, bottle, key=key, offset_pixels=offset_pixels)
         if self.mode == Mode.MANUAL:
             pass  # 入力待ち
         elif self.mode == Mode.MANUAL_A:
@@ -985,6 +983,8 @@ class ManualScenario(DefaultScenario):
                 action.reset()
         elif self.mode == Mode.MANUAL_D:
             action.do_straight()
+        elif self.mode == Mode.MANUAL_E:
+            action.do_line_trace(offset_pixels)
         elif self.mode == Mode.YELLOW_BOTTLE:
             action.do_obstacle_avoid_with_bottle()
             if action.is_finished():
@@ -1016,6 +1016,7 @@ class KeyboardController:
             found_a = False
             found_b = False
             found_d = False
+            found_e = False
             key = None
             while msvcrt.kbhit():
                 ch = msvcrt.getch()
@@ -1030,6 +1031,8 @@ class KeyboardController:
                         found_b = True
                     elif decoded.lower() == 'd':
                         found_d = True
+                    elif decoded.lower() == 'e':
+                        found_e = True
                     elif key is None and decoded.isprintable():
                         key = decoded.lower()
                 except Exception as e:
@@ -1040,6 +1043,8 @@ class KeyboardController:
                 return 'b'
             if found_d:
                 return 'd'
+            if found_e:
+                return 'e'
             return key
         else:
             tty.setcbreak(self.fd)
@@ -1053,6 +1058,8 @@ class KeyboardController:
                         return 'b'
                     elif ch.lower() == 'd':
                         return 'd'
+                    elif ch.lower() == 'e':
+                        return 'e'
                     elif ch.isprintable():
                         return ch.lower()
                 return None
@@ -1085,14 +1092,13 @@ def main(config: Config):
                 break
             action.update_sensor_info(sensor_recorder)
             # ペットボトル検出結果をbottle_resultという辞書で受け渡し
+            steer_result = camera.steer_by_camera(frame)
             bottle_result = camera.detect_color_bottle(frame, ROI_BOTTLE)
             if config.log_manual:
-                steer_result = {"mx": 0, "my": 0, "offset_pixels": 0, "max_contour": None}
                 key_input = key.get_key() if config.log_manual else None
-                scenario.execute_mode_action(action, bottle=bottle_result, key=key_input)
+                scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result, key=key_input)
             else:
-                steer_result = camera.steer_by_camera(frame)
-                scenario.execute_mode_action(action, steer_result, bottle=bottle_result)
+                scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result)
             if (config.log_save_video or config.log_send_video) and video is not None:
                 if not video.process_and_send(frame, steer_result, ROI_OPENCV, scenario, action, bottle_result):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")

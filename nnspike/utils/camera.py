@@ -7,6 +7,7 @@ ROI_OPENCV = (180, 300, 460, 400)  # 左右をそれぞれ30pxずつ内側に狭
 ROI_BOTTLE = (130, 50, 510, 400)  # 上部をさらに80px上に拡張（y1=300→220）
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480     
+COLOR_DETECT_PIXEL_THRESHOLD = 5000  # 色領域検出のピクセル数しきい値
 
 class Camera:
     """
@@ -30,15 +31,36 @@ class Camera:
 
     def steer_by_camera(self, frame):
         """
-        カメラフレームからROI内の“黒”領域のみを緩く判定し、必ず輪郭抽出を行い、進行方向を黒領域に限定する。
-        黒判定のしきい値はBLACK_THRESHOLD（ファイル先頭で定義）。
+        ROI内の色領域（黄→青→赤→黒）の優先順位で進行方向を決定する。
+        各色のピクセル数がCOLOR_DETECT_PIXEL_THRESHOLD以上ならその色の最大輪郭重心・オフセットを返す。
+        どれもなければ黒領域で進行方向を決定。
+        detect_color_bottleのロジックを共有し冗長を排除。
         戻り値: {'mx': float, 'my': float, 'offset_pixels': float, 'max_contour': contour or None}
         """
         x1, y1, x2, y2 = self.roi
         roi_area = frame[y1:y2, x1:x2]
+        color_pixels, color_masks = self.detect_color_bottle(frame, roi=self.roi)
+        # 優先順位: 黄→青→赤
+        for color in ["yellow", "blue", "red"]:
+            if color_pixels[color] >= COLOR_DETECT_PIXEL_THRESHOLD:
+                mask = cv2.erode(color_masks[color], None, iterations=2)
+                mask = cv2.dilate(mask, None, iterations=2)
+                contours, _ = cv2.findContours(mask.copy(), 1, cv2.CHAIN_APPROX_NONE)
+                if len(contours) > 0:
+                    max_contour = max(contours, key=cv2.contourArea)
+                    mu = cv2.moments(max_contour)
+                    mx = mu["m10"] / (mu["m00"] + 1e-5)
+                    my = mu["m01"] / (mu["m00"] + 1e-5)
+                else:
+                    mx = roi_area.shape[1] / 2
+                    my = roi_area.shape[0] / 2
+                    max_contour = None
+                roi_center_x = roi_area.shape[1] / 2
+                offset_pixels = mx - roi_center_x
+                return {"mx": mx, "my": my, "offset_pixels": offset_pixels, "max_contour": max_contour}
+        # 黒（従来通り）
         image = cv2.cvtColor(roi_area, cv2.COLOR_BGR2GRAY)
         blur = cv2.GaussianBlur(image, (5, 5), 0)
-        # 黒を緩く判定するため、しきい値を高めに設定
         _, thresh = cv2.threshold(blur, BLACK_THRESHOLD, 255, cv2.THRESH_BINARY_INV)
         mask = cv2.erode(thresh, None, iterations=2)
         mask = cv2.dilate(mask, None, iterations=2)
@@ -49,18 +71,12 @@ class Camera:
             mx = mu["m10"] / (mu["m00"] + 1e-5)
             my = mu["m01"] / (mu["m00"] + 1e-5)
         else:
-            # 輪郭が見つからない場合も中央を返す
             mx = image.shape[1] / 2
             my = image.shape[0] / 2
             max_contour = None
         roi_center_x = image.shape[1] / 2
         offset_pixels = mx - roi_center_x
-        return {
-            "mx": mx,
-            "my": my,
-            "offset_pixels": offset_pixels,
-            "max_contour": max_contour
-        }
+        return {"mx": mx, "my": my, "offset_pixels": offset_pixels, "max_contour": max_contour}
 
     def detect_bottle(self, frame, roi=ROI_BOTTLE):
         """
@@ -88,20 +104,17 @@ class Camera:
 
     def detect_color_bottle(self, frame, roi=ROI_BOTTLE):
         """
-        ROI内の黄色・青・赤領域の面積をそれぞれ計算し、色名とピクセル数を返す。
-        Args:
-            frame: BGR画像(numpy array)
-            roi: (x1, y1, x2, y2)のタプル
+        ROI内の黄色・青・赤領域の面積とマスク画像を返す。
         Returns:
             dict: {'yellow': int, 'blue': int, 'red': int}
+            masks: {'yellow': mask, 'blue': mask, 'red': mask}
         """
-
         x1, y1, x2, y2 = roi
         roi_img = frame[y1:y2, x1:x2]
         if roi_img is None or roi_img.size == 0:
-            return {'yellow': 0, 'blue': 0, 'red': 0}
+            return {'yellow': 0, 'blue': 0, 'red': 0}, {'yellow': None, 'blue': None, 'red': None}
         hsv = cv2.cvtColor(roi_img, cv2.COLOR_BGR2HSV)
-        # 赤（2つの範囲）
+        # 赤
         lower_red1 = np.array([0, 100, 100])
         upper_red1 = np.array([10, 255, 255])
         lower_red2 = np.array([160, 100, 100])
@@ -119,7 +132,10 @@ class Camera:
         red_pixels = int(cv2.countNonZero(red_mask))
         blue_pixels = int(cv2.countNonZero(blue_mask))
         yellow_pixels = int(cv2.countNonZero(yellow_mask))
-        return {'yellow': yellow_pixels, 'blue': blue_pixels, 'red': red_pixels}
+        return (
+            {'yellow': yellow_pixels, 'blue': blue_pixels, 'red': red_pixels},
+            {'yellow': yellow_mask, 'blue': blue_mask, 'red': red_mask}
+        )
 
     def steer_by_red(self, frame, roi=None):
         """
