@@ -1185,7 +1185,10 @@ def main(config: Config):
             steer_result = camera.steer_by_camera(frame)
             bottle_result = camera.detect_color_bottle(frame)
             key_input = key.get_key() if config.log_manual else None
-            scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result, key=key_input)
+            if config.log_manual:
+                scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result, key=key_input)
+            else:
+                scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result)
             if (config.log_save_video or config.log_send_video) and video is not None:
                 if not video.process_and_send(frame, steer_result, scenario, action, bottle_result):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
