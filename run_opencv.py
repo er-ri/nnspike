@@ -782,7 +782,7 @@ class VideoManager:
 
     def create_visualization_frame(self, frame, steer_result, roi, info):
         """
-        可視化フレームを生成し、輪郭があれば描画する
+        可視化フレーム
         roi: (x1, y1, x2, y2) タプル
         steer_result: steer_by_cameraの辞書
         """
@@ -866,7 +866,7 @@ class DefaultScenario:
         self.bottle = None
         self.offset_pixels = 0
         self.key = None
-        self.manual_start_time = None
+        self.start_time = None  # manual_start_time → start_time に統一
 
     def transition_mode(self, *args, **kwargs):
         """
@@ -976,19 +976,19 @@ class ManualScenario(DefaultScenario):
             # a/b/d/eキーで手動モード遷移
             if key == 'a':
                 self.mode = Mode.MANUAL_A
-                self.manual_start_time = time.time()
+                self.start_time = time.time()
             elif key == 'b':
                 self.mode = Mode.MANUAL_B
-                self.manual_start_time = time.time()
+                self.start_time = time.time()
             elif key == 'd':
                 self.mode = Mode.MANUAL_D
-                self.manual_start_time = time.time()
+                self.start_time = time.time()
             elif key == 'e':
                 self.mode = Mode.MANUAL_E
-                self.manual_start_time = time.time()
+                self.start_time = time.time()
         elif self.mode == Mode.MANUAL_A:
             # MANUAL_Aは1秒経過でSTOP
-            if time.time() - self.manual_start_time >= 1.0:
+            if time.time() - self.start_time >= 1.0:
                 self.mode = Mode.STOP
         elif self.mode == Mode.MANUAL_B:
             # MANUAL_Bはアクション完了でSTOP（アクション側で判定）
