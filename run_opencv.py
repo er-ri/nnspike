@@ -1195,13 +1195,13 @@ def main(config: Config):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
             loop_elapsed = time.time() - loop_start
-            sleep_time = max(0, 0.04 - loop_elapsed)
+            sleep_time = max(0, 0.05 - loop_elapsed)  # 50msサイクルに変更
             if sleep_time > 0:
                 time.sleep(sleep_time)
-            # --- 追加: ループ終了直前に再度経過時間を確認し、40ms未満なら追加sleep ---
+            # --- 追加: ループ終了直前に再度経過時間を確認し、50ms未満なら追加sleep ---
             total_elapsed = time.time() - loop_start
-            if total_elapsed < 0.04:
-                time.sleep(0.04 - total_elapsed)
+            if total_elapsed < 0.05:
+                time.sleep(0.05 - total_elapsed)
     except KeyboardInterrupt:
         print("Interrupted by user")
         action.brake_for_duration()
