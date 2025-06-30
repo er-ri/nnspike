@@ -33,8 +33,8 @@ CURVE_POWER = 30                   # 急カーブ時の最低パワー 30→35�
 CURVE_THRESHOLD_DEG = 10           # カーブ判定閾値（度数法, SENSITIVITY=1.0時の推奨値）
 STRAIGHT_THRESHOLD_DEG = 3         # 直線判定のしきい値（ユーザー調整用, デフォルト3度, STRAIGHT_THRESHOLD_DEGで指定）
 SENSITIVITY = 1.0                  # ピクセル→theta変換感度
-MAX_POWER_DIFF = 20       # 最大旋回時の左右パワー差（%） 45→55にUP
-MAX_THETA_DEG = 30        # 最大旋回角（度数法, 55→65度にUP）
+MAX_POWER_DIFF = 55       # 最大旋回時の左右パワー差（%） 45→55にUP
+MAX_THETA_DEG = 65        # 最大旋回角（度数法, 55→65度にUP）
 # 黒判定の閾値（反射光R: 40以下, color: 150以下なら黒と判定）
 BLACK_REFLECTED_THRESHOLD = 40
 BLACK_COLOR_THRESHOLD = 150
@@ -117,9 +117,9 @@ class ActionManager:
         self.state = 0
         self._reset_action_vars()
         self.pid = PIDController(
-            Kp=1.2,
+            Kp=1.5,
             Ki=0,
-            Kd=0.1,
+            Kd=0.2,
             setpoint=0,
             output_limits=(-0.25, 0.25),
         )
