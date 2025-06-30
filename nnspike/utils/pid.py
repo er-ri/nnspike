@@ -1,6 +1,4 @@
 import time
-import csv
-import os
 from typing import Optional, Tuple
 
 
@@ -19,24 +17,6 @@ class PIDController:
         _integral (float): 誤差の積分値。
     """
 
-    # 例：output/pid_logs/pid_debug.csv に保存する場合
-    # pid = PIDController(
-    #     Kp=1.0,
-    #     Ki=0.0,
-    #     Kd=0.1,
-    #     setpoint=100,
-    #     debug_log_path="output/pid_logs/pid_debug.csv"
-    # )
-    #
-    # 絶対パス例：
-    # pid = PIDController(
-    #     Kp=1.0,
-    #     Ki=0.0,
-    #     Kd=0.1,
-    #     setpoint=100,
-    #     debug_log_path="C:/Users/YourName/Documents/pid_debug.csv"
-    # )
-
     def __init__(
         self,
         Kp: float,
@@ -44,7 +24,6 @@ class PIDController:
         Kd: float,
         setpoint: float,
         output_limits: Tuple[Optional[float], Optional[float]] = (None, None),
-        debug_log_path: Optional[str] = "output/pid_log/pid_debug.csv",
     ):
         """
         指定したゲイン、目標値、出力制限でPIDControllerを初期化します。
@@ -56,7 +35,6 @@ class PIDController:
             setpoint (float): システムが目指す目標値。
             output_limits (tuple[float, float], optional): 出力の最小値と最大値。デフォルトは (None, None)。
         """
-        self._debug_log_path = "output/pid_log/pid_debug.csv"
         self.Kp = Kp
         self.Ki = Ki
         self.Kd = Kd
@@ -65,8 +43,6 @@ class PIDController:
         self._last_time = None
         self._last_error = 0.0
         self._integral = 0.0
-        self._debug_log_path = debug_log_path
-        self._debug_log = []
 
     def set_output_limits(self, new_output_limits: Tuple[Optional[float], Optional[float]]):
         """
@@ -90,6 +66,7 @@ class PIDController:
         if self._last_time is None:
             self._last_time = current_time
             self._last_error = error
+            print(f"{current_time}\t{measured_value}\t{self.setpoint}\t{error}\t0\t0\t0")
             return 0.0  # 初回は0を返す
 
         delta_time = current_time - self._last_time
@@ -109,27 +86,8 @@ class PIDController:
         # PID出力の計算
         output = self.Kp * error + self.Ki * self._integral + self.Kd * derivative
 
-        # デバッグ用にデータを記録
-        if self._debug_log_path is not None:
-            # ディレクトリが存在しない場合は作成
-            dir_path = os.path.dirname(os.path.abspath(self._debug_log_path))
-            if dir_path and not os.path.exists(dir_path):
-                os.makedirs(dir_path, exist_ok=True)
-            self._debug_log.append([
-                current_time,
-                measured_value,
-                self.setpoint,
-                error,
-                self._integral,
-                derivative,
-                output
-            ])
-            # 100サンプルごとにCSVへ書き出し
-            if len(self._debug_log) >= 100:
-                with open(self._debug_log_path, 'a', newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerows(self._debug_log)
-                self._debug_log = []
+        # デバッグ用にデータをprint表示
+        print(f"{current_time}\t{measured_value}\t{self.setpoint}\t{error}\t{self._integral}\t{derivative}\t{output}")
 
         # 出力制限の適用
         if self.output_limits[0] is not None:
@@ -142,16 +100,3 @@ class PIDController:
         self._last_error = error
 
         return output
-
-    def flush_debug_log(self):
-        """
-        残っているデバッグデータをCSVに書き出す
-        """
-        if self._debug_log_path is not None and self._debug_log:
-            dir_path = os.path.dirname(os.path.abspath(self._debug_log_path))
-            if dir_path and not os.path.exists(dir_path):
-                os.makedirs(dir_path, exist_ok=True)
-            with open(self._debug_log_path, 'a', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerows(self._debug_log)
-            self._debug_log = []
