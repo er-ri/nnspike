@@ -153,16 +153,16 @@ class ActionManager:
 
     def _apply_power_common(self, forward=True):
         """forward=True: set_motor_forward_power, False: set_motor_backward_power"""
-        # --- 送信間隔50ms厳密保証: 直前送信から50ms未満なら1ms単位でsleepし続ける ---
+        # --- 送信間隔40ms厳密保証: 直前送信から40ms未満なら1ms単位でsleepし続ける ---
         now = time.time()
         if hasattr(self, 'last_send_time') and self.last_send_time is not None:
             elapsed = now - self.last_send_time
-            wait = 0.05 - elapsed
+            wait = 0.04 - elapsed
             while wait > 0:
                 time.sleep(min(wait, 0.001))
                 now = time.time()
                 elapsed = now - self.last_send_time
-                wait = 0.05 - elapsed
+                wait = 0.04 - elapsed
         # --- ここから送信処理 ---
         if forward:
             self.et.set_motor_forward_power(left_power=self.left_power, right_power=self.right_power)
@@ -1195,13 +1195,13 @@ def main(config: Config):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
             loop_elapsed = time.time() - loop_start
-            sleep_time = max(0, 0.05 - loop_elapsed)
+            sleep_time = max(0, 0.04 - loop_elapsed)
             if sleep_time > 0:
                 time.sleep(sleep_time)
-            # --- 追加: ループ終了直前に再度経過時間を確認し、50ms未満なら追加sleep ---
+            # --- 追加: ループ終了直前に再度経過時間を確認し、40ms未満なら追加sleep ---
             total_elapsed = time.time() - loop_start
-            if total_elapsed < 0.05:
-                time.sleep(0.05 - total_elapsed)
+            if total_elapsed < 0.04:
+                time.sleep(0.04 - total_elapsed)
     except KeyboardInterrupt:
         print("Interrupted by user")
         action.brake_for_duration()
