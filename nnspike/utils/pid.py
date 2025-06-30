@@ -24,7 +24,8 @@ class PIDController:
         Kd: float,
         setpoint: float,
         output_limits: Tuple[Optional[float], Optional[float]] = (None, None),
-        derivative_lpf_alpha: float = 0.8,  # 微分項ローパスフィルタ係数（0.7〜0.9推奨）
+        derivative_lpf_alpha: float = 0.8,
+        integral_limits: Tuple[Optional[float], Optional[float]] = (None, None),  # 積分項の独立制限
     ):
         """
         指定したゲイン、目標値、出力制限でPIDControllerを初期化します。
@@ -44,8 +45,9 @@ class PIDController:
         self._last_time = None
         self._last_error = 0.0
         self._integral = 0.0
-        self.derivative_lpf_alpha = derivative_lpf_alpha  # ローパスフィルタ係数
-        self._last_derivative = 0.0  # 前回のローパス済み微分値
+        self.derivative_lpf_alpha = derivative_lpf_alpha
+        self._last_derivative = 0.0
+        self.integral_limits = integral_limits
 
     def set_output_limits(self, new_output_limits: Tuple[Optional[float], Optional[float]]):
         """
@@ -77,17 +79,20 @@ class PIDController:
         delta_time = current_time - self._last_time
         delta_error = error - self._last_error
 
-        # 積分項（アンチワインドアップ対応）
+        # --- 積分項（アンチワインドアップ: 独立したintegral_limitsを優先） ---
         self._integral += error * delta_time
         integral_min, integral_max = -float('inf'), float('inf')
-        if self.output_limits[0] is not None:
-            integral_min = self.output_limits[0]
-        if self.output_limits[1] is not None:
-            integral_max = self.output_limits[1]
+        if self.integral_limits[0] is not None:
+            integral_min = self.integral_limits[0]
+        if self.integral_limits[1] is not None:
+            integral_max = self.integral_limits[1]
         self._integral = max(integral_min, min(self._integral, integral_max))
 
-        # --- 微分項（ローパスフィルタ適用） ---
-        raw_derivative = delta_error / delta_time if delta_time > 0 else 0
+        # --- 微分項（ローパスフィルタ適用, delta_time極小時は0） ---
+        if delta_time > 1e-4:
+            raw_derivative = delta_error / delta_time
+        else:
+            raw_derivative = 0.0
         alpha = self.derivative_lpf_alpha
         derivative = alpha * raw_derivative + (1 - alpha) * self._last_derivative
         self._last_derivative = derivative
@@ -95,8 +100,8 @@ class PIDController:
         # PID出力の計算
         output = self.Kp * error + self.Ki * self._integral + self.Kd * derivative
 
-        # デバッグ用にデータをprint表示（raw_derivativeも追加）
-        print(f"{current_time}\t{measured_value}\t{self.setpoint}\t{error}\t{self._integral}\t{raw_derivative}\t{derivative}\t{output}")
+        # デバッグ用にデータをprint表示（桁数揃え）
+        print(f"{current_time:.3f}\t{measured_value:.4f}\t{self.setpoint:.4f}\t{error:.4f}\t{self._integral:.4f}\t{raw_derivative:.4f}\t{derivative:.4f}\t{output:.4f}")
 
         # 出力制限の適用
         if self.output_limits[0] is not None:

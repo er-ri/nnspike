@@ -74,6 +74,7 @@ except ImportError:
     import tty
     import select
     WINDOWS = False
+from collections import deque
 
 @dataclass
 class Config:
@@ -138,6 +139,7 @@ class ActionManager:
         self.right_actual_power = None
         self.last_send_time = None  # 送信タイムスタンプ（ms差分計算用）
         self.is_stopped = False  # STOP状態フラグを追加
+        self.theta_ma_buffer = deque(maxlen=3)  # theta平滑化用バッファ（3点移動平均, 必要に応じて調整）
 
     def reset(self):
         self.state = 0
@@ -239,19 +241,22 @@ class ActionManager:
         if getattr(self, 'is_stopped', False):
             return  # STOP状態なら何もしない
         # --- ライントレース時の進行角度・推奨速度・PID補正・左右パワー計算 ---
-        # MAX_THETA_DEG: 最大旋回角（度数法, ユーザー調整パラメータで一元管理）
-        # MAX_POWER_DIFF: 最大旋回時の左右パワー差（%）, ユーザー調整パラメータで一元管理
-        # offset_pixels: ライン重心のオフセット（ピクセル単位, 画像中心からのズレ）
         theta = self.calc.calculate_theta_from_pixels(offset_pixels, IMAGE_WIDTH, SENSITIVITY)  # オフセットピクセル→進行角度（ラジアン）へ変換
-        current_power = self.calc.calculate_adaptive_speed(abs(theta))  # 進行角度に応じて推奨速度（パワー）を自動調整
-        pid_corrected_theta = self.pid.update(theta)  # PID制御で進行角度を補正
-        max_theta = math.radians(MAX_THETA_DEG)  # 最大旋回角をラジアンに変換（ユーザー調整パラメータを参照）
+        self.theta_ma_buffer.append(theta)
+        if len(self.theta_ma_buffer) > 0:
+            theta_smoothed = sum(self.theta_ma_buffer) / len(self.theta_ma_buffer)
+        else:
+            theta_smoothed = theta
+        current_power = self.calc.calculate_adaptive_speed(abs(theta_smoothed))  # 平滑化後thetaで速度調整
+        pid_corrected_theta = self.pid.update(theta_smoothed)  # PID制御で進行角度を補正
+        max_theta = math.radians(MAX_THETA_DEG)  # 最大旋回角をラジアンに変換
         power_adjustment = int((pid_corrected_theta / max_theta) * MAX_POWER_DIFF)  # PID補正値をパワー差分に変換
         # --- パワー値が負にならないようクリッピング ---
         self.left_power = max(0, int(current_power - power_adjustment))   # 左右パワーを計算
         self.right_power = max(0, int(current_power + power_adjustment))
         self.apply_power()  # ←ここで即時モーター出力
-        self.theta = theta
+        self.theta = theta  # 生theta
+        self.theta_smoothed = theta_smoothed  # 平滑化後theta（可視化・デバッグ用）
         self.pid_corrected_theta = pid_corrected_theta
         self.current_power = current_power
 
