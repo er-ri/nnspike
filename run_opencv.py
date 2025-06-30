@@ -122,6 +122,7 @@ class ActionManager:
             Kd=0.03,  # 0.02→0.04（減衰強化）
             setpoint=0,
             output_limits=(-0.2, 0.2),
+            derivative_lpf_alpha=0.8,  # 微分項ローパスフィルタ係数（0.7〜0.9で調整可）
         )
         self.calc = ControlCalculator(
             BASE_POWER,

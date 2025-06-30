@@ -69,7 +69,9 @@ class PIDController:
         if self._last_time is None:
             self._last_time = current_time
             self._last_error = error
-            print(f"{current_time}\t{measured_value}\t{self.setpoint}\t{error}\t0\t0\t0")
+            # ヘッダーを出力
+            print("time\tmeasured\tsetpoint\terror\tintegral\traw_deriv\tderiv_lpf\toutput")
+            print(f"{current_time}\t{measured_value}\t{self.setpoint}\t{error}\t0\t0\t0\t0")
             return 0.0  # 初回は0を返す
 
         delta_time = current_time - self._last_time
