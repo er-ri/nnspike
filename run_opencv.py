@@ -33,7 +33,7 @@ CURVE_POWER = 50                   # 一律30
 CURVE_THRESHOLD_DEG = 10           # カーブ判定閾値
 STRAIGHT_THRESHOLD_DEG = 3         # 直線判定のしきい値
 SENSITIVITY = 0.8                  # 0.7（感度アップ）
-MAX_POWER_DIFF = 25                # 応答性重視で25に下げる
+MAX_POWER_DIFF = 20                # 応答性重視で20に下げる（スムーズ旋回）
 MAX_THETA_DEG = 30                 # カーブ補正強化で30のまま
 # 黒判定の閾値（反射光R: 40以下, color: 150以下なら黒と判定）
 BLACK_REFLECTED_THRESHOLD = 40
@@ -118,7 +118,7 @@ class ActionManager:
         self.state = 0
         self._reset_action_vars()
         self.pid = PIDController(
-            Kp=0.78,
+            Kp=0.7,  # スムーズ旋回のためKpを0.7に下げる
             Ki=0,
             Kd=0.025, 
             setpoint=0,
@@ -139,7 +139,7 @@ class ActionManager:
         self.right_actual_power = None
         self.last_send_time = None  # 送信タイムスタンプ（ms差分計算用）
         self.is_stopped = False  # STOP状態フラグを追加
-        self.theta_ma_buffer = deque(maxlen=5)  # theta平滑化用バッファ（5点移動平均のまま）
+        self.theta_ma_buffer = deque(maxlen=7)  # theta平滑化用バッファ（7点移動平均に拡大）
 
     def reset(self):
         self.state = 0
