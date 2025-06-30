@@ -27,8 +27,8 @@ ROI_OPENCV = (180, 300, 460, 400)  # 左右をそれぞれ30pxずつ内側に狭
 ROI_BOTTLE = (100, 20, 540, 400)   # (x1, y1, x2, y2)
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480                 # カメラ画像の高さ
-BASE_POWER = 40                    # カーブ時の基準パワー 40→45
-STRAIGHT_POWER = 50                # 直線時の推奨パワー 50→55
+BASE_POWER = 30                    # カーブ時の基準パワー 40→45
+STRAIGHT_POWER = 30                # 直線時の推奨パワー 50→55
 CURVE_POWER = 30                   # 急カーブ時の最低パワー 30→35
 CURVE_THRESHOLD_DEG = 10           # カーブ判定閾値（度数法, SENSITIVITY=1.0時の推奨値）
 STRAIGHT_THRESHOLD_DEG = 3         # 直線判定のしきい値（ユーザー調整用, デフォルト3度, STRAIGHT_THRESHOLD_DEGで指定）
