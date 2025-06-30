@@ -44,7 +44,7 @@ class PIDController:
         Kd: float,
         setpoint: float,
         output_limits: Tuple[Optional[float], Optional[float]] = (None, None),
-        debug_log_path: Optional[str] = None,
+        debug_log_path: Optional[str] = "output/pid/pid_debug.csv",
     ):
         """
         指定したゲイン、目標値、出力制限でPIDControllerを初期化します。

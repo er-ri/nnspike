@@ -186,10 +186,10 @@ class ActionManager:
         if hasattr(self, 'last_send_time') and self.last_send_time is not None:
             diff_ms = int((now - self.last_send_time) * 1000)
             label = "apply_power" if forward else "apply_power_backward"
-            print(f"[DEBUG][{label}] sent at {ts}.{ms:03d} (+{diff_ms}ms)")
+            # print(f"[DEBUG][{label}] sent at {ts}.{ms:03d} (+{diff_ms}ms)")
         else:
             label = "apply_power" if forward else "apply_power_backward"
-            print(f"[DEBUG][{label}] sent at {ts}.{ms:03d} (first)")
+            # print(f"[DEBUG][{label}] sent at {ts}.{ms:03d} (first)")
         self.last_send_time = now
 
     def apply_power(self):
