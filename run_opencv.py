@@ -222,7 +222,7 @@ class ActionManager:
                 self.right_power = 0
                 self.apply_power_immediate()
                 self.et.brake()
-                time.sleep(0.05)
+                # time.sleep(0.05)
             except Exception as e:
                 print(f"[SAFETY][ERROR] Exception during brake command: {e}")
                 break
