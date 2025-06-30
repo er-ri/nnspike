@@ -62,7 +62,8 @@ class Camera:
         roi_area = frame[y1:y2, x1:x2]
         image = cv2.cvtColor(roi_area, cv2.COLOR_BGR2GRAY)
         blur = cv2.GaussianBlur(image, (5, 5), 0)
-        _, thresh = cv2.threshold(blur, BLACK_THRESHOLD, 255, cv2.THRESH_BINARY_INV)
+        # _, thresh = cv2.threshold(blur, BLACK_THRESHOLD, 255, cv2.THRESH_BINARY_INV)
+        _, thresh = cv2.threshold(blur, 100, 255, cv2.THRESH_BINARY_INV)
         mask = cv2.erode(thresh, None, iterations=2)
         mask = cv2.dilate(mask, None, iterations=2)
         contours, _ = cv2.findContours(mask.copy(), 1, cv2.CHAIN_APPROX_NONE)

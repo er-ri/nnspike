@@ -213,8 +213,9 @@ class ActionManager:
         pid_corrected_theta = self.pid.update(theta)  # PID制御で進行角度を補正
         max_theta = math.radians(MAX_THETA_DEG)  # 最大旋回角をラジアンに変換（ユーザー調整パラメータを参照）
         power_adjustment = int((pid_corrected_theta / max_theta) * MAX_POWER_DIFF)  # PID補正値をパワー差分に変換
-        self.left_power = int(current_power - power_adjustment)   # 左右パワーを計算
-        self.right_power = int(current_power + power_adjustment)
+        # --- パワー値が負にならないようクリッピング ---
+        self.left_power = max(0, int(current_power - power_adjustment))   # 左右パワーを計算
+        self.right_power = max(0, int(current_power + power_adjustment))
         self.apply_power()  # ←ここで即時モーター出力
         self.theta = theta
         self.pid_corrected_theta = pid_corrected_theta
