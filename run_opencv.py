@@ -91,20 +91,19 @@ HOST_IP_ADDRESS = (
 
 class Mode(Enum):
     LINE_TRACE = auto()         # 通常のライン走行
-    DIST_STOP = auto()          # 超音波距離停止モード（障害物検知後の一時停止・距離再確認）
-    OBSTACLE_AVOID = auto()     # 障害物回避動作（オブスタクルボトル回避）
+    OBSTACLE_AVOID = auto()     # 障害物回避動作（没）
     SMART_CARRY_1 = auto()      # スマートキャリー1回目
     SMART_CARRY_2 = auto()      # スマートキャリー2回目
-    GOAL = auto()               # ゴール到達モード（ゴールに向かう処理とゴール停止をこのモードで実装する構想）
-    MANUAL = auto()             # マニュアル操作モード（手動制御用）
-    STOP = auto()               # マニュアル操作モード（手動制御用）
-    MANUAL_A = auto()           # マニュアル操作モード（手動制御用）
-    MANUAL_B = auto()           # マニュアル操作モード（手動制御用）
-    MANUAL_C = auto()           # マニュアル操作モード（手動制御用）
-    MANUAL_D = auto()           # マニュアル操作モード（手動制御用）
-    YELLOW_BOTTLE = auto()      # ボトル検出時の分岐（黄色）
-    BLUE_BOTTLE = auto()        # ボトル検出時の分岐（青）
-    RED_BOTTLE = auto()         # ボトル検出時の分岐（赤）
+    GOAL = auto()               # ゴール到達モード
+    MANUAL = auto()             # マニュアル操作モード（入力待ち）
+    STOP = auto()               # 停止モード
+    MANUAL_A = auto()           # マニュアル直進モード
+    MANUAL_B = auto()           # マニュアル障害物回避モード
+    MANUAL_C = auto()           # マニュアル予備モードC
+    MANUAL_D = auto()           # マニュアル直進＋ボトル検出モード
+    YELLOW_BOTTLE = auto()      # 黄色ボトル検出時モード
+    BLUE_BOTTLE = auto()        # 青ボトル検出時モード
+    RED_BOTTLE = auto()         # 赤ボトル検出時モード
 
 class ActionManager:
     """
@@ -222,12 +221,6 @@ class ActionManager:
         self.pid_corrected_theta = pid_corrected_theta
         self.current_power = current_power
 
-    def do_dist_stop(self):
-        self.left_power = 0
-        self.right_power = 0
-        self.reset_control_values()
-        self.apply_power()  # ←ここで即時モーター出力
-
     def do_stop(self):
         self.left_power = 0
         self.right_power = 0
@@ -252,7 +245,6 @@ class ActionManager:
         if self.finished:
             self.left_power = 0
             self.right_power = 0
-            self.reset_control_values()  # 毎回リセット（安全のため）
             self.apply_power()
             return
         if self.state == 0:
@@ -296,7 +288,6 @@ class ActionManager:
                     self.finished = True
         elif self.state == 3:
             pass
-        self.reset_control_values()
         self.apply_power()  # ←ここで即時モーター出力
 
     def do_obstacle_avoid_no_bottle(self):
@@ -305,7 +296,6 @@ class ActionManager:
         if self.finished:
             self.left_power = 0
             self.right_power = 0
-            self.reset_control_values()
             self.apply_power()
             return
         if self.state == 0:
@@ -402,7 +392,6 @@ class ActionManager:
         elif self.state == 7:
             # 完了
             self.finished = True
-        self.reset_control_values()
         self.apply_power()
         
     def do_obstacle_avoid_with_bottle(self):
@@ -411,7 +400,6 @@ class ActionManager:
             if self.finished:
                 self.left_power = 0
                 self.right_power = 0
-                self.reset_control_values()
                 self.apply_power()
                 return
             if self.state == 0:
@@ -495,7 +483,6 @@ class ActionManager:
             elif self.state == 6:
                 # 完了
                 self.finished = True
-            self.reset_control_values()
             self.apply_power()
 
     def carry_bottle_sequence(self):
@@ -504,7 +491,6 @@ class ActionManager:
         if self.finished:
             self.left_power = 0
             self.right_power = 0
-            self.reset_control_values()
             self.apply_power()
             return
         if self.state == 0:
@@ -558,13 +544,11 @@ class ActionManager:
                     self.et.brake()
                     self.state = 4
                     self._reset_action_vars()
-            self.reset_control_values()
             self.apply_power_backward()  # バック時はapply_power_backwardのみ呼ぶ
             return
         elif self.state == 4:
             # 完了フラグのみ
             self.finished = True
-        self.reset_control_values()
         self.apply_power()
 
     def test_initial_sensor(self, test_count=5, delay=0.2):
@@ -866,6 +850,7 @@ class NormalScenario(DefaultScenario):
         yellow_pixels = bottle.get('yellow', 0) if bottle else 0
         blue_pixels = bottle.get('blue', 0) if bottle else 0
         red_pixels = bottle.get('red', 0) if bottle else 0
+        prev_mode = self.mode
         if self.mode == Mode.LINE_TRACE:
             # ライントレース中に各色ボトルを検出したら該当モードへ遷移
             if yellow_pixels >= BOTTLE_YELLOW_THRESHOLD:
@@ -887,6 +872,9 @@ class NormalScenario(DefaultScenario):
             # 停止状態（未実装）
             self.mode = Mode.STOP
         # SMART_CARRY_1, SMART_CARRY_2, GOAL等は必要に応じて追加
+        # --- LINE_TRACE→他モード遷移時に一度だけリセット ---
+        if prev_mode == Mode.LINE_TRACE and self.mode != Mode.LINE_TRACE:
+            action.reset_control_values()
 
     def execute_mode_action(self, action, steer_result, bottle=None):
         """
