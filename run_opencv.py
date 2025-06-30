@@ -33,7 +33,7 @@ CURVE_POWER = 50                   # 一律30
 CURVE_THRESHOLD_DEG = 10           # カーブ判定閾値
 STRAIGHT_THRESHOLD_DEG = 3         # 直線判定のしきい値
 SENSITIVITY = 0.8                  # 0.7（感度アップ）
-MAX_POWER_DIFF = 30                # 15（パワー差アップ）
+MAX_POWER_DIFF = 35                # 15（パワー差アップ）
 MAX_THETA_DEG = 40                 # 25（最大旋回角アップ）
 # 黒判定の閾値（反射光R: 40以下, color: 150以下なら黒と判定）
 BLACK_REFLECTED_THRESHOLD = 40
@@ -117,11 +117,11 @@ class ActionManager:
         self.state = 0
         self._reset_action_vars()
         self.pid = PIDController(
-            Kp=0.6,   # 0.5→0.7（応答性アップ）
+            Kp=0.65,
             Ki=0,
-            Kd=0.025,  # 0.02→0.04（減衰強化）
+            Kd=0.025, 
             setpoint=0,
-            output_limits=(-0.2, 0.2),
+            output_limits=(-0.25, 0.25),
             derivative_lpf_alpha=0.85,  # 微分項ローパスフィルタ係数（0.7〜0.9で調整可）
         )
         self.calc = ControlCalculator(
