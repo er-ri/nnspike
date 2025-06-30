@@ -117,7 +117,7 @@ class ActionManager:
         self.state = 0
         self._reset_action_vars()
         self.pid = PIDController(
-            Kp=1.0,   # 1.5→0.7
+            Kp=0.7,   # 1.5→0.7
             Ki=0,
             Kd=0.05,  # 0.2→0.05
             setpoint=0,
