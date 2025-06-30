@@ -153,16 +153,16 @@ class ActionManager:
 
     def _apply_power_common(self, forward=True):
         """forward=True: set_motor_forward_power, False: set_motor_backward_power"""
-        # --- 送信間隔40ms厳密保証: 直前送信から40ms未満なら1ms単位でsleepし続ける ---
+        # --- 送信間隔50ms厳密保証: 直前送信から50ms未満なら1ms単位でsleepし続ける ---
         now = time.time()
         if hasattr(self, 'last_send_time') and self.last_send_time is not None:
             elapsed = now - self.last_send_time
-            wait = 0.04 - elapsed
+            wait = 0.05 - elapsed
             while wait > 0:
                 time.sleep(min(wait, 0.001))
                 now = time.time()
                 elapsed = now - self.last_send_time
-                wait = 0.04 - elapsed
+                wait = 0.05 - elapsed
         # --- ここから送信処理 ---
         if forward:
             self.et.set_motor_forward_power(left_power=self.left_power, right_power=self.right_power)
