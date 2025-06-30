@@ -893,7 +893,7 @@ class NormalScenario(DefaultScenario):
         self.mode = Mode.LINE_TRACE  # ノーマルシナリオは常にLINE_TRACEから開始
         # ノーマルシナリオ固有の初期化があればここに追加
 
-    def transition_mode(self):
+    def transition_mode(self, action=None):
         # --- 状態遷移: ボトル検出ピクセル数に応じて分岐 ---
         pixel_dict = self.bottle[0] if (self.bottle and isinstance(self.bottle, tuple)) else (self.bottle if isinstance(self.bottle, dict) else {})
         yellow_pixels = pixel_dict.get('yellow', 0)
@@ -926,17 +926,16 @@ class NormalScenario(DefaultScenario):
             prev_mode = self.prev_mode
         else:
             prev_mode = None
-        if prev_mode == Mode.LINE_TRACE and self.mode != Mode.LINE_TRACE:
-            self.action.reset_control_values()
+        if prev_mode == Mode.LINE_TRACE and self.mode != Mode.LINE_TRACE and action is not None:
+            action.reset_control_values()
         self.prev_mode = self.mode
 
     def execute_mode_action(self, action, steer_result, bottle=None):
-        self.action = action
         self.bottle = bottle
         self.offset_pixels = 0
         if steer_result is not None:
             self.offset_pixels = steer_result.get("offset_pixels", 0)
-        self.transition_mode()
+        self.transition_mode(action=action)
         offset_pixels = self.offset_pixels
         if self.mode == Mode.LINE_TRACE:
             action.do_line_trace(offset_pixels)
@@ -969,7 +968,7 @@ class ManualScenario(DefaultScenario):
         self.mode = Mode.MANUAL  # マニュアルシナリオは常にMANUALから開始
         # マニュアルシナリオ固有の初期化があればここに追加
 
-    def transition_mode(self):
+    def transition_mode(self, action=None):
         pixel_dict = self.bottle[0] if (self.bottle and isinstance(self.bottle, tuple)) else (self.bottle if isinstance(self.bottle, dict) else {})
         key = self.key
         if self.mode == Mode.MANUAL:
@@ -1021,8 +1020,8 @@ class ManualScenario(DefaultScenario):
             prev_mode = self.prev_mode
         else:
             prev_mode = None
-        if prev_mode == Mode.MANUAL_E and self.mode != Mode.MANUAL_E:
-            self.action.reset_control_values()
+        if prev_mode == Mode.MANUAL_E and self.mode != Mode.MANUAL_E and action is not None:
+            action.reset_control_values()
         self.prev_mode = self.mode
 
     def execute_mode_action(self, action, steer_result=None, bottle=None, key=None):
@@ -1030,7 +1029,7 @@ class ManualScenario(DefaultScenario):
         self.key = key
         if steer_result is not None:
             self.offset_pixels = steer_result.get("offset_pixels", 0)
-        self.transition_mode()
+        self.transition_mode(action=action)
         offset_pixels = self.offset_pixels
         if self.mode == Mode.MANUAL:
             pass
