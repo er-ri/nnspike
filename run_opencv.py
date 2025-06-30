@@ -136,6 +136,7 @@ class ActionManager:
         self.left_actual_power = None
         self.right_actual_power = None
         self.last_send_time = None  # 送信タイムスタンプ（ms差分計算用）
+        self.is_stopped = False  # STOP状態フラグを追加
 
     def reset(self):
         self.state = 0
@@ -207,6 +208,7 @@ class ActionManager:
         self.left_power = 0
         self.right_power = 0
         self.apply_power_immediate()
+        self.is_stopped = True  # STOP状態にセット
 
     def brake_for_duration(self, duration=3.0):
         """
@@ -220,7 +222,7 @@ class ActionManager:
                 self.right_power = 0
                 self.apply_power_immediate()
                 self.et.brake()
-                time.sleep(0.1)
+                time.sleep(0.05)
             except Exception as e:
                 print(f"[SAFETY][ERROR] Exception during brake command: {e}")
                 break
@@ -230,8 +232,11 @@ class ActionManager:
         self.theta = 0
         self.pid_corrected_theta = 0
         self.current_power = 0
+        self.is_stopped = False  # STOP状態解除
 
     def do_line_trace(self, offset_pixels):
+        if getattr(self, 'is_stopped', False):
+            return  # STOP状態なら何もしない
         # --- ライントレース時の進行角度・推奨速度・PID補正・左右パワー計算 ---
         # MAX_THETA_DEG: 最大旋回角（度数法, ユーザー調整パラメータで一元管理）
         # MAX_POWER_DIFF: 最大旋回時の左右パワー差（%）, ユーザー調整パラメータで一元管理
@@ -250,6 +255,8 @@ class ActionManager:
         self.current_power = current_power
 
     def do_obstacle_avoid(self):
+        if getattr(self, 'is_stopped', False):
+            return
         # --- 障害物回避動作（状態遷移あり） ---
         USER_TIME_PER_DEGREE = 1.0 / 90  # ←90度で何秒かかかるか実測値で調整
         ARC_POWER = 50
@@ -306,6 +313,8 @@ class ActionManager:
         self.apply_power()  # ←ここで即時モーター出力
 
     def do_obstacle_avoid_no_bottle(self):
+        if getattr(self, 'is_stopped', False):
+            return
         # --- 障害物回避動作（状態遷移あり, 8段階） ---
         now = time.time()
         if self.finished:
@@ -410,97 +419,101 @@ class ActionManager:
         self.apply_power()
         
     def do_obstacle_avoid_with_bottle(self):
-            # --- 障害物回避動作（状態遷移あり, 7段階, state=0から開始） ---
-            now = time.time()
-            if self.finished:
-                self.left_power = 0
-                self.right_power = 0
-                self.apply_power()
-                return
-            if self.state == 0:
-                # 45度右旋回
-                if not self.action_sent:
-                    self.start_time = now
-                    self.action_sent = True
-                    self.turn_duration = 45 * 1.0 / 90
-                    self.left_power = 0
-                    self.right_power = 30
-                else:
-                    if now - self.start_time >= self.turn_duration:
-                        self.et.brake()
-                        self.state = 1
-                        self._reset_action_vars()
-            elif self.state == 1:
-                # 直進
-                if not self.action_sent:  
-                    self.start_time = now
-                    self.action_sent = True
-                    self.arc_end_time = now + 1.0
-                    self.left_power = 80
-                    self.right_power = 80
-                else:
-                    if now >= self.arc_end_time:
-                        self.et.brake()
-                        self.state = 2
-                        self._reset_action_vars()
-            elif self.state == 2:
-                # 90度左旋回
-                if not self.action_sent:
-                    self.start_time = now
-                    self.action_sent = True
-                    self.turn_duration = 90 * 1.0 / 90
-                    self.left_power = 30
-                    self.right_power = 0
-                else:
-                    if now - self.start_time >= self.turn_duration:
-                        self.et.brake()
-                        self.state = 3
-                        self._reset_action_vars()
-            elif self.state == 3:
-                # 直進
-                if not self.action_sent:  
-                    self.start_time = now
-                    self.action_sent = True
-                    self.arc_end_time = now + 1.0
-                    self.left_power = 80
-                    self.right_power = 80
-                else:
-                    if now >= self.arc_end_time:
-                        self.et.brake()
-                        self.state = 4
-                        self._reset_action_vars()
-            elif self.state == 4:
-                # 45度右旋回
-                if not self.action_sent:
-                    self.start_time = now
-                    self.action_sent = True
-                    self.turn_duration = 45 * 1.0 / 90
-                    self.left_power = 0
-                    self.right_power = 30
-                else:
-                    if now - self.start_time >= self.turn_duration:
-                        self.et.brake()
-                        self.state = 5
-                        self._reset_action_vars()
-            elif self.state == 5:
-                # 直進
-                if not self.action_sent:
-                    self.start_time = now
-                    self.action_sent = True
-                    self.arc_end_time = now + 2.0
-                    self.left_power = 80
-                    self.right_power = 80
-                else:
-                    if now >= self.arc_end_time:
-                        self.et.brake()
-                        self.state = 6
-                        self._reset_action_vars()
-            elif self.state == 6:
-                # 完了
-                self.finished = True
+        if getattr(self, 'is_stopped', False):
+            return
+        # --- 障害物回避動作（状態遷移あり, 7段階, state=0から開始） ---
+        now = time.time()
+        if self.finished:
+            self.left_power = 0
+            self.right_power = 0
             self.apply_power()
+            return
+        if self.state == 0:
+            # 45度右旋回
+            if not self.action_sent:
+                self.start_time = now
+                self.action_sent = True
+                self.turn_duration = 45 * 1.0 / 90
+                self.left_power = 0
+                self.right_power = 30
+            else:
+                if now - self.start_time >= self.turn_duration:
+                    self.et.brake()
+                    self.state = 1
+                    self._reset_action_vars()
+        elif self.state == 1:
+            # 直進
+            if not self.action_sent:  
+                self.start_time = now
+                self.action_sent = True
+                self.arc_end_time = now + 1.0
+                self.left_power = 80
+                self.right_power = 80
+            else:
+                if now >= self.arc_end_time:
+                    self.et.brake()
+                    self.state = 2
+                    self._reset_action_vars()
+        elif self.state == 2:
+            # 90度左旋回
+            if not self.action_sent:
+                self.start_time = now
+                self.action_sent = True
+                self.turn_duration = 90 * 1.0 / 90
+                self.left_power = 30
+                self.right_power = 0
+            else:
+                if now - self.start_time >= self.turn_duration:
+                    self.et.brake()
+                    self.state = 3
+                    self._reset_action_vars()
+        elif self.state == 3:
+            # 直進
+            if not self.action_sent:  
+                self.start_time = now
+                self.action_sent = True
+                self.arc_end_time = now + 1.0
+                self.left_power = 80
+                self.right_power = 80
+            else:
+                if now >= self.arc_end_time:
+                    self.et.brake()
+                    self.state = 4
+                    self._reset_action_vars()
+        elif self.state == 4:
+            # 45度右旋回
+            if not self.action_sent:
+                self.start_time = now
+                self.action_sent = True
+                self.turn_duration = 45 * 1.0 / 90
+                self.left_power = 0
+                self.right_power = 30
+            else:
+                if now - self.start_time >= self.turn_duration:
+                    self.et.brake()
+                    self.state = 5
+                    self._reset_action_vars()
+        elif self.state == 5:
+            # 直進
+            if not self.action_sent:
+                self.start_time = now
+                self.action_sent = True
+                self.arc_end_time = now + 2.0
+                self.left_power = 80
+                self.right_power = 80
+            else:
+                if now >= self.arc_end_time:
+                    self.et.brake()
+                    self.state = 6
+                    self._reset_action_vars()
+        elif self.state == 6:
+            # 完了
+            self.finished = True
+        self.apply_power()
 
     def carry_bottle_sequence(self):
+        if getattr(self, 'is_stopped', False):
+            return
         # --- キャリーボトル運搬動作（state=0から開始、直進→停止→運搬→完了） ---
         now = time.time()
         if self.finished:
