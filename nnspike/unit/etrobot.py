@@ -74,87 +74,60 @@ class ETRobot(
         Only updates values that are not None to preserve last known good values.
         """
         current = self.spike_status
-        last = self.last_spike_status        # Always update timestamp and message type
-        last.timestamp = current.timestamp
-        last.message_type = current.message_type
-        last.raw_data = current.raw_data        # Update sensors with valid readings
-        if current.sensors.distance is not None and isinstance(current.sensors.distance, (int, float)):
-            if hasattr(self, '_ultrasonic_invalid_counter'):
-                self._ultrasonic_invalid_counter = 0
+        last = self.last_spike_status
+        # --- シンプル同期: Noneでなければ上書きするだけ ---
+        if current.sensors.distance is not None:
             last.sensors.distance = current.sensors.distance
-            if not hasattr(self, '_ultrasonic_debug_counter'):
-                self._ultrasonic_debug_counter = 0
-            self._ultrasonic_debug_counter += 1
-        else:
-            if not hasattr(self, '_ultrasonic_invalid_counter'):
-                self._ultrasonic_invalid_counter = 0
-            self._ultrasonic_invalid_counter += 1
-            if self._ultrasonic_invalid_counter == 10:
-                old_value = last.sensors.distance
-                last.sensors.distance = None
-            elif self._ultrasonic_invalid_counter > 10:
-                self._ultrasonic_invalid_counter = 10
-        if current.sensors.force is not None and isinstance(current.sensors.force, (int, float)):
-            last.sensors.force = current.sensors.force# Update color sensor data
+        if current.sensors.force is not None:
+            last.sensors.force = current.sensors.force
         if current.sensors.color:
             if not last.sensors.color:
                 from .spike_status import ColorSensorStatus
                 last.sensors.color = ColorSensorStatus()
-            try:
-                if current.sensors.color.reflected is not None and isinstance(current.sensors.color.reflected, (int, float)):
-                    last.sensors.color.reflected = current.sensors.color.reflected
-                if current.sensors.color.ambient is not None and isinstance(current.sensors.color.ambient, (int, float)):
-                    last.sensors.color.ambient = current.sensors.color.ambient
-                if current.sensors.color.color is not None and isinstance(current.sensors.color.color, (int, float)):
-                    last.sensors.color.color = current.sensors.color.color
-            except AttributeError:
-                pass
-        # Update gyro data
+            if current.sensors.color.reflected is not None:
+                last.sensors.color.reflected = current.sensors.color.reflected
+            if current.sensors.color.ambient is not None:
+                last.sensors.color.ambient = current.sensors.color.ambient
+            if current.sensors.color.color is not None:
+                last.sensors.color.color = current.sensors.color.color
         if current.sensors.gyro:
             if not last.sensors.gyro:
                 from .spike_status import VectorStatus
                 last.sensors.gyro = VectorStatus()
-            try:
-                if isinstance(current.sensors.gyro.x, (int, float)):
-                    last.sensors.gyro.x = current.sensors.gyro.x
-                if isinstance(current.sensors.gyro.y, (int, float)):
-                    last.sensors.gyro.y = current.sensors.gyro.y
-                if isinstance(current.sensors.gyro.z, (int, float)):
-                    last.sensors.gyro.z = current.sensors.gyro.z
-            except AttributeError:
-                pass
-        # Update accelerometer data
+            if current.sensors.gyro.x is not None:
+                last.sensors.gyro.x = current.sensors.gyro.x
+            if current.sensors.gyro.y is not None:
+                last.sensors.gyro.y = current.sensors.gyro.y
+            if current.sensors.gyro.z is not None:
+                last.sensors.gyro.z = current.sensors.gyro.z
         if current.sensors.accelerometer:
             if not last.sensors.accelerometer:
                 from .spike_status import VectorStatus
                 last.sensors.accelerometer = VectorStatus()
-            try:
-                if isinstance(current.sensors.accelerometer.x, (int, float)):
-                    last.sensors.accelerometer.x = current.sensors.accelerometer.x
-                if isinstance(current.sensors.accelerometer.y, (int, float)):
-                    last.sensors.accelerometer.y = current.sensors.accelerometer.y
-                if isinstance(current.sensors.accelerometer.z, (int, float)):
-                    last.sensors.accelerometer.z = current.sensors.accelerometer.z
-            except AttributeError:
-                pass        # Update position data
+            if current.sensors.accelerometer.x is not None:
+                last.sensors.accelerometer.x = current.sensors.accelerometer.x
+            if current.sensors.accelerometer.y is not None:
+                last.sensors.accelerometer.y = current.sensors.accelerometer.y
+            if current.sensors.accelerometer.z is not None:
+                last.sensors.accelerometer.z = current.sensors.accelerometer.z
         if current.sensors.position:
             if not last.sensors.position:
                 from .spike_status import Position
                 last.sensors.position = Position()
-            last.sensors.position.x = current.sensors.position.x
-            last.sensors.position.y = current.sensors.position.y
-        # Update motor data (always update as these are more reliable)
+            if current.sensors.position.x is not None:
+                last.sensors.position.x = current.sensors.position.x
+            if current.sensors.position.y is not None:
+                last.sensors.position.y = current.sensors.position.y
         for motor_id in ["A", "B", "C"]:
-            if motor_id in current.motors and motor_id in last.motors:
-                if current.motors[motor_id].position is not None:
-                    last.motors[motor_id].position = current.motors[motor_id].position
-                if current.motors[motor_id].relative_position is not None:
-                    last.motors[motor_id].relative_position = current.motors[motor_id].relative_position
-                if current.motors[motor_id].speed is not None:
-                    last.motors[motor_id].speed = current.motors[motor_id].speed
-                if current.motors[motor_id].power is not None:
-                    last.motors[motor_id].power = current.motors[motor_id].power
-        # Update battery data
+            if current.motors[motor_id].position is not None:
+                last.motors[motor_id].position = current.motors[motor_id].position
+            if current.motors[motor_id].relative_position is not None:
+                last.motors[motor_id].relative_position = current.motors[motor_id].relative_position
+            if current.motors[motor_id].speed is not None:
+                last.motors[motor_id].speed = current.motors[motor_id].speed
+            if current.motors[motor_id].power is not None:
+                last.motors[motor_id].power = current.motors[motor_id].power
+        # --- バッテリー情報の更新は維持 ---
         if current.battery:
             if current.battery.voltage is not None:
                 last.battery.voltage = current.battery.voltage
@@ -167,31 +140,7 @@ class ETRobot(
         Returns:
             SpikeStatus: Spike status object with consistent sensor data
         """
-        try:
-            # シリアルバッファにデータがある場合のみ1回だけ処理
-            if self.__serial_port.in_waiting > 0:
-                received_data = self.__serial_port.read_until(expected=b"\r")
-                if received_data and len(received_data.strip()) > 0:
-                    for chunk in received_data.split(b'}{'):
-                        if not chunk:
-                            continue
-                        if not chunk.startswith(b'{'):
-                            chunk = b'{' + chunk
-                        if not chunk.endswith(b'}'):
-                            chunk = chunk + b'}'
-                        try:
-                            from nnspike.unit.spike_status import SpikeStatus
-                            status = SpikeStatus(chunk)
-                            if status.message_type == 0:
-                                self.last_spike_status = status
-                                return status
-                        except Exception:
-                            continue
-            # データがなければ常に直近の値を返す
-            return self.last_spike_status
-        except Exception:
-            # 例外時も必ず直近の値を返す
-            return self.last_spike_status
+        return self.last_spike_status
 
     def set_motor_relative_position(
         self, left_position: int, right_position: int
@@ -212,24 +161,12 @@ class ETRobot(
             left_power (int): Left motor power (0-100).
             right_power (int): Right motor power (0-100).
         """
-        # 送信最適化: 値が変化しない場合は1000msごとに1回のみ送信
-        now = time.time()
-        if not hasattr(self, '_last_forward_power'):
-            self._last_forward_power = (None, None)
-            self._last_forward_power_time = 0.0
-        # 値が変化した場合は即送信
-        if self._last_forward_power != (left_power, right_power):
-            self._last_forward_power = (left_power, right_power)
-            self._last_forward_power_time = now
-        # 値が変化していない場合は、前回送信から1秒(1000ms)経過していれば送信
-        elif now - self._last_forward_power_time < 1.0:
-            return
-        else:
-            self._last_forward_power_time = now
         id_byte = self.COMMAND_SET_MOTOR_FORWARD_POWER_ID.to_bytes(1, "big")
         parameter1_byte = left_power.to_bytes(1, "big")
         parameter2_byte = right_power.to_bytes(1, "big")
+
         command = id_byte + parameter1_byte + parameter2_byte
+
         self.__send_command(command)
 
     def set_motor_backward_power(self, left_power: int, right_power: int) -> None:

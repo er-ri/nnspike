@@ -534,6 +534,19 @@ class ActionManager:
                     self.state = 3
                     self._reset_action_vars()
         elif self.state == 3:
+            # 1秒間バック
+            if not self.action_sent:
+                self.start_time = now
+                self.action_sent = True
+                self.end_time = now + 1.0
+                self.left_power = -20
+                self.right_power = -20
+            else:
+                if now >= self.end_time:
+                    self.et.brake()
+                    self.state = 4
+                    self._reset_action_vars()
+        elif self.state == 4:
             # 完了フラグのみ
             self.finished = True
         self.reset_control_values()
