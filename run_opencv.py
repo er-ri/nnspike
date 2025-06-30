@@ -117,12 +117,12 @@ class ActionManager:
         self.state = 0
         self._reset_action_vars()
         self.pid = PIDController(
-            Kp=0.7,   # 0.5→0.7（応答性アップ）
+            Kp=0.6,   # 0.5→0.7（応答性アップ）
             Ki=0,
-            Kd=0.03,  # 0.02→0.04（減衰強化）
+            Kd=0.025,  # 0.02→0.04（減衰強化）
             setpoint=0,
             output_limits=(-0.2, 0.2),
-            derivative_lpf_alpha=0.8,  # 微分項ローパスフィルタ係数（0.7〜0.9で調整可）
+            derivative_lpf_alpha=0.85,  # 微分項ローパスフィルタ係数（0.7〜0.9で調整可）
         )
         self.calc = ControlCalculator(
             BASE_POWER,
