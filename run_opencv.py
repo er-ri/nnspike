@@ -153,20 +153,23 @@ class ActionManager:
     def is_finished(self):
         return self.finished
 
-    def apply_power(self):
-        """現在のleft_power, right_powerをロボットに反映し、spikeから実際の左右パワーを取得"""
+    def _apply_power_common(self, forward=True):
+        """forward=True: set_motor_forward_power, False: set_motor_backward_power"""
         # --- 送信間隔50ms厳密保証: 直前送信から50ms未満なら1ms単位でsleepし続ける ---
         now = time.time()
         if hasattr(self, 'last_send_time') and self.last_send_time is not None:
             elapsed = now - self.last_send_time
             wait = 0.05 - elapsed
             while wait > 0:
-                time.sleep(min(wait, 0.001))  # 1ms単位で小刻みにsleep
+                time.sleep(min(wait, 0.001))
                 now = time.time()
                 elapsed = now - self.last_send_time
                 wait = 0.05 - elapsed
         # --- ここから送信処理 ---
-        self.et.set_motor_forward_power(left_power=self.left_power, right_power=self.right_power)
+        if forward:
+            self.et.set_motor_forward_power(left_power=self.left_power, right_power=self.right_power)
+        else:
+            self.et.set_motor_backward_power(left_power=self.left_power, right_power=self.right_power)
         # spikeから実際の左右パワーを取得
         status = self.et.get_spike_status()
         left_actual = None
@@ -174,7 +177,6 @@ class ActionManager:
         if status and hasattr(status, 'motors'):
             left_actual = status.motors['B'].power if 'B' in status.motors and hasattr(status.motors['B'], 'power') else None
             right_actual = status.motors['A'].power if 'A' in status.motors and hasattr(status.motors['A'], 'power') else None
-        # --- 取得した値をインスタンス変数に格納 ---
         self.left_actual_power = left_actual
         self.right_actual_power = right_actual
         # --- ms単位で送信タイミングと前回からの差分をデバッグ出力 ---
@@ -183,10 +185,20 @@ class ActionManager:
         ms = int((now - int(now)) * 1000)
         if hasattr(self, 'last_send_time') and self.last_send_time is not None:
             diff_ms = int((now - self.last_send_time) * 1000)
-            print(f"[DEBUG][apply_power] sent at {ts}.{ms:03d} (+{diff_ms}ms)")
+            label = "apply_power" if forward else "apply_power_backward"
+            print(f"[DEBUG][{label}] sent at {ts}.{ms:03d} (+{diff_ms}ms)")
         else:
-            print(f"[DEBUG][apply_power] sent at {ts}.{ms:03d} (first)")
+            label = "apply_power" if forward else "apply_power_backward"
+            print(f"[DEBUG][{label}] sent at {ts}.{ms:03d} (first)")
         self.last_send_time = now
+
+    def apply_power(self):
+        """現在のleft_power, right_powerをロボットに反映し、spikeから実際の左右パワーを取得（前進）"""
+        self._apply_power_common(forward=True)
+
+    def apply_power_backward(self):
+        """現在のleft_power, right_powerをロボットに反映（バック用: set_motor_backward_power使用）、spikeから実際の左右パワーを取得"""
+        self._apply_power_common(forward=False)
 
     def reset_control_values(self):
         self.theta = 0
@@ -521,11 +533,11 @@ class ActionManager:
                     self.state = 2
                     self._reset_action_vars()
         elif self.state == 2:
-            # 3秒間power30で運ぶ
+            # 2秒間power30で運ぶ
             if not self.action_sent:  
                 self.start_time = now
                 self.action_sent = True
-                self.end_time = now + 3.0
+                self.end_time = now + 2.0
                 self.left_power = 30
                 self.right_power = 30
             else:
@@ -534,18 +546,21 @@ class ActionManager:
                     self.state = 3
                     self._reset_action_vars()
         elif self.state == 3:
-            # 1秒間バック
+            # 2秒間バック
             if not self.action_sent:
                 self.start_time = now
                 self.action_sent = True
-                self.end_time = now + 1.0
-                self.left_power = -20
-                self.right_power = -20
+                self.end_time = now + 2.0
+                self.left_power = 30   # バック時もプラス値でOK（apply_power_backwardで方向制御）
+                self.right_power = 30
             else:
                 if now >= self.end_time:
                     self.et.brake()
                     self.state = 4
                     self._reset_action_vars()
+            self.reset_control_values()
+            self.apply_power_backward()  # バック時はapply_power_backwardのみ呼ぶ
+            return
         elif self.state == 4:
             # 完了フラグのみ
             self.finished = True
