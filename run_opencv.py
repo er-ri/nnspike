@@ -1016,12 +1016,12 @@ class ManualScenario(DefaultScenario):
         elif self.mode == Mode.STOP:
             # 停止後はMANUALに復帰
             self.mode = Mode.MANUAL
-        # --- LINE_TRACE→他モード遷移時に一度だけリセット ---
+        # --- MANUAL_E→他モード遷移時に一度だけリセット ---
         if hasattr(self, 'prev_mode'):
             prev_mode = self.prev_mode
         else:
             prev_mode = None
-        if prev_mode == Mode.LINE_TRACE and self.mode != Mode.LINE_TRACE:
+        if prev_mode == Mode.MANUAL_E and self.mode != Mode.MANUAL_E:
             self.action.reset_control_values()
         self.prev_mode = self.mode
 
