@@ -24,6 +24,7 @@ class PIDController:
         Kd: float,
         setpoint: float,
         output_limits: Tuple[Optional[float], Optional[float]] = (None, None),
+        derivative_lpf_alpha: float = 0.8,  # 微分項ローパスフィルタ係数（0.7〜0.9推奨）
     ):
         """
         指定したゲイン、目標値、出力制限でPIDControllerを初期化します。
@@ -43,6 +44,8 @@ class PIDController:
         self._last_time = None
         self._last_error = 0.0
         self._integral = 0.0
+        self.derivative_lpf_alpha = derivative_lpf_alpha  # ローパスフィルタ係数
+        self._last_derivative = 0.0  # 前回のローパス済み微分値
 
     def set_output_limits(self, new_output_limits: Tuple[Optional[float], Optional[float]]):
         """
@@ -81,13 +84,17 @@ class PIDController:
             integral_max = self.output_limits[1]
         self._integral = max(integral_min, min(self._integral, integral_max))
 
-        derivative = delta_error / delta_time if delta_time > 0 else 0
+        # --- 微分項（ローパスフィルタ適用） ---
+        raw_derivative = delta_error / delta_time if delta_time > 0 else 0
+        alpha = self.derivative_lpf_alpha
+        derivative = alpha * raw_derivative + (1 - alpha) * self._last_derivative
+        self._last_derivative = derivative
 
         # PID出力の計算
         output = self.Kp * error + self.Ki * self._integral + self.Kd * derivative
 
-        # デバッグ用にデータをprint表示
-        print(f"{current_time}\t{measured_value}\t{self.setpoint}\t{error}\t{self._integral}\t{derivative}\t{output}")
+        # デバッグ用にデータをprint表示（raw_derivativeも追加）
+        print(f"{current_time}\t{measured_value}\t{self.setpoint}\t{error}\t{self._integral}\t{raw_derivative}\t{derivative}\t{output}")
 
         # 出力制限の適用
         if self.output_limits[0] is not None:

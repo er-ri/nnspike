@@ -117,11 +117,11 @@ class ActionManager:
         self.state = 0
         self._reset_action_vars()
         self.pid = PIDController(
-            Kp=0.8,   # 0.5→0.7（応答性アップ）
+            Kp=0.7,   # 0.5→0.7（応答性アップ）
             Ki=0,
-            Kd=0.04,  # 0.02→0.04（減衰強化）
+            Kd=0.03,  # 0.02→0.04（減衰強化）
             setpoint=0,
-            output_limits=(-0.25, 0.25),
+            output_limits=(-0.2, 0.2),
         )
         self.calc = ControlCalculator(
             BASE_POWER,
