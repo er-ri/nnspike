@@ -27,14 +27,14 @@ ROI_OPENCV = (180, 300, 460, 400)  # 左右をそれぞれ30pxずつ内側に狭
 ROI_BOTTLE = (100, 20, 540, 400)   # (x1, y1, x2, y2)
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480                 # カメラ画像の高さ
-BASE_POWER = 45                    # カーブ時の基準パワー 40→45
-STRAIGHT_POWER = 55                # 直線時の推奨パワー 50→55
-CURVE_POWER = 35                   # 急カーブ時の最低パワー 30→35
+BASE_POWER = 40                    # カーブ時の基準パワー 40→45
+STRAIGHT_POWER = 50                # 直線時の推奨パワー 50→55
+CURVE_POWER = 30                   # 急カーブ時の最低パワー 30→35
 CURVE_THRESHOLD_DEG = 10           # カーブ判定閾値（度数法, SENSITIVITY=1.0時の推奨値）
 STRAIGHT_THRESHOLD_DEG = 3         # 直線判定のしきい値（ユーザー調整用, デフォルト3度, STRAIGHT_THRESHOLD_DEGで指定）
 SENSITIVITY = 0.7                  # ピクセル→theta変換感度 1.0→0.7
-MAX_POWER_DIFF = 10                # 最大旋回時の左右パワー差（%） 20→10
-MAX_THETA_DEG = 20                 # 最大旋回角（度数法, 30→20度）
+MAX_POWER_DIFF = 30                # 最大旋回時の左右パワー差（%） 20→10
+MAX_THETA_DEG = 40                 # 最大旋回角（度数法, 30→20度）
 # 黒判定の閾値（反射光R: 40以下, color: 150以下なら黒と判定）
 BLACK_REFLECTED_THRESHOLD = 40
 BLACK_COLOR_THRESHOLD = 150
@@ -117,7 +117,7 @@ class ActionManager:
         self.state = 0
         self._reset_action_vars()
         self.pid = PIDController(
-            Kp=0.7,   # 1.5→0.7
+            Kp=1.0,   # 1.5→0.7
             Ki=0,
             Kd=0.05,  # 0.2→0.05
             setpoint=0,
