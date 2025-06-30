@@ -7,7 +7,7 @@ ROI_OPENCV = (180, 300, 460, 400)  # 左右をそれぞれ30pxずつ内側に狭
 ROI_BOTTLE = (130, 50, 510, 400)  # 上部をさらに80px上に拡張（y1=300→220）
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480     
-COLOR_DETECT_PIXEL_THRESHOLD = 5000  # 色領域検出のピクセル数しきい値
+COLOR_DETECT_PIXEL_THRESHOLD = 4000  # 色領域検出のピクセル数しきい値
 
 class Camera:
     """
