@@ -712,16 +712,20 @@ class VideoManager:
         if self.send_video and self.client_socket is not None:
             self.client_socket.close()
 
-    def prepare_driving_info(self, steer_result, roi, scenario, action, bottle=None):
+    def prepare_driving_info(self, steer_result, scenario, action, bottle=None):
         """
         可視化用の走行情報を生成
-        roi: (x1, y1, x2, y2) タプル
         steer_result: steer_by_cameraの辞書
         scenario: NormalScenarioインスタンス
         action: ActionManagerインスタンス
         bottle: ペットボトル検出結果（色ごとのピクセル数辞書など）
         """
-        x1, y1, x2, y2 = roi
+        # ROIの種類に応じてx1, y1, x2, y2を切り替え
+        roi_type = steer_result.get("roi_type", "opencv")
+        if roi_type == "bottle":
+            x1, y1, x2, y2 = ROI_BOTTLE
+        else:
+            x1, y1, x2, y2 = ROI_OPENCV
         mx = steer_result["mx"]
         my = steer_result["my"]
         offset_pixels = steer_result["offset_pixels"]
@@ -752,8 +756,14 @@ class VideoManager:
         else:
             bottle_str = "N/A"
         info = dict()
+        # ROIの種類に応じてinfo["roi"]を切り替え
+        roi_type = steer_result.get("roi_type", "opencv")
+        if roi_type == "bottle":
+            roi_used = ROI_BOTTLE
+        else:
+            roi_used = ROI_OPENCV
         info["offset_x"], info["offset_y"] = x1 + mx, y1 + my
-        info["roi"] = roi
+        info["roi"] = roi_used
         info["text"] = {
             "offset_pixels": f"{round(offset_pixels, 1)}px",
             "theta_deg": f"{round(math.degrees(action.theta), 2)}deg",
@@ -780,55 +790,76 @@ class VideoManager:
         }
         return info
 
-    def create_visualization_frame(self, frame, steer_result, roi, info):
+    def create_visualization_frame(self, frame, steer_result, info):
         """
-        可視化フレーム
-        roi: (x1, y1, x2, y2) タプル
-        steer_result: steer_by_cameraの辞書
+        可視化フレームを生成する関数。
+
+        - カメラから取得したRGB画像（frame）をグレースケール画像に変換。
+        - draw_driving_info関数を呼び出し、ROI矩形や走行情報（テキスト、オフセット点など）を重畳。
+        - 必要に応じて最大輪郭や重心点も描画。
+        - 生成した可視化フレーム（gray）を返す。
+
+        Args:
+            frame (np.ndarray): カメラから取得したRGB画像。
+            steer_result (dict): 画像処理結果（重心座標、最大輪郭など）。
+            info (dict): 走行情報（draw_driving_info用）。
+        Returns:
+            np.ndarray: 可視化情報が重畳されたグレースケール画像。
         """
-        x1, y1, x2, y2 = roi
+        # ROIの種類に応じてx1, y1, x2, y2を切り替え
+        roi_type = steer_result.get("roi_type", "opencv")
+        if roi_type == "bottle":
+            x1, y1, x2, y2 = ROI_BOTTLE
+        else:
+            x1, y1, x2, y2 = ROI_OPENCV
         mx = steer_result["mx"]
         my = steer_result["my"]
         max_contour = steer_result["max_contour"]
         gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
-        gray = draw_driving_info(gray, info, roi)
+        # draw_driving_infoでROI_OPENCV（赤）とROI_BOTTLE（緑）を必ず両方描画するため、ここでは描画しない
+        gray = draw_driving_info(gray, info)
         if max_contour is not None:
             adjusted_contour = max_contour + np.array([x1, y1])
             cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)
             cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
         return gray
 
-    def process_and_send(self, frame, steer_result, roi, scenario, action, bottle=None):
-        info = self.prepare_driving_info(steer_result, roi, scenario, action, bottle=bottle)
-        gray = self.create_visualization_frame(frame, steer_result, roi, info)
+    def process_and_send(self, frame, steer_result, scenario, action, bottle=None):
+        info = self.prepare_driving_info(steer_result, scenario, action, bottle=bottle)
+        gray = self.create_visualization_frame(frame, steer_result, info)
         self.write_video(frame)
         return self.send_frame(gray)
 
 def draw_driving_info(
-    image: np.ndarray, info: dict, roi: tuple[int, int, int, int]
+    image: np.ndarray, info: dict
 ) -> np.ndarray:
-    """Draws driving information on an image.
+    """画像上に走行情報を描画する関数。
 
-    This function overlays driving-related information onto a given image. It draws a tracing point,
-    a region of interest (ROI) rectangle, and various text annotations based on the provided info dictionary.
+    この関数は、与えられた画像に走行関連情報（オフセット点、ROI矩形、各種テキスト情報）をinfo辞書に基づいて描画します。
 
-    Args:
-        image (np.ndarray): The input image on which to draw the information.
-        info (dict): A dictionary containing the driving information to be displayed.
-            Expected keys are:
-                - "trace_x" (int or str): The x-coordinate for the tracing point.
-                - "trace_y" (int or str): The y-coordinate for the tracing point.
-                - "text" (dict): A dictionary of text annotations where keys are the labels and values are the corresponding data.
-        roi (tuple[int, int, int, int]): A tuple defining the region of interest in the format (x1, y1, x2, y2).    Returns:
-        np.ndarray: The image with the overlaid driving information.
+    引数:
+        image (np.ndarray): 情報を描画する入力画像。
+        info (dict): 表示する走行情報を含む辞書。
+            期待されるキー:
+                - "offset_x" (int): オフセット点のx座標。
+                - "offset_y" (int): オフセット点のy座標。
+                - "roi" (tuple): ROI矩形 (x1, y1, x2, y2)。
+                - "text" (dict): ラベルをキー、表示内容を値とするテキスト情報の辞書。
+    戻り値:
+        np.ndarray: 走行情報が重畳された画像。
     """
     offset_x, offset_y = int(info["offset_x"]), int(info["offset_y"])
-    x1, y1, x2, y2 = roi
+    x1, y1, x2, y2 = info["roi"]  # info辞書からROIを取得
+
+    # ROI_OPENCV（赤）とROI_BOTTLE（緑）を必ず両方描画
+    image = cv2.rectangle(image, ROI_OPENCV[:2], ROI_OPENCV[2:], (0, 0, 255), 2)  # 赤
+    image = cv2.rectangle(image, ROI_BOTTLE[:2], ROI_BOTTLE[2:], (0, 255, 0), 2)  # 緑
 
     image = cv2.circle(
         image, (offset_x, offset_y), 3, (255, 255, 0), -1
-    )  # Tracing point
-    image = cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)  # ROI
+    )  # トレース点
+    # もともとのROI（info["roi"]）も強調したい場合はここで色を変えて重ね描きも可
+    # image = cv2.rectangle(image, (x1, y1), (x2, y2), (255, 0, 0), 1)  # 例: 青で細く重ね描き
 
     for index, key in enumerate(info["text"]):
         value = info["text"][key]
@@ -1156,7 +1187,7 @@ def main(config: Config):
             key_input = key.get_key() if config.log_manual else None
             scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result, key=key_input)
             if (config.log_save_video or config.log_send_video) and video is not None:
-                if not video.process_and_send(frame, steer_result, ROI_OPENCV, scenario, action, bottle_result):
+                if not video.process_and_send(frame, steer_result, scenario, action, bottle_result):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
             loop_elapsed = time.time() - loop_start

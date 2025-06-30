@@ -34,7 +34,7 @@ class Camera:
         """
         ROI_BOTTLE内の色領域（黄→青→赤）の優先順位で進行方向を決定。
         どれもなければ従来通りROI_OPENCV内の黒領域で進行方向を決定。
-        戻り値: {'mx': float, 'my': float, 'offset_pixels': float, 'max_contour': contour or None}
+        戻り値: {'mx': float, 'my': float, 'offset_pixels': float, 'max_contour': contour or None, 'roi_type': str}
         """
         # カラー判定はROI_BOTTLE
         x1, y1, x2, y2 = self.roi_bottle
@@ -56,7 +56,7 @@ class Camera:
                     max_contour = None
                 roi_center_x = roi_area.shape[1] / 2
                 offset_pixels = mx - roi_center_x
-                return {"mx": mx, "my": my, "offset_pixels": offset_pixels, "max_contour": max_contour}
+                return {"mx": mx, "my": my, "offset_pixels": offset_pixels, "max_contour": max_contour, "roi_type": "bottle"}
         # 黒判定はROI_OPENCV
         x1, y1, x2, y2 = self.roi
         roi_area = frame[y1:y2, x1:x2]
@@ -77,7 +77,7 @@ class Camera:
             max_contour = None
         roi_center_x = image.shape[1] / 2
         offset_pixels = mx - roi_center_x
-        return {"mx": mx, "my": my, "offset_pixels": offset_pixels, "max_contour": max_contour}
+        return {"mx": mx, "my": my, "offset_pixels": offset_pixels, "max_contour": max_contour, "roi_type": "opencv"}
 
     def detect_bottle(self, frame, roi=ROI_BOTTLE):
         """
