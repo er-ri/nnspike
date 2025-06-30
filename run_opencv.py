@@ -58,7 +58,6 @@ import traceback
 from nnspike.unit import ETRobot
 from nnspike.utils.control import ControlCalculator
 from nnspike.utils import (
-    draw_driving_info,
     SensorRecorder,
     PIDController,
     Camera,
@@ -804,6 +803,49 @@ class VideoManager:
         gray = self.create_visualization_frame(frame, steer_result, roi, info)
         self.write_video(frame)
         return self.send_frame(gray)
+
+def draw_driving_info(
+    image: np.ndarray, info: dict, roi: tuple[int, int, int, int]
+) -> np.ndarray:
+    """Draws driving information on an image.
+
+    This function overlays driving-related information onto a given image. It draws a tracing point,
+    a region of interest (ROI) rectangle, and various text annotations based on the provided info dictionary.
+
+    Args:
+        image (np.ndarray): The input image on which to draw the information.
+        info (dict): A dictionary containing the driving information to be displayed.
+            Expected keys are:
+                - "trace_x" (int or str): The x-coordinate for the tracing point.
+                - "trace_y" (int or str): The y-coordinate for the tracing point.
+                - "text" (dict): A dictionary of text annotations where keys are the labels and values are the corresponding data.
+        roi (tuple[int, int, int, int]): A tuple defining the region of interest in the format (x1, y1, x2, y2).    Returns:
+        np.ndarray: The image with the overlaid driving information.
+    """
+    offset_x, offset_y = int(info["offset_x"]), int(info["offset_y"])
+    x1, y1, x2, y2 = roi
+
+    image = cv2.circle(
+        image, (offset_x, offset_y), 3, (255, 255, 0), -1
+    )  # Tracing point
+    image = cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)  # ROI
+
+    for index, key in enumerate(info["text"]):
+        value = info["text"][key]
+        text = f"{value:.2f}" if type(value) is float else value
+
+        image = cv2.putText(
+            image,
+            f"{key} : {text}",
+            (10, 30 + index * 20),  # 左上(10,30)から縦に並べる
+            cv2.FONT_HERSHEY_PLAIN,
+            1,
+            (255, 255, 255),
+            1,
+            cv2.LINE_4,
+        )
+
+    return image
 
 def get_timestamp():
     """
