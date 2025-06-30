@@ -821,6 +821,10 @@ class DefaultScenario:
     """
     def __init__(self):
         self.mode = Mode.LINE_TRACE
+        self.bottle = None
+        self.offset_pixels = 0
+        self.key = None
+        self.manual_start_time = None
 
     def transition_mode(self, *args, **kwargs):
         """
@@ -844,11 +848,12 @@ class NormalScenario(DefaultScenario):
     """
     def __init__(self):
         super().__init__()
-        self.mode = Mode.LINE_TRACE
+        self.mode = Mode.LINE_TRACE  # ノーマルシナリオは常にLINE_TRACEから開始
+        # ノーマルシナリオ固有の初期化があればここに追加
 
-    def transition_mode(self, action, bottle=None):
+    def transition_mode(self):
         # --- 状態遷移: ボトル検出ピクセル数に応じて分岐 ---
-        pixel_dict = bottle[0] if (bottle and isinstance(bottle, tuple)) else (bottle if isinstance(bottle, dict) else {})
+        pixel_dict = self.bottle[0] if (self.bottle and isinstance(self.bottle, tuple)) else (self.bottle if isinstance(self.bottle, dict) else {})
         yellow_pixels = pixel_dict.get('yellow', 0)
         blue_pixels = pixel_dict.get('blue', 0)
         red_pixels = pixel_dict.get('red', 0)
@@ -875,53 +880,56 @@ class NormalScenario(DefaultScenario):
             self.mode = Mode.STOP
         # SMART_CARRY_1, SMART_CARRY_2, GOAL等は必要に応じて追加
         # --- LINE_TRACE→他モード遷移時に一度だけリセット ---
+        if hasattr(self, 'prev_mode'):
+            prev_mode = self.prev_mode
+        else:
+            prev_mode = None
         if prev_mode == Mode.LINE_TRACE and self.mode != Mode.LINE_TRACE:
-            action.reset_control_values()
+            self.action.reset_control_values()
+        self.prev_mode = self.mode
 
     def execute_mode_action(self, action, steer_result, bottle=None):
-        """
-        --- 状態ごとにアクションを分岐実行 ---
-        - LINE_TRACE: 通常のライン追従
-        - YELLOW_BOTTLE: 黄色ボトル回避（完了後はLINE_TRACE復帰）
-        - BLUE_BOTTLE/RED_BOTTLE: 青/赤ボトル運搬（完了後はSTOP）
-        """
-        offset_pixels = steer_result.get("offset_pixels", 0)
-        self.transition_mode(action, bottle)
+        self.action = action
+        self.bottle = bottle
+        self.offset_pixels = 0
+        if steer_result is not None:
+            self.offset_pixels = steer_result.get("offset_pixels", 0)
+        self.transition_mode()
+        offset_pixels = self.offset_pixels
         if self.mode == Mode.LINE_TRACE:
             action.do_line_trace(offset_pixels)
         elif self.mode == Mode.YELLOW_BOTTLE:
-            action.do_obstacle_avoid_with_bottle()  # 黄色ボトル回避動作
+            action.do_obstacle_avoid_with_bottle()
             if action.is_finished():
-                self.mode = Mode.LINE_TRACE  # 回避完了で通常走行に復帰
+                self.mode = Mode.LINE_TRACE
                 action.reset()
         elif self.mode == Mode.BLUE_BOTTLE or self.mode == Mode.RED_BOTTLE:
-            action.carry_bottle_sequence()  # 青/赤ボトル運搬動作
+            action.carry_bottle_sequence()
             if action.is_finished():
-                self.mode = Mode.STOP  # 運搬完了で停止
+                self.mode = Mode.STOP
                 action.reset()
         elif self.mode == Mode.STOP:
             action.do_stop()
         elif self.mode == Mode.GOAL:
-            pass  # ゴール到達時の処理（未実装）
+            pass
         else:
             pass
 
 class ManualScenario(DefaultScenario):
     """
     【マニュアルシナリオ】
-    - キーボード入力で手動操作。
-    - 一部モードはキー入力やボトル検出で自動遷移。
-    - MANUAL_A/B/D/E: 特定キーで直進や回避動作を実行。
-    - YELLOW/BLUE/RED_BOTTLE: ボトル検出時は自動で運搬/回避。
-    - STOP: 停止状態（一定時間後やアクション完了で復帰）。
+    - キーボード操作による手動制御。
+    - MANUAL_Eモードではライン追従も可能。
+    - 状態（mode）やキー入力に応じてアクションを切り替える。
     """
     def __init__(self):
         super().__init__()
-        self.mode = Mode.MANUAL
-        self.manual_start_time = None
+        self.mode = Mode.MANUAL  # マニュアルシナリオは常にMANUALから開始
+        # マニュアルシナリオ固有の初期化があればここに追加
 
-    def transition_mode(self, action, bottle, key=None):
-        pixel_dict = bottle[0] if (bottle and isinstance(bottle, tuple)) else (bottle if isinstance(bottle, dict) else {})
+    def transition_mode(self):
+        pixel_dict = self.bottle[0] if (self.bottle and isinstance(self.bottle, tuple)) else (self.bottle if isinstance(self.bottle, dict) else {})
+        key = self.key
         if self.mode == Mode.MANUAL:
             # a/b/d/eキーで手動モード遷移
             if key == 'a':
@@ -966,14 +974,24 @@ class ManualScenario(DefaultScenario):
         elif self.mode == Mode.STOP:
             # 停止後はMANUALに復帰
             self.mode = Mode.MANUAL
+        # --- LINE_TRACE→他モード遷移時に一度だけリセット ---
+        if hasattr(self, 'prev_mode'):
+            prev_mode = self.prev_mode
+        else:
+            prev_mode = None
+        if prev_mode == Mode.LINE_TRACE and self.mode != Mode.LINE_TRACE:
+            self.action.reset_control_values()
+        self.prev_mode = self.mode
 
     def execute_mode_action(self, action, steer_result=None, bottle=None, key=None):
-        offset_pixels = 0
+        self.bottle = bottle
+        self.key = key
         if steer_result is not None:
-            offset_pixels = steer_result.get("offset_pixels", 0)
-        self.transition_mode(action, bottle, key=key, offset_pixels=offset_pixels)
+            self.offset_pixels = steer_result.get("offset_pixels", 0)
+        self.transition_mode()
+        offset_pixels = self.offset_pixels
         if self.mode == Mode.MANUAL:
-            pass  # 入力待ち
+            pass
         elif self.mode == Mode.MANUAL_A:
             action.do_straight()
         elif self.mode == Mode.MANUAL_B:
@@ -1077,7 +1095,7 @@ def main(config: Config):
         scenario = NormalScenario()
         key = None
     action = ActionManager()
-    camera = Camera()
+    camera = Camera(width=IMAGE_WIDTH, height=IMAGE_HEIGHT, fps=30, roi=ROI_OPENCV, roi_bottle=ROI_BOTTLE)
     video = VideoManager(config.log_save_video, config.log_send_video, IMAGE_WIDTH, IMAGE_HEIGHT, HOST_IP_ADDRESS, port=8485)
     sensor_recorder = SensorRecorderManager(config.log_sensor)
     action.test_initial_sensor()
@@ -1091,14 +1109,11 @@ def main(config: Config):
                 print("[ERROR] Can't receive frame (stream end?). Exiting ...")
                 break
             action.update_sensor_info(sensor_recorder)
-            # ペットボトル検出結果をbottle_resultという辞書で受け渡し
+            # ライントレース用の画像処理結果をsteer_result、ペットボトル検出結果をbottle_resultとして取得
             steer_result = camera.steer_by_camera(frame)
-            bottle_result = camera.detect_color_bottle(frame, ROI_BOTTLE)
-            if config.log_manual:
-                key_input = key.get_key() if config.log_manual else None
-                scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result, key=key_input)
-            else:
-                scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result)
+            bottle_result = camera.detect_color_bottle(frame)
+            key_input = key.get_key() if config.log_manual else None
+            scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result, key=key_input)
             if (config.log_save_video or config.log_send_video) and video is not None:
                 if not video.process_and_send(frame, steer_result, ROI_OPENCV, scenario, action, bottle_result):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")

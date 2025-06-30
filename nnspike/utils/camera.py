@@ -15,12 +15,13 @@ class Camera:
     cap.read() などのOpenCVカメラ操作を分離し、mainから直接触らない設計。
     画像取得と画像処理（steer_by_camera）も一元化。
     """
-    def __init__(self, device_index=0, width=IMAGE_WIDTH, height=IMAGE_HEIGHT, fps=30, roi=ROI_OPENCV):
+    def __init__(self, device_index=0, width=IMAGE_WIDTH, height=IMAGE_HEIGHT, fps=30, roi=ROI_OPENCV, roi_bottle=ROI_BOTTLE):
         self.cap = cv2.VideoCapture(device_index)
         self.cap.set(cv2.CAP_PROP_FPS, fps)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         self.roi = roi
+        self.roi_bottle = roi_bottle
         self.image_width = width
 
     def read(self):
@@ -31,16 +32,14 @@ class Camera:
 
     def steer_by_camera(self, frame):
         """
-        ROI内の色領域（黄→青→赤→黒）の優先順位で進行方向を決定する。
-        各色のピクセル数がCOLOR_DETECT_PIXEL_THRESHOLD以上ならその色の最大輪郭重心・オフセットを返す。
-        どれもなければ黒領域で進行方向を決定。
-        detect_color_bottleのロジックを共有し冗長を排除。
+        ROI_BOTTLE内の色領域（黄→青→赤）の優先順位で進行方向を決定。
+        どれもなければ従来通りROI_OPENCV内の黒領域で進行方向を決定。
         戻り値: {'mx': float, 'my': float, 'offset_pixels': float, 'max_contour': contour or None}
         """
-        x1, y1, x2, y2 = self.roi
+        # カラー判定はROI_BOTTLE
+        x1, y1, x2, y2 = self.roi_bottle
         roi_area = frame[y1:y2, x1:x2]
-        color_pixels, color_masks = self.detect_color_bottle(frame, roi=self.roi)
-        # 優先順位: 黄→青→赤
+        color_pixels, color_masks = self.detect_color_bottle(frame)
         for color in ["yellow", "blue", "red"]:
             if color_pixels[color] >= COLOR_DETECT_PIXEL_THRESHOLD:
                 mask = cv2.erode(color_masks[color], None, iterations=2)
@@ -58,7 +57,9 @@ class Camera:
                 roi_center_x = roi_area.shape[1] / 2
                 offset_pixels = mx - roi_center_x
                 return {"mx": mx, "my": my, "offset_pixels": offset_pixels, "max_contour": max_contour}
-        # 黒（従来通り）
+        # 黒判定はROI_OPENCV
+        x1, y1, x2, y2 = self.roi
+        roi_area = frame[y1:y2, x1:x2]
         image = cv2.cvtColor(roi_area, cv2.COLOR_BGR2GRAY)
         blur = cv2.GaussianBlur(image, (5, 5), 0)
         _, thresh = cv2.threshold(blur, BLACK_THRESHOLD, 255, cv2.THRESH_BINARY_INV)
@@ -102,14 +103,14 @@ class Camera:
                 return True, cnt
         return False, None
 
-    def detect_color_bottle(self, frame, roi=ROI_BOTTLE):
+    def detect_color_bottle(self, frame):
         """
-        ROI内の黄色・青・赤領域の面積とマスク画像を返す。
+        self.roi_bottle内の黄色・青・赤領域の面積とマスク画像を返す。
         Returns:
             dict: {'yellow': int, 'blue': int, 'red': int}
             masks: {'yellow': mask, 'blue': mask, 'red': mask}
         """
-        x1, y1, x2, y2 = roi
+        x1, y1, x2, y2 = self.roi_bottle
         roi_img = frame[y1:y2, x1:x2]
         if roi_img is None or roi_img.size == 0:
             return {'yellow': 0, 'blue': 0, 'red': 0}, {'yellow': None, 'blue': None, 'red': None}
