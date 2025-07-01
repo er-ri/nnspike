@@ -15,7 +15,7 @@ from typing import Optional, Tuple
 import json
 
 # ==== ユーザー調整用PIDパラメータ（ここだけ編集すればOK）====
-PID_KP = 0.60   # 反応性UP（0.55→0.60）
+PID_KP = 0.58   # 反応性UP（0.55→0.60）
 PID_KI = 0.0    # 積分は微小に
 PID_KD = 0.25   # 微分も少し強めて応答性UP（0.22→0.25）
 PID_SETPOINT = 0
