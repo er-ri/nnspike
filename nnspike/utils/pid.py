@@ -15,11 +15,11 @@ from typing import Optional, Tuple
 import json
 
 # ==== ユーザー調整用PIDパラメータ（ここだけ編集すればOK）====
-PID_KP = 0.45   # 過敏な振動を抑える（0.6→0.45）
-PID_KI = 0.01   # 積分は微小に
-PID_KD = 0.10   # 微分も抑制（0.18→0.10）
+PID_KP = 0.6   # 曲がり応答性UP（0.7→0.6）
+PID_KI = 0.01  # 積分は微小に
+PID_KD = 0.18  # 微分も強め
 PID_SETPOINT = 0
-PID_OUTPUT_LIMITS = (-0.4, 0.4)  # 出力幅も抑制（-0.6,0.6→-0.4,0.4）
+PID_OUTPUT_LIMITS = (-0.6, 0.6)  # 出力幅拡大
 PID_DERIVATIVE_LPF_ALPHA = 0.9  # 応答性重視で0.9
 PID_INTEGRAL_LIMITS = (None, None)
 
