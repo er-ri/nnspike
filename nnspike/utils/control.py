@@ -15,7 +15,7 @@ from collections import deque
 import json
 
 # ====【現場でよく調整する推奨パラメータ】====
-BASE_POWER = 40             # 通常走行時の基準パワー
+BASE_POWER = 30             # 通常走行時の基準パワー
 STRAIGHT_POWER = 30         # 直線判定時のパワー
 CURVE_POWER = 20            # カーブ判定時のパワー
 STRAIGHT_THRESHOLD_DEG = 3  # 直線とみなす角度しきい値[deg]
