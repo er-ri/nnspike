@@ -19,7 +19,7 @@ PID_KP = 0.6    # さらに曲がりやすさUP（0.55→0.60）
 PID_KI = 0.0    # 積分は微小に
 PID_KD = 0.22   # 微分をさらに弱めてふり幅抑制（0.28→0.22）
 PID_SETPOINT = 0
-PID_OUTPUT_LIMITS = (-0.32, 0.32)  # 出力幅もさらに抑制（-0.35,0.35→-0.32,0.32）
+PID_OUTPUT_LIMITS = (-0.3, 0.3)  # 出力幅もさらに抑制（-0.35,0.35→-0.32,0.32）
 PID_DERIVATIVE_LPF_ALPHA = 0.9  # 応答性重視で0.9
 PID_INTEGRAL_LIMITS = (None, None)
 
