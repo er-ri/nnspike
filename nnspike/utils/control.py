@@ -24,7 +24,7 @@ SENSITIVITY = 1.0           # θ感度UP（1.0→1.1）
 
 # ====【通常は触らない高度なパラメータ】====
 MAX_THETA_DEG = 30          # θの最大値[deg]（パワー補正の正規化用）
-MAX_POWER_DIFF = 23         # PID補正による最大パワー差分  # 15→20
+MAX_POWER_DIFF = 22         # PID補正による最大パワー差分  # 15→20
 MAX_POWER_ADJ_STEP = 5     # パワー差分の1ステップ最大変化量（暴走抑制用）
 
 class ControlCalculator:
