@@ -12,13 +12,13 @@ def main():
     try:
         # set_motor_degreesテスト: 左右個別・同時
         print("左モーターを180度正転 (右停止)")
-        et.set_motor_degrees(left_degrees=180, right_degrees=0, power=40)
+        et.set_motor_degrees(180, 0, 40)
         time.sleep(3)
         print("右モーターを180度正転 (左停止)")
-        et.set_motor_degrees(left_degrees=0, right_degrees=180, power=40)
+        et.set_motor_degrees(0, 180, 40)
         time.sleep(3)
         print("左右同時に-90度逆転")
-        et.set_motor_degrees(left_degrees=-90, right_degrees=-90, power=40)
+        et.set_motor_degrees(-90, -90, 40)
         time.sleep(3)
         et.brake()
         time.sleep(1)
