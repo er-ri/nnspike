@@ -110,7 +110,7 @@ class LegoSpike(object):
         elif command_id == COMMAND_MOVE_ARM_ID:
             self._move_arm(command_parameter1)
 
-    async def _set_motor_speed(self, left_speed: int, right_speed: int) -> None:
+    def _set_motor_speed(self, left_speed: int, right_speed: int) -> None:
         """Method to control the steering wheel angle.
 
         Args:
@@ -119,8 +119,8 @@ class LegoSpike(object):
         """
         self.command_counter = time.ticks_ms()
 
-        await uasyncio.to_thread(self.motor_left.run_at_speed, -int(left_speed))
-        await uasyncio.to_thread(self.motor_right.run_at_speed, int(right_speed))
+        self.motor_left.run_at_speed(-int(left_speed))
+        self.motor_right.run_at_speed(int(right_speed))
 
     async def _set_motor_relative_position(
         self, left_position: int, right_position: int
@@ -147,21 +147,14 @@ class LegoSpike(object):
 
     async def _set_motor_degrees(self, left_degrees: int, right_degrees: int) -> None:
         """
-        左右モーターを指定された角度だけ動かす（度数単位）。
-        Args:
-            left_degrees: 左モーターの回転角度（正負で方向指定）
-            right_degrees: 右モーターの回転角度（正負で方向指定）
+        Move left and right motors by the specified degrees asynchronously.
+        Args:.
+            left_degrees: Degrees to rotate the left motor (positive/negative for direction)
+            right_degrees: Degrees to rotate the right motor (positive/negative for direction)
         """
         self.command_counter = time.ticks_ms()
-        # モーターを非同期で動かす
-        left_task = uasyncio.create_task(
-            uasyncio.to_thread(self.motor_left.run_for_degrees, -int(left_degrees), 50)
-        )
-        right_task = uasyncio.create_task(
-            uasyncio.to_thread(self.motor_right.run_for_degrees, int(right_degrees), 50)
-        )
-        await left_task
-        await right_task
+        await uasyncio.to_thread(self.motor_left.run_for_degrees, -int(left_degrees), 50)
+        await uasyncio.to_thread(self.motor_right.run_for_degrees, int(right_degrees), 50)
 
 async def receiver():
     while True:
