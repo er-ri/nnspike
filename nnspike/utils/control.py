@@ -23,7 +23,7 @@ CURVE_THRESHOLD_DEG = 10    # カーブとみなす角度しきい値[deg]
 SENSITIVITY = 1.0           # 進行角度θの感度（大きいほど敏感）  # 0.7→1.0
 
 # ====【通常は触らない高度なパラメータ】====
-THETA_MA_WINDOW = 5         # θ平滑化（移動平均）ウィンドウ長  # 8→5
+THETA_MA_WINDOW = 3         # θ平滑化（移動平均）ウィンドウ長  # 5→2（応答性UP）
 MAX_THETA_DEG = 30          # θの最大値[deg]（パワー補正の正規化用）
 MAX_POWER_DIFF = 20         # PID補正による最大パワー差分  # 15→20
 
