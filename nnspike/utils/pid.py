@@ -1,3 +1,19 @@
+"""
+PID制御モジュール
+
+このモジュールは、汎用的なPID（比例・積分・微分）制御アルゴリズムを実装します。
+主にロボットや各種制御系のフィードバック制御に利用されます。
+
+クラス:
+    PIDController:
+        比例（P）、積分（I）、微分（D）制御を組み合わせたコントローラ。
+        ゲイン・出力制限・積分制限・微分ローパスフィルタ・デバッグ出力などをサポート。
+"""
+
+import time
+from typing import Optional, Tuple
+import json
+
 # ==== ユーザー調整用PIDパラメータ（ここだけ編集すればOK）====
 PID_KP = 0.7  # スムーズ旋回のためKpを0.7に下げる
 PID_KI = 0
@@ -7,24 +23,10 @@ PID_OUTPUT_LIMITS = (-0.3, 0.3)
 PID_DERIVATIVE_LPF_ALPHA = 0.9  # 応答性重視で0.9
 PID_INTEGRAL_LIMITS = (None, None)
 
-import time
-from typing import Optional, Tuple
-import json
-
 
 class PIDController:
     """
-    PID（比例・積分・微分）コントローラは、産業用制御システムで広く使われる制御ループ機構です。
-    このクラスは基本的なPIDコントローラを実装します。
-
-    属性:
-        Kp (float): 比例ゲイン。
-        Ki (float): 積分ゲイン。
-        Kd (float): 微分ゲイン。
-        setpoint (float): システムが目指す目標値。
-        output_limits (tuple[int, int]): 出力の最小値と最大値。
-        _last_error (float): 前回の誤差。
-        _integral (float): 誤差の積分値。
+    汎用PID制御器。
     """
 
     def __init__(
@@ -39,14 +41,17 @@ class PIDController:
         debug: bool = True,
     ):
         """
-        指定したゲイン、目標値、出力制限でPIDControllerを初期化します。
+        PIDControllerの初期化。
 
         引数:
-            Kp (float): 比例ゲイン。
-            Ki (float): 積分ゲイン。
-            Kd (float): 微分ゲイン。
-            setpoint (float): システムが目指す目標値。
-            output_limits (tuple[float, float], optional): 出力の最小値と最大値。デフォルトは (None, None)。
+            Kp: float 比例ゲイン
+            Ki: float 積分ゲイン
+            Kd: float 微分ゲイン
+            setpoint: float 目標値
+            output_limits: tuple 出力の最小・最大値
+            derivative_lpf_alpha: float 微分項ローパスフィルタ係数
+            integral_limits: tuple 積分項の制限
+            debug: bool デバッグ出力ON/OFF
         """
         self.Kp = Kp
         self.Ki = Ki

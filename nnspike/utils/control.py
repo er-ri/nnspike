@@ -1,7 +1,7 @@
 """
 ラインフォロワー制御モジュール
 
-このモジュールは、カメラ画像を用いたラインフォロー制御アルゴリズムを実装しています。
+このモジュールは、カメラ画像を用いたラインフォロー制御アルゴリズムを実装します。
 主に学習データ収集やリアルタイムロボット制御で利用されます。
 
 クラス:
@@ -28,7 +28,18 @@ MAX_THETA_DEG = 30          # θの最大値[deg]（パワー補正の正規化�
 MAX_POWER_DIFF = 20         # PID補正による最大パワー差分
 
 class ControlCalculator:
+    """
+    ラインフォロワー用制御計算クラス。
+    """
+
     def __init__(self, image_width, debug=True):
+        """
+        ControlCalculatorの初期化。
+
+        引数:
+            image_width: int 画像幅
+            debug: bool デバッグ出力ON/OFF
+        """
         # 制御パラメータの初期化（使用順に並べ替え）
         self.image_width = image_width  # 画像幅
         self.theta_ma_window = THETA_MA_WINDOW  # θ平滑化ウィンドウ長
