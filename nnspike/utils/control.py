@@ -80,12 +80,9 @@ class ControlCalculator:
             print(f"[CONTROL_DEBUG] calculate_and_smooth_theta {json.dumps(debug_data, ensure_ascii=False)}")
         return smoothed
 
-    def calculate_adaptive_speed(self):
+    def calculate_adaptive_speed(self, smoothed_theta):
         # 平滑化後θに応じて推奨速度（パワー）を自動調整
-        if len(self.theta_ma_buffer) == 0:
-            abs_theta = 0
-        else:
-            abs_theta = abs(self.theta_ma_buffer[-1])
+        abs_theta = abs(smoothed_theta)
         if abs_theta > self.curve_threshold:
             speed = self.curve_power  # カーブ時
         elif abs_theta < self.straight_threshold:
