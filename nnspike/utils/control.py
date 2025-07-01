@@ -17,7 +17,7 @@ import json
 # ====【現場でよく調整する推奨パラメータ】====
 BASE_POWER = 30             # 通常走行時の基準パワー
 STRAIGHT_POWER = 30         # 直線判定時のパワー
-CURVE_POWER = 27            # カーブ判定時のパワー（20→25で復帰力UP）
+CURVE_POWER = 25            # カーブ判定時のパワー（20→25で復帰力UP）
 STRAIGHT_THRESHOLD_DEG = 3  # 直線とみなす角度しきい値[deg]
 CURVE_THRESHOLD_DEG = 10    # カーブとみなす角度しきい値[deg]
 SENSITIVITY = 1.1           # θ感度UP（1.0→1.1）
@@ -25,7 +25,7 @@ SENSITIVITY = 1.1           # θ感度UP（1.0→1.1）
 # ====【通常は触らない高度なパラメータ】====
 THETA_MA_WINDOW = 1         # θ平滑化（移動平均）ウィンドウ長  # 2→1（平滑化なし）
 MAX_THETA_DEG = 30          # θの最大値[deg]（パワー補正の正規化用）
-MAX_POWER_DIFF = 20         # PID補正による最大パワー差分  # 15→20
+MAX_POWER_DIFF = 23         # PID補正による最大パワー差分  # 15→20
 
 class ControlCalculator:
     """
