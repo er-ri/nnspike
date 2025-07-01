@@ -17,13 +17,12 @@ import json
 # ====【現場でよく調整する推奨パラメータ】====
 BASE_POWER = 30             # 通常走行時の基準パワー
 STRAIGHT_POWER = 30         # 直線判定時のパワー
-CURVE_POWER = 25            # カーブ判定時のパワー（20→25で復帰力UP）
+CURVE_POWER = 24            # カーブ判定時のパワー（20→25で復帰力UP）
 STRAIGHT_THRESHOLD_DEG = 3  # 直線とみなす角度しきい値[deg]
 CURVE_THRESHOLD_DEG = 10    # カーブとみなす角度しきい値[deg]
 SENSITIVITY = 1.1           # θ感度UP（1.0→1.1）
 
 # ====【通常は触らない高度なパラメータ】====
-THETA_MA_WINDOW = 1         # θ平滑化（移動平均）ウィンドウ長  # 2→1（平滑化なし）
 MAX_THETA_DEG = 30          # θの最大値[deg]（パワー補正の正規化用）
 MAX_POWER_DIFF = 20         # PID補正による最大パワー差分  # 15→20
 
@@ -42,7 +41,6 @@ class ControlCalculator:
         """
         # 制御パラメータの初期化（使用順に並べ替え）
         self.image_width = image_width  # 画像幅
-        self.theta_ma_window = THETA_MA_WINDOW  # θ平滑化ウィンドウ長
         self.theta_ma_buffer = deque(maxlen=self.theta_ma_window)  # θ移動平均バッファ
         self.base_power = BASE_POWER  # 通常時の基準パワー
         self.straight_power = STRAIGHT_POWER  # 直線時の推奨パワー
@@ -54,31 +52,26 @@ class ControlCalculator:
 
     def calculate_and_smooth_theta(self, offset_pixels):
         """
-        オフセットピクセルからθを計算し、平滑化したθを返す。
+        オフセットピクセルからθを計算し、そのまま返す（平滑化なし）。
         デバッグ出力も1回でまとめて行う。
 
         引数:
             offset_pixels: int オフセットピクセル
         戻り値:
-            float 平滑化後のθ[rad]
+            float θ[rad]
         """
         image_center_x = self.image_width / 2
         max_offset = image_center_x
         normalized_offset = offset_pixels / max_offset
         theta = normalized_offset * SENSITIVITY
-        self.theta_ma_buffer.append(theta)
-        if len(self.theta_ma_buffer) > 0:
-            smoothed = sum(self.theta_ma_buffer) / len(self.theta_ma_buffer)
-        else:
-            smoothed = theta
         if self.debug:
             debug_data = {
                 "offset": offset_pixels,
                 "theta": round(theta, 4),
-                "smoothed": round(smoothed, 4)
+                "smoothed": round(theta, 4)
             }
             print(f"[CONTROL_DEBUG] calculate_and_smooth_theta {json.dumps(debug_data, ensure_ascii=False)}")
-        return smoothed
+        return theta
 
     def calculate_adaptive_speed(self, smoothed_theta):
         # 平滑化後θに応じて推奨速度（パワー）を自動調整
