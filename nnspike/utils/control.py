@@ -27,7 +27,7 @@ MAX_THETA_DEG = 30          # θの最大値[deg]（パワー補正の正規化�
 MAX_POWER_DIFF = 20         # PID補正による最大パワー差分
 
 class ControlCalculator:
-    def __init__(self, image_width):
+    def __init__(self, image_width, debug=True):
         # 制御パラメータの初期化（使用順に並べ替え）
         self.image_width = image_width  # 画像幅
         self.theta_ma_window = THETA_MA_WINDOW  # θ平滑化ウィンドウ長
@@ -38,6 +38,7 @@ class ControlCalculator:
         self.straight_threshold = math.radians(STRAIGHT_THRESHOLD_DEG)  # 直線判定しきい値[rad]
         self.curve_threshold = math.radians(CURVE_THRESHOLD_DEG)  # カーブ判定しきい値[rad]
         self.max_theta = math.radians(MAX_THETA_DEG)  # θ最大値[rad]
+        self.debug = debug  # デバッグ出力ON/OFF
 
     def calculate_theta_from_pixels(self, offset_pixels):
         # オフセットピクセルから進行角度θ[rad]を計算
@@ -45,15 +46,20 @@ class ControlCalculator:
         max_offset = image_center_x
         normalized_offset = offset_pixels / max_offset
         theta = normalized_offset * SENSITIVITY
+        if self.debug:
+            print(f"[CONTROL] calculate_theta_from_pixels: offset={offset_pixels}, theta={theta:.4f}")
         return theta
 
     def add_and_get_smoothed_theta(self, theta):
         # θ値をバッファに追加し、移動平均で平滑化した値を返す
         self.theta_ma_buffer.append(theta)
         if len(self.theta_ma_buffer) > 0:
-            return sum(self.theta_ma_buffer) / len(self.theta_ma_buffer)
+            smoothed = sum(self.theta_ma_buffer) / len(self.theta_ma_buffer)
         else:
-            return theta
+            smoothed = theta
+        if self.debug:
+            print(f"[CONTROL] add_and_get_smoothed_theta: raw={theta:.4f}, smoothed={smoothed:.4f}")
+        return smoothed
 
     def calculate_adaptive_speed(self):
         # 平滑化後θに応じて推奨速度（パワー）を自動調整
@@ -62,12 +68,18 @@ class ControlCalculator:
         else:
             abs_theta = abs(self.theta_ma_buffer[-1])
         if abs_theta > self.curve_threshold:
-            return self.curve_power  # カーブ時
+            speed = self.curve_power  # カーブ時
         elif abs_theta < self.straight_threshold:
-            return self.straight_power  # 直線時
+            speed = self.straight_power  # 直線時
         else:
-            return self.base_power  # 通常時
+            speed = self.base_power  # 通常時
+        if self.debug:
+            print(f"[CONTROL] calculate_adaptive_speed: abs_theta={abs_theta:.4f}, speed={speed}")
+        return speed
 
     def calculate_power_adjustment(self, pid_corrected_theta):
         # PID補正値（ラジアン）をパワー差分に変換
-        return int((pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF)
+        power_adj = int((pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF)
+        if self.debug:
+            print(f"[CONTROL] calculate_power_adjustment: pid_theta={pid_corrected_theta:.4f}, power_adj={power_adj}")
+        return power_adj

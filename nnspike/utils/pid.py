@@ -35,6 +35,7 @@ class PIDController:
         output_limits: Tuple[Optional[float], Optional[float]] = PID_OUTPUT_LIMITS,
         derivative_lpf_alpha: float = PID_DERIVATIVE_LPF_ALPHA,
         integral_limits: Tuple[Optional[float], Optional[float]] = PID_INTEGRAL_LIMITS,
+        debug: bool = True,
     ):
         """
         指定したゲイン、目標値、出力制限でPIDControllerを初期化します。
@@ -57,6 +58,7 @@ class PIDController:
         self.derivative_lpf_alpha = derivative_lpf_alpha
         self._last_derivative = 0.0
         self.integral_limits = integral_limits
+        self.debug = debug  # デバッグ出力ON/OFF
 
     def set_output_limits(self, new_output_limits: Tuple[Optional[float], Optional[float]]):
         """
@@ -80,9 +82,9 @@ class PIDController:
         if self._last_time is None:
             self._last_time = current_time
             self._last_error = error
-            # ヘッダーを出力
-            print("time\tmeasured\tsetpoint\terror\tintegral\traw_deriv\tderiv_lpf\toutput")
-            print(f"{current_time}\t{measured_value}\t{self.setpoint}\t{error}\t0\t0\t0\t0")
+            if self.debug:
+                print("[PID] time\tmeasured\tsetpoint\terror\tintegral\traw_deriv\tderiv_lpf\toutput")
+                print(f"[PID] {current_time}\t{measured_value}\t{self.setpoint}\t{error}\t0\t0\t0\t0")
             return 0.0  # 初回は0を返す
 
         delta_time = current_time - self._last_time
@@ -110,7 +112,8 @@ class PIDController:
         output = self.Kp * error + self.Ki * self._integral + self.Kd * derivative
 
         # デバッグ用にデータをprint表示（桁数揃え）
-        print(f"{current_time:.3f}\t{measured_value:.4f}\t{self.setpoint:.4f}\t{error:.4f}\t{self._integral:.4f}\t{raw_derivative:.4f}\t{derivative:.4f}\t{output:.4f}")
+        if self.debug:
+            print(f"[PID] {current_time:.3f}\t{measured_value:.4f}\t{self.setpoint:.4f}\t{error:.4f}\t{self._integral:.4f}\t{raw_derivative:.4f}\t{derivative:.4f}\t{output:.4f}")
 
         # 出力制限の適用
         if self.output_limits[0] is not None:
@@ -123,3 +126,9 @@ class PIDController:
         self._last_error = error
 
         return output
+
+
+class ControlCalculator:
+    def __init__(self, image_width, debug=True):
+        # ...既存のコード...
+        self.debug = debug  # デバッグ出力ON/OFF
