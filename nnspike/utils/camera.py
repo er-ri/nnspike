@@ -37,26 +37,26 @@ class Camera:
         戻り値: {'mx': float, 'my': float, 'offset_pixels': float, 'max_contour': contour or None, 'roi_type': str}
         """
         # --- カラー判定を有効化 ---
-        x1, y1, x2, y2 = self.roi_bottle
-        roi_area = frame[y1:y2, x1:x2]
-        color_pixels, color_masks = self.detect_color_bottle(frame)
-        for color in ["yellow", "blue", "red"]:
-            if color_pixels[color] >= COLOR_DETECT_PIXEL_THRESHOLD:
-                mask = cv2.erode(color_masks[color], None, iterations=2)
-                mask = cv2.dilate(mask, None, iterations=2)
-                contours, _ = cv2.findContours(mask.copy(), 1, cv2.CHAIN_APPROX_NONE)
-                if len(contours) > 0:
-                    max_contour = max(contours, key=cv2.contourArea)
-                    mu = cv2.moments(max_contour)
-                    mx = mu["m10"] / (mu["m00"] + 1e-5)
-                    my = mu["m01"] / (mu["m00"] + 1e-5)
-                else:
-                    mx = roi_area.shape[1] / 2
-                    my = roi_area.shape[0] / 2
-                    max_contour = None
-                roi_center_x = roi_area.shape[1] / 2
-                offset_pixels = mx - roi_center_x
-                return {"mx": mx, "my": my, "offset_pixels": offset_pixels, "max_contour": max_contour, "roi_type": "bottle"}
+        # x1, y1, x2, y2 = self.roi_bottle
+        # roi_area = frame[y1:y2, x1:x2]
+        # color_pixels, color_masks = self.detect_color_bottle(frame)
+        # for color in ["yellow", "blue", "red"]:
+        #     if color_pixels[color] >= COLOR_DETECT_PIXEL_THRESHOLD:
+        #         mask = cv2.erode(color_masks[color], None, iterations=2)
+        #         mask = cv2.dilate(mask, None, iterations=2)
+        #         contours, _ = cv2.findContours(mask.copy(), 1, cv2.CHAIN_APPROX_NONE)
+        #         if len(contours) > 0:
+        #             max_contour = max(contours, key=cv2.contourArea)
+        #             mu = cv2.moments(max_contour)
+        #             mx = mu["m10"] / (mu["m00"] + 1e-5)
+        #             my = mu["m01"] / (mu["m00"] + 1e-5)
+        #         else:
+        #             mx = roi_area.shape[1] / 2
+        #             my = roi_area.shape[0] / 2
+        #             max_contour = None
+        #         roi_center_x = roi_area.shape[1] / 2
+        #         offset_pixels = mx - roi_center_x
+        #         return {"mx": mx, "my": my, "offset_pixels": offset_pixels, "max_contour": max_contour, "roi_type": "bottle"}
         # --- 黒判定はROI_OPENCV ---
         x1, y1, x2, y2 = self.roi
         roi_area = frame[y1:y2, x1:x2]
