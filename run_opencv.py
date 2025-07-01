@@ -44,6 +44,7 @@ BLUE_REFLECTED_THRESHOLD = 60
 BOTTLE_YELLOW_THRESHOLD = 12000
 BOTTLE_BLUE_THRESHOLD = 12000
 BOTTLE_RED_THRESHOLD = 12000
+MOTOR_SEND_INTERVAL = 0.04
 # ================================================
 
 import cv2
@@ -158,16 +159,16 @@ class ActionManager:
     def _apply_power_common(self, forward=True, force_immediate=False):
         """forward=True: set_motor_forward_power, False: set_motor_backward_power
         force_immediate=Trueの場合は送信間隔待ちをスキップし即時送信"""
-        # --- 送信間隔50ms厳密保証: 直前送信から50ms未満なら1ms単位でsleepし続ける（ただしforce_immediate時はスキップ） ---
+        # --- 送信間隔をユーザー調整パラメータ MOTOR_SEND_INTERVAL で制御 ---
         now = time.time()
         if not force_immediate and hasattr(self, 'last_send_time') and self.last_send_time is not None:
             elapsed = now - self.last_send_time
-            wait = 0.05 - elapsed
+            wait = MOTOR_SEND_INTERVAL - elapsed
             while wait > 0:
                 time.sleep(min(wait, 0.001))
                 now = time.time()
                 elapsed = now - self.last_send_time
-                wait = 0.05 - elapsed
+                wait = MOTOR_SEND_INTERVAL - elapsed
         # --- ここから送信処理 ---
         if forward:
             self.et.set_motor_forward_power(left_power=self.left_power, right_power=self.right_power)
@@ -1232,13 +1233,13 @@ def main(config: Config):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
             loop_elapsed = time.time() - loop_start
-            sleep_time = max(0, 0.05 - loop_elapsed)  # 50msサイクルに変更
+            sleep_time = max(0, MOTOR_SEND_INTERVAL - loop_elapsed)  # MOTOR_SEND_INTERVALサイクルに変更
             if sleep_time > 0:
                 time.sleep(sleep_time)
-            # --- 追加: ループ終了直前に再度経過時間を確認し、50ms未満なら追加sleep ---
+            # --- 追加: ループ終了直前に再度経過時間を確認し、MOTOR_SEND_INTERVAL未満なら追加sleep ---
             total_elapsed = time.time() - loop_start
-            if total_elapsed < 0.05:
-                time.sleep(0.05 - total_elapsed)
+            if total_elapsed < MOTOR_SEND_INTERVAL:
+                time.sleep(MOTOR_SEND_INTERVAL - total_elapsed)
     except KeyboardInterrupt:
         print("Interrupted by user")
         action.brake_for_duration()
