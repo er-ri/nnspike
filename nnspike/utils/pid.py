@@ -9,6 +9,7 @@ PID_INTEGRAL_LIMITS = (None, None)
 
 import time
 from typing import Optional, Tuple
+import json
 
 
 class PIDController:
@@ -111,9 +112,19 @@ class PIDController:
         # PID出力の計算
         output = self.Kp * error + self.Ki * self._integral + self.Kd * derivative
 
-        # デバッグ用にデータをprint表示（桁数揃え）
+        # デバッグ用にデータをprint表示（1行JSON形式, Copilotフレンドリー）
         if self.debug:
-            print(f"[PID] {current_time:.3f}\t{measured_value:.4f}\t{self.setpoint:.4f}\t{error:.4f}\t{self._integral:.4f}\t{raw_derivative:.4f}\t{derivative:.4f}\t{output:.4f}")
+            debug_data = {
+                "time": round(current_time, 3),
+                "measured": round(measured_value, 4),
+                "setpoint": round(self.setpoint, 4),
+                "error": round(error, 4),
+                "integral": round(self._integral, 4),
+                "raw_derivative": round(raw_derivative, 4),
+                "derivative": round(derivative, 4),
+                "output": round(output, 4)
+            }
+            print(f"[PID_DEBUG] {json.dumps(debug_data, ensure_ascii=False)}")
 
         # 出力制限の適用
         if self.output_limits[0] is not None:

@@ -12,6 +12,7 @@
 
 import math
 from collections import deque
+import json
 
 # ====【現場でよく調整する推奨パラメータ】====
 BASE_POWER = 50             # 通常走行時の基準パワー
@@ -47,7 +48,11 @@ class ControlCalculator:
         normalized_offset = offset_pixels / max_offset
         theta = normalized_offset * SENSITIVITY
         if self.debug:
-            print(f"[CONTROL] calculate_theta_from_pixels: offset={offset_pixels}, theta={theta:.4f}")
+            debug_data = {
+                "offset": offset_pixels,
+                "theta": round(theta, 4)
+            }
+            print(f"[CONTROL_DEBUG] calculate_theta_from_pixels {json.dumps(debug_data, ensure_ascii=False)}")
         return theta
 
     def add_and_get_smoothed_theta(self, theta):
@@ -58,7 +63,11 @@ class ControlCalculator:
         else:
             smoothed = theta
         if self.debug:
-            print(f"[CONTROL] add_and_get_smoothed_theta: raw={theta:.4f}, smoothed={smoothed:.4f}")
+            debug_data = {
+                "raw": round(theta, 4),
+                "smoothed": round(smoothed, 4)
+            }
+            print(f"[CONTROL_DEBUG] add_and_get_smoothed_theta {json.dumps(debug_data, ensure_ascii=False)}")
         return smoothed
 
     def calculate_adaptive_speed(self):
@@ -74,12 +83,20 @@ class ControlCalculator:
         else:
             speed = self.base_power  # 通常時
         if self.debug:
-            print(f"[CONTROL] calculate_adaptive_speed: abs_theta={abs_theta:.4f}, speed={speed}")
+            debug_data = {
+                "abs_theta": round(abs_theta, 4),
+                "speed": speed
+            }
+            print(f"[CONTROL_DEBUG] calculate_adaptive_speed {json.dumps(debug_data, ensure_ascii=False)}")
         return speed
 
     def calculate_power_adjustment(self, pid_corrected_theta):
         # PID補正値（ラジアン）をパワー差分に変換
         power_adj = int((pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF)
         if self.debug:
-            print(f"[CONTROL] calculate_power_adjustment: pid_theta={pid_corrected_theta:.4f}, power_adj={power_adj}")
+            debug_data = {
+                "pid_theta": round(pid_corrected_theta, 4),
+                "power_adj": power_adj
+            }
+            print(f"[CONTROL_DEBUG] calculate_power_adjustment {json.dumps(debug_data, ensure_ascii=False)}")
         return power_adj
