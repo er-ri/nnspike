@@ -41,7 +41,6 @@ class ControlCalculator:
         """
         # 制御パラメータの初期化（使用順に並べ替え）
         self.image_width = image_width  # 画像幅
-        self.theta_ma_buffer = deque(maxlen=self.theta_ma_window)  # θ移動平均バッファ
         self.base_power = BASE_POWER  # 通常時の基準パワー
         self.straight_power = STRAIGHT_POWER  # 直線時の推奨パワー
         self.curve_power = CURVE_POWER  # カーブ時の推奨パワー
