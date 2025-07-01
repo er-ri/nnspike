@@ -15,8 +15,8 @@ from typing import Optional, Tuple
 import json
 
 # ==== ユーザー調整用PIDパラメータ（ここだけ編集すればOK）====
-PID_KP = 0.60   # さらに曲がりやすさUP（0.55→0.60）
-PID_KI = 0.01   # 積分は微小に
+PID_KP = 0.55   # さらに曲がりやすさUP（0.55→0.60）
+PID_KI = 0.0    # 積分は微小に
 PID_KD = 0.22   # 微分をさらに弱めてふり幅抑制（0.28→0.22）
 PID_SETPOINT = 0
 PID_OUTPUT_LIMITS = (-0.32, 0.32)  # 出力幅もさらに抑制（-0.35,0.35→-0.32,0.32）
