@@ -27,14 +27,6 @@ ROI_OPENCV = (180, 300, 460, 400)  # 左右をそれぞれ30pxずつ内側に狭
 ROI_BOTTLE = (100, 20, 540, 400)   # (x1, y1, x2, y2)
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480                 # カメラ画像の高さ
-# BASE_POWER = 80                    # 一律30
-# STRAIGHT_POWER = 50                # 一律30
-# CURVE_POWER = 50                   # 一律30
-# CURVE_THRESHOLD_DEG = 10           # カーブ判定閾値
-# STRAIGHT_THRESHOLD_DEG = 3         # 直線判定のしきい値
-# SENSITIVITY = 0.8                  # 0.7（感度アップ）
-# MAX_POWER_DIFF = 20                # 応答性重視で20に下げる（スムーズ旋回）
-# MAX_THETA_DEG = 30                 # カーブ補正強化で30のまま
 # 黒判定の閾値（反射光R: 40以下, color: 150以下なら黒と判定）
 BLACK_REFLECTED_THRESHOLD = 40
 BLACK_COLOR_THRESHOLD = 150

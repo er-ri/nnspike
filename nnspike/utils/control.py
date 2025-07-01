@@ -13,18 +13,18 @@
 import math
 from collections import deque
 
-# ==== よく調整する推奨パラメータ（現場調整推奨）====
-BASE_POWER = 50           # 通常時の基準パワー
-STRAIGHT_POWER = 80       # 直線時の推奨パワー
-CURVE_POWER = 50          # カーブ時の推奨パワー
-STRAIGHT_THRESHOLD_DEG = 3  # 直線判定しきい値[deg]
-CURVE_THRESHOLD_DEG = 10     # カーブ判定しきい値[deg]
-SENSITIVITY = 0.8         # 進行角度θの感度
+# ====【現場でよく調整する推奨パラメータ】====
+BASE_POWER = 50             # 通常走行時の基準パワー
+STRAIGHT_POWER = 80         # 直線判定時のパワー
+CURVE_POWER = 50            # カーブ判定時のパワー
+STRAIGHT_THRESHOLD_DEG = 3  # 直線とみなす角度しきい値[deg]
+CURVE_THRESHOLD_DEG = 10    # カーブとみなす角度しきい値[deg]
+SENSITIVITY = 0.8           # 進行角度θの感度（大きいほど敏感）
 
-# ==== 通常は触らないパラメータ（高度な調整用）====
-THETA_MA_WINDOW = 7       # θ平滑化ウィンドウ長
-MAX_THETA_DEG = 30        # θ最大値[deg]
-MAX_POWER_DIFF = 20       # パワー差分の最大値
+# ====【通常は触らない高度なパラメータ】====
+THETA_MA_WINDOW = 7         # θ平滑化（移動平均）ウィンドウ長
+MAX_THETA_DEG = 30          # θの最大値[deg]（パワー補正の正規化用）
+MAX_POWER_DIFF = 20         # PID補正による最大パワー差分
 
 class ControlCalculator:
     def __init__(self, image_width):
