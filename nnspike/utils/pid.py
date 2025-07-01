@@ -1,3 +1,12 @@
+# ==== ユーザー調整用PIDパラメータ（ここだけ編集すればOK）====
+PID_KP = 0.7  # スムーズ旋回のためKpを0.7に下げる
+PID_KI = 0
+PID_KD = 0.025
+PID_SETPOINT = 0
+PID_OUTPUT_LIMITS = (-0.3, 0.3)
+PID_DERIVATIVE_LPF_ALPHA = 0.9  # 応答性重視で0.9
+PID_INTEGRAL_LIMITS = (None, None)
+
 import time
 from typing import Optional, Tuple
 
@@ -19,13 +28,13 @@ class PIDController:
 
     def __init__(
         self,
-        Kp: float = 0.7,  # スムーズ旋回のためKpを0.7に下げる
-        Ki: float = 0,
-        Kd: float = 0.025,
-        setpoint: float = 0,
-        output_limits: Tuple[Optional[float], Optional[float]] = (-0.3, 0.3),
-        derivative_lpf_alpha: float = 0.9,  # 応答性重視で0.9
-        integral_limits: Tuple[Optional[float], Optional[float]] = (None, None),
+        Kp: float = PID_KP,
+        Ki: float = PID_KI,
+        Kd: float = PID_KD,
+        setpoint: float = PID_SETPOINT,
+        output_limits: Tuple[Optional[float], Optional[float]] = PID_OUTPUT_LIMITS,
+        derivative_lpf_alpha: float = PID_DERIVATIVE_LPF_ALPHA,
+        integral_limits: Tuple[Optional[float], Optional[float]] = PID_INTEGRAL_LIMITS,
     ):
         """
         指定したゲイン、目標値、出力制限でPIDControllerを初期化します。
