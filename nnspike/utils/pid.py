@@ -15,9 +15,9 @@ from typing import Optional, Tuple
 import json
 
 # ==== ユーザー調整用PIDパラメータ（ここだけ編集すればOK）====
-PID_KP = 0.7  # スムーズ旋回のためKpを0.7に下げる
-PID_KI = 0
-PID_KD = 0.025
+PID_KP = 0.25  # スムーズ直進のためKpを0.25に下げる（元:0.7）
+PID_KI = 0.02  # 微小な積分でオフセット補正（元:0）
+PID_KD = 0.07  # 微分で振動抑制（元:0.025）
 PID_SETPOINT = 0
 PID_OUTPUT_LIMITS = (-0.3, 0.3)
 PID_DERIVATIVE_LPF_ALPHA = 0.9  # 応答性重視で0.9
