@@ -27,14 +27,14 @@ ROI_OPENCV = (180, 300, 460, 400)  # 左右をそれぞれ30pxずつ内側に狭
 ROI_BOTTLE = (100, 20, 540, 400)   # (x1, y1, x2, y2)
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480                 # カメラ画像の高さ
-BASE_POWER = 80                    # 一律30
-STRAIGHT_POWER = 50                # 一律30
-CURVE_POWER = 50                   # 一律30
-CURVE_THRESHOLD_DEG = 10           # カーブ判定閾値
-STRAIGHT_THRESHOLD_DEG = 3         # 直線判定のしきい値
-SENSITIVITY = 0.8                  # 0.7（感度アップ）
-MAX_POWER_DIFF = 20                # 応答性重視で20に下げる（スムーズ旋回）
-MAX_THETA_DEG = 30                 # カーブ補正強化で30のまま
+# BASE_POWER = 80                    # 一律30
+# STRAIGHT_POWER = 50                # 一律30
+# CURVE_POWER = 50                   # 一律30
+# CURVE_THRESHOLD_DEG = 10           # カーブ判定閾値
+# STRAIGHT_THRESHOLD_DEG = 3         # 直線判定のしきい値
+# SENSITIVITY = 0.8                  # 0.7（感度アップ）
+# MAX_POWER_DIFF = 20                # 応答性重視で20に下げる（スムーズ旋回）
+# MAX_THETA_DEG = 30                 # カーブ補正強化で30のまま
 # 黒判定の閾値（反射光R: 40以下, color: 150以下なら黒と判定）
 BLACK_REFLECTED_THRESHOLD = 40
 BLACK_COLOR_THRESHOLD = 150
@@ -57,10 +57,10 @@ import argparse
 import numpy as np
 import traceback
 from nnspike.unit import ETRobot
-from nnspike.utils.control import ControlCalculator
 from nnspike.utils import (
     SensorRecorder,
     PIDController,
+    ControlCalculator,
     Camera,
 )
 from enum import Enum, auto
@@ -74,8 +74,7 @@ except ImportError:
     import termios
     import tty
     import select
-    WINDOWS = False
-from collections import deque
+WINDOWS = False
 
 @dataclass
 class Config:
@@ -118,21 +117,8 @@ class ActionManager:
             self.et = et
         self.state = 0
         self._reset_action_vars()
-        self.pid = PIDController(
-            Kp=0.7,  # スムーズ旋回のためKpを0.7に下げる
-            Ki=0,
-            Kd=0.025, 
-            setpoint=0,
-            output_limits=(-0.3, 0.3),
-            derivative_lpf_alpha=0.9,  # 応答性重視で0.9
-        )
-        self.calc = ControlCalculator(
-            BASE_POWER,
-            CURVE_POWER,
-            STRAIGHT_POWER,
-            math.radians(CURVE_THRESHOLD_DEG),
-            math.radians(STRAIGHT_THRESHOLD_DEG)
-        )
+        self.pid = PIDController()
+        self.calc = ControlCalculator(IMAGE_WIDTH)
         self.et.set_motor_relative_position(left_position=0, right_position=0)
         self.reset_control_values()  # theta, pid_corrected_theta, current_powerをまとめてリセット
         # --- 受信した実際の左右パワー値を初期化 ---
@@ -140,7 +126,6 @@ class ActionManager:
         self.right_actual_power = None
         self.last_send_time = None  # 送信タイムスタンプ（ms差分計算用）
         self.is_stopped = False  # STOP状態フラグを追加
-        self.theta_ma_buffer = deque(maxlen=7)  # theta平滑化用バッファ（7点移動平均に拡大）
 
     def reset(self):
         self.state = 0
@@ -242,16 +227,12 @@ class ActionManager:
         if getattr(self, 'is_stopped', False):
             return  # STOP状態なら何もしない
         # --- ライントレース時の進行角度・推奨速度・PID補正・左右パワー計算 ---
-        theta = self.calc.calculate_theta_from_pixels(offset_pixels, IMAGE_WIDTH, SENSITIVITY)  # オフセットピクセル→進行角度（ラジアン）へ変換
-        self.theta_ma_buffer.append(theta)
-        if len(self.theta_ma_buffer) > 0:
-            theta_smoothed = sum(self.theta_ma_buffer) / len(self.theta_ma_buffer)
-        else:
-            theta_smoothed = theta
-        current_power = self.calc.calculate_adaptive_speed(abs(theta_smoothed))  # 平滑化後thetaで速度調整
+        # Ensure arguments match the expected signature of ControlCalculator methods
+        theta = self.calc.calculate_theta_from_pixels(offset_pixels)  # オフセットピクセル→進行角度（ラジアン）へ変換
+        theta_smoothed = self.calc.add_and_get_smoothed_theta(theta)  # ControlCalculatorで平滑化
+        current_power = self.calc.calculate_adaptive_speed(theta_smoothed)  # 平滑化後thetaで速度調整
         pid_corrected_theta = self.pid.update(theta_smoothed)  # PID制御で進行角度を補正
-        max_theta = math.radians(MAX_THETA_DEG)  # 最大旋回角をラジアンに変換
-        power_adjustment = int((pid_corrected_theta / max_theta) * MAX_POWER_DIFF)  # PID補正値をパワー差分に変換
+        power_adjustment = self.calc.calculate_power_adjustment(pid_corrected_theta)  # PID補正値をパワー差分に変換
         # --- パワー値が負にならないようクリッピング ---
         self.left_power = max(0, int(current_power - power_adjustment))   # 左右パワーを計算
         self.right_power = max(0, int(current_power + power_adjustment))

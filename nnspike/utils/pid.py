@@ -19,13 +19,13 @@ class PIDController:
 
     def __init__(
         self,
-        Kp: float,
-        Ki: float,
-        Kd: float,
-        setpoint: float,
-        output_limits: Tuple[Optional[float], Optional[float]] = (None, None),
-        derivative_lpf_alpha: float = 0.8,
-        integral_limits: Tuple[Optional[float], Optional[float]] = (None, None),  # 積分項の独立制限
+        Kp: float = 0.7,  # スムーズ旋回のためKpを0.7に下げる
+        Ki: float = 0,
+        Kd: float = 0.025,
+        setpoint: float = 0,
+        output_limits: Tuple[Optional[float], Optional[float]] = (-0.3, 0.3),
+        derivative_lpf_alpha: float = 0.9,  # 応答性重視で0.9
+        integral_limits: Tuple[Optional[float], Optional[float]] = (None, None),
     ):
         """
         指定したゲイン、目標値、出力制限でPIDControllerを初期化します。
