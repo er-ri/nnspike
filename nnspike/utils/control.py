@@ -93,24 +93,12 @@ class ControlCalculator:
         return speed
 
     def calculate_power_adjustment(self, pid_corrected_theta):
-        # PID補正値（ラジアン）をパワー差分に変換
-        power_adj_raw = int((pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF)
-        # --- 暴走抑制: 前回との差分を最大±5に制限 ---
-        MAX_POWER_ADJ_STEP = 5
-        diff = power_adj_raw - self.prev_power_adj
-        if diff > MAX_POWER_ADJ_STEP:
-            power_adj = self.prev_power_adj + MAX_POWER_ADJ_STEP
-        elif diff < -MAX_POWER_ADJ_STEP:
-            power_adj = self.prev_power_adj - MAX_POWER_ADJ_STEP
-        else:
-            power_adj = power_adj_raw
-        # 前回値を更新
-        self.prev_power_adj = power_adj
+        # PID補正値（ラジアン）をパワー差分に変換（暴走抑制なし）
+        power_adj = int((pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF)
         if self.debug:
             debug_data = {
                 "pid_theta": round(pid_corrected_theta, 4),
-                "power_adj_before_limit": power_adj_raw,
-                "power_adj_after_limit": power_adj
+                "power_adj": power_adj
             }
             print(f"[CONTROL_DEBUG] calculate_power_adjustment {json.dumps(debug_data, ensure_ascii=False)}")
         return power_adj
