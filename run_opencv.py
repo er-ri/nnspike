@@ -780,8 +780,8 @@ class VideoManager:
             "pid_corrected_theta": f"{round(math.degrees(action.pid_corrected_theta), 2)}deg",
             "power_status": (
                 "OFF_LINE" if action.theta == 0 else
-                "CURVE" if abs(action.theta) > math.radians(30) else
-                "STRAIGHT" if abs(action.theta) < math.radians(10) else
+                "CURVE" if abs(action.theta) > math.radians(10) else
+                "STRAIGHT" if abs(action.theta) < math.radians(3) else
                 "BASE"
             ),
             "current_power": f"{round(action.current_power, 1)}%",
