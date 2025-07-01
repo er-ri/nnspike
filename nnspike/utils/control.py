@@ -17,10 +17,10 @@ import json
 # ====【現場でよく調整する推奨パラメータ】====
 BASE_POWER = 30             # 通常走行時の基準パワー
 STRAIGHT_POWER = 30         # 直線判定時のパワー
-CURVE_POWER = 20            # カーブ判定時のパワー
+CURVE_POWER = 25            # カーブ判定時のパワー（20→25で復帰力UP）
 STRAIGHT_THRESHOLD_DEG = 3  # 直線とみなす角度しきい値[deg]
 CURVE_THRESHOLD_DEG = 10    # カーブとみなす角度しきい値[deg]
-SENSITIVITY = 1.0           # 進行角度θの感度（大きいほど敏感）  # 0.7→1.0
+SENSITIVITY = 1.1           # θ感度UP（1.0→1.1）
 
 # ====【通常は触らない高度なパラメータ】====
 THETA_MA_WINDOW = 2         # θ平滑化（移動平均）ウィンドウ長  # 3→1（平滑化なし）
