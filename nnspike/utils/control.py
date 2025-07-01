@@ -20,12 +20,12 @@ STRAIGHT_POWER = 50         # 直線判定時のパワー
 CURVE_POWER = 50            # カーブ判定時のパワー
 STRAIGHT_THRESHOLD_DEG = 3  # 直線とみなす角度しきい値[deg]
 CURVE_THRESHOLD_DEG = 10    # カーブとみなす角度しきい値[deg]
-SENSITIVITY = 0.7           # 進行角度θの感度（大きいほど敏感）  # 0.5→0.7
+SENSITIVITY = 1.0           # 進行角度θの感度（大きいほど敏感）  # 0.7→1.0
 
 # ====【通常は触らない高度なパラメータ】====
-THETA_MA_WINDOW = 8         # θ平滑化（移動平均）ウィンドウ長  # 12→8
+THETA_MA_WINDOW = 5         # θ平滑化（移動平均）ウィンドウ長  # 8→5
 MAX_THETA_DEG = 30          # θの最大値[deg]（パワー補正の正規化用）
-MAX_POWER_DIFF = 15         # PID補正による最大パワー差分  # 10→15
+MAX_POWER_DIFF = 20         # PID補正による最大パワー差分  # 15→20
 
 class ControlCalculator:
     """

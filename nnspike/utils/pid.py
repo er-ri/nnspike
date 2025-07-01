@@ -15,11 +15,11 @@ from typing import Optional, Tuple
 import json
 
 # ==== ユーザー調整用PIDパラメータ（ここだけ編集すればOK）====
-PID_KP = 0.4   # 曲がり応答性UP（0.25→0.4）
-PID_KI = 0.01  # 積分は微小に（0.02→0.01）
-PID_KD = 0.12  # 微分で応答性UP（0.07→0.12）
+PID_KP = 0.6   # 曲がり応答性さらにUP（0.4→0.6）
+PID_KI = 0.01  # 積分は微小に
+PID_KD = 0.18  # 微分で応答性さらにUP（0.12→0.18）
 PID_SETPOINT = 0
-PID_OUTPUT_LIMITS = (-0.3, 0.3)
+PID_OUTPUT_LIMITS = (-0.6, 0.6)  # 出力幅拡大（-0.3,0.3→-0.6,0.6）
 PID_DERIVATIVE_LPF_ALPHA = 0.9  # 応答性重視で0.9
 PID_INTEGRAL_LIMITS = (None, None)
 
