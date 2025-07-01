@@ -144,3 +144,7 @@ class PIDController:
         return output
 
 
+class ControlCalculator:
+    def __init__(self, image_width, debug=True):
+        # ...既存のコード...
+        self.debug = debug  # デバッグ出力ON/OFF

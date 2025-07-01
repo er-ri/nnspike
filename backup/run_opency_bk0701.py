@@ -39,7 +39,6 @@ BOTTLE_RED_THRESHOLD = 12000
 MOTOR_SEND_INTERVAL = 0.04
 # ================================================
 
-
 import cv2
 import math
 import time
@@ -111,7 +110,7 @@ class ActionManager:
         self.state = 0
         self._reset_action_vars()
         self.pid = PIDController()
-        self.calc = ControlCalculator(IMAGE_WIDTH, IMAGE_HEIGHT, roi_opencv=ROI_OPENCV)
+        self.calc = ControlCalculator(IMAGE_WIDTH)
         self.et.set_motor_relative_position(left_position=0, right_position=0)
         self.reset_control_values()  # theta, pid_corrected_theta, current_powerをまとめてリセット
         # --- 受信した実際の左右パワー値を初期化 ---
@@ -219,22 +218,17 @@ class ActionManager:
     def do_line_trace(self, offset_pixels):
         if getattr(self, 'is_stopped', False):
             return  # STOP状態なら何もしない
-        # === ライントレース制御のメイン処理 ===
-        # 1. 進行角度thetaをオフセットピクセルから算出
-        theta = self.calc.calculate_attitude_angle(offset_pixels)
-        # 2. θに応じた推奨速度（パワー）を決定
-        current_power = self.calc.calculate_adaptive_speed(theta)
-        # 3. PID制御で進行角度を補正
-        pid_corrected_theta = self.pid.update(theta)
-        # 4. PID補正値をパワー差分に変換
-        power_adjustment = self.calc.calculate_power_adjustment(pid_corrected_theta)
-        # 5. 左右パワーを計算（負値にならないようクリッピング）
-        self.left_power = max(0, int(current_power - power_adjustment))
+        # --- ライントレース時の進行角度・推奨速度・PID補正・左右パワー計算 ---
+        theta_smoothed = self.calc.calculate_and_smooth_theta(offset_pixels)  # オフセットピクセル→平滑化後theta
+        current_power = self.calc.calculate_adaptive_speed(theta_smoothed)  # 平滑化後thetaで速度調整
+        pid_corrected_theta = self.pid.update(theta_smoothed)  # PID制御で進行角度を補正
+        power_adjustment = self.calc.calculate_power_adjustment(pid_corrected_theta)  # PID補正値をパワー差分に変換
+        # --- パワー値が負にならないようクリッピング ---
+        self.left_power = max(0, int(current_power - power_adjustment))   # 左右パワーを計算
         self.right_power = max(0, int(current_power + power_adjustment))
-        # 6. モーター出力を即時反映
-        self.apply_power()
-        # 7. デバッグ・可視化用の値を保存
-        self.theta = theta
+        self.apply_power()  # ←ここで即時モーター出力
+        self.theta = theta_smoothed  # theta（可視化・デバッグ用）
+        self.theta_smoothed = theta_smoothed  # 平滑化後theta（可視化・デバッグ用）
         self.pid_corrected_theta = pid_corrected_theta
         self.current_power = current_power
 
@@ -1186,7 +1180,6 @@ def main(config: Config):
     camera = Camera(width=IMAGE_WIDTH, height=IMAGE_HEIGHT, fps=30, roi=ROI_OPENCV, roi_bottle=ROI_BOTTLE)
     video = VideoManager(config.log_save_video, config.log_send_video, IMAGE_WIDTH, IMAGE_HEIGHT, HOST_IP_ADDRESS, port=8485)
     sensor_recorder = SensorRecorderManager(config.log_sensor)
-    calc = ControlCalculator(IMAGE_WIDTH, IMAGE_HEIGHT, roi_opencv=ROI_OPENCV)
     action.test_initial_sensor()
     action.test_arm()
     time.sleep(0.5)
@@ -1198,33 +1191,24 @@ def main(config: Config):
                 print("[ERROR] Can't receive frame (stream end?). Exiting ...")
                 break
             action.update_sensor_info(sensor_recorder)
-
-            # === メイン制御ループ ===
-            # 1. 画像取得（frame）
-            # 2. ラインエッジ検出（left_x, right_x, line_width）
-            left_x, right_x, line_width = camera.get_line_edges_at_y(frame)
-            # 3. ステアリング計算（steer_result: ライントレース用画像処理結果）
-            steer_result = calc.calc_steer_result(left_x, right_x)
-            # 4. ペットボトル検出（bottle_result: 色ごとのピクセル数辞書）
-            bottle_result = camera.detect_color_bottle(frame)
-            # 5. キー入力取得（マニュアル時のみ）
+            # ライントレース用の画像処理結果をsteer_result、ペットボトル検出結果をbottle_resultとして取得
+            steer_result = camera.steer_by_camera(frame)
+            # bottle_result = camera.detect_color_bottle(frame)
+            bottle_result = None
             key_input = key.get_key() if config.log_manual else None
-            # 6. シナリオに応じたアクション実行（自動/手動/ボトル回避等）
             if config.log_manual:
                 scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result, key=key_input)
             else:
                 scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result)
-            # 7. 動画保存・PC送信（必要時のみ）
             if (config.log_save_video or config.log_send_video) and video is not None:
                 if not video.process_and_send(frame, steer_result, scenario, action, bottle_result):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
-            # 8. ループ周期調整（MOTOR_SEND_INTERVALサイクルで動作）
             loop_elapsed = time.time() - loop_start
-            sleep_time = max(0, MOTOR_SEND_INTERVAL - loop_elapsed)
+            sleep_time = max(0, MOTOR_SEND_INTERVAL - loop_elapsed)  # MOTOR_SEND_INTERVALサイクルに変更
             if sleep_time > 0:
                 time.sleep(sleep_time)
-            # 追加sleep（念のため）
+            # --- 追加: ループ終了直前に再度経過時間を確認し、MOTOR_SEND_INTERVAL未満なら追加sleep ---
             total_elapsed = time.time() - loop_start
             if total_elapsed < MOTOR_SEND_INTERVAL:
                 time.sleep(MOTOR_SEND_INTERVAL - total_elapsed)
