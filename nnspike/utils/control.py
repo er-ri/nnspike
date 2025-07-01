@@ -25,7 +25,7 @@ SENSITIVITY = 1.1           # θ感度UP（1.0→1.1）
 # ====【通常は触らない高度なパラメータ】====
 THETA_MA_WINDOW = 1         # θ平滑化（移動平均）ウィンドウ長  # 2→1（平滑化なし）
 MAX_THETA_DEG = 30          # θの最大値[deg]（パワー補正の正規化用）
-MAX_POWER_DIFF = 23         # PID補正による最大パワー差分  # 15→20
+MAX_POWER_DIFF = 21         # PID補正による最大パワー差分  # 15→20
 
 class ControlCalculator:
     """
