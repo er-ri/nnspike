@@ -52,22 +52,20 @@ class ControlCalculator:
         self.max_theta = math.radians(MAX_THETA_DEG)  # θ最大値[rad]
         self.debug = debug  # デバッグ出力ON/OFF
 
-    def calculate_theta_from_pixels(self, offset_pixels):
-        # オフセットピクセルから進行角度θ[rad]を計算
+    def calculate_and_smooth_theta(self, offset_pixels):
+        """
+        オフセットピクセルからθを計算し、平滑化したθを返す。
+        デバッグ出力も1回でまとめて行う。
+
+        引数:
+            offset_pixels: int オフセットピクセル
+        戻り値:
+            float 平滑化後のθ[rad]
+        """
         image_center_x = self.image_width / 2
         max_offset = image_center_x
         normalized_offset = offset_pixels / max_offset
         theta = normalized_offset * SENSITIVITY
-        if self.debug:
-            debug_data = {
-                "offset": offset_pixels,
-                "theta": round(theta, 4)
-            }
-            print(f"[CONTROL_DEBUG] calculate_theta_from_pixels {json.dumps(debug_data, ensure_ascii=False)}")
-        return theta
-
-    def add_and_get_smoothed_theta(self, theta):
-        # θ値をバッファに追加し、移動平均で平滑化した値を返す
         self.theta_ma_buffer.append(theta)
         if len(self.theta_ma_buffer) > 0:
             smoothed = sum(self.theta_ma_buffer) / len(self.theta_ma_buffer)
@@ -75,10 +73,11 @@ class ControlCalculator:
             smoothed = theta
         if self.debug:
             debug_data = {
-                "raw": round(theta, 4),
+                "offset": offset_pixels,
+                "theta": round(theta, 4),
                 "smoothed": round(smoothed, 4)
             }
-            print(f"[CONTROL_DEBUG] add_and_get_smoothed_theta {json.dumps(debug_data, ensure_ascii=False)}")
+            print(f"[CONTROL_DEBUG] calculate_and_smooth_theta {json.dumps(debug_data, ensure_ascii=False)}")
         return smoothed
 
     def calculate_adaptive_speed(self):

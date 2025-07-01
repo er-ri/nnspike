@@ -219,9 +219,7 @@ class ActionManager:
         if getattr(self, 'is_stopped', False):
             return  # STOP状態なら何もしない
         # --- ライントレース時の進行角度・推奨速度・PID補正・左右パワー計算 ---
-        # Ensure arguments match the expected signature of ControlCalculator methods
-        theta = self.calc.calculate_theta_from_pixels(offset_pixels)  # オフセットピクセル→進行角度（ラジアン）へ変換
-        theta_smoothed = self.calc.add_and_get_smoothed_theta(theta)  # ControlCalculatorで平滑化
+        theta_smoothed = self.calc.calculate_and_smooth_theta(offset_pixels)  # オフセットピクセル→平滑化後theta
         current_power = self.calc.calculate_adaptive_speed(theta_smoothed)  # 平滑化後thetaで速度調整
         pid_corrected_theta = self.pid.update(theta_smoothed)  # PID制御で進行角度を補正
         power_adjustment = self.calc.calculate_power_adjustment(pid_corrected_theta)  # PID補正値をパワー差分に変換
@@ -229,7 +227,7 @@ class ActionManager:
         self.left_power = max(0, int(current_power - power_adjustment))   # 左右パワーを計算
         self.right_power = max(0, int(current_power + power_adjustment))
         self.apply_power()  # ←ここで即時モーター出力
-        self.theta = theta  # 生theta
+        self.theta = theta_smoothed  # theta（可視化・デバッグ用）
         self.theta_smoothed = theta_smoothed  # 平滑化後theta（可視化・デバッグ用）
         self.pid_corrected_theta = pid_corrected_theta
         self.current_power = current_power
@@ -1251,9 +1249,7 @@ if __name__ == "__main__":
 
     print("Starting OpenCV-based line following robot...")
     print(f"Using ROI: {ROI_OPENCV}")
-    print(f"Base power: {BASE_POWER}")
     print("Press Ctrl+C to stop")
-
     config = Config(
         log_sensor=args.record_sensor,
         log_save_video=args.save_video,
