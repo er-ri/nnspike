@@ -1194,6 +1194,7 @@ def main(config: Config):
             # ライントレース用の画像処理結果をsteer_result、ペットボトル検出結果をbottle_resultとして取得
             steer_result = camera.steer_by_camera(frame)
             # bottle_result = camera.detect_color_bottle(frame)
+            bottle_result = None
             key_input = key.get_key() if config.log_manual else None
             if config.log_manual:
                 scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result, key=key_input)
