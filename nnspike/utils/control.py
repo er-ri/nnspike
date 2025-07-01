@@ -20,7 +20,7 @@ STRAIGHT_POWER = 30         # 直線判定時のパワー
 CURVE_POWER = 25            # カーブ判定時のパワー（20→25で復帰力UP）
 STRAIGHT_THRESHOLD_DEG = 3  # 直線とみなす角度しきい値[deg]
 CURVE_THRESHOLD_DEG = 10    # カーブとみなす角度しきい値[deg]
-SENSITIVITY = 1.1           # θ感度UP（1.0→1.1）
+SENSITIVITY = 1.0           # θ感度UP（1.0→1.1）
 
 # ====【通常は触らない高度なパラメータ】====
 MAX_THETA_DEG = 30          # θの最大値[deg]（パワー補正の正規化用）
