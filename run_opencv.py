@@ -748,12 +748,8 @@ class VideoManager:
         action: ActionManagerインスタンス
         bottle: ペットボトル検出結果（色ごとのピクセル数辞書など）
         """
-        # ROIの種類に応じてx1, y1, x2, y2を切り替え
-        roi_type = steer_result.get("roi_type", "opencv")
-        if roi_type == "bottle":
-            x1, y1, x2, y2 = ROI_BOTTLE
-        else:
-            x1, y1, x2, y2 = ROI_OPENCV
+        # ROIは現状opencvのみを使用
+        x1, y1, x2, y2 = ROI_OPENCV
         mx = steer_result["mx"]
         my = steer_result["my"]
         offset_pixels = steer_result["offset_pixels"]
@@ -784,14 +780,9 @@ class VideoManager:
         else:
             bottle_str = "N/A"
         info = dict()
-        # ROIの種類に応じてinfo["roi"]を切り替え
-        roi_type = steer_result.get("roi_type", "opencv")
-        if roi_type == "bottle":
-            roi_used = ROI_BOTTLE
-        else:
-            roi_used = ROI_OPENCV
+        # ROIは現状opencvのみを使用
         info["offset_x"], info["offset_y"] = x1 + mx, y1 + my
-        info["roi"] = roi_used
+        info["roi"] = ROI_OPENCV
         info["text"] = {
             "offset_pixels": f"{round(offset_pixels, 1)}px",
             "theta_deg": f"{round(math.degrees(action.theta), 2)}deg",
@@ -818,7 +809,7 @@ class VideoManager:
         }
         return info
 
-    def create_visualization_frame(self, frame, steer_result, info):
+    def create_visualization_frame(self, frame, steer_result, info, bottle_masks=None):
         """
         可視化フレームを生成する関数。
 
@@ -831,15 +822,12 @@ class VideoManager:
             frame (np.ndarray): カメラから取得したRGB画像。
             steer_result (dict): 画像処理結果（重心座標、最大輪郭など）。
             info (dict): 走行情報（draw_driving_info用）。
+            bottle_masks (dict): ROI_BOTTLE内の各色マスク画像（オプション）。
         Returns:
             np.ndarray: 可視化情報が重畳されたグレースケール画像。
         """
-        # ROIの種類に応じてx1, y1, x2, y2を切り替え
-        roi_type = steer_result.get("roi_type", "opencv")
-        if roi_type == "bottle":
-            x1, y1, x2, y2 = ROI_BOTTLE
-        else:
-            x1, y1, x2, y2 = ROI_OPENCV
+        # ROIは現状opencvのみを使用
+        x1, y1, x2, y2 = ROI_OPENCV
         mx = steer_result["mx"]
         my = steer_result["my"]
         max_contour = steer_result["max_contour"]
@@ -850,11 +838,26 @@ class VideoManager:
             adjusted_contour = max_contour + np.array([x1, y1])
             cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)
             cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
+
+        # --- ROI_BOTTLE内のカラーエリア（各色マスク）を白線で描画 ---
+        if bottle_masks is not None:
+            bx1, by1, _, _ = ROI_BOTTLE
+            for color in ["yellow", "blue", "red"]:
+                mask = bottle_masks.get(color)
+                if mask is not None:
+                    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    for cnt in contours:
+                        adjusted_cnt = cnt + np.array([[[bx1, by1]]])
+                        cv2.drawContours(gray, [adjusted_cnt], -1, (255, 255, 255), 2)
         return gray
 
     def process_and_send(self, frame, steer_result, scenario, action, bottle=None):
+        # bottle: (pixel_dict, mask_dict) 形式を想定
         info = self.prepare_driving_info(steer_result, scenario, action, bottle=bottle)
-        gray = self.create_visualization_frame(frame, steer_result, info)
+        bottle_masks = None
+        if isinstance(bottle, tuple) and len(bottle) == 2:
+            bottle_masks = bottle[1]
+        gray = self.create_visualization_frame(frame, steer_result, info, bottle_masks=bottle_masks)
         self.write_video(frame)
         return self.send_frame(gray)
 
