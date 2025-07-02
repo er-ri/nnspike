@@ -127,46 +127,52 @@ class SensorRecorder:
         sensors = spike_status.sensors
         motors = spike_status.motors
         
+        import numpy as np
+        def to_py(val):
+            if isinstance(val, np.generic):
+                return val.item()
+            return val
+
         # bottle_result: dict (pixels only)
-        bottle_yellow = bottle_result.get('yellow') if bottle_result else ''
-        bottle_blue = bottle_result.get('blue') if bottle_result else ''
-        bottle_red = bottle_result.get('red') if bottle_result else ''
+        bottle_yellow = to_py(bottle_result.get('yellow')) if bottle_result and bottle_result.get('yellow') is not None else ''
+        bottle_blue = to_py(bottle_result.get('blue')) if bottle_result and bottle_result.get('blue') is not None else ''
+        bottle_red = to_py(bottle_result.get('red')) if bottle_result and bottle_result.get('red') is not None else ''
 
         # steer_result: dict with keys 'mx', 'my', 'offset_pixels', 'follow_edge', 'position'
-        steer_mx = steer_result.get('mx') if steer_result else ''
-        steer_my = steer_result.get('my') if steer_result else ''
-        steer_offset_pixels = steer_result.get('offset_pixels') if steer_result else ''
-        steer_follow_edge = steer_result.get('follow_edge') if steer_result else ''
-        steer_position = steer_result.get('position') if steer_result else ''
+        steer_mx = to_py(steer_result.get('mx')) if steer_result and steer_result.get('mx') is not None else ''
+        steer_my = to_py(steer_result.get('my')) if steer_result and steer_result.get('my') is not None else ''
+        steer_offset_pixels = to_py(steer_result.get('offset_pixels')) if steer_result and steer_result.get('offset_pixels') is not None else ''
+        steer_follow_edge = to_py(steer_result.get('follow_edge')) if steer_result and steer_result.get('follow_edge') is not None else ''
+        steer_position = to_py(steer_result.get('position')) if steer_result and steer_result.get('position') is not None else ''
 
         row_data = [
-            current_time,
-            self.frame_count,
-            self._safe_get(sensors.distance, 0),
-            self._safe_get(sensors.force, 0),
-            self._safe_get(sensors.color.reflected if sensors.color else None, 0),
-            self._safe_get(sensors.color.ambient if sensors.color else None, 0),
-            self._safe_get(sensors.color.color if sensors.color else None, 0),
-            self._safe_get(sensors.gyro.x if sensors.gyro else None, 0.0),
-            self._safe_get(sensors.gyro.y if sensors.gyro else None, 0.0),
-            self._safe_get(sensors.gyro.z if sensors.gyro else None, 0.0),
-            self._safe_get(sensors.accelerometer.x if sensors.accelerometer else None, 0.0),
-            self._safe_get(sensors.accelerometer.y if sensors.accelerometer else None, 0.0),
-            self._safe_get(sensors.accelerometer.z if sensors.accelerometer else None, 0.0),
-            self._safe_get(sensors.position.x if sensors.position else None, 0.0),
-            self._safe_get(sensors.position.y if sensors.position else None, 0.0),
-            self._safe_get(motors['A'].position, 0),
-            self._safe_get(motors['A'].relative_position, 0),
-            self._safe_get(motors['A'].speed, 0),
-            self._safe_get(motors['A'].power, 0),
-            self._safe_get(motors['B'].position, 0),
-            self._safe_get(motors['B'].relative_position, 0),
-            self._safe_get(motors['B'].speed, 0),
-            self._safe_get(motors['B'].power, 0),
-            self._safe_get(motors['C'].position, 0),
-            self._safe_get(motors['C'].relative_position, 0),
-            self._safe_get(motors['C'].speed, 0),
-            self._safe_get(motors['C'].power, 0),
+            to_py(current_time),
+            to_py(self.frame_count),
+            to_py(self._safe_get(sensors.distance, 0)),
+            to_py(self._safe_get(sensors.force, 0)),
+            to_py(self._safe_get(sensors.color.reflected if sensors.color else None, 0)),
+            to_py(self._safe_get(sensors.color.ambient if sensors.color else None, 0)),
+            to_py(self._safe_get(sensors.color.color if sensors.color else None, 0)),
+            to_py(self._safe_get(sensors.gyro.x if sensors.gyro else None, 0.0)),
+            to_py(self._safe_get(sensors.gyro.y if sensors.gyro else None, 0.0)),
+            to_py(self._safe_get(sensors.gyro.z if sensors.gyro else None, 0.0)),
+            to_py(self._safe_get(sensors.accelerometer.x if sensors.accelerometer else None, 0.0)),
+            to_py(self._safe_get(sensors.accelerometer.y if sensors.accelerometer else None, 0.0)),
+            to_py(self._safe_get(sensors.accelerometer.z if sensors.accelerometer else None, 0.0)),
+            to_py(self._safe_get(sensors.position.x if sensors.position else None, 0.0)),
+            to_py(self._safe_get(sensors.position.y if sensors.position else None, 0.0)),
+            to_py(self._safe_get(motors['A'].position, 0)),
+            to_py(self._safe_get(motors['A'].relative_position, 0)),
+            to_py(self._safe_get(motors['A'].speed, 0)),
+            to_py(self._safe_get(motors['A'].power, 0)),
+            to_py(self._safe_get(motors['B'].position, 0)),
+            to_py(self._safe_get(motors['B'].relative_position, 0)),
+            to_py(self._safe_get(motors['B'].speed, 0)),
+            to_py(self._safe_get(motors['B'].power, 0)),
+            to_py(self._safe_get(motors['C'].position, 0)),
+            to_py(self._safe_get(motors['C'].relative_position, 0)),
+            to_py(self._safe_get(motors['C'].speed, 0)),
+            to_py(self._safe_get(motors['C'].power, 0)),
             bottle_yellow,
             bottle_blue,
             bottle_red,
