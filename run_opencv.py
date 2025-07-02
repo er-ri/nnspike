@@ -776,7 +776,11 @@ class VideoManager:
         # --- bottle情報を色ごとのピクセル数で表示 ---
         pixel_dict = bottle[0] if (bottle and isinstance(bottle, tuple)) else (bottle if isinstance(bottle, dict) else {})
         if pixel_dict:
-            bottle_str = f"Y:{pixel_dict.get('yellow', 0)} B:{pixel_dict.get('blue', 0)} R:{pixel_dict.get('red', 0)}"
+            # np.int64などNumPy型をintに変換
+            yellow = int(pixel_dict.get('yellow', 0)) if pixel_dict.get('yellow', 0) is not None else 0
+            blue = int(pixel_dict.get('blue', 0)) if pixel_dict.get('blue', 0) is not None else 0
+            red = int(pixel_dict.get('red', 0)) if pixel_dict.get('red', 0) is not None else 0
+            bottle_str = f"Y:{yellow} B:{blue} R:{red}"
         else:
             bottle_str = "N/A"
         info = dict()
