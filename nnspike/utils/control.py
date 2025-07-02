@@ -28,10 +28,13 @@ CAMERA_HEIGHT = 0.20  # Camera height above ground in meters
 CAMERA_FOCAL_LENGTH_PIXELS = 640  # ピクセル単位のカメラ焦点距離（概算値、キャリブレーション推奨）
 WHEELBASE = 0.10  # Distance between wheels in meters
 
-FOLLOW_EDGE = "left"  # "left" or "right" - which edge of the line to follow
-
 MAX_THETA_DEG = 30          # θの最大値[deg]（パワー補正の正規化用）
 MAX_POWER_DIFF = 22         # PID補正による最大パワー差分  # 15→20
+
+# ---【ダブルループ交差点判定用の相対位置しきい値】---
+# run_opencv.py など他ファイルと値を揃えること
+POSITION_CROSS = 200000   # 2回目の交差点通過判定用（モーター相対位置の閾値）
+
 
 class ControlCalculator:
     """
@@ -60,20 +63,34 @@ class ControlCalculator:
         self.debug = debug  # デバッグ出力ON/OFF
         self.roi_opencv = roi_opencv
 
-    def calc_steer_result(self, left_x, right_x):
+    def calc_steer_result(self, left_x, right_x, position=None):
         """
         ライントレース用の制御・可視化に必要な値を計算し、steer_result辞書を返す。
-        left_x, right_x: ライン左右端点
-        x1, y1, x2, y2: ROI座標
-        follow_edge: "left"/"right"/その他（center）。Noneの場合はグローバル変数FOLLOW_EDGEを使用。
-        戻り値: dict（mx, my, offset_pixels, max_contour, roi_type など）
+
+        Args:
+            left_x (int or None): ライン左端のx座標（ピクセル）。Noneの場合は未検出。
+            right_x (int or None): ライン右端のx座標（ピクセル）。Noneの場合は未検出。
+            position (int or None): モーター相対位置（deg単位）。エッジ自動切替用。未使用時はNone。
+
+        Returns:
+            dict: steer_result（mx, my, offset_pixels, max_contour, roi_type, follow_edge, position など）
         """
+
         x1, y1, x2, y2 = self.roi_opencv
-        follow_edge_val = FOLLOW_EDGE
+        # follow_edge自動判定: positionが指定されていれば閾値で切り替え、なければleft
+        if position is not None:
+            abs_position = abs(position)
+            if abs_position <= POSITION_CROSS:
+            follow_edge = "left"
+            else:
+            follow_edge = "right"
+        else:
+            follow_edge = "left"
+
         if left_x is not None and right_x is not None:
-            if follow_edge_val == "left":
+            if follow_edge == "left":
                 target_x = left_x
-            elif follow_edge_val == "right":
+            elif follow_edge == "right":
                 target_x = right_x
             else:
                 target_x = (left_x + right_x) // 2
@@ -92,14 +109,18 @@ class ControlCalculator:
             "my": my,
             "offset_pixels": offset_pixels,
             "max_contour": max_contour,
-            "roi_type": "opencv"
+            "roi_type": "opencv",
+            "follow_edge": follow_edge,
+            "position": position
         }
         if self.debug:
             debug_data = {
                 "mx": mx,
                 "my": my,
                 "offset_pixels": offset_pixels,
-                "roi_type": "opencv"
+                "roi_type": "opencv",
+                "follow_edge": follow_edge,
+                "position": position
             }
             print(f"[CONTROL_DEBUG] calc_steer_result {json.dumps(debug_data, ensure_ascii=False)}")
         return steer_result

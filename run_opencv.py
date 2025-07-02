@@ -37,6 +37,10 @@ BOTTLE_YELLOW_THRESHOLD = 12000
 BOTTLE_BLUE_THRESHOLD = 12000
 BOTTLE_RED_THRESHOLD = 12000
 MOTOR_SEND_INTERVAL = 0.04
+
+POSITION_YELLOW_BOTTLE = 100000         # 黄色ボトル回避開始位置
+POSITION_BLUE_BOTTLE = 350000           # 青ボトル運搬開始位置
+POSITION_RED_BOTTLE = 4000            # 赤ボトル運搬開始位置
 # ================================================
 
 
@@ -941,19 +945,24 @@ class NormalScenario(DefaultScenario):
         # ノーマルシナリオ固有の初期化があればここに追加
 
     def transition_mode(self, action=None):
-        # --- 状態遷移: ボトル検出ピクセル数に応じて分岐 ---
+        # --- 状態遷移: ボトル検出ピクセル数やアクションのモーター相対位置に応じて分岐 ---
         pixel_dict = self.bottle[0] if (self.bottle and isinstance(self.bottle, tuple)) else (self.bottle if isinstance(self.bottle, dict) else {})
         yellow_pixels = pixel_dict.get('yellow', 0)
         blue_pixels = pixel_dict.get('blue', 0)
         red_pixels = pixel_dict.get('red', 0)
         prev_mode = self.mode
+        # --- actionのposition情報取得（Noneの場合は0に） ---
+        right_pos = getattr(action, 'right_relative_position', 0) if action is not None else 0
+        # --- 例: ある相対位置を超えたらSTOPやGOALに遷移するなどの拡張が可能 ---
+        # ここでは例として、左右どちらかの相対位置が+/-1000度を超えたらSTOPに遷移する例を追加
+        # --- モーター相対位置によるシナリオ遷移用の指標（deg単位） ---
         if self.mode == Mode.LINE_TRACE:
             # ライントレース中に各色ボトルを検出したら該当モードへ遷移
-            if yellow_pixels >= BOTTLE_YELLOW_THRESHOLD:
+            if yellow_pixels >= BOTTLE_YELLOW_THRESHOLD and abs(right_pos) <= POSITION_YELLOW_BOTTLE:
                 self.mode = Mode.YELLOW_BOTTLE
-            elif blue_pixels >= BOTTLE_BLUE_THRESHOLD:
+            elif blue_pixels >= BOTTLE_BLUE_THRESHOLD and abs(right_pos) <= POSITION_BLUE_BOTTLE:
                 self.mode = Mode.BLUE_BOTTLE
-            elif red_pixels >= BOTTLE_RED_THRESHOLD:
+            elif red_pixels >= BOTTLE_RED_THRESHOLD and abs(right_pos) <= POSITION_RED_BOTTLE:
                 self.mode = Mode.RED_BOTTLE
         elif self.mode == Mode.YELLOW_BOTTLE:
             # 黄色ボトル回避中（完了はアクション側で判定）
@@ -1204,7 +1213,8 @@ def main(config: Config):
             # 2. ラインエッジ検出（left_x, right_x, line_width）
             left_x, right_x, line_width = camera.get_line_edges_at_y(frame)
             # 3. ステアリング計算（steer_result: ライントレース用画像処理結果）
-            steer_result = calc.calc_steer_result(left_x, right_x)
+            # actionのright_relative_positionをpositionとして渡す（ライン追従基準位置）
+            steer_result = calc.calc_steer_result(left_x, right_x, position=action.right_relative_position)
             # 4. ペットボトル検出（bottle_result: 色ごとのピクセル数辞書）
             bottle_result = camera.detect_color_bottle(frame)
             # 5. キー入力取得（マニュアル時のみ）
