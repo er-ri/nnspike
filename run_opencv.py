@@ -820,7 +820,18 @@ class VideoManager:
             "mode": scenario.mode.name,
             "bottle": bottle_str
         }
-        return info
+        # --- すべての値を再帰的にPython型へ変換 ---
+        def to_py(val):
+            import numpy as np
+            if isinstance(val, dict):
+                return {k: to_py(v) for k, v in val.items()}
+            elif isinstance(val, (list, tuple)):
+                return [to_py(v) for v in val]
+            elif isinstance(val, np.generic):
+                return val.item()
+            else:
+                return val
+        return to_py(info)
 
     def create_visualization_frame(self, frame, steer_result, info, bottle_masks=None):
         """
