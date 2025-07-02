@@ -861,7 +861,13 @@ class VideoManager:
         gray = draw_driving_info(gray, info)
         if max_contour is not None:
             adjusted_contour = max_contour + np.array([x1, y1])
-            cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)
+            if len(max_contour) == 2:  # 線分の場合
+                pt1 = tuple(adjusted_contour[0][0])
+                pt2 = tuple(adjusted_contour[1][0])
+                cv2.line(gray, pt1, pt2, (255, 255, 255), 3)  # 白線で描画
+            else:  # 輪郭の場合
+                cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)
+            # 重心点も描画
             cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
 
         # --- ROI_BOTTLE内のカラーエリア（各色マスク）を白線で描画 ---
@@ -876,15 +882,12 @@ class VideoManager:
                         cv2.drawContours(gray, [adjusted_cnt], -1, (255, 255, 255), 2)
         return gray
 
-    def process_and_send(self, frame, steer_result, scenario, action, bottle=None):
-        # bottle: (pixel_dict, mask_dict) 形式を想定
+    def process_and_send(self, frame, steer_result, scenario, action, bottle_result=None, bottle_masks=None):
         # すべてのデータをPython型に変換
         steer_result = to_py(steer_result)
-        bottle = to_py(bottle)
-        info = to_py(self.prepare_driving_info(steer_result, scenario, action, bottle=bottle))
-        bottle_masks = None
-        if isinstance(bottle, tuple) and len(bottle) == 2:
-            bottle_masks = bottle[1]
+        bottle_result = to_py(bottle_result)
+        bottle_masks = to_py(bottle_masks)
+        info = to_py(self.prepare_driving_info(steer_result, scenario, action, bottle=bottle_result))
         gray = self.create_visualization_frame(frame, steer_result, info, bottle_masks=bottle_masks)
         self.write_video(frame)
         return self.send_frame(gray)
@@ -1254,8 +1257,8 @@ def main(config: Config):
             left_x, right_x, line_width = camera.get_line_edges_at_y(frame)
             # 4. ステアリング計算（steer_result: ライントレース用画像処理結果）
             steer_result = calc.calc_steer_result(left_x, right_x, position=action.right_relative_position)
-            # 5. ペットボトル検出（bottle_result: 色ごとのピクセル数辞書）
-            bottle_result, _ = camera.detect_color_bottle(frame)  # 最初の辞書のみ取得
+            # 5. ペットボトル検出（bottle_result: 色ごとのピクセル数辞書, bottle_masks: 各色マスク）
+            bottle_result, bottle_masks = camera.detect_color_bottle(frame)  # 辞書とマスク両方を取得
             # 6. センサ情報・CSV記録（steer_result, bottle_resultを計算後に記録）
             bottle_result = to_py(bottle_result)
             steer_result = to_py(steer_result)
@@ -1269,7 +1272,7 @@ def main(config: Config):
                 scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result)
             # 9. 動画保存・PC送信（必要時のみ）
             if (config.log_save_video or config.log_send_video) and video is not None:
-                if not video.process_and_send(frame, steer_result, scenario, action, bottle_result):
+                if not video.process_and_send(frame, steer_result, scenario, action, bottle_result, bottle_masks):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
             # 10. ループ周期調整（MOTOR_SEND_INTERVALサイクルで動作）

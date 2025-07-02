@@ -102,7 +102,8 @@ class ControlCalculator:
             my = OFFSET_Y - y1
             roi_center_x = (x2 - x1) // 2
             offset_pixels = mx - roi_center_x
-            max_contour = np.array([[[mx, my]]], dtype=np.int32)
+            # ライン端点を使って線分を作成（ROI座標系）
+            max_contour = np.array([[[left_x - x1, OFFSET_Y - y1]], [[right_x - x1, OFFSET_Y - y1]]], dtype=np.int32)
         else:
             mx = (x2 - x1) // 2
             my = (y2 - y1) // 2
