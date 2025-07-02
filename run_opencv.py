@@ -1300,36 +1300,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # --- json.dumpsの呼び出しを検出するためのラッパーを挿入 ---
-    import json as _original_json
-    import traceback as _traceback
-    def debug_json_dumps(*a, **kw):
-        print("[DEBUG] json.dumps called")
-        print("[DEBUG] args type:", [type(x) for x in a])
-        print("[DEBUG] kwargs:", kw)
-        try:
-            result = _original_json.dumps(*a, **kw)
-        except Exception as e:
-            print("[DEBUG] json.dumps exception:", e)
-            _traceback.print_exc()
-            raise
-        return result
-    def debug_json_dump(*a, **kw):
-        print("[DEBUG] json.dump called")
-        print("[DEBUG] args type:", [type(x) for x in a])
-        print("[DEBUG] kwargs:", kw)
-        try:
-            result = _original_json.dump(*a, **kw)
-        except Exception as e:
-            print("[DEBUG] json.dump exception:", e)
-            _traceback.print_exc()
-            raise
-        return result
-    import builtins
-    import sys
-    sys.modules['json'].dumps = debug_json_dumps
-    sys.modules['json'].dump = debug_json_dump
-
     print("Starting OpenCV-based line following robot...")
     print(f"Using ROI: {ROI_OPENCV}")
     print("Press Ctrl+C to stop")
