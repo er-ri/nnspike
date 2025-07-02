@@ -31,6 +31,11 @@ WHEELBASE = 0.10  # Distance between wheels in meters
 MAX_THETA_DEG = 30          # θの最大値[deg]（パワー補正の正規化用）
 MAX_POWER_DIFF = 22         # PID補正による最大パワー差分  # 15→20
 
+# ---【ライン検出Y座標（カメラ画像基準, camera.pyのOFFSET_Yと揃える）】---
+# ライントレース時に進行方向の基準とする画像内Y座標。
+# camera.pyのOFFSET_Yと同じ値・意味で統一すること。
+OFFSET_Y = 350  # 例: 画像下部付近を基準にする場合
+
 # ---【ダブルループ交差点判定用の相対位置しきい値】---
 # run_opencv.py など他ファイルと値を揃えること
 POSITION_CROSS = 200000   # 2回目の交差点通過判定用（モーター相対位置の閾値）
@@ -81,9 +86,9 @@ class ControlCalculator:
         if position is not None:
             abs_position = abs(position)
             if abs_position <= POSITION_CROSS:
-            follow_edge = "left"
+                follow_edge = "left"
             else:
-            follow_edge = "right"
+                follow_edge = "right"
         else:
             follow_edge = "left"
 
@@ -95,7 +100,7 @@ class ControlCalculator:
             else:
                 target_x = (left_x + right_x) // 2
             mx = target_x - x1
-            my = 350 - y1
+            my = OFFSET_Y - y1
             roi_center_x = (x2 - x1) // 2
             offset_pixels = mx - roi_center_x
             max_contour = np.array([[[mx, my]]], dtype=np.int32)

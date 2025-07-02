@@ -599,12 +599,13 @@ class ActionManager:
         except Exception as e:
             print(f"Arm move error: {e}")
 
-    def update_sensor_info(self, sensor_recorder=None):
+    def update_sensor_state(self):
         """
-        Spikeの最新センサーステータス・カラー・超音波・モーター情報をまとめて取得し、インスタンス変数に格納
+        Spikeの最新センサーステータス・カラー・超音波・モーター情報をまとめて取得し、インスタンス変数に格納（レコーダー出力はしない）
         """
         spike_status = self.et.get_spike_status()
         sensors = spike_status.sensors
+        self._latest_spike_status = spike_status  # レコーダー出力用に保持
         self.color = sensors.color if sensors else None
         self.distance = sensors.distance if sensors else None
         self.left_relative_position = (
@@ -615,13 +616,20 @@ class ActionManager:
             spike_status.motors['A'].relative_position
             if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0
         )
+
+    def log_sensor_record(self, sensor_recorder=None, bottle_result=None, steer_result=None):
+        """
+        最新のspike_status, bottle_result, steer_resultをレコーダーに記録（self._latest_spike_statusを利用）
+        """
+        if not hasattr(self, '_latest_spike_status'):
+            return
+        spike_status = self._latest_spike_status
         if sensor_recorder is not None and sensor_recorder.is_enabled():
             try:
-                sensor_recorder.log(spike_status)
+                sensor_recorder.recorder.log_frame_data(spike_status, bottle_result=bottle_result, steer_result=steer_result)
             except Exception as e:
                 print(f"[SensorRecorderManager] log error: {e}")
                 traceback.print_exc()
-        # returnは不要
 
     def brake_for_duration(self, duration=3.0):
         """
@@ -1206,30 +1214,32 @@ def main(config: Config):
             if not ret:
                 print("[ERROR] Can't receive frame (stream end?). Exiting ...")
                 break
-            action.update_sensor_info(sensor_recorder)
 
             # === メイン制御ループ ===
             # 1. 画像取得（frame）
-            # 2. ラインエッジ検出（left_x, right_x, line_width）
+            # 2. センサー情報を最新化（self.xxx更新のみ、レコーダー出力はしない）
+            action.update_sensor_state()
+            # 3. ラインエッジ検出（left_x, right_x, line_width）
             left_x, right_x, line_width = camera.get_line_edges_at_y(frame)
-            # 3. ステアリング計算（steer_result: ライントレース用画像処理結果）
-            # actionのright_relative_positionをpositionとして渡す（ライン追従基準位置）
+            # 4. ステアリング計算（steer_result: ライントレース用画像処理結果）
             steer_result = calc.calc_steer_result(left_x, right_x, position=action.right_relative_position)
-            # 4. ペットボトル検出（bottle_result: 色ごとのピクセル数辞書）
+            # 5. ペットボトル検出（bottle_result: 色ごとのピクセル数辞書）
             bottle_result = camera.detect_color_bottle(frame)
-            # 5. キー入力取得（マニュアル時のみ）
+            # 6. センサ情報・CSV記録（steer_result, bottle_resultを計算後に記録）
+            action.log_sensor_record(sensor_recorder, bottle_result=bottle_result, steer_result=steer_result)
+            # 7. キー入力取得（マニュアル時のみ）
             key_input = key.get_key() if config.log_manual else None
-            # 6. シナリオに応じたアクション実行（自動/手動/ボトル回避等）
+            # 8. シナリオに応じたアクション実行（自動/手動/ボトル回避等）
             if config.log_manual:
                 scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result, key=key_input)
             else:
                 scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result)
-            # 7. 動画保存・PC送信（必要時のみ）
+            # 9. 動画保存・PC送信（必要時のみ）
             if (config.log_save_video or config.log_send_video) and video is not None:
                 if not video.process_and_send(frame, steer_result, scenario, action, bottle_result):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
-            # 8. ループ周期調整（MOTOR_SEND_INTERVALサイクルで動作）
+            # 10. ループ周期調整（MOTOR_SEND_INTERVALサイクルで動作）
             loop_elapsed = time.time() - loop_start
             sleep_time = max(0, MOTOR_SEND_INTERVAL - loop_elapsed)
             if sleep_time > 0:

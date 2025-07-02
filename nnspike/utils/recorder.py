@@ -44,17 +44,17 @@ class SensorRecorder:
         self.is_recording = False
         self.frame_count = 0
         
-        # CSV headers for sensor data only
+        # CSV headers for sensor data + bottle_result (all keys) + steer_result (mx, my, offset_pixels, follow_edge, position)
         self.headers = [
             'timestamp',
             'frame_number',
             'distance_sensor',
             'force_sensor',
             'color_reflected',
-            'color_ambient', 
+            'color_ambient',
             'color_value',
             'gyro_x',
-            'gyro_y', 
+            'gyro_y',
             'gyro_z',
             'accelerometer_x',
             'accelerometer_y',
@@ -67,12 +67,22 @@ class SensorRecorder:
             'motor_a_power',
             'motor_b_position',
             'motor_b_relative_position',
-            'motor_b_speed', 
+            'motor_b_speed',
             'motor_b_power',
             'motor_c_position',
             'motor_c_relative_position',
             'motor_c_speed',
-            'motor_c_power'
+            'motor_c_power',
+            # bottle_result (pixels only)
+            'bottle_yellow',
+            'bottle_blue',
+            'bottle_red',
+            # steer_result
+            'steer_mx',
+            'steer_my',
+            'steer_offset_pixels',
+            'steer_follow_edge',
+            'steer_position'
         ]
     
     def start_recording(self) -> None:
@@ -100,7 +110,7 @@ class SensorRecorder:
         
         print(f"CSV logging started: {self.csv_filename}")
     
-    def log_frame_data(self, spike_status) -> None:
+    def log_frame_data(self, spike_status, bottle_result=None, steer_result=None) -> None:
         """
         Log sensor data for a single frame.
         
@@ -117,6 +127,18 @@ class SensorRecorder:
         sensors = spike_status.sensors
         motors = spike_status.motors
         
+        # bottle_result: dict (pixels only)
+        bottle_yellow = bottle_result.get('yellow') if bottle_result else ''
+        bottle_blue = bottle_result.get('blue') if bottle_result else ''
+        bottle_red = bottle_result.get('red') if bottle_result else ''
+
+        # steer_result: dict with keys 'mx', 'my', 'offset_pixels', 'follow_edge', 'position'
+        steer_mx = steer_result.get('mx') if steer_result else ''
+        steer_my = steer_result.get('my') if steer_result else ''
+        steer_offset_pixels = steer_result.get('offset_pixels') if steer_result else ''
+        steer_follow_edge = steer_result.get('follow_edge') if steer_result else ''
+        steer_position = steer_result.get('position') if steer_result else ''
+
         row_data = [
             current_time,
             self.frame_count,
@@ -144,7 +166,15 @@ class SensorRecorder:
             self._safe_get(motors['C'].position, 0),
             self._safe_get(motors['C'].relative_position, 0),
             self._safe_get(motors['C'].speed, 0),
-            self._safe_get(motors['C'].power, 0)
+            self._safe_get(motors['C'].power, 0),
+            bottle_yellow,
+            bottle_blue,
+            bottle_red,
+            steer_mx,
+            steer_my,
+            steer_offset_pixels,
+            steer_follow_edge,
+            steer_position
         ]
         
         try:
