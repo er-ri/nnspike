@@ -126,61 +126,55 @@ class SensorRecorder:
         # Extract sensor data from spike_status
         sensors = spike_status.sensors
         motors = spike_status.motors
-        
-        import numpy as np
-        def to_py(val):
-            if isinstance(val, np.generic):
-                return val.item()
-            return val
 
         # bottle_result: dict (pixels only) - 防御的チェック
         if isinstance(bottle_result, dict):
-            bottle_yellow = to_py(bottle_result.get('yellow')) if bottle_result and bottle_result.get('yellow') is not None else ''
-            bottle_blue = to_py(bottle_result.get('blue')) if bottle_result and bottle_result.get('blue') is not None else ''
-            bottle_red = to_py(bottle_result.get('red')) if bottle_result and bottle_result.get('red') is not None else ''
+            bottle_yellow = bottle_result.get('yellow', '') or ''
+            bottle_blue = bottle_result.get('blue', '') or ''
+            bottle_red = bottle_result.get('red', '') or ''
         else:
             # bottle_resultが辞書でない場合はデフォルト値を設定
             bottle_yellow = bottle_blue = bottle_red = ''
 
         # steer_result: dict with keys 'mx', 'my', 'offset_pixels', 'follow_edge', 'position' - 防御的チェック
         if isinstance(steer_result, dict):
-            steer_mx = to_py(steer_result.get('mx')) if steer_result and steer_result.get('mx') is not None else ''
-            steer_my = to_py(steer_result.get('my')) if steer_result and steer_result.get('my') is not None else ''
-            steer_offset_pixels = to_py(steer_result.get('offset_pixels')) if steer_result and steer_result.get('offset_pixels') is not None else ''
-            steer_follow_edge = to_py(steer_result.get('follow_edge')) if steer_result and steer_result.get('follow_edge') is not None else ''
-            steer_position = to_py(steer_result.get('position')) if steer_result and steer_result.get('position') is not None else ''
+            steer_mx = steer_result.get('mx', '') or ''
+            steer_my = steer_result.get('my', '') or ''
+            steer_offset_pixels = steer_result.get('offset_pixels', '') or ''
+            steer_follow_edge = steer_result.get('follow_edge', '') or ''
+            steer_position = steer_result.get('position', '') or ''
         else:
             # steer_resultが辞書でない場合はデフォルト値を設定
             steer_mx = steer_my = steer_offset_pixels = steer_follow_edge = steer_position = ''
 
         row_data = [
-            to_py(current_time),
-            to_py(self.frame_count),
-            to_py(self._safe_get(sensors.distance, 0)),
-            to_py(self._safe_get(sensors.force, 0)),
-            to_py(self._safe_get(sensors.color.reflected if sensors.color else None, 0)),
-            to_py(self._safe_get(sensors.color.ambient if sensors.color else None, 0)),
-            to_py(self._safe_get(sensors.color.color if sensors.color else None, 0)),
-            to_py(self._safe_get(sensors.gyro.x if sensors.gyro else None, 0.0)),
-            to_py(self._safe_get(sensors.gyro.y if sensors.gyro else None, 0.0)),
-            to_py(self._safe_get(sensors.gyro.z if sensors.gyro else None, 0.0)),
-            to_py(self._safe_get(sensors.accelerometer.x if sensors.accelerometer else None, 0.0)),
-            to_py(self._safe_get(sensors.accelerometer.y if sensors.accelerometer else None, 0.0)),
-            to_py(self._safe_get(sensors.accelerometer.z if sensors.accelerometer else None, 0.0)),
-            to_py(self._safe_get(sensors.position.x if sensors.position else None, 0.0)),
-            to_py(self._safe_get(sensors.position.y if sensors.position else None, 0.0)),
-            to_py(self._safe_get(motors['A'].position, 0)),
-            to_py(self._safe_get(motors['A'].relative_position, 0)),
-            to_py(self._safe_get(motors['A'].speed, 0)),
-            to_py(self._safe_get(motors['A'].power, 0)),
-            to_py(self._safe_get(motors['B'].position, 0)),
-            to_py(self._safe_get(motors['B'].relative_position, 0)),
-            to_py(self._safe_get(motors['B'].speed, 0)),
-            to_py(self._safe_get(motors['B'].power, 0)),
-            to_py(self._safe_get(motors['C'].position, 0)),
-            to_py(self._safe_get(motors['C'].relative_position, 0)),
-            to_py(self._safe_get(motors['C'].speed, 0)),
-            to_py(self._safe_get(motors['C'].power, 0)),
+            current_time,
+            self.frame_count,
+            self._safe_get(sensors.distance, 0),
+            self._safe_get(sensors.force, 0),
+            self._safe_get(sensors.color.reflected if sensors.color else None, 0),
+            self._safe_get(sensors.color.ambient if sensors.color else None, 0),
+            self._safe_get(sensors.color.color if sensors.color else None, 0),
+            self._safe_get(sensors.gyro.x if sensors.gyro else None, 0.0),
+            self._safe_get(sensors.gyro.y if sensors.gyro else None, 0.0),
+            self._safe_get(sensors.gyro.z if sensors.gyro else None, 0.0),
+            self._safe_get(sensors.accelerometer.x if sensors.accelerometer else None, 0.0),
+            self._safe_get(sensors.accelerometer.y if sensors.accelerometer else None, 0.0),
+            self._safe_get(sensors.accelerometer.z if sensors.accelerometer else None, 0.0),
+            self._safe_get(sensors.position.x if sensors.position else None, 0.0),
+            self._safe_get(sensors.position.y if sensors.position else None, 0.0),
+            self._safe_get(motors['A'].position, 0),
+            self._safe_get(motors['A'].relative_position, 0),
+            self._safe_get(motors['A'].speed, 0),
+            self._safe_get(motors['A'].power, 0),
+            self._safe_get(motors['B'].position, 0),
+            self._safe_get(motors['B'].relative_position, 0),
+            self._safe_get(motors['B'].speed, 0),
+            self._safe_get(motors['B'].power, 0),
+            self._safe_get(motors['C'].position, 0),
+            self._safe_get(motors['C'].relative_position, 0),
+            self._safe_get(motors['C'].speed, 0),
+            self._safe_get(motors['C'].power, 0),
             bottle_yellow,
             bottle_blue,
             bottle_red,
@@ -239,15 +233,21 @@ class SensorRecorder:
     def _safe_get(value: Any, default: Any = 0) -> Any:
         """
         Safely extract value, returning default if None.
+        Also converts NumPy types to Python standard types for CSV compatibility.
         
         Args:
-            value: Any value that might be None
+            value: Any value that might be None or NumPy type
             default: Default value to return if value is None
             
         Returns:
-            The value if not None, otherwise the default
+            The value converted to Python standard type if not None, otherwise the default
         """
-        return value if value is not None else default
+        if value is None:
+            return default
+        # Convert NumPy types to Python standard types
+        if hasattr(value, 'item'):  # NumPy scalar
+            return value.item()
+        return value
     
     def __enter__(self):
         """Context manager entry."""

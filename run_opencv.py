@@ -1,15 +1,3 @@
-import numpy as np
-
-# --- NumPy型を再帰的にPython型へ変換する共通関数 ---
-def to_py(val):
-    if isinstance(val, dict):
-        return {k: to_py(v) for k, v in val.items()}
-    elif isinstance(val, (list, tuple)):
-        return [to_py(v) for v in val]
-    elif isinstance(val, np.generic):
-        return val.item()
-    else:
-        return val
 #!/usr/bin/env python3
 """
 OpenCV-Based Line Following Robot Control
@@ -33,6 +21,41 @@ OpenCV-Based Line Following Robot Control
 - OOP設計・責務分担を明確化し、拡張性・保守性を重視。
 """
 
+# 標準ライブラリ
+import argparse
+import math
+import pickle
+import socket
+import struct
+import sys
+import time
+import traceback
+from dataclasses import dataclass
+from enum import Enum, auto
+
+# サードパーティライブラリ
+import cv2
+import numpy as np
+
+# プラットフォーム固有のインポート
+try:
+    import msvcrt
+    WINDOWS = True
+except ImportError:
+    import termios
+    import tty
+    import select
+    WINDOWS = False
+
+# プロジェクト固有のインポート
+from nnspike.unit import ETRobot
+from nnspike.utils import (
+    SensorRecorder,
+    PIDController,
+    ControlCalculator,
+    Camera,
+)
+
 # ==== ユーザー調整用パラメータ（ここだけ編集すればOK） ====
 # ROI_OPENCV: OpenCV画像処理で使用する領域（左上x, 左上y, 右下x, 右下y）
 ROI_OPENCV = (20, 50, 620, 400)
@@ -52,38 +75,8 @@ MOTOR_SEND_INTERVAL = 0.04
 
 POSITION_YELLOW_BOTTLE = 100000         # 黄色ボトル回避開始位置
 POSITION_BLUE_BOTTLE = 350000           # 青ボトル運搬開始位置
-POSITION_RED_BOTTLE = 4000            # 赤ボトル運搬開始位置
+POSITION_RED_BOTTLE = 400000            # 赤ボトル運搬開始位置
 # ================================================
-
-
-import cv2
-import math
-import time
-import socket
-import pickle
-import struct
-import argparse
-import numpy as np
-import traceback
-from nnspike.unit import ETRobot
-from nnspike.utils import (
-    SensorRecorder,
-    PIDController,
-    ControlCalculator,
-    Camera,
-)
-from enum import Enum, auto
-from dataclasses import dataclass
-import sys
-import time
-try:
-    import msvcrt
-    WINDOWS = True
-except ImportError:
-    import termios
-    import tty
-    import select
-WINDOWS = False
 
 @dataclass
 class Config:
@@ -207,6 +200,11 @@ class ActionManager:
         self.right_power = 0
         self.apply_power_immediate()
         self.is_stopped = True  # STOP状態にセット
+
+    def do_straight(self):
+        self.left_power = 50
+        self.right_power = 50
+        self.apply_power()
 
     def brake_for_duration(self, duration=3.0):
         """
@@ -788,10 +786,9 @@ class VideoManager:
         # --- bottle情報を色ごとのピクセル数で表示 ---
         pixel_dict = bottle[0] if (bottle and isinstance(bottle, tuple)) else (bottle if isinstance(bottle, dict) else {})
         if pixel_dict:
-            # np.int64などNumPy型をintに変換
-            yellow = int(pixel_dict.get('yellow', 0)) if pixel_dict.get('yellow', 0) is not None else 0
-            blue = int(pixel_dict.get('blue', 0)) if pixel_dict.get('blue', 0) is not None else 0
-            red = int(pixel_dict.get('red', 0)) if pixel_dict.get('red', 0) is not None else 0
+            yellow = pixel_dict.get('yellow', 0) or 0
+            blue = pixel_dict.get('blue', 0) or 0 
+            red = pixel_dict.get('red', 0) or 0
             bottle_str = f"Y:{yellow} B:{blue} R:{red}"
         else:
             bottle_str = "N/A"
@@ -799,26 +796,26 @@ class VideoManager:
         # ROIは現状opencvのみを使用
         info["offset_x"], info["offset_y"] = int(x1 + mx), int(y1 + my)
         info["roi"] = ROI_OPENCV
-        # すべての数値をint/floatで明示的に変換
-        left_power = int(action.left_power) if action.left_power is not None else 0
-        right_power = int(action.right_power) if action.right_power is not None else 0
-        left_actual_val = int(left_actual) if left_actual is not None else 'N/A'
-        right_actual_val = int(right_actual) if right_actual is not None else 'N/A'
-        left_rel_pos = int(action.left_relative_position) if action.left_relative_position is not None else 0
-        right_rel_pos = int(action.right_relative_position) if action.right_relative_position is not None else 0
-        left_distance_cm_val = int(left_distance_cm) if left_distance_cm is not None else 0
-        right_distance_cm_val = int(right_distance_cm) if right_distance_cm is not None else 0
+        # 表示用の数値処理（最小限の変換のみ）
+        left_power = action.left_power or 0
+        right_power = action.right_power or 0
+        left_actual_val = left_actual if left_actual is not None else 'N/A'
+        right_actual_val = right_actual if right_actual is not None else 'N/A'
+        left_rel_pos = action.left_relative_position or 0
+        right_rel_pos = action.right_relative_position or 0
+        left_distance_cm_val = left_distance_cm or 0
+        right_distance_cm_val = right_distance_cm or 0
         info["text"] = {
-            "offset_pixels": f"{round(float(offset_pixels), 1)}px",
-            "theta_deg": f"{round(float(math.degrees(action.theta)), 2)}deg",
-            "pid_corrected_theta": f"{round(float(math.degrees(action.pid_corrected_theta)), 2)}deg",
+            "offset_pixels": f"{round(offset_pixels, 1)}px",
+            "theta_deg": f"{round(math.degrees(action.theta), 2)}deg",
+            "pid_corrected_theta": f"{round(math.degrees(action.pid_corrected_theta), 2)}deg",
             "power_status": (
-                "OFF_LINE" if float(action.theta) == 0 else
-                "CURVE" if abs(float(action.theta)) > math.radians(10) else
-                "STRAIGHT" if abs(float(action.theta)) < math.radians(3) else
+                "OFF_LINE" if action.theta == 0 else
+                "CURVE" if abs(action.theta) > math.radians(10) else
+                "STRAIGHT" if abs(action.theta) < math.radians(3) else
                 "BASE"
             ),
-            "current_power": f"{round(float(action.current_power), 1)}%",
+            "current_power": f"{round(action.current_power, 1)}%",
             "on_color": (
                 "BLACK" if (color and color.is_black) else ("BLUE" if (color and color.is_blue) else "N/A")
             ),
@@ -883,11 +880,8 @@ class VideoManager:
         return gray
 
     def process_and_send(self, frame, steer_result, scenario, action, bottle_result=None, bottle_masks=None):
-        # すべてのデータをPython型に変換
-        steer_result = to_py(steer_result)
-        bottle_result = to_py(bottle_result)
-        bottle_masks = to_py(bottle_masks)
-        info = to_py(self.prepare_driving_info(steer_result, scenario, action, bottle=bottle_result))
+        # 走行情報を準備し、可視化フレームを生成してビデオ保存・送信
+        info = self.prepare_driving_info(steer_result, scenario, action, bottle=bottle_result)
         gray = self.create_visualization_frame(frame, steer_result, info, bottle_masks=bottle_masks)
         self.write_video(frame)
         return self.send_frame(gray)
@@ -1260,8 +1254,6 @@ def main(config: Config):
             # 5. ペットボトル検出（bottle_result: 色ごとのピクセル数辞書, bottle_masks: 各色マスク）
             bottle_result, bottle_masks = camera.detect_color_bottle(frame)  # 辞書とマスク両方を取得
             # 6. センサ情報・CSV記録（steer_result, bottle_resultを計算後に記録）
-            bottle_result = to_py(bottle_result)
-            steer_result = to_py(steer_result)
             action.log_sensor_record(sensor_recorder, bottle_result=bottle_result, steer_result=steer_result)
             # 7. キー入力取得（マニュアル時のみ）
             key_input = key.get_key() if config.log_manual else None
