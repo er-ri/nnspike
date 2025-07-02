@@ -1257,6 +1257,8 @@ def main(config: Config):
             # 5. ペットボトル検出（bottle_result: 色ごとのピクセル数辞書）
             bottle_result = camera.detect_color_bottle(frame)
             # 6. センサ情報・CSV記録（steer_result, bottle_resultを計算後に記録）
+            bottle_result = to_py(bottle_result)
+            steer_result = to_py(steer_result)
             action.log_sensor_record(sensor_recorder, bottle_result=bottle_result, steer_result=steer_result)
             # 7. キー入力取得（マニュアル時のみ）
             key_input = key.get_key() if config.log_manual else None

@@ -12,7 +12,7 @@ PID制御モジュール
 
 import time
 from typing import Optional, Tuple
-import json
+import numpy as np
 
 # ==== ユーザー調整用PIDパラメータ（ここだけ編集すればOK）====
 PID_KP = 0.6    # 反応性UP（0.55→0.60）
@@ -117,19 +117,7 @@ class PIDController:
         # PID出力の計算
         output = self.Kp * error + self.Ki * self._integral + self.Kd * derivative
 
-        # デバッグ用にデータをprint表示（1行JSON形式, Copilotフレンドリー）
-        if self.debug:
-            debug_data = {
-                "time": round(current_time, 3),
-                "measured": round(measured_value, 4),
-                "setpoint": round(self.setpoint, 4),
-                "error": round(error, 4),
-                "integral": round(self._integral, 4),
-                "raw_derivative": round(raw_derivative, 4),
-                "derivative": round(derivative, 4),
-                "output": round(output, 4)
-            }
-            print(f"[PID_DEBUG] {json.dumps(debug_data, ensure_ascii=False)}")
+
 
         # 出力制限の適用
         if self.output_limits[0] is not None:

@@ -12,7 +12,6 @@
 
 import math
 from collections import deque
-import json
 import numpy as np
 
 # ====【現場でよく調整する推奨パラメータ】====
@@ -127,7 +126,6 @@ class ControlCalculator:
                 "follow_edge": follow_edge,
                 "position": position
             }
-            print(f"[CONTROL_DEBUG] calc_steer_result {json.dumps(debug_data, ensure_ascii=False)}")
         return steer_result
 
     def calculate_attitude_angle(self, offset_pixels: float) -> float:
@@ -163,7 +161,6 @@ class ControlCalculator:
                 "theta_rad": round(theta, 6),
                 "theta_deg": round(math.degrees(theta), 3)
             }
-            print(f"[CONTROL_DEBUG] calculate_attitude_angle {json.dumps(debug_data, ensure_ascii=False)}")
         return theta
 
     def calculate_adaptive_speed(self, theta):
@@ -185,7 +182,6 @@ class ControlCalculator:
                 "abs_theta": round(abs_theta, 4),
                 "speed": speed
             }
-            print(f"[CONTROL_DEBUG] calculate_adaptive_speed {json.dumps(debug_data, ensure_ascii=False)}")
         return speed
 
     def calculate_power_adjustment(self, pid_corrected_theta):
@@ -201,5 +197,4 @@ class ControlCalculator:
                 "pid_theta": round(pid_corrected_theta, 4),
                 "power_adj": power_adj
             }
-            print(f"[CONTROL_DEBUG] calculate_power_adjustment {json.dumps(debug_data, ensure_ascii=False)}")
         return power_adj
