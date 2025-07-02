@@ -1255,7 +1255,7 @@ def main(config: Config):
             # 4. ステアリング計算（steer_result: ライントレース用画像処理結果）
             steer_result = calc.calc_steer_result(left_x, right_x, position=action.right_relative_position)
             # 5. ペットボトル検出（bottle_result: 色ごとのピクセル数辞書）
-            bottle_result = camera.detect_color_bottle(frame)
+            bottle_result, _ = camera.detect_color_bottle(frame)  # 最初の辞書のみ取得
             # 6. センサ情報・CSV記録（steer_result, bottle_resultを計算後に記録）
             bottle_result = to_py(bottle_result)
             steer_result = to_py(steer_result)

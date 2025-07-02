@@ -133,17 +133,25 @@ class SensorRecorder:
                 return val.item()
             return val
 
-        # bottle_result: dict (pixels only)
-        bottle_yellow = to_py(bottle_result.get('yellow')) if bottle_result and bottle_result.get('yellow') is not None else ''
-        bottle_blue = to_py(bottle_result.get('blue')) if bottle_result and bottle_result.get('blue') is not None else ''
-        bottle_red = to_py(bottle_result.get('red')) if bottle_result and bottle_result.get('red') is not None else ''
+        # bottle_result: dict (pixels only) - 防御的チェック
+        if isinstance(bottle_result, dict):
+            bottle_yellow = to_py(bottle_result.get('yellow')) if bottle_result and bottle_result.get('yellow') is not None else ''
+            bottle_blue = to_py(bottle_result.get('blue')) if bottle_result and bottle_result.get('blue') is not None else ''
+            bottle_red = to_py(bottle_result.get('red')) if bottle_result and bottle_result.get('red') is not None else ''
+        else:
+            # bottle_resultが辞書でない場合はデフォルト値を設定
+            bottle_yellow = bottle_blue = bottle_red = ''
 
-        # steer_result: dict with keys 'mx', 'my', 'offset_pixels', 'follow_edge', 'position'
-        steer_mx = to_py(steer_result.get('mx')) if steer_result and steer_result.get('mx') is not None else ''
-        steer_my = to_py(steer_result.get('my')) if steer_result and steer_result.get('my') is not None else ''
-        steer_offset_pixels = to_py(steer_result.get('offset_pixels')) if steer_result and steer_result.get('offset_pixels') is not None else ''
-        steer_follow_edge = to_py(steer_result.get('follow_edge')) if steer_result and steer_result.get('follow_edge') is not None else ''
-        steer_position = to_py(steer_result.get('position')) if steer_result and steer_result.get('position') is not None else ''
+        # steer_result: dict with keys 'mx', 'my', 'offset_pixels', 'follow_edge', 'position' - 防御的チェック
+        if isinstance(steer_result, dict):
+            steer_mx = to_py(steer_result.get('mx')) if steer_result and steer_result.get('mx') is not None else ''
+            steer_my = to_py(steer_result.get('my')) if steer_result and steer_result.get('my') is not None else ''
+            steer_offset_pixels = to_py(steer_result.get('offset_pixels')) if steer_result and steer_result.get('offset_pixels') is not None else ''
+            steer_follow_edge = to_py(steer_result.get('follow_edge')) if steer_result and steer_result.get('follow_edge') is not None else ''
+            steer_position = to_py(steer_result.get('position')) if steer_result and steer_result.get('position') is not None else ''
+        else:
+            # steer_resultが辞書でない場合はデフォルト値を設定
+            steer_mx = steer_my = steer_offset_pixels = steer_follow_edge = steer_position = ''
 
         row_data = [
             to_py(current_time),
