@@ -785,28 +785,37 @@ class VideoManager:
             bottle_str = "N/A"
         info = dict()
         # ROIは現状opencvのみを使用
-        info["offset_x"], info["offset_y"] = x1 + mx, y1 + my
+        info["offset_x"], info["offset_y"] = int(x1 + mx), int(y1 + my)
         info["roi"] = ROI_OPENCV
+        # すべての数値をint/floatで明示的に変換
+        left_power = int(action.left_power) if action.left_power is not None else 0
+        right_power = int(action.right_power) if action.right_power is not None else 0
+        left_actual_val = int(left_actual) if left_actual is not None else 'N/A'
+        right_actual_val = int(right_actual) if right_actual is not None else 'N/A'
+        left_rel_pos = int(action.left_relative_position) if action.left_relative_position is not None else 0
+        right_rel_pos = int(action.right_relative_position) if action.right_relative_position is not None else 0
+        left_distance_cm_val = int(left_distance_cm) if left_distance_cm is not None else 0
+        right_distance_cm_val = int(right_distance_cm) if right_distance_cm is not None else 0
         info["text"] = {
-            "offset_pixels": f"{round(offset_pixels, 1)}px",
-            "theta_deg": f"{round(math.degrees(action.theta), 2)}deg",
-            "pid_corrected_theta": f"{round(math.degrees(action.pid_corrected_theta), 2)}deg",
+            "offset_pixels": f"{round(float(offset_pixels), 1)}px",
+            "theta_deg": f"{round(float(math.degrees(action.theta)), 2)}deg",
+            "pid_corrected_theta": f"{round(float(math.degrees(action.pid_corrected_theta)), 2)}deg",
             "power_status": (
-                "OFF_LINE" if action.theta == 0 else
-                "CURVE" if abs(action.theta) > math.radians(10) else
-                "STRAIGHT" if abs(action.theta) < math.radians(3) else
+                "OFF_LINE" if float(action.theta) == 0 else
+                "CURVE" if abs(float(action.theta)) > math.radians(10) else
+                "STRAIGHT" if abs(float(action.theta)) < math.radians(3) else
                 "BASE"
             ),
-            "current_power": f"{round(action.current_power, 1)}%",
+            "current_power": f"{round(float(action.current_power), 1)}%",
             "on_color": (
                 "BLACK" if (color and color.is_black) else ("BLUE" if (color and color.is_blue) else "N/A")
             ),
             "color_sensor": color_data,
             "ultrasonic_sensor": ultrasonic_data,
-            "left_power": f"{action.left_power}% | {-left_actual if left_actual is not None else 'N/A'}%",
-            "right_power": f"{action.right_power}% | {right_actual if right_actual is not None else 'N/A'}%",
-            "left_relative_position": f"{action.left_relative_position}deg / {left_distance_cm}cm",
-            "right_relative_position": f"{action.right_relative_position}deg / {right_distance_cm}cm",
+            "left_power": f"{left_power}% | {-left_actual_val if left_actual != None else 'N/A'}%",
+            "right_power": f"{right_power}% | {right_actual_val if right_actual != None else 'N/A'}%",
+            "left_relative_position": f"{left_rel_pos}deg / {left_distance_cm_val}cm",
+            "right_relative_position": f"{right_rel_pos}deg / {right_distance_cm_val}cm",
             "contour_area": f"{int(cv2.contourArea(max_contour)) if max_contour is not None else 0}px2",
             "mode": scenario.mode.name,
             "bottle": bottle_str
