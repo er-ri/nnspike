@@ -158,17 +158,11 @@ class LegoSpike(object):
 
 async def receiver():
     while True:
-        # バッファを空にして最新コマンドだけ取得
-        latest_command = None
-        while True:
-            command = lego_spike.read_command()
-            if command[0] is not None:
-                latest_command = command
-            else:
-                break
-        if latest_command is not None:
-            command_id, command_parameter1, command_parameter2 = latest_command
-            lego_spike.execute_command(command_id, command_parameter1, command_parameter2)
+        command_id, command_parameter1, command_parameter2 = lego_spike.read_command()
+        if command_id != None:
+            lego_spike.execute_command(
+                command_id, command_parameter1, command_parameter2
+            )
 
         if time.ticks_ms() - lego_spike.command_counter > MAX_IDLE_TIME:
             raise SystemExit("Maximum idle time reached, terminate lego spike.")
