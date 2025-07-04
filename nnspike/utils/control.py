@@ -104,15 +104,17 @@ class ControlCalculator:
             # 追従点の急激な飛びを抑制（前回値からROI幅の30%を超える変化は無視）
             if not hasattr(self, '_prev_target_x'):
                 self._prev_target_x = None
+            min_x = x1 + int((x2 - x1) * 0.2)
+            max_x = x1 + int((x2 - x1) * 0.8)
             if follow_edge == "left":
-                candidate_x = left_x
-                max_contour = np.array([[[left_x - x1, OFFSET_Y - y1]], [[(x2 + x1)//2 - x1, OFFSET_Y - y1]]], dtype=np.int32)
+                candidate_x = np.clip(left_x, min_x, max_x)
+                max_contour = np.array([[[candidate_x - x1, OFFSET_Y - y1]], [[(x2 + x1)//2 - x1, OFFSET_Y - y1]]], dtype=np.int32)
             elif follow_edge == "right":
-                candidate_x = right_x
-                max_contour = np.array([[[((x2 + x1)//2) - x1, OFFSET_Y - y1]], [[right_x - x1, OFFSET_Y - y1]]], dtype=np.int32)
+                candidate_x = np.clip(right_x, min_x, max_x)
+                max_contour = np.array([[[((x2 + x1)//2) - x1, OFFSET_Y - y1]], [[candidate_x - x1, OFFSET_Y - y1]]], dtype=np.int32)
             else:
-                candidate_x = (left_x + right_x) // 2
-                max_contour = np.array([[[left_x - x1, OFFSET_Y - y1]], [[right_x - x1, OFFSET_Y - y1]]], dtype=np.int32)
+                candidate_x = np.clip((left_x + right_x) // 2, min_x, max_x)
+                max_contour = np.array([[[np.clip(left_x, min_x, max_x) - x1, OFFSET_Y - y1]], [[np.clip(right_x, min_x, max_x) - x1, OFFSET_Y - y1]]], dtype=np.int32)
             # 飛び抑制
             max_jump = int((x2 - x1) * 0.3)
             use_candidate = True

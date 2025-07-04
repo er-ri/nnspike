@@ -84,8 +84,11 @@ class Camera:
             if len(white_pixels) > 0:
                 left_x_roi = white_pixels[0]
                 right_x_roi = white_pixels[-1]
-                left_x = x + left_x_roi
-                right_x = x + right_x_roi
+                # 画面端への極端なジャンプを抑制（ROI内の20%より外側は無視）
+                min_x = x + int(w * 0.2)
+                max_x = x + int(w * 0.8)
+                left_x = np.clip(x + left_x_roi, min_x, max_x)
+                right_x = np.clip(x + right_x_roi, min_x, max_x)
                 line_width = right_x - left_x + 1
                 # 急激な点の飛びを無視（前回値からROI幅の30%を超える変化は無視）
                 max_jump = int(w * 0.3)
