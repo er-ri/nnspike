@@ -87,10 +87,28 @@ class Camera:
                 left_x = x + left_x_roi
                 right_x = x + right_x_roi
                 line_width = right_x - left_x + 1
-                # ジャンプ制限ロジックを廃止し、常に最新値を反映
-                self._prev_left_x = left_x
-                self._prev_right_x = right_x
-                return left_x, right_x, line_width
+                # 急激な点の飛びを無視（前回値からROI幅の30%を超える変化は無視）
+                max_jump = int(w * 0.3)
+                use_left = True
+                use_right = True
+                if self._prev_left_x is not None:
+                    if abs(left_x - self._prev_left_x) > max_jump:
+                        use_left = False
+                if self._prev_right_x is not None:
+                    if abs(right_x - self._prev_right_x) > max_jump:
+                        use_right = False
+                if use_left:
+                    self._prev_left_x = left_x
+                if use_right:
+                    self._prev_right_x = right_x
+                if use_left and use_right:
+                    return left_x, right_x, line_width
+                elif use_left and not use_right and self._prev_right_x is not None:
+                    return left_x, self._prev_right_x, abs(self._prev_right_x - left_x) + 1
+                elif not use_left and use_right and self._prev_left_x is not None:
+                    return self._prev_left_x, right_x, abs(right_x - self._prev_left_x) + 1
+                elif self._prev_left_x is not None and self._prev_right_x is not None:
+                    return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
         # ラインが見つからない場合はROI中央を仮想ラインとして返す
         center_x = x + w // 2
         self._prev_left_x = center_x
