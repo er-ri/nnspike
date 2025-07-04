@@ -39,14 +39,15 @@ class Camera:
         - left_x, right_x: 画像全体座標でのライン端点
         - line_width: ライン幅（ピクセル数）
         黒・青どちらかのラインが見つかれば検出し、両方重なっていれば両方を統合して検出。
-        ラインが見つからない場合は (None, None, None) を返す。
+        ラインが見つからない場合は「ROIの中央を仮想ライン」として返す（止まらないようにする）。
         """
         target_y = OFFSET_Y
         x, y, w, h = self.roi
 
         if target_y < y or target_y >= y + h:
-            return None, None, None
-
+            # ROI外なら中央を返す
+            center_x = x + w // 2
+            return center_x, center_x, 1
 
         roi = image[y : y + h, x : x + w]
 
@@ -78,7 +79,9 @@ class Camera:
                 right_x = x + right_x_roi
                 line_width = right_x - left_x + 1
                 return left_x, right_x, line_width
-        return None, None, None
+        # ラインが見つからない場合はROI中央を仮想ラインとして返す
+        center_x = x + w // 2
+        return center_x, center_x, 1
 
     def detect_color_bottle(self, frame):
         """
