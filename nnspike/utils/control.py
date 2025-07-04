@@ -101,7 +101,7 @@ class ControlCalculator:
             follow_edge = "left"
 
         if left_x is not None and right_x is not None:
-            # シンプルなジャンプ抑制のみ（前回値からROI幅の30%を超える変化は無視）
+            # シンプルなジャンプ抑制のみ（前回値からROI幅の40%を超える変化は無視）
             if not hasattr(self, '_prev_target_x'):
                 self._prev_target_x = None
             min_x = x1 + int((x2 - x1) * 0.2)
@@ -115,7 +115,7 @@ class ControlCalculator:
             else:
                 candidate_x = np.clip((left_x + right_x) // 2, min_x, max_x)
                 max_contour = np.array([[[np.clip(left_x, min_x, max_x) - x1, OFFSET_Y - y1]], [[np.clip(right_x, min_x, max_x) - x1, OFFSET_Y - y1]]], dtype=np.int32)
-            max_jump = int((x2 - x1) * 0.3)
+            max_jump = int((x2 - x1) * 0.4)
             if self._prev_target_x is not None and abs(candidate_x - self._prev_target_x) > max_jump:
                 target_x = self._prev_target_x
             else:

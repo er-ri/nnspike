@@ -90,8 +90,8 @@ class Camera:
                 left_x = np.clip(x + left_x_roi, min_x, max_x)
                 right_x = np.clip(x + right_x_roi, min_x, max_x)
                 line_width = right_x - left_x + 1
-                # シンプルなジャンプ抑制のみ（前回値からROI幅の30%を超える変化は無視）
-                max_jump = int(w * 0.3)
+                # シンプルなジャンプ抑制のみ（前回値からROI幅の40%を超える変化は無視）
+                max_jump = int(w * 0.4)
                 if self._prev_left_x is not None and abs(left_x - self._prev_left_x) > max_jump:
                     left_x = self._prev_left_x
                 else:
