@@ -156,37 +156,29 @@ class LegoSpike(object):
         self.motor_left.run_for_degrees(-int(left_degrees), 50)   # 左はマイナス値で反転
         self.motor_right.run_for_degrees(int(right_degrees), 50)
 
-async def receiver():
+def receiver():
+    # バッファを空にして最新コマンドだけ取得
+    latest_command = None
     while True:
-        # バッファを空にして最新コマンドだけ取得
-        latest_command = None
-        while True:
-            command = lego_spike.read_command()
-            if command[0] is not None:
-                latest_command = command
-            else:
-                break
-        if latest_command is not None:
-            command_id, command_parameter1, command_parameter2 = latest_command
-            lego_spike.execute_command(command_id, command_parameter1, command_parameter2)
+        command = lego_spike.read_command()
+        if command[0] is not None:
+            latest_command = command
+        else:
+            break
+    if latest_command is not None:
+        command_id, command_parameter1, command_parameter2 = latest_command
+        lego_spike.execute_command(command_id, command_parameter1, command_parameter2)
 
-        if time.ticks_ms() - lego_spike.command_counter > MAX_IDLE_TIME:
-            raise SystemExit("Maximum idle time reached, terminate lego spike.")
+    if time.ticks_ms() - lego_spike.command_counter > MAX_IDLE_TIME:
+        raise SystemExit("Maximum idle time reached, terminate lego spike.")
 
-        await uasyncio.sleep(0.01)
+    time.sleep(0.001)
 
 
-async def main_task():
-    tasks = list()
-
-    receiver_task = uasyncio.create_task(receiver())
-    tasks.append(receiver_task)
-
-    await uasyncio.sleep(MAX_RUN_TIME)
-
-    # Cancel all tasks.
-    for task in tasks:
-        task.cancel()
+def main_task():
+    start_time = time.time()
+    while time.time() - start_time < MAX_RUN_TIME:
+        receiver()
 
 
 # Trigger a garbage collection cycle
@@ -196,7 +188,7 @@ print("Starting LEGO Prime Hub..")
 
 try:
     lego_spike = LegoSpike()
-    uasyncio.run(main_task())
+    main_task()
 except SystemExit as e:
     print(e)
 
