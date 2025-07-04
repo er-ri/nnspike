@@ -206,23 +206,27 @@ class ActionManager:
         self.right_power = 50
         self.apply_power()
 
-    def brake_for_duration(self, duration=3.0):
+    def brake_for_duration(self, duration=10.0):
         """
-        Spike本体に一定時間ブレーキ信号を連続送信し、安全停止を強制する
+        Spike本体に一定時間（デフォルト10秒）ブレーキ信号を連続送信し、安全停止を強制する
+        インターバルは50ms固定
         """
         print(f"[SAFETY] Sending brake command to Spike for {duration} seconds (brake_for_duration)")
         stop_start_time = time.time()
+        interval = 0.05  # 50ms
+        count = 0
         while time.time() - stop_start_time < duration:
             try:
                 self.left_power = 0
                 self.right_power = 0
                 self.apply_power_immediate()
                 self.et.brake()
-                # time.sleep(0.05)
+                count += 1
+                time.sleep(interval)
             except Exception as e:
                 print(f"[SAFETY][ERROR] Exception during brake command: {e}")
                 break
-        print("[SAFETY] Brake command transmission completed (brake_for_duration)")
+        print(f"[SAFETY] Brake command transmission completed (brake_for_duration), total sends: {count}")
 
     def reset_control_values(self):
         self.theta = 0
