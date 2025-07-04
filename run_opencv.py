@@ -68,14 +68,14 @@ BLACK_COLOR_THRESHOLD = 150
 # 青判定の閾値（色値: 30以下, 反射光: 60以下なら青と判定）
 BLUE_COLOR_THRESHOLD = 30
 BLUE_REFLECTED_THRESHOLD = 60
-BOTTLE_YELLOW_THRESHOLD = 12000
-BOTTLE_BLUE_THRESHOLD = 12000
-BOTTLE_RED_THRESHOLD = 12000
+BOTTLE_YELLOW_THRESHOLD = 14000
+BOTTLE_BLUE_THRESHOLD = 14000
+BOTTLE_RED_THRESHOLD = 14000
 MOTOR_SEND_INTERVAL = 0.04
 
-POSITION_YELLOW_BOTTLE = 100000         # 黄色ボトル回避開始位置
-POSITION_BLUE_BOTTLE = 350000           # 青ボトル運搬開始位置
-POSITION_RED_BOTTLE = 400000            # 赤ボトル運搬開始位置
+POSITION_YELLOW_BOTTLE = 3000         # 黄色ボトル回避開始位置
+POSITION_BLUE_BOTTLE = 20000           # 青ボトル運搬開始位置
+POSITION_RED_BOTTLE = 250000            # 赤ボトル運搬開始位置
 # ================================================
 
 @dataclass
@@ -996,9 +996,9 @@ class NormalScenario(DefaultScenario):
             # ライントレース中に各色ボトルを検出したら該当モードへ遷移
             if yellow_pixels >= BOTTLE_YELLOW_THRESHOLD and abs(right_pos) <= POSITION_YELLOW_BOTTLE:
                 self.mode = Mode.YELLOW_BOTTLE
-            elif blue_pixels >= BOTTLE_BLUE_THRESHOLD and abs(right_pos) <= POSITION_BLUE_BOTTLE:
+            elif blue_pixels >= BOTTLE_BLUE_THRESHOLD and abs(right_pos) >= POSITION_BLUE_BOTTLE:
                 self.mode = Mode.BLUE_BOTTLE
-            elif red_pixels >= BOTTLE_RED_THRESHOLD and abs(right_pos) <= POSITION_RED_BOTTLE:
+            elif red_pixels >= BOTTLE_RED_THRESHOLD and abs(right_pos) >= POSITION_RED_BOTTLE:
                 self.mode = Mode.RED_BOTTLE
         elif self.mode == Mode.YELLOW_BOTTLE:
             # 黄色ボトル回避中（完了はアクション側で判定）
