@@ -110,7 +110,7 @@ class LegoSpike(object):
         elif command_id == COMMAND_MOVE_ARM_ID:
             self._move_arm(command_parameter1)
 
-    def _set_motor_speed(self, left_speed: int, right_speed: int) -> None:
+    async def _set_motor_speed(self, left_speed: int, right_speed: int) -> None:
         """Method to control the steering wheel angle.
 
         Args:
@@ -118,9 +118,8 @@ class LegoSpike(object):
             right_speed: Right wheel speed(0~100)
         """
         self.command_counter = time.ticks_ms()
-
-        self.motor_left.run_at_speed(-int(left_speed))
-        self.motor_right.run_at_speed(int(right_speed))
+        await uasyncio.to_thread(self.motor_left.run_at_speed, -int(left_speed))
+        await uasyncio.to_thread(self.motor_right.run_at_speed, int(right_speed))
 
     async def _set_motor_relative_position(
         self, left_position: int, right_position: int
