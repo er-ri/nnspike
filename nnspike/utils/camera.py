@@ -131,11 +131,18 @@ class Camera:
                     return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
                 elif self._prev_left_x is not None and self._prev_right_x is not None:
                     return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
-        # ラインが見つからない場合はROI中央を仮想ラインとして返す
+        # ラインが見つからない場合はROI中央を仮想ラインとして返す（絶対に止まらない）
         center_x = x + w // 2
-        self._prev_left_x = center_x
-        self._prev_right_x = center_x
-        return center_x, center_x, 1
+        # 前回値がNoneなら中央、前回値があればそれを維持して滑らかに仮想ラインを返す
+        if self._prev_left_x is None:
+            self._prev_left_x = center_x
+        if self._prev_right_x is None:
+            self._prev_right_x = center_x
+        # 直前までの値を維持しつつ、ラインが完全に消えた場合は中央に徐々に戻す
+        alpha = 0.2  # 収束率（0.0:前回値維持, 1.0:即中央）
+        self._prev_left_x = int((1 - alpha) * self._prev_left_x + alpha * center_x)
+        self._prev_right_x = int((1 - alpha) * self._prev_right_x + alpha * center_x)
+        return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
 
     def detect_color_bottle(self, frame):
         """
