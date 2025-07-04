@@ -101,17 +101,29 @@ class ControlCalculator:
             follow_edge = "left"
 
         if left_x is not None and right_x is not None:
+            # 追従点の急激な飛びを抑制（前回値からROI幅の30%を超える変化は無視）
+            if not hasattr(self, '_prev_target_x'):
+                self._prev_target_x = None
             if follow_edge == "left":
-                target_x = left_x
-                # 白線は左端からROI中央まで
+                candidate_x = left_x
                 max_contour = np.array([[[left_x - x1, OFFSET_Y - y1]], [[(x2 + x1)//2 - x1, OFFSET_Y - y1]]], dtype=np.int32)
             elif follow_edge == "right":
-                target_x = right_x
-                # 白線はROI中央から右端まで
+                candidate_x = right_x
                 max_contour = np.array([[[((x2 + x1)//2) - x1, OFFSET_Y - y1]], [[right_x - x1, OFFSET_Y - y1]]], dtype=np.int32)
             else:
-                target_x = (left_x + right_x) // 2
+                candidate_x = (left_x + right_x) // 2
                 max_contour = np.array([[[left_x - x1, OFFSET_Y - y1]], [[right_x - x1, OFFSET_Y - y1]]], dtype=np.int32)
+            # 飛び抑制
+            max_jump = int((x2 - x1) * 0.3)
+            use_candidate = True
+            if self._prev_target_x is not None:
+                if abs(candidate_x - self._prev_target_x) > max_jump:
+                    use_candidate = False
+            if use_candidate:
+                target_x = candidate_x
+                self._prev_target_x = candidate_x
+            else:
+                target_x = self._prev_target_x
             mx = target_x - x1
             my = OFFSET_Y - y1
             roi_center_x = (x2 - x1) // 2
