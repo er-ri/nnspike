@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
-# from nnspike.constants import ROI_OPENCV, IMAGE_WIDTH, IMAGE_HEIGHT
+
+# ライン端点ジャンプ制限比率（ユーザー調整用）
+LINE_EDGE_MAX_JUMP_RATIO = 0.25
 
 BLACK_THRESHOLD = 130  # 黒判定のしきい値（固定, steer_by_camera用）
 ROI_OPENCV = (20, 50, 620, 400)  # OpenCVのROI領域 # (x, y, width, height)
@@ -33,6 +35,8 @@ class Camera:
     def release(self):
         self.cap.release()
 
+
+
     def get_line_edges_at_y(self, image, threshold_value=50):
         """
         ROI内のOFFSET_Y行で黒または青のラインの左右端を検出し、(left_x, right_x, line_width)を返す。
@@ -40,13 +44,20 @@ class Camera:
         - line_width: ライン幅（ピクセル数）
         黒・青どちらかのラインが見つかれば検出し、両方重なっていれば両方を統合して検出。
         ラインが見つからない場合は「ROIの中央を仮想ライン」として返す（止まらないようにする）。
+        急激なジャンプ（前回値からの変化がROI幅のLINE_EDGE_MAX_JUMP_RATIOを超える場合）は無視する。
         """
         target_y = OFFSET_Y
         x, y, w, h = self.roi
 
+        if not hasattr(self, '_prev_left_x'):
+            self._prev_left_x = None
+            self._prev_right_x = None
+
         if target_y < y or target_y >= y + h:
             # ROI外なら中央を返す
             center_x = x + w // 2
+            self._prev_left_x = center_x
+            self._prev_right_x = center_x
             return center_x, center_x, 1
 
         roi = image[y : y + h, x : x + w]
@@ -78,9 +89,37 @@ class Camera:
                 left_x = x + left_x_roi
                 right_x = x + right_x_roi
                 line_width = right_x - left_x + 1
-                return left_x, right_x, line_width
+                # 急激なジャンプを無視（前回値からmax_jumpを超える場合は更新しない）
+                max_jump = int(w * LINE_EDGE_MAX_JUMP_RATIO)
+                use_left = True
+                use_right = True
+                if self._prev_left_x is not None:
+                    if abs(left_x - self._prev_left_x) > max_jump:
+                        use_left = False
+                if self._prev_right_x is not None:
+                    if abs(right_x - self._prev_right_x) > max_jump:
+                        use_right = False
+                if use_left:
+                    self._prev_left_x = left_x
+                if use_right:
+                    self._prev_right_x = right_x
+                if use_left and use_right:
+                    return left_x, right_x, line_width
+                elif use_left and not use_right and self._prev_right_x is not None:
+                    return left_x, self._prev_right_x, abs(self._prev_right_x - left_x) + 1
+                elif not use_left and use_right and self._prev_left_x is not None:
+                    return self._prev_left_x, right_x, abs(right_x - self._prev_left_x) + 1
+                elif self._prev_left_x is not None and self._prev_right_x is not None:
+                    return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
         # ラインが見つからない場合はROI中央を仮想ラインとして返す
         center_x = x + w // 2
+        self._prev_left_x = center_x
+        self._prev_right_x = center_x
+        return center_x, center_x, 1
+        # ラインが見つからない場合はROI中央を仮想ラインとして返す
+        center_x = x + w // 2
+        self._prev_left_x = center_x
+        self._prev_right_x = center_x
         return center_x, center_x, 1
 
     def detect_color_bottle(self, frame):
