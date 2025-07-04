@@ -647,24 +647,32 @@ class ActionManager:
         - 途中でKeyboardInterruptを受け付け、即座にbreak
         - 送信間隔はMOTOR_SEND_INTERVALに合わせる
         - 送信失敗時もbreak
+        - 物理的に確実に止めるため、最後に強制的にstop()も呼ぶ
         """
         print(f"[SAFETY] Sending brake command to Spike for {duration} seconds (brake_for_duration)")
         stop_start_time = time.time()
         count = 0
-        while time.time() - stop_start_time < duration:
-            try:
+        try:
+            while time.time() - stop_start_time < duration:
                 self.left_power = 0
                 self.right_power = 0
                 self.apply_power_immediate()
                 self.et.brake()
                 count += 1
                 time.sleep(MOTOR_SEND_INTERVAL)
-            except KeyboardInterrupt:
-                print("[SAFETY] KeyboardInterrupt during brake. Exiting brake loop.")
-                break
-            except Exception as e:
-                print(f"[SAFETY][ERROR] Exception during brake command: {e}")
-                break
+        except KeyboardInterrupt:
+            print("[SAFETY] KeyboardInterrupt during brake. Exiting brake loop.")
+        except Exception as e:
+            print(f"[SAFETY][ERROR] Exception during brake command: {e}")
+        # --- 最後に必ず物理的にstop()を呼ぶ（完全停止） ---
+        try:
+            self.left_power = 0
+            self.right_power = 0
+            self.apply_power_immediate()
+            self.et.stop()
+            self.et.brake()
+        except Exception as e:
+            print(f"[SAFETY][ERROR] Exception during final stop: {e}")
         print(f"[SAFETY] Brake command transmission completed (brake_for_duration), total sends: {count}")
 
 class SensorRecorderManager:
