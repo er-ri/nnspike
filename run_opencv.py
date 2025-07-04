@@ -644,20 +644,28 @@ class ActionManager:
     def brake_for_duration(self, duration=3.0):
         """
         Spike本体に一定時間ブレーキ信号を連続送信し、安全停止を強制する
+        - 途中でKeyboardInterruptを受け付け、即座にbreak
+        - 送信間隔はMOTOR_SEND_INTERVALに合わせる
+        - 送信失敗時もbreak
         """
         print(f"[SAFETY] Sending brake command to Spike for {duration} seconds (brake_for_duration)")
         stop_start_time = time.time()
+        count = 0
         while time.time() - stop_start_time < duration:
             try:
                 self.left_power = 0
                 self.right_power = 0
                 self.apply_power_immediate()
                 self.et.brake()
-                time.sleep(0.1)
+                count += 1
+                time.sleep(MOTOR_SEND_INTERVAL)
+            except KeyboardInterrupt:
+                print("[SAFETY] KeyboardInterrupt during brake. Exiting brake loop.")
+                break
             except Exception as e:
                 print(f"[SAFETY][ERROR] Exception during brake command: {e}")
                 break
-        print("[SAFETY] Brake command transmission completed (brake_for_duration)")
+        print(f"[SAFETY] Brake command transmission completed (brake_for_duration), total sends: {count}")
 
 class SensorRecorderManager:
     """
