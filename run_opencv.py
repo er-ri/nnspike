@@ -821,17 +821,15 @@ class VideoManager:
         right_rel_pos = action.right_relative_position or 0
         left_distance_cm_val = left_distance_cm or 0
         right_distance_cm_val = right_distance_cm or 0
+        # スピード表示・power_statusは常に表示（条件分岐なし）
+        current_power_str = f"{round(action.current_power, 1)}%"
+        power_status_str = "CURVE"
         info["text"] = {
             "offset_pixels": f"{round(offset_pixels, 1)}px",
             "theta_deg": f"{round(math.degrees(action.theta), 2)}deg",
             "pid_corrected_theta": f"{round(math.degrees(action.pid_corrected_theta), 2)}deg",
-            "power_status": (
-                "OFF_LINE" if action.theta == 0 else
-                "CURVE" if abs(action.theta) > math.radians(10) else
-                "STRAIGHT" if abs(action.theta) < math.radians(3) else
-                "BASE"
-            ),
-            "current_power": f"{round(action.current_power, 1)}%",
+            "power_status": power_status_str,
+            "current_power": current_power_str,
             "on_color": (
                 "BLACK" if (color and color.is_black) else ("BLUE" if (color and color.is_blue) else "N/A")
             ),

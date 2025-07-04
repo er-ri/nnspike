@@ -15,8 +15,8 @@ from collections import deque
 import numpy as np
 
 # ====【現場でよく調整する推奨パラメータ】====
-BASE_POWER = 40             # 通常走行時の基準パワー
-STRAIGHT_POWER = 40         # 直線判定時のパワー
+BASE_POWER = 30             # 通常走行時の基準パワー
+STRAIGHT_POWER = 30         # 直線判定時のパワー
 CURVE_POWER = 30            # カーブ判定時のパワー（20→25で復帰力UP）
 
 # --- 追加: しきい値・閾値のグローバル定数定義 ---
@@ -166,36 +166,15 @@ class ControlCalculator:
 
     def calculate_adaptive_speed(self, theta):
         """
-        θ（進行角度）に応じて推奨速度（パワー値）を自動調整する。
-        - カーブ時はcurve_power、直線時はstraight_power、それ以外はbase_powerを返す。
-        - しきい値はself.curve_threshold, self.straight_thresholdで調整可能。
-        デバッグ時は判定値・出力値をJSONで出力。
+        速度の切り替えをやめ、常にカーブ用の速度（curve_power）のみ返す。
         """
-        abs_theta = abs(theta)
-        if abs_theta > self.curve_threshold:
-            speed = self.curve_power  # カーブ時
-        elif abs_theta < self.straight_threshold:
-            speed = self.straight_power  # 直線時
-        else:
-            speed = self.base_power  # 通常時
-        if self.debug:
-            debug_data = {
-                "abs_theta": round(abs_theta, 4),
-                "speed": speed
-            }
-        return speed
+        return self.curve_power
 
     def calculate_power_adjustment(self, pid_corrected_theta):
         """
         PID補正値（ラジアン）をパワー差分（左右モーター出力の調整値）に変換する。
         - 最大パワー差分はMAX_POWER_DIFFでクリップ。
         - 暴走抑制等の制限は現状なし。
-        デバッグ時は補正値・出力値をJSONで出力。
         """
         power_adj = int((pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF)
-        if self.debug:
-            debug_data = {
-                "pid_theta": round(pid_corrected_theta, 4),
-                "power_adj": power_adj
-            }
         return power_adj
