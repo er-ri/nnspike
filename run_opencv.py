@@ -647,13 +647,12 @@ class ActionManager:
 
     def brake_for_duration(self, duration=3.0):
         """
-        Spike本体に一定時間ブレーキ信号を連続送信し、安全停止を強制する
+        Spike本体に一定時間、左右パワーを0にするだけの「緩い停止命令」を送信する（brakeやstopは呼ばない）
         - 途中でKeyboardInterruptを受け付け、即座にbreak
         - 送信間隔はMOTOR_SEND_INTERVALに合わせる
         - 送信失敗時もbreak
-        - 物理的に確実に止めるため、最後に強制的にstop()も呼ぶ
         """
-        print(f"[SAFETY] Sending brake command to Spike for {duration} seconds (brake_for_duration)")
+        print(f"[SAFETY] Sending gentle stop command to Spike for {duration} seconds (brake_for_duration)")
         stop_start_time = time.time()
         count = 0
         try:
@@ -661,23 +660,13 @@ class ActionManager:
                 self.left_power = 0
                 self.right_power = 0
                 self.apply_power_immediate()
-                self.et.brake()
                 count += 1
                 time.sleep(MOTOR_SEND_INTERVAL)
         except KeyboardInterrupt:
-            print("[SAFETY] KeyboardInterrupt during brake. Exiting brake loop.")
+            print("[SAFETY] KeyboardInterrupt during gentle stop. Exiting loop.")
         except Exception as e:
-            print(f"[SAFETY][ERROR] Exception during brake command: {e}")
-        # --- 最後に必ず物理的にstop()を呼ぶ（完全停止） ---
-        try:
-            self.left_power = 0
-            self.right_power = 0
-            self.apply_power_immediate()
-            self.et.stop()
-            self.et.brake()
-        except Exception as e:
-            print(f"[SAFETY][ERROR] Exception during final stop: {e}")
-        print(f"[SAFETY] Brake command transmission completed (brake_for_duration), total sends: {count}")
+            print(f"[SAFETY][ERROR] Exception during gentle stop command: {e}")
+        print(f"[SAFETY] Gentle stop command transmission completed (brake_for_duration), total sends: {count}")
 
 class SensorRecorderManager:
     """
