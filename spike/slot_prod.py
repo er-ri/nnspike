@@ -157,12 +157,15 @@ class LegoSpike(object):
         self.motor_right.run_for_degrees(int(right_degrees), 50)
 
 def receiver():
-    # バッファを空にして最新コマンドだけ取得
+    # バッファを空にして最新コマンドだけ取得（古いコマンドはすべて廃棄）
     latest_command = None
+    # USBバッファに残っている全てのコマンドを読み捨て、最後の1つだけ実行
     while True:
-        command = lego_spike.read_command()
-        if command[0] is not None:
-            latest_command = command
+        if lego_spike.usb.any():
+            command = lego_spike.read_command()
+            if command[0] is not None:
+                latest_command = command
+            # ループ継続してバッファを空にする
         else:
             break
     if latest_command is not None:
