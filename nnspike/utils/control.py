@@ -101,7 +101,7 @@ class ControlCalculator:
             follow_edge = "left"
 
         if left_x is not None and right_x is not None:
-            # 追従点の急激な飛びを抑制（前回値からROI幅の30%を超える変化は無視）
+            # シンプルなジャンプ抑制のみ（前回値からROI幅の30%を超える変化は無視）
             if not hasattr(self, '_prev_target_x'):
                 self._prev_target_x = None
             min_x = x1 + int((x2 - x1) * 0.2)
@@ -115,29 +115,12 @@ class ControlCalculator:
             else:
                 candidate_x = np.clip((left_x + right_x) // 2, min_x, max_x)
                 max_contour = np.array([[[np.clip(left_x, min_x, max_x) - x1, OFFSET_Y - y1]], [[np.clip(right_x, min_x, max_x) - x1, OFFSET_Y - y1]]], dtype=np.int32)
-            # 飛び抑制
             max_jump = int((x2 - x1) * 0.3)
-            use_candidate = True
-            if self._prev_target_x is not None:
-                if abs(candidate_x - self._prev_target_x) > max_jump:
-                    use_candidate = False
-            if use_candidate:
-                target_x = candidate_x
-                # 急な方向転換（前回から逆方向に大きく変化）は抑制
-                if self._prev_target_x is not None:
-                    direction = np.sign(candidate_x - self._prev_target_x)
-                    prev_direction = getattr(self, '_prev_direction', 0)
-                    # 方向が逆転し、かつ大きく変化した場合は前回値を維持
-                    if prev_direction != 0 and direction != 0 and direction != prev_direction and abs(candidate_x - self._prev_target_x) > max_jump:
-                        target_x = self._prev_target_x
-                    else:
-                        self._prev_target_x = candidate_x
-                        self._prev_direction = direction
-                else:
-                    self._prev_target_x = candidate_x
-                    self._prev_direction = 0
-            else:
+            if self._prev_target_x is not None and abs(candidate_x - self._prev_target_x) > max_jump:
                 target_x = self._prev_target_x
+            else:
+                target_x = candidate_x
+                self._prev_target_x = candidate_x
             mx = target_x - x1
             my = OFFSET_Y - y1
             roi_center_x = (x2 - x1) // 2
