@@ -18,7 +18,7 @@ import numpy as np
 # ====【現場でよく調整する推奨パラメータ】====
 BASE_POWER = 30             # 通常走行時の基準パワー
 STRAIGHT_POWER = 30         # 直線判定時のパワー
-CURVE_POWER = 25            # カーブ判定時のパワー（20→25で復帰力UP）
+CURVE_POWER = 30            # カーブ判定時のパワー（20→25で復帰力UP）
 
 # --- 追加: しきい値・閾値のグローバル定数定義 ---
 STRAIGHT_THRESHOLD_DEG = 3   # 直線判定しきい値[deg]
@@ -175,34 +175,9 @@ class ControlCalculator:
 
     def calculate_adaptive_speed(self, theta):
         """
-        thetaが5度未満ならベーススピード、5度以上ならカーブスピード。
-        いったんカーブスピードになったら3秒間はスピードを変えず、
-        3秒経過後に再度ベース/カーブ判定を行う。
+        速度の切り替えをやめ、常にカーブ用の速度（curve_power）のみ返す。
         """
-        now = time.time()
-        theta_deg = abs(math.degrees(theta))
-        # 初期化
-        if not hasattr(self, '_last_speed_mode'):
-            self._last_speed_mode = 'base'
-            self._last_speed_change_time = now
-        # 3秒間はスピード変更禁止
-        if self._last_speed_mode == 'curve':
-            if now - self._last_speed_change_time < 3.0:
-                return self.curve_power
-            # 3秒経過後も、thetaが5度未満になるまでcurve_powerを維持
-            if theta_deg < 5.0:
-                self._last_speed_mode = 'base'
-                self._last_speed_change_time = now
-                return self.base_power
-            else:
-                return self.curve_power
-        else:  # baseモード
-            if theta_deg >= 5.0:
-                self._last_speed_mode = 'curve'
-                self._last_speed_change_time = now
-                return self.curve_power
-            else:
-                return self.base_power
+        return self.curve_power
 
     def calculate_power_adjustment(self, pid_corrected_theta):
         """
