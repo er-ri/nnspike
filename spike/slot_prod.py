@@ -138,10 +138,10 @@ class LegoSpike(object):
         """
         self.command_counter = time.ticks_ms()
 
-        if action == 0:  # Move down
+        if action == 0:# Move down
             # アームを下げる: 速度50で回転（角度指定なし、連続動作）
             self.motor_arm.run_at_speed(50)
-        elif action == 1:  # Move up
+        elif action == 1:# Move up
             # アームを上げる: 速度-50で回転（角度指定なし、連続動作）
             self.motor_arm.run_at_speed(-50)
 
@@ -153,7 +153,7 @@ class LegoSpike(object):
             right_degrees: 右モーターの回転角度（正負で方向指定）
         """
         self.command_counter = time.ticks_ms()
-        self.motor_left.run_for_degrees(-int(left_degrees), 50)   # 左はマイナス値で反転
+        self.motor_left.run_for_degrees(-int(left_degrees), 50)# 左はマイナス値で反転
         self.motor_right.run_for_degrees(int(right_degrees), 50)
 
 def receiver():
@@ -172,7 +172,7 @@ def receiver():
     if time.ticks_ms() - lego_spike.command_counter > MAX_IDLE_TIME:
         raise SystemExit("Maximum idle time reached, terminate lego spike.")
 
-    time.sleep(0.001)
+    time.sleep(0.01)
 
 
 def main_task():
