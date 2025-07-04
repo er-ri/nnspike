@@ -1,8 +1,6 @@
 import cv2
 import numpy as np
 
-# ライン端点ジャンプ制限比率（ユーザー調整用）
-LINE_EDGE_MAX_JUMP_RATIO = 0.4
 
 BLACK_THRESHOLD = 130  # 黒判定のしきい値（固定, steer_by_camera用）
 ROI_OPENCV = (20, 50, 620, 400)  # OpenCVのROI領域 # (x, y, width, height)
@@ -89,33 +87,10 @@ class Camera:
                 left_x = x + left_x_roi
                 right_x = x + right_x_roi
                 line_width = right_x - left_x + 1
-                # 急激なジャンプを無視（前回値からmax_jumpを超える場合は更新しない）
-                max_jump = int(w * LINE_EDGE_MAX_JUMP_RATIO)
-                use_left = True
-                use_right = True
-                if self._prev_left_x is not None:
-                    if abs(left_x - self._prev_left_x) > max_jump:
-                        use_left = False
-                if self._prev_right_x is not None:
-                    if abs(right_x - self._prev_right_x) > max_jump:
-                        use_right = False
-                if use_left:
-                    self._prev_left_x = left_x
-                if use_right:
-                    self._prev_right_x = right_x
-                if use_left and use_right:
-                    return left_x, right_x, line_width
-                elif use_left and not use_right and self._prev_right_x is not None:
-                    return left_x, self._prev_right_x, abs(self._prev_right_x - left_x) + 1
-                elif not use_left and use_right and self._prev_left_x is not None:
-                    return self._prev_left_x, right_x, abs(right_x - self._prev_left_x) + 1
-                elif self._prev_left_x is not None and self._prev_right_x is not None:
-                    return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
-        # ラインが見つからない場合はROI中央を仮想ラインとして返す
-        center_x = x + w // 2
-        self._prev_left_x = center_x
-        self._prev_right_x = center_x
-        return center_x, center_x, 1
+                # ジャンプ制限ロジックを廃止し、常に最新値を反映
+                self._prev_left_x = left_x
+                self._prev_right_x = right_x
+                return left_x, right_x, line_width
         # ラインが見つからない場合はROI中央を仮想ラインとして返す
         center_x = x + w // 2
         self._prev_left_x = center_x
