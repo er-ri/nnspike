@@ -173,7 +173,7 @@ async def receiver():
         if time.ticks_ms() - lego_spike.command_counter > MAX_IDLE_TIME:
             raise SystemExit("Maximum idle time reached, terminate lego spike.")
 
-        await uasyncio.sleep(0.001)
+        await uasyncio.sleep(0.01)
 
 
 async def main_task():
