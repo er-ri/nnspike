@@ -35,56 +35,49 @@ class Camera:
 
     def get_line_edges_at_y(self, image, threshold_value=50):
         """
-        ROI内のOFFSET_Y行でラインの左右端を検出し、(left_x, right_x, line_width)を返す。
+        ROI内のOFFSET_Y行で黒または青のラインの左右端を検出し、(left_x, right_x, line_width)を返す。
         - left_x, right_x: 画像全体座標でのライン端点
         - line_width: ライン幅（ピクセル数）
+        黒・青どちらかのラインが見つかれば検出し、両方重なっていれば両方を統合して検出。
         ラインが見つからない場合は (None, None, None) を返す。
         """
         target_y = OFFSET_Y
-        # Extract ROI coordinates
         x, y, w, h = self.roi
 
-        # Check if target_y is within ROI
         if target_y < y or target_y >= y + h:
             return None, None, None
 
-        # Convert to grayscale if needed
-        if len(image.shape) == 3:
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        roi = image[y : y + h, x : x + w]
+
+        # 黒ライン用バイナリ
+        if len(roi.shape) == 3:
+            gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
         else:
-            gray = image.copy()
+            gray = roi.copy()
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        _, binary_black = cv2.threshold(blurred, threshold_value, 255, cv2.THRESH_BINARY_INV)
 
-        # Extract ROI
-        roi = gray[y : y + h, x : x + w]
+        # 青ライン用バイナリ（HSV色空間で青領域を抽出）
+        hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+        lower_blue = np.array([100, 80, 50])
+        upper_blue = np.array([130, 255, 255])
+        binary_blue = cv2.inRange(hsv, lower_blue, upper_blue)
 
-        # Apply Gaussian blur to reduce noise
-        blurred = cv2.GaussianBlur(roi, (5, 5), 0)
+        # 黒 or 青のどちらかのピクセルを1にする
+        binary = cv2.bitwise_or(binary_black, binary_blue)
 
-        # Binary threshold to isolate black line
-        _, binary = cv2.threshold(blurred, threshold_value, 255, cv2.THRESH_BINARY_INV)
-
-        # Calculate the row within the ROI
         roi_row = target_y - y
-
-        # Get the binary row at target Y
         if 0 <= roi_row < h:
             row_data = binary[roi_row, :]
-
-            # Find all white pixels (line pixels) in this row
             white_pixels = np.where(row_data == 255)[0]
-
             if len(white_pixels) > 0:
-                # Find leftmost and rightmost white pixels
                 left_x_roi = white_pixels[0]
                 right_x_roi = white_pixels[-1]
-
-                # Convert back to original image coordinates
                 left_x = x + left_x_roi
                 right_x = x + right_x_roi
                 line_width = right_x - left_x + 1
-
                 return left_x, right_x, line_width
-
         return None, None, None
 
     def detect_color_bottle(self, frame):
