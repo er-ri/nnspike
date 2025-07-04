@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # ライン端点ジャンプ制限比率（ユーザー調整用）
-LINE_EDGE_MAX_JUMP_RATIO = 0.25
+LINE_EDGE_MAX_JUMP_RATIO = 0.4
 
 BLACK_THRESHOLD = 130  # 黒判定のしきい値（固定, steer_by_camera用）
 ROI_OPENCV = (20, 50, 620, 400)  # OpenCVのROI領域 # (x, y, width, height)
