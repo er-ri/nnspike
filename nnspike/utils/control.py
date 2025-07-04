@@ -17,7 +17,7 @@ import numpy as np
 # ====【現場でよく調整する推奨パラメータ】====
 BASE_POWER = 45             # 通常走行時の基準パワー
 STRAIGHT_POWER = 40         # 直線判定時のパワー
-CURVE_POWER = 30            # カーブ判定時のパワー（20→25で復帰力UP）
+CURVE_POWER = 35            # カーブ判定時のパワー（20→25で復帰力UP）
 
 # --- 追加: しきい値・閾値のグローバル定数定義 ---
 STRAIGHT_THRESHOLD_DEG = 3   # 直線判定しきい値[deg]
