@@ -123,7 +123,19 @@ class ControlCalculator:
                     use_candidate = False
             if use_candidate:
                 target_x = candidate_x
-                self._prev_target_x = candidate_x
+                # 急な方向転換（前回から逆方向に大きく変化）は抑制
+                if self._prev_target_x is not None:
+                    direction = np.sign(candidate_x - self._prev_target_x)
+                    prev_direction = getattr(self, '_prev_direction', 0)
+                    # 方向が逆転し、かつ大きく変化した場合は前回値を維持
+                    if prev_direction != 0 and direction != 0 and direction != prev_direction and abs(candidate_x - self._prev_target_x) > max_jump:
+                        target_x = self._prev_target_x
+                    else:
+                        self._prev_target_x = candidate_x
+                        self._prev_direction = direction
+                else:
+                    self._prev_target_x = candidate_x
+                    self._prev_direction = 0
             else:
                 target_x = self._prev_target_x
             mx = target_x - x1

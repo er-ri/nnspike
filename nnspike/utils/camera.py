@@ -100,16 +100,35 @@ class Camera:
                 if self._prev_right_x is not None:
                     if abs(right_x - self._prev_right_x) > max_jump:
                         use_right = False
+                # 急な方向転換（前回から逆方向に大きく変化）は抑制
+                if not hasattr(self, '_prev_left_direction'):
+                    self._prev_left_direction = 0
+                if not hasattr(self, '_prev_right_direction'):
+                    self._prev_right_direction = 0
+                # left_x方向
                 if use_left:
-                    self._prev_left_x = left_x
+                    if self._prev_left_x is not None:
+                        left_direction = np.sign(left_x - self._prev_left_x)
+                        if self._prev_left_direction != 0 and left_direction != 0 and left_direction != self._prev_left_direction and abs(left_x - self._prev_left_x) > max_jump:
+                            use_left = False
+                        else:
+                            self._prev_left_direction = left_direction
+                    self._prev_left_x = left_x if use_left else self._prev_left_x
+                # right_x方向
                 if use_right:
-                    self._prev_right_x = right_x
+                    if self._prev_right_x is not None:
+                        right_direction = np.sign(right_x - self._prev_right_x)
+                        if self._prev_right_direction != 0 and right_direction != 0 and right_direction != self._prev_right_direction and abs(right_x - self._prev_right_x) > max_jump:
+                            use_right = False
+                        else:
+                            self._prev_right_direction = right_direction
+                    self._prev_right_x = right_x if use_right else self._prev_right_x
                 if use_left and use_right:
-                    return left_x, right_x, line_width
+                    return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
                 elif use_left and not use_right and self._prev_right_x is not None:
-                    return left_x, self._prev_right_x, abs(self._prev_right_x - left_x) + 1
+                    return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
                 elif not use_left and use_right and self._prev_left_x is not None:
-                    return self._prev_left_x, right_x, abs(right_x - self._prev_left_x) + 1
+                    return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
                 elif self._prev_left_x is not None and self._prev_right_x is not None:
                     return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
         # ラインが見つからない場合はROI中央を仮想ラインとして返す
