@@ -37,8 +37,10 @@ OFFSET_Y = 350  # 例: 画像下部付近を基準にする場合
 
 # ---【ダブルループ交差点判定用の相対位置しきい値】---
 # run_opencv.py など他ファイルと値を揃えること
-POSITION_CROSS = 16000   # 2回目の交差点通過判定用（モーター相対位置の閾値）
-
+POSITION_CROSS1 = 12000
+POSITION_CROSS2 = 14000
+POSITION_CROSS3 = 16000
+POSITION_CROSS4 = 18000
 
 class ControlCalculator:
     """
@@ -81,10 +83,14 @@ class ControlCalculator:
         """
 
         x1, y1, x2, y2 = self.roi_opencv
-        # follow_edge自動判定: positionが指定されていれば閾値で切り替え、なければleft
+        # follow_edge自動判定: positionが指定されていれば区間ごとに切り替え、なければleft
         if position is not None:
             abs_position = abs(position)
-            if abs_position <= POSITION_CROSS:
+            if abs_position <= POSITION_CROSS1:
+                follow_edge = "left"
+            elif abs_position <= POSITION_CROSS2:
+                follow_edge = "right"
+            elif abs_position <= POSITION_CROSS3:
                 follow_edge = "left"
             else:
                 follow_edge = "right"
