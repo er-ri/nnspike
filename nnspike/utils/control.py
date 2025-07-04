@@ -103,16 +103,19 @@ class ControlCalculator:
         if left_x is not None and right_x is not None:
             if follow_edge == "left":
                 target_x = left_x
+                # 白線は左端からROI中央まで
+                max_contour = np.array([[[left_x - x1, OFFSET_Y - y1]], [[(x2 + x1)//2 - x1, OFFSET_Y - y1]]], dtype=np.int32)
             elif follow_edge == "right":
                 target_x = right_x
+                # 白線はROI中央から右端まで
+                max_contour = np.array([[[((x2 + x1)//2) - x1, OFFSET_Y - y1]], [[right_x - x1, OFFSET_Y - y1]]], dtype=np.int32)
             else:
                 target_x = (left_x + right_x) // 2
+                max_contour = np.array([[[left_x - x1, OFFSET_Y - y1]], [[right_x - x1, OFFSET_Y - y1]]], dtype=np.int32)
             mx = target_x - x1
             my = OFFSET_Y - y1
             roi_center_x = (x2 - x1) // 2
             offset_pixels = mx - roi_center_x
-            # ライン端点を使って線分を作成（ROI座標系）
-            max_contour = np.array([[[left_x - x1, OFFSET_Y - y1]], [[right_x - x1, OFFSET_Y - y1]]], dtype=np.int32)
         else:
             mx = (x2 - x1) // 2
             my = (y2 - y1) // 2
