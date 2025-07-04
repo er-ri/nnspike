@@ -234,14 +234,16 @@ class ActionManager:
         self.current_power = 0
         self.is_stopped = False  # STOP状態解除
 
-    def do_line_trace(self, offset_pixels):
+    def do_line_trace(self, offset_pixels, position=None):
         if getattr(self, 'is_stopped', False):
             return  # STOP状態なら何もしない
         # === ライントレース制御のメイン処理 ===
         # 1. 進行角度thetaをオフセットピクセルから算出
         theta = self.calc.calculate_attitude_angle(offset_pixels)
-        # 2. θに応じた推奨速度（パワー）を決定
-        current_power = self.calc.calculate_adaptive_speed(theta)
+        # 2. θとpositionに応じた推奨速度（パワー）を決定
+        if position is None:
+            position = getattr(self, 'right_relative_position', 0)
+        current_power = self.calc.calculate_adaptive_speed(theta, position)
         # 3. PID制御で進行角度を補正
         pid_corrected_theta = self.pid.update(theta)
         # 4. PID補正値をパワー差分に変換
@@ -1036,8 +1038,9 @@ class NormalScenario(DefaultScenario):
             self.offset_pixels = steer_result.get("offset_pixels", 0)
         self.transition_mode(action=action)
         offset_pixels = self.offset_pixels
+        position = getattr(action, 'right_relative_position', None)
         if self.mode == Mode.LINE_TRACE:
-            action.do_line_trace(offset_pixels)
+            action.do_line_trace(offset_pixels, position=position)
         elif self.mode == Mode.YELLOW_BOTTLE:
             action.do_obstacle_avoid_with_bottle()
             if action.is_finished():
@@ -1130,6 +1133,7 @@ class ManualScenario(DefaultScenario):
             self.offset_pixels = steer_result.get("offset_pixels", 0)
         self.transition_mode(action=action)
         offset_pixels = self.offset_pixels
+        position = getattr(action, 'right_relative_position', None)
         if self.mode == Mode.MANUAL:
             pass
         elif self.mode == Mode.MANUAL_A:
@@ -1142,7 +1146,7 @@ class ManualScenario(DefaultScenario):
         elif self.mode == Mode.MANUAL_D:
             action.do_straight()
         elif self.mode == Mode.MANUAL_E:
-            action.do_line_trace(offset_pixels)
+            action.do_line_trace(offset_pixels, position=position)
         elif self.mode == Mode.YELLOW_BOTTLE:
             action.do_obstacle_avoid_with_bottle()
             if action.is_finished():

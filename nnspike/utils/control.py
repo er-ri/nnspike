@@ -173,11 +173,19 @@ class ControlCalculator:
             }
         return theta
 
-    def calculate_adaptive_speed(self, theta):
+    def calculate_adaptive_speed(self, theta, position=None):
         """
-        速度の切り替えをやめ、常にカーブ用の速度（curve_power）のみ返す。
+        POSITION_CROSS2～POSITION_CROSS3の期間はカーブスピード。
+        それ以外はベーススピード。
         """
-        return self.curve_power
+        if position is not None:
+            abs_position = abs(position)
+            if POSITION_CROSS2 < abs_position <= POSITION_CROSS3:
+                return self.curve_power
+            else:
+                return self.base_power
+        else:
+            return self.base_power
 
     def calculate_power_adjustment(self, pid_corrected_theta):
         """
