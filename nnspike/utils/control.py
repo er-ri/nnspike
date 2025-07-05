@@ -73,10 +73,11 @@ class ControlCalculator:
         
         # 段階的ブースト用の状態管理
         self._boost_start_time = None  # ブースト開始時刻
-        self._boost_buildup_duration = 1.0  # ブーストが2.0倍に達するまでの時間（秒）
-        self._theta_5deg_start_time = None  # theta > 5度状態の開始時刻（3度→5度に変更で安定化）
-        self._theta_5deg_duration_threshold = 0.8  # theta > 5度が継続する必要な時間（秒、0.5s→0.8sで慎重に）
+        self._boost_buildup_duration = 1.0  # ブーストが1.3倍に達するまでの時間（秒）
+        self._theta_5deg_start_time = None  # theta > 8度状態の開始時刻（5度→8度に変更で安定化）
+        self._theta_5deg_duration_threshold = 1.0  # theta > 8度が継続する必要な時間（秒、0.8s→1.0sで慎重に）
         self._boost_active = False  # ブースト状態フラグ（ログ出力用）
+        self._last_debug_time = 0  # デバッグ出力頻度制御用
 
     @property
     def is_boost_active(self):
@@ -218,31 +219,32 @@ class ControlCalculator:
         """
         PID補正値（ラジアン）をパワー差分（左右モーター出力の調整値）に変換する。
         - シンプルなリニア変換のみ（ブーストなし）
-        - theta_degが5度を超えた状態が0.8秒以上続いた場合、パワー差分を段階的に1.5倍までブースト
-        - theta_degが5度以下になると即座にブースト停止
+        - theta_degが8度を超えた状態が1.0秒以上続いた場合、パワー差分を段階的に1.3倍までブースト
+        - theta_degが8度以下になると即座にブースト停止
         - 最大パワー差分はMAX_POWER_DIFFでクリップ
         """
         base = (pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF
         
-        # theta_degが5度を超えた状態が0.8秒以上続く場合の段階的ブースト処理
+        # theta_degが8度を超えた状態が1.0秒以上続く場合の段階的ブースト処理
         theta_deg = abs(math.degrees(pid_corrected_theta))
         current_time = time.time()
         
         # boost factorの計算（デバッグ表示用）
         current_boost_factor = 1.0
         
-        if theta_deg > 5.0:  # 5度を超えた場合にブースト処理開始（3度→5度に変更で安定化）
-            # theta > 5度の状態
+        if theta_deg > 8.0:  # 8度を超えた場合にブースト処理開始（5度→8度でより厳格に）
+            # theta > 8度の状態
             if self._theta_5deg_start_time is None:
-                # theta > 5度状態の開始
+                # theta > 8度状態の開始
                 self._theta_5deg_start_time = current_time
-                if self.debug:
+                if self.debug and (current_time - self._last_debug_time) >= 0.5:
                     pos_str = f"{position:>6}" if position is not None else "  None"
-                    print(f"[DEBUG] pos={pos_str} | theta > 5deg started: {theta_deg:.1f}deg")
+                    print(f"[DEBUG] pos={pos_str} | theta > 8deg started: {theta_deg:.1f}deg")
+                    self._last_debug_time = current_time
             
-            # theta > 5度が0.8秒以上継続しているかチェック
+            # theta > 8度が1.0秒以上継続しているかチェック
             theta_5deg_elapsed = current_time - self._theta_5deg_start_time
-            if theta_5deg_elapsed >= 0.8:  # 0.8秒に延長（慎重なブースト開始）
+            if theta_5deg_elapsed >= 1.0:  # 1.0秒に延長（より慎重なブースト開始）
                 # ブーストが必要な状態
                 if self._boost_start_time is None:
                     # ブースト開始
@@ -250,37 +252,42 @@ class ControlCalculator:
                     current_boost_factor = 1.0
                     if not self._boost_active:
                         pos_str = f"{position:>6}" if position is not None else "  None"
-                        print(f"[BOOST] pos={pos_str} | Started: theta={theta_deg:.1f}deg (>5deg for {theta_5deg_elapsed:.1f}s)")
+                        print(f"[BOOST] pos={pos_str} | Started: theta={theta_deg:.1f}deg (>8deg for {theta_5deg_elapsed:.1f}s)")
                         self._boost_active = True
+                        self._last_debug_time = current_time
                 else:
                     # ブースト継続中：時間経過に応じて段階的に増加
                     elapsed_time = current_time - self._boost_start_time
                     boost_progress = min(elapsed_time / self._boost_buildup_duration, 1.0)
-                    current_boost_factor = 1.0 + (0.5 * boost_progress)  # 1.0から1.5に段階的に増加（2.0→1.5に抑制）
-                    if self.debug and int(elapsed_time * 2) % 2 == 0:  # 0.5秒ごとにログ出力（頻度抑制）
+                    current_boost_factor = 1.0 + (0.3 * boost_progress)  # 1.0から1.3に段階的に増加（1.5→1.3でより穏やか）
+                    if self.debug and (current_time - self._last_debug_time) >= 1.0:  # 1.0秒ごとにログ出力
                         pos_str = f"{position:>6}" if position is not None else "  None"
                         print(f"[BOOST] pos={pos_str} | Active: factor={current_boost_factor:.2f} | theta={theta_deg:.1f}deg")
+                        self._last_debug_time = current_time
                 
                 base = base * current_boost_factor
             else:
-                # まだ0.8秒経過していない（出力頻度抑制）
-                if self.debug and int(theta_5deg_elapsed * 5) % 3 == 0:  # 0.6秒ごとの出力
+                # まだ1.0秒経過していない（出力頻度抑制）
+                if self.debug and (current_time - self._last_debug_time) >= 1.0:  # 1.0秒ごとの出力
                     pos_str = f"{position:>6}" if position is not None else "  None"
                     print(f"[DEBUG] pos={pos_str} | Waiting for boost: theta={theta_deg:.1f}deg, elapsed={theta_5deg_elapsed:.1f}s")
+                    self._last_debug_time = current_time
         else:
-            # theta_degが5度以下：即座にブースト停止とtheta > 5度状態のリセット
+            # theta_degが8度以下：即座にブースト停止とtheta > 8度状態のリセット
             if self._boost_active:
                 pos_str = f"{position:>6}" if position is not None else "  None"
-                print(f"[BOOST] pos={pos_str} | Stopped: theta={theta_deg:.1f}deg (<=5deg)")
+                print(f"[BOOST] pos={pos_str} | Stopped: theta={theta_deg:.1f}deg (<=8deg)")
                 self._boost_active = False
+                self._last_debug_time = current_time
             self._boost_start_time = None
             self._theta_5deg_start_time = None
         
         # デバッグ：position、theta値、boost状態、factor値を整列表示（1.0秒ごと）
-        if self.debug and int(current_time * 2) % 2 == 0:  # 0.5秒ごと
+        if self.debug and (current_time - self._last_debug_time) >= 1.0:  # 1.0秒ごと（重複防止）
             pos_str = f"{position:>6}" if position is not None else "  None"
             boost_str = "BOOST" if self._boost_active else "NORM "
             print(f"[DEBUG] pos={pos_str} | theta={theta_deg:>5.1f}deg | {boost_str} | factor={current_boost_factor:.2f}")
+            self._last_debug_time = current_time
         
         if base > 0:
             power_adj = min(int(base), MAX_POWER_DIFF)
