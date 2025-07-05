@@ -196,15 +196,21 @@ class ControlCalculator:
     def calculate_power_adjustment(self, pid_corrected_theta):
         """
         PID補正値（ラジアン）をパワー差分（左右モーター出力の調整値）に変換する。
-        - 8度（約0.14rad）を超えたら出力をブースト（1.5倍）
-        - 最大パワー差分はMAX_POWER_DIFFでクリップ。
+        - なだらかにMAX_POWER_DIFFへ近づくソフトクリッピング方式
+        - 急激なブーストは避け、安定性を重視
         """
-        boost_threshold_deg = 8
-        boost_threshold_rad = math.radians(boost_threshold_deg)
-        boost_ratio = 1.5
-        base = (pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF
-        if abs(pid_corrected_theta) > boost_threshold_rad:
-            base *= boost_ratio
+        # 8度（約0.14rad）を超えたら、よりソフトにMAXへ近づく（tanhの傾きを緩やかに）
+        boost_deg = 8
+        boost_rad = math.radians(boost_deg)
+        abs_theta = abs(pid_corrected_theta)
+        sign = 1 if pid_corrected_theta >= 0 else -1
+        if abs_theta <= boost_rad:
+            base = (pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF
+        else:
+            # 8度以降は非常にゆるやかにMAX_POWER_DIFFへ近づく（tanhの傾きを1.0→0.5に変更）
+            over = (abs_theta - boost_rad) / (self.max_theta - boost_rad)
+            # tanhの傾きを0.5にして、よりソフトな立ち上がりに
+            base = sign * (boost_rad / self.max_theta + (1 - boost_rad / self.max_theta) * math.tanh(over * 0.5)) * MAX_POWER_DIFF
         # クリップ
         if base > 0:
             power_adj = min(int(base), MAX_POWER_DIFF)
