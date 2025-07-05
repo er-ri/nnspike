@@ -250,56 +250,67 @@ class ActionManager:
             self.right_relative_position = 0
 
     def do_line_trace(self, offset_pixels, position=None):
-        if getattr(self, 'is_stopped', False):
-            return  # STOP状態なら何もしない
-        
-        # position安全性チェック
-        if position is None:
-            position = getattr(self, 'right_relative_position', 0) or 0
-        
-        # offset_pixels安全性チェック
-        if offset_pixels is None:
-            offset_pixels = 0
+        try:
+            if getattr(self, 'is_stopped', False):
+                return  # STOP状態なら何もしない
             
-        # デバッグ出力: 入力値を確認（頻度制限）
-        if not hasattr(self, '_last_linetrace_debug'):
-            self._last_linetrace_debug = 0
-        if time.time() - self._last_linetrace_debug >= 2.0:  # 2秒間隔
-            print(f"[LINE_TRACE_DEBUG] offset_pixels={offset_pixels} | position={position}")
-            self._last_linetrace_debug = time.time()
+            # position安全性チェック
+            if position is None:
+                position = getattr(self, 'right_relative_position', 0) or 0
             
-        # === ライントレース制御のメイン処理 ===
-        # 1. 進行角度thetaをオフセットピクセルから算出
-        theta = self.calc.calculate_attitude_angle(offset_pixels)
-        if theta is None:
-            theta = 0
+            # offset_pixels安全性チェック
+            if offset_pixels is None:
+                offset_pixels = 0
+                
+            # デバッグ出力: 入力値を確認（頻度制限）
+            if not hasattr(self, '_last_linetrace_debug'):
+                self._last_linetrace_debug = 0
+            if time.time() - self._last_linetrace_debug >= 5.0:  # 5秒間隔に変更
+                print(f"[LINE_TRACE_DEBUG] offset_pixels={offset_pixels} | position={position}")
+                self._last_linetrace_debug = time.time()
+                
+            # === ライントレース制御のメイン処理 ===
+            # 1. 進行角度thetaをオフセットピクセルから算出
+            theta = self.calc.calculate_attitude_angle(offset_pixels)
+            if theta is None:
+                theta = 0
+                
+            # 2. θとpositionに応じた推奨速度（パワー）を決定
+            current_power = self.calc.calculate_adaptive_speed(theta, position)
+            if current_power is None:
+                current_power = 30  # デフォルト値
+                
+            # 3. PID制御で進行角度を補正
+            pid_corrected_theta = self.pid.update(theta)
+            if pid_corrected_theta is None:
+                pid_corrected_theta = 0
+                
+            # 4. PID補正値をパワー差分に変換
+            power_adjustment = self.calc.calculate_power_adjustment(pid_corrected_theta, position)
+            if power_adjustment is None:
+                power_adjustment = 0
+                
+            # 5. 左右パワーを計算（負値にならないようクリッピング）
+            self.left_power = max(0, int(current_power - power_adjustment))
+            self.right_power = max(0, int(current_power + power_adjustment))
             
-        # 2. θとpositionに応じた推奨速度（パワー）を決定
-        current_power = self.calc.calculate_adaptive_speed(theta, position)
-        if current_power is None:
-            current_power = 30  # デフォルト値
+            # 6. モーター出力を即時反映
+            self.apply_power()
             
-        # 3. PID制御で進行角度を補正
-        pid_corrected_theta = self.pid.update(theta)
-        if pid_corrected_theta is None:
-            pid_corrected_theta = 0
+            # 7. デバッグ・可視化用の値を保存
+            self.theta = theta
+            self.pid_corrected_theta = pid_corrected_theta
+            self.current_power = current_power
             
-        # 4. PID補正値をパワー差分に変換
-        power_adjustment = self.calc.calculate_power_adjustment(pid_corrected_theta, position)
-        if power_adjustment is None:
-            power_adjustment = 0
-            
-        # 5. 左右パワーを計算（負値にならないようクリッピング）
-        self.left_power = max(0, int(current_power - power_adjustment))
-        self.right_power = max(0, int(current_power + power_adjustment))
-        
-        # 6. モーター出力を即時反映
-        self.apply_power()
-        
-        # 7. デバッグ・可視化用の値を保存
-        self.theta = theta
-        self.pid_corrected_theta = pid_corrected_theta
-        self.current_power = current_power
+        except Exception as e:
+            print(f"[ERROR] do_line_trace failed: {e}")
+            import traceback
+            traceback.print_exc()
+            # 安全停止
+            try:
+                self.do_stop()
+            except:
+                pass
 
     def do_obstacle_avoid(self):
         if getattr(self, 'is_stopped', False):
@@ -1382,6 +1393,8 @@ def main(config: Config):
                     scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result)
             except Exception as e:
                 print(f"[ERROR] scenario.execute_mode_action failed: {e}")
+                import traceback
+                traceback.print_exc()
                 # 緊急停止
                 action.do_stop()
             

@@ -26,7 +26,7 @@ BASE_POWER = 30
 STRAIGHT_POWER = 50
 CURVE_POWER = 15
 STRAIGHT_THRESHOLD_DEG = 3
-BOOST_AND_CURVE_THRESHOLD_DEG = 8
+BOOST_AND_CURVE_THRESHOLD_DEG = 6
 
 CAMERA_HEIGHT = 0.20
 CAMERA_FOCAL_LENGTH_PIXELS = 640
@@ -175,10 +175,6 @@ class ControlCalculator:
 
     def calculate_attitude_angle(self, offset_pixels: float) -> float:
         """ピクセルオフセットから姿勢角（theta）を計算"""
-        # デバッグ: 引数の型と値を確認
-        original_offset = offset_pixels
-        original_type = type(offset_pixels).__name__
-        
         # offset_pixelsを数値に変換（numpy型も対応）
         try:
             offset_pixels = float(offset_pixels)
@@ -212,8 +208,8 @@ class ControlCalculator:
         theta_deg = math.degrees(theta)
         if not hasattr(self, '_last_theta_debug'):
             self._last_theta_debug = 0
-        if time.time() - self._last_theta_debug >= 2.0:  # 2秒間隔
-            print(f"[THETA_DEBUG] orig={original_offset}({original_type}) | offset_px={offset_pixels:.1f} | roi_y2={y2} | denom={denominator:.1f} | ground_dist={ground_distance:.3f} | lateral_m={lateral_offset_meters:.4f} | theta_rad={theta:.4f} | theta_deg={theta_deg:.2f}")
+        if time.time() - self._last_theta_debug >= 5.0:  # 5秒間隔に変更
+            print(f"[THETA_DEBUG] offset_px={offset_pixels:.1f} | theta_deg={theta_deg:.2f}")
             self._last_theta_debug = time.time()
             
         return theta
@@ -307,7 +303,7 @@ class ControlCalculator:
         else:
             threshold = BOOST_AND_CURVE_THRESHOLD_DEG
         
-        current_boost_factor = 1.1 if self._current_theta_deg > threshold else 1.0
+        current_boost_factor = 1.5 if self._current_theta_deg > threshold else 1.0
         
         if current_boost_factor > 1.0:
             self._boost_count += 1

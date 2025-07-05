@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import time
 
 
 BLACK_THRESHOLD = 130  # 黒判定のしきい値（固定, steer_by_camera用）
@@ -36,7 +37,7 @@ class Camera:
 
 
 
-    def get_line_edges_at_y(self, image, threshold_value=50):
+    def get_line_edges_at_y(self, image, threshold_value=60):
         """
         ROI内のOFFSET_Y行で黒または青のラインの左右端を検出し、(left_x, right_x, line_width)を返す。
         - left_x, right_x: 画像全体座標でのライン端点
@@ -81,23 +82,23 @@ class Camera:
             self._prev_right_x = center_x
             return center_x, center_x, 1
 
-        # 黒ライン用バイナリ
+        # 黒ライン用バイナリ（ガウシアンブラーを最大に強化してノイズ除去）
         if len(roi.shape) == 3:
             gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
         else:
             gray = roi.copy()
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        blurred = cv2.GaussianBlur(gray, (9, 9), 0)  # (7,7)→(9,9)にさらに強化
         _, binary_black = cv2.threshold(blurred, threshold_value, 255, cv2.THRESH_BINARY_INV)
 
         # 青ライン用バイナリ（HSV色空間で青領域を抽出）
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        lower_blue = np.array([100, 80, 50])
-        upper_blue = np.array([130, 255, 255])
+        lower_blue = np.array([90, 60, 40])  # より寛容な青検出（100,80,50→90,60,40）
+        upper_blue = np.array([140, 255, 255])  # より寛容な青検出（130→140）
         binary_blue = cv2.inRange(hsv, lower_blue, upper_blue)
 
         # 青ラインのノイズ除去: ラベリングして十分な幅のものだけ残す
         num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(binary_blue)
-        min_blue_width = 30  # 青ラインとみなす最小幅（ピクセル）
+        min_blue_width = 10  # 青ラインとみなす最小幅（20→10にさらに緩和）
         filtered_blue = np.zeros_like(binary_blue)
         for i in range(1, num_labels):
             left = stats[i, cv2.CC_STAT_LEFT]
@@ -121,8 +122,23 @@ class Camera:
                 self._prev_left_x = left_x
                 self._prev_right_x = right_x
                 return left_x, right_x, line_width
+            else:
+                # 検出失敗の詳細ログ（頻度制限）
+                if not hasattr(self, '_last_detection_fail_debug'):
+                    self._last_detection_fail_debug = 0
+                if time.time() - self._last_detection_fail_debug >= 2.0:
+                    black_pixels = np.sum(binary_black[roi_row, :] == 255)
+                    blue_pixels = np.sum(filtered_blue[roi_row, :] == 255)
+                    print(f"[DETECT_FAIL] row={roi_row} | black_px={black_pixels} blue_px={blue_pixels} total=0 | threshold={threshold_value}")
+                    self._last_detection_fail_debug = time.time()
         # ラインが見つからない場合も、直前の点を絶対に離さず維持し続ける（中央や初期値に戻さない）
         if self._prev_left_x is not None and self._prev_right_x is not None:
+            # ライン見失い時のログ出力（頻度制限）
+            if not hasattr(self, '_last_line_lost_debug'):
+                self._last_line_lost_debug = 0
+            if time.time() - self._last_line_lost_debug >= 3.0:
+                print(f"[LINE_LOST] Holding previous points: L={self._prev_left_x} R={self._prev_right_x}")
+                self._last_line_lost_debug = time.time()
             return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
         # 初回のみ中央
         center_x = x + w // 2
