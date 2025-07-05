@@ -512,7 +512,7 @@ class ActionManager:
             if not self.action_sent:
                 self.start_time = now
                 self.action_sent = True
-                self.arc_end_time = now + 0.5
+                self.arc_end_time = now + 0.55
                 self.left_power = 0   # 停止
                 self.right_power = 0  # 停止
             else:
