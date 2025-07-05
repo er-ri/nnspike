@@ -19,7 +19,7 @@ PID_KP = 0.8    # 反応性UP（0.55→0.60）
 PID_KI = 0.0    # 積分は微小に
 PID_KD = 0.28   # カーブ追従性をほんの少しだけUP（0.22→0.25）
 PID_SETPOINT = 0
-PID_OUTPUT_LIMITS = (-0.32, 0.32)  # 出力幅はそのまま
+PID_OUTPUT_LIMITS = (-0.3, 0.3)  # 出力幅はそのまま
 PID_DERIVATIVE_LPF_ALPHA = 0.85  # 微分ローパスを少し緩めて応答性UP（0.9→0.85）
 PID_INTEGRAL_LIMITS = (None, None)
 
