@@ -228,10 +228,8 @@ class ControlCalculator:
         theta_deg = abs(math.degrees(pid_corrected_theta))
         current_time = time.time()
         
-        # デバッグ：theta値とposition情報を常時出力（0.5秒ごと）
-        if self.debug and int(current_time * 10) % 5 == 0:  # 0.5秒ごと
-            pos_str = f"pos={position}" if position is not None else "pos=None"
-            print(f"[DEBUG] theta={theta_deg:.1f}deg, boost_active={self._boost_active}, {pos_str}")
+        # boost factorの計算（デバッグ表示用）
+        current_boost_factor = 1.0
         
         if theta_deg > 3.0:  # 3度を超えた場合にブースト処理開始
             # theta > 3度の状態
@@ -239,8 +237,8 @@ class ControlCalculator:
                 # theta > 3度状態の開始
                 self._theta_3deg_start_time = current_time
                 if self.debug:
-                    pos_str = f"pos={position}" if position is not None else "pos=None"
-                    print(f"[DEBUG] theta > 3deg started: {theta_deg:.1f}deg, {pos_str}")
+                    pos_str = f"{position:>6}" if position is not None else "  None"
+                    print(f"[DEBUG] pos={pos_str} | theta > 3deg started: {theta_deg:.1f}deg")
             
             # theta > 3度が0.5秒以上継続しているかチェック
             theta_3deg_elapsed = current_time - self._theta_3deg_start_time
@@ -249,34 +247,40 @@ class ControlCalculator:
                 if self._boost_start_time is None:
                     # ブースト開始
                     self._boost_start_time = current_time
-                    boost_factor = 1.0
+                    current_boost_factor = 1.0
                     if not self._boost_active:
-                        pos_str = f"pos={position}" if position is not None else "pos=None"
-                        print(f"[BOOST] Started: theta={theta_deg:.1f}deg (>3deg for {theta_3deg_elapsed:.1f}s), {pos_str}")
+                        pos_str = f"{position:>6}" if position is not None else "  None"
+                        print(f"[BOOST] pos={pos_str} | Started: theta={theta_deg:.1f}deg (>3deg for {theta_3deg_elapsed:.1f}s)")
                         self._boost_active = True
                 else:
                     # ブースト継続中：時間経過に応じて段階的に増加
                     elapsed_time = current_time - self._boost_start_time
                     boost_progress = min(elapsed_time / self._boost_buildup_duration, 1.0)
-                    boost_factor = 1.0 + (1.0 * boost_progress)  # 1.0から2.0に段階的に増加（1.5→2.0に強化）
+                    current_boost_factor = 1.0 + (1.0 * boost_progress)  # 1.0から2.0に段階的に増加（1.5→2.0に強化）
                     if self.debug and int(elapsed_time * 10) % 5 == 0:  # 0.5秒ごとにログ出力
-                        pos_str = f"pos={position}" if position is not None else "pos=None"
-                        print(f"[BOOST] Active: factor={boost_factor:.2f}, theta={theta_deg:.1f}deg, {pos_str}")
+                        pos_str = f"{position:>6}" if position is not None else "  None"
+                        print(f"[BOOST] pos={pos_str} | Active: factor={current_boost_factor:.2f} | theta={theta_deg:.1f}deg")
                 
-                base = base * boost_factor
+                base = base * current_boost_factor
             else:
                 # まだ0.5秒経過していない
                 if self.debug:
-                    pos_str = f"pos={position}" if position is not None else "pos=None"
-                    print(f"[DEBUG] Waiting for boost: theta={theta_deg:.1f}deg, elapsed={theta_3deg_elapsed:.1f}s, {pos_str}")
+                    pos_str = f"{position:>6}" if position is not None else "  None"
+                    print(f"[DEBUG] pos={pos_str} | Waiting for boost: theta={theta_deg:.1f}deg, elapsed={theta_3deg_elapsed:.1f}s")
         else:
             # theta_degが3度以下：即座にブースト停止とtheta > 3度状態のリセット
             if self._boost_active:
-                pos_str = f"pos={position}" if position is not None else "pos=None"
-                print(f"[BOOST] Stopped: theta={theta_deg:.1f}deg (<=3deg), {pos_str}")
+                pos_str = f"{position:>6}" if position is not None else "  None"
+                print(f"[BOOST] pos={pos_str} | Stopped: theta={theta_deg:.1f}deg (<=3deg)")
                 self._boost_active = False
             self._boost_start_time = None
             self._theta_3deg_start_time = None
+        
+        # デバッグ：position、theta値、boost状態、factor値を整列表示（0.5秒ごと）
+        if self.debug and int(current_time * 10) % 5 == 0:  # 0.5秒ごと
+            pos_str = f"{position:>6}" if position is not None else "  None"
+            boost_str = "BOOST" if self._boost_active else "NORM "
+            print(f"[DEBUG] pos={pos_str} | theta={theta_deg:>5.1f}deg | {boost_str} | factor={current_boost_factor:.2f}")
         
         if base > 0:
             power_adj = min(int(base), MAX_POWER_DIFF)
