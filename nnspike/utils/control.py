@@ -157,7 +157,8 @@ class ControlCalculator:
         if hasattr(self, '_last_steer_debug'):
             if time.time() - self._last_steer_debug >= 3.0:
                 pos_str = f"{position:>6}" if position is not None else "  None"
-                print(f"[STEER] pos={pos_str} | {line_status} | mx={mx:>3} offset={offset_pixels:>3}px | edge={follow_edge}")
+                absolute_x = x1 + mx if left_x is not None and right_x is not None or (self._last_mx is not None) else x1 + mx
+                print(f"[STEER] pos={pos_str} | {line_status} | mx={mx:>3} offset={offset_pixels:>3}px | edge={follow_edge} | abs_x={absolute_x}")
                 self._last_steer_debug = time.time()
         else:
             self._last_steer_debug = time.time()
@@ -174,8 +175,16 @@ class ControlCalculator:
 
     def calculate_attitude_angle(self, offset_pixels: float) -> float:
         """ピクセルオフセットから姿勢角（theta）を計算"""
-        if offset_pixels is None or not isinstance(offset_pixels, (int, float)):
+        # デバッグ: 引数の型と値を確認
+        original_offset = offset_pixels
+        original_type = type(offset_pixels).__name__
+        
+        # offset_pixelsを数値に変換（numpy型も対応）
+        try:
+            offset_pixels = float(offset_pixels)
+        except (TypeError, ValueError):
             offset_pixels = 0.0
+        
         if math.isnan(offset_pixels) or math.isinf(offset_pixels):
             offset_pixels = 0.0
             
@@ -204,7 +213,7 @@ class ControlCalculator:
         if not hasattr(self, '_last_theta_debug'):
             self._last_theta_debug = 0
         if time.time() - self._last_theta_debug >= 2.0:  # 2秒間隔
-            print(f"[THETA_DEBUG] offset_px={offset_pixels:.1f} | roi_y2={y2} | denom={denominator:.1f} | ground_dist={ground_distance:.3f} | lateral_m={lateral_offset_meters:.4f} | theta_rad={theta:.4f} | theta_deg={theta_deg:.2f}")
+            print(f"[THETA_DEBUG] orig={original_offset}({original_type}) | offset_px={offset_pixels:.1f} | roi_y2={y2} | denom={denominator:.1f} | ground_dist={ground_distance:.3f} | lateral_m={lateral_offset_meters:.4f} | theta_rad={theta:.4f} | theta_deg={theta_deg:.2f}")
             self._last_theta_debug = time.time()
             
         return theta
