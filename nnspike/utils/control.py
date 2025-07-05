@@ -206,9 +206,16 @@ class ControlCalculator:
         """
         PID補正値（ラジアン）をパワー差分（左右モーター出力の調整値）に変換する。
         - シンプルなリニア変換のみ（ブーストなし）
+        - theta_degが7度を超えた場合、パワー差分を1.2倍にブースト
         - 最大パワー差分はMAX_POWER_DIFFでクリップ
         """
         base = (pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF
+        
+        # theta_degが7度を超えた場合のブースト処理
+        theta_deg = abs(math.degrees(pid_corrected_theta))
+        if theta_deg > 7.0:
+            base = base * 1.2
+        
         if base > 0:
             power_adj = min(int(base), MAX_POWER_DIFF)
         else:
