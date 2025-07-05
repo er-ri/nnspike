@@ -3,8 +3,8 @@ import numpy as np
 
 
 BLACK_THRESHOLD = 130  # 黒判定のしきい値（固定, steer_by_camera用）
-ROI_OPENCV = (20, 50, 620, 400)  # OpenCVのROI領域 # (x, y, width, height)
-ROI_BOTTLE = (100, 20, 540, 400)  # 上下左右を拡張
+ROI_OPENCV = (70, 50, 570, 450)  # run_opencv.pyと完全一致
+ROI_BOTTLE = (100, 20, 540, 450)  # run_opencv.pyと完全一致
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480     
 COLOR_DETECT_PIXEL_THRESHOLD = 3000  # 色領域検出のピクセル数しきい値
@@ -18,13 +18,14 @@ class Camera:
     - ROIや解像度、FPSなども初期化時に指定可能。
     - ラインエッジ検出・色検出など現場調整が多い処理もメソッド化。
     """
-    def __init__(self, device_index=0, width=IMAGE_WIDTH, height=IMAGE_HEIGHT, fps=30, roi=ROI_OPENCV, roi_bottle=ROI_BOTTLE):
+    def __init__(self, device_index=0, width=IMAGE_WIDTH, height=IMAGE_HEIGHT, fps=30, roi=None, roi_bottle=None):
         self.cap = cv2.VideoCapture(device_index)
         self.cap.set(cv2.CAP_PROP_FPS, fps)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-        self.roi = roi
-        self.roi_bottle = roi_bottle
+        # ROIはrun_opencv.pyのグローバル定数と完全同期
+        self.roi = ROI_OPENCV if roi is None else roi
+        self.roi_bottle = ROI_BOTTLE if roi_bottle is None else roi_bottle
         self.image_width = width
 
     def read(self):
@@ -98,10 +99,8 @@ class Camera:
                 left_x = x + left_x_roi
                 right_x = x + right_x_roi
                 line_width = right_x - left_x + 1
-                # ジャンプ抑制を完全に無効化（常に新しい値を採用）
-                self._prev_left_x = left_x
-                self._prev_right_x = right_x
-                return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
+                # 目標点を常に最新値で追従（前回値は使わない）
+                return left_x, right_x, line_width
         # ラインが見つからない場合はROI中央を仮想ラインとして返す（絶対に止まらない）
         center_x = x + w // 2
         # 前回値がNoneなら中央、前回値があればそれを維持して滑らかに仮想ラインを返す
