@@ -28,11 +28,11 @@ import numpy as np
 # ====【現場でよく調整する推奨パラメータ】====
 BASE_POWER = 30             # 通常走行時の基準パワー
 STRAIGHT_POWER = 50         # 直線判定時のパワー
-CURVE_POWER = 25            # カーブ判定時のパワー
+CURVE_POWER = 27            # カーブ判定時のパワー
 
 # --- 追加: しきい値・閾値のグローバル定数定義 ---
 STRAIGHT_THRESHOLD_DEG = 3   # 直線判定しきい値[deg]
-CURVE_THRESHOLD_DEG = 10     # カーブ判定しきい値[deg]
+BOOST_AND_CURVE_THRESHOLD_DEG = 12  # ブースト発動+カーブパワー切替の統一しきい値[deg]（同時発動）
 
 CAMERA_HEIGHT = 0.20  # Camera height above ground in meters
 CAMERA_FOCAL_LENGTH_PIXELS = 640  # ピクセル単位のカメラ焦点距離（概算値、キャリブレーション推奨）
@@ -83,11 +83,24 @@ class ControlCalculator:
         
         # シンプルなブースト判定用
         self._current_theta_deg = 0.0  # 現在のtheta値（度）
+        self._last_boost_log_time = 0  # ブーストログ出力の時間制御用
+        self._last_boost_factor = 1.0  # 前回のブーストファクター（急激変化検出用）
+        
+        # 急激な変化の監視用
+        self._last_power = None  # 前回のパワー値
+        self._last_theta_deg = 0.0  # 前回のtheta値（度）
+        self._last_power_adjustment = 0  # 前回のパワー調整値
+        
+        # 制御統計情報
+        self._boost_count = 0  # ブースト発動回数
+        self._curve_power_count = 0  # カーブパワー発動回数
+        self._total_calls = 0  # 制御計算回数
+        self._last_stats_time = time.time()  # 統計情報表示時刻
 
     @property
     def is_boost_active(self):
-        """theta値が10度を超えた場合にブースト状態と判定"""
-        return self._current_theta_deg > 10.0
+        """theta値がBOOST_AND_CURVE_THRESHOLD_DEGを超えた場合にブースト状態と判定"""
+        return self._current_theta_deg > BOOST_AND_CURVE_THRESHOLD_DEG
 
     def calc_steer_result(self, left_x, right_x, position=None):
         """
@@ -221,21 +234,80 @@ class ControlCalculator:
     def calculate_adaptive_speed(self, theta, position=None):
         """
         POSITION_STRAIGHTまではストレートパワー、それ以外はベースパワー。
-        カーブパワーはbase_powerと同じなので条件式を統合。
+        極端にthetaが大きいとき（20度以上）はカーブパワーに切り替える。
         """
-        if position is not None:
-            abs_position = abs(position)
-            if abs_position <= POSITION_STRAIGHT:
-                return self.straight_power
-            else:
-                return self.base_power
+        # theta値をdegreeに変換
+        theta_deg = abs(math.degrees(theta)) if theta is not None else 0.0
+        
+        # 制御統計情報の更新
+        self._total_calls += 1
+        
+        # 急激な変化の検出（BOOST_AND_CURVE_THRESHOLD_DEGを基準とした適度な値）
+        theta_change = abs(theta_deg - self._last_theta_deg)
+        if theta_change > BOOST_AND_CURVE_THRESHOLD_DEG:  # 統一閾値以上の急激な変化
+            pos_str = f"{position:>6}" if position is not None else "  None"
+            print(f"[STABILITY_ALERT] pos={pos_str} | SUDDEN_THETA_CHANGE | {self._last_theta_deg:>5.1f}deg → {theta_deg:>5.1f}deg (Δ{theta_change:>5.1f})")
+        
+        # theta値が大きい場合（BOOST_AND_CURVE_THRESHOLD_DEG度以上）はカーブパワー+ブースト同時発動
+        if theta_deg >= BOOST_AND_CURVE_THRESHOLD_DEG:
+            self._curve_power_count += 1
+            # カーブパワー+ブースト同時発動時の詳細ログ出力
+            pos_str = f"{position:>6}" if position is not None else "  None"
+            print(f"[CURVE+BOOST] pos={pos_str} | theta={theta_deg:>5.1f}deg >= {BOOST_AND_CURVE_THRESHOLD_DEG}.0 | power={self.curve_power} + BOOST_1.1x (CURVE+BOOST_ACTIVATED)")
+            selected_power = self.curve_power
         else:
-            return self.base_power
+            # ストレート/ベースパワー判定と詳細ログ
+            if position is not None:
+                abs_position = abs(position)
+                if abs_position <= POSITION_STRAIGHT:
+                    # ストレートエリア（ログ頻度抑制）
+                    if self._total_calls % 20 == 0:  # 20回に1回ログ出力
+                        pos_str = f"{position:>6}"
+                        print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} <= {POSITION_STRAIGHT} | power={self.straight_power} (STRAIGHT)")
+                    selected_power = self.straight_power
+                else:
+                    # ベースパワーエリア（ログ頻度抑制）
+                    if self._total_calls % 20 == 0:  # 20回に1回ログ出力
+                        pos_str = f"{position:>6}"
+                        print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} > {POSITION_STRAIGHT} | power={self.base_power} (BASE)")
+                    selected_power = self.base_power
+            else:
+                # ポジション不明時のデフォルト（ログ頻度抑制）
+                if self._total_calls % 20 == 0:  # 20回に1回ログ出力
+                    print(f"[SPEED_SELECT] pos=  None | theta={theta_deg:>5.1f}deg | power={self.base_power} (BASE_DEFAULT)")
+                selected_power = self.base_power
+        
+        # パワー値の急激な変化を検出（BOOST_AND_CURVE_THRESHOLD_DEGベースの適度な値）
+        if self._last_power is not None:
+            power_change = abs(selected_power - self._last_power)
+            if power_change > BOOST_AND_CURVE_THRESHOLD_DEG * 1.25:  # 統一閾値の1.25倍（15）の急激なパワー変化
+                pos_str = f"{position:>6}" if position is not None else "  None"
+                print(f"[STABILITY_ALERT] pos={pos_str} | SUDDEN_POWER_CHANGE | {self._last_power:>2} → {selected_power:>2} (Δ{power_change:>2})")
+        
+        # 前回値を更新
+        self._last_theta_deg = theta_deg
+        self._last_power = selected_power
+        
+        # 定期的な統計情報表示（10秒ごと）
+        current_time = time.time()
+        if current_time - self._last_stats_time >= 10.0:
+            if self._total_calls > 0:
+                boost_rate = (self._boost_count / self._total_calls) * 100
+                curve_rate = (self._curve_power_count / self._total_calls) * 100
+                print(f"[STATS] calls={self._total_calls} | boost={self._boost_count}({boost_rate:.1f}%) | curve={self._curve_power_count}({curve_rate:.1f}%)")
+                # 統計リセット
+                self._boost_count = 0
+                self._curve_power_count = 0
+                self._total_calls = 0
+            self._last_stats_time = current_time
+        
+        return selected_power
 
     def calculate_power_adjustment(self, pid_corrected_theta, position=None):
         """
         PID補正値（ラジアン）をパワー差分（左右モーター出力の調整値）に変換する。
-        シンプルなリニア変換のみ。
+        theta値が大きい時（BOOST_AND_CURVE_THRESHOLD_DEG度超）は1.1倍のブーストをかける。
+        カーブパワーと同時発動。
         """
         # 安全性チェック：入力値の検証
         if pid_corrected_theta is None:
@@ -247,6 +319,13 @@ class ControlCalculator:
         
         # 現在のtheta値を保存（ブースト判定用）
         self._current_theta_deg = abs(math.degrees(pid_corrected_theta))
+        
+        # ブーストファクターの計算（BOOST_AND_CURVE_THRESHOLD_DEGを使用）
+        current_boost_factor = 1.1 if self._current_theta_deg > BOOST_AND_CURVE_THRESHOLD_DEG else 1.0
+        
+        # ブースト統計の更新
+        if current_boost_factor > 1.0:
+            self._boost_count += 1
             
         # 基本パワー差分の計算
         try:
@@ -258,10 +337,48 @@ class ControlCalculator:
         if not isinstance(base, (int, float)) or math.isnan(base) or math.isinf(base):
             base = 0.0
         
+        # ブーストの適用
+        boosted_base = base * current_boost_factor
+        
+        # ブースト状況の詳細ログ出力
+        current_time = time.time()
+        boost_changed = abs(current_boost_factor - self._last_boost_factor) > 0.01
+        should_log = (current_time - self._last_boost_log_time) >= 1.0 or boost_changed
+        
+        if should_log:
+            pos_str = f"{position:>6}" if position is not None else "  None"
+            boost_status = "BOOST" if current_boost_factor > 1.0 else "NORM "
+            factor_change = current_boost_factor - self._last_boost_factor
+            change_str = f"({factor_change:+.2f})" if boost_changed else ""
+            
+            # ブースト発動・解除の詳細情報
+            if boost_changed:
+                if current_boost_factor > self._last_boost_factor:
+                    event_str = "BOOST_ON "
+                else:
+                    event_str = "BOOST_OFF"
+                print(f"[BOOST] pos={pos_str} | {event_str} | theta={self._current_theta_deg:>5.1f}deg | factor={current_boost_factor:.2f}{change_str} | base={base:>5.1f}→{boosted_base:>5.1f}")
+            else:
+                print(f"[BOOST] pos={pos_str} | {boost_status} | theta={self._current_theta_deg:>5.1f}deg | factor={current_boost_factor:.2f} | base={base:>5.1f}→{boosted_base:>5.1f}")
+            
+            self._last_boost_log_time = current_time
+        
+        # 前回値を保存
+        self._last_boost_factor = current_boost_factor
+        
         # パワー差分をクリップして返す
-        if base > 0:
-            power_adj = min(int(base), MAX_POWER_DIFF)
+        if boosted_base > 0:
+            power_adj = min(int(boosted_base), MAX_POWER_DIFF)
         else:
-            power_adj = max(int(base), -MAX_POWER_DIFF)
+            power_adj = max(int(boosted_base), -MAX_POWER_DIFF)
+        
+        # パワー調整値の急激な変化を検出（BOOST_AND_CURVE_THRESHOLD_DEGベースの適度な値）
+        if hasattr(self, '_last_power_adjustment'):
+            adj_change = abs(power_adj - self._last_power_adjustment)
+            if adj_change > BOOST_AND_CURVE_THRESHOLD_DEG * 1.67:  # 統一閾値の1.67倍（20）の急激な調整値変化
+                pos_str = f"{position:>6}" if position is not None else "  None"
+                print(f"[STABILITY_ALERT] pos={pos_str} | SUDDEN_ADJ_CHANGE | {self._last_power_adjustment:>+3} → {power_adj:>+3} (Δ{adj_change:>2})")
+        
+        self._last_power_adjustment = power_adj
             
         return int(power_adj)
