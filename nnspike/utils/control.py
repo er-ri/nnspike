@@ -13,13 +13,7 @@
 import math
 import time
 from collections import deque
-impo                else:
-                    # theta > 8度状態が継続中
-                    theta_5deg_elapsed = current_time - self._theta_5deg_start_time
-                    if self.debug and (current_time - self._last_debug_time) >= 0.2:  # 0.3秒→0.2秒でより頻繁に
-                        pos_str = f"{position:>6}" if position is not None else "  None"
-                        print(f"[DEBUG] pos={pos_str} | theta > 8deg continues: {theta_deg:.1f}deg, elapsed={theta_5deg_elapsed:.1f}s, cumulative={self._theta_cumulative_time:.1f}s")
-                        self._last_debug_time = current_timey as np
+import numpy as np
 
 # ====【現場でよく調整する推奨パラメータ】====
 BASE_POWER = 30             # 通常走行時の基準パワー
