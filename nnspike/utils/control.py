@@ -86,289 +86,252 @@ class ControlCalculator:
 
     def calc_steer_result(self, left_x, right_x, position=None):
         """ライントレース用のステアリング結果を計算"""
-        try:
-            x1, y1, x2, y2 = self.roi_opencv
-            
-            # エッジ自動判定
-            if position is not None:
-                abs_position = abs(position)
-                if abs_position <= POSITION_CROSS1:
-                    follow_edge = "right"
-                elif abs_position <= POSITION_CROSS2:
-                    follow_edge = "left"
-                elif abs_position <= POSITION_CROSS3:
-                    follow_edge = "right"
-                elif abs_position <= POSITION_CROSS4:
-                    follow_edge = "left"
-                else:
-                    follow_edge = "right"
-            else:
+        x1, y1, x2, y2 = self.roi_opencv
+        
+        # エッジ自動判定
+        if position is not None:
+            abs_position = abs(position)
+            if abs_position <= POSITION_CROSS1:
+                follow_edge = "right"
+            elif abs_position <= POSITION_CROSS2:
                 follow_edge = "left"
+            elif abs_position <= POSITION_CROSS3:
+                follow_edge = "right"
+            elif abs_position <= POSITION_CROSS4:
+                follow_edge = "left"
+            else:
+                follow_edge = "right"
+        else:
+            follow_edge = "left"
 
-            if not hasattr(self, '_last_mx'):
-                self._last_mx = None
-                self._last_my = None
+        if not hasattr(self, '_last_mx'):
+            self._last_mx = None
+            self._last_my = None
 
-            # ライン検出処理
-            if left_x is not None and right_x is not None:
-                min_x = x1 + int((x2 - x1) * 0.2)
-                max_x = x1 + int((x2 - x1) * 0.8)
-                if follow_edge == "left":
-                    candidate_x = np.clip(left_x, min_x, max_x)
-                    max_contour = np.array([[[candidate_x - x1, OFFSET_Y - y1]], [[(x2 + x1)//2 - x1, OFFSET_Y - y1]]], dtype=np.int32)
-                elif follow_edge == "right":
-                    candidate_x = np.clip(right_x, min_x, max_x)
-                    max_contour = np.array([[[((x2 + x1)//2) - x1, OFFSET_Y - y1]], [[candidate_x - x1, OFFSET_Y - y1]]], dtype=np.int32)
-                else:
-                    candidate_x = np.clip((left_x + right_x) // 2, min_x, max_x)
-                    max_contour = np.array([[[np.clip(left_x, min_x, max_x) - x1, OFFSET_Y - y1]], [[np.clip(right_x, min_x, max_x) - x1, OFFSET_Y - y1]]], dtype=np.int32)
-                mx = candidate_x - x1
-                my = OFFSET_Y - y1
-                self._last_mx = mx
-                self._last_my = my
+        # ライン検出処理
+        if left_x is not None and right_x is not None:
+            min_x = x1 + int((x2 - x1) * 0.2)
+            max_x = x1 + int((x2 - x1) * 0.8)
+            if follow_edge == "left":
+                candidate_x = np.clip(left_x, min_x, max_x)
+                max_contour = np.array([[[candidate_x - x1, OFFSET_Y - y1]], [[(x2 + x1)//2 - x1, OFFSET_Y - y1]]], dtype=np.int32)
+            elif follow_edge == "right":
+                candidate_x = np.clip(right_x, min_x, max_x)
+                max_contour = np.array([[[((x2 + x1)//2) - x1, OFFSET_Y - y1]], [[candidate_x - x1, OFFSET_Y - y1]]], dtype=np.int32)
+            else:
+                candidate_x = np.clip((left_x + right_x) // 2, min_x, max_x)
+                max_contour = np.array([[[np.clip(left_x, min_x, max_x) - x1, OFFSET_Y - y1]], [[np.clip(right_x, min_x, max_x) - x1, OFFSET_Y - y1]]], dtype=np.int32)
+            mx = candidate_x - x1
+            my = OFFSET_Y - y1
+            self._last_mx = mx
+            self._last_my = my
+            roi_center_x = (x2 - x1) // 2
+            offset_pixels = mx - roi_center_x
+            line_status = "DETECTED"
+        else:
+            # 前回の点を維持
+            if self._last_mx is not None and self._last_my is not None:
+                mx = self._last_mx
+                my = self._last_my
                 roi_center_x = (x2 - x1) // 2
                 offset_pixels = mx - roi_center_x
-                line_status = "DETECTED"
+                max_contour = None
+                line_status = "LOST_HOLDING"
             else:
-                # 前回の点を維持
-                if self._last_mx is not None and self._last_my is not None:
-                    mx = self._last_mx
-                    my = self._last_my
-                    roi_center_x = (x2 - x1) // 2
-                    offset_pixels = mx - roi_center_x
-                    max_contour = None
-                    line_status = "LOST_HOLDING"
-                else:
-                    mx = (x2 - x1) // 2
-                    my = (y2 - y1) // 2
-                    offset_pixels = 0
-                    max_contour = None
-                    line_status = "LOST_CENTER"
-            
-            # 定期ログ出力
-            if hasattr(self, '_last_steer_debug'):
-                if time.time() - self._last_steer_debug >= 3.0:
-                    pos_str = f"{position:>6}" if position is not None else "  None"
-                    print(f"[STEER] pos={pos_str} | {line_status} | mx={mx:>3} offset={offset_pixels:>3}px | edge={follow_edge}")
-                    self._last_steer_debug = time.time()
-            else:
-                self._last_steer_debug = time.time()
-                
-            return {
-                "mx": mx,
-                "my": my,
-                "offset_pixels": offset_pixels,
-                "max_contour": max_contour,
-                "roi_type": "opencv",
-                "follow_edge": follow_edge,
-                "position": position
-            }
-
-        except Exception as e:
-            print(f"[CONTROL_ERROR] calc_steer_result failed: {e}")
-            try:
-                x1, y1, x2, y2 = self.roi_opencv
                 mx = (x2 - x1) // 2
                 my = (y2 - y1) // 2
                 offset_pixels = 0
-                follow_edge = "left"
-            except:
-                mx, my, offset_pixels, follow_edge = 320, 240, 0, "left"
+                max_contour = None
+                line_status = "LOST_CENTER"
+        
+        # 定期ログ出力
+        if hasattr(self, '_last_steer_debug'):
+            if time.time() - self._last_steer_debug >= 3.0:
+                pos_str = f"{position:>6}" if position is not None else "  None"
+                print(f"[STEER] pos={pos_str} | {line_status} | mx={mx:>3} offset={offset_pixels:>3}px | edge={follow_edge}")
+                self._last_steer_debug = time.time()
+        else:
+            self._last_steer_debug = time.time()
             
-            return {
-                "mx": mx,
-                "my": my,
-                "offset_pixels": offset_pixels,
-                "max_contour": None,
-                "roi_type": "opencv",
-                "follow_edge": follow_edge,
-                "position": position
-            }
+        return {
+            "mx": mx,
+            "my": my,
+            "offset_pixels": offset_pixels,
+            "max_contour": max_contour,
+            "roi_type": "opencv",
+            "follow_edge": follow_edge,
+            "position": position
+        }
 
     def calculate_attitude_angle(self, offset_pixels: float) -> float:
         """ピクセルオフセットから姿勢角（theta）を計算"""
-        try:
-            if offset_pixels is None or not isinstance(offset_pixels, (int, float)):
-                offset_pixels = 0.0
-            if math.isnan(offset_pixels) or math.isinf(offset_pixels):
-                offset_pixels = 0.0
-                
-            x1, y1, x2, y2 = self.roi_opencv
-            denominator = self.image_height - y2
-            if denominator <= 0:
-                denominator = 1.0
-                
-            ground_distance = (CAMERA_HEIGHT * CAMERA_FOCAL_LENGTH_PIXELS / denominator)
+        if offset_pixels is None or not isinstance(offset_pixels, (int, float)):
+            offset_pixels = 0.0
+        if math.isnan(offset_pixels) or math.isinf(offset_pixels):
+            offset_pixels = 0.0
             
-            if CAMERA_FOCAL_LENGTH_PIXELS <= 0:
-                lateral_offset_meters = 0.0
-            else:
-                lateral_offset_meters = offset_pixels * ground_distance / CAMERA_FOCAL_LENGTH_PIXELS
-                
-            if ground_distance <= 0:
-                theta = 0.0
-            else:
-                theta = math.atan2(lateral_offset_meters, ground_distance)
-                
-            if math.isnan(theta) or math.isinf(theta):
-                theta = 0.0
-                
-            return theta
+        x1, y1, x2, y2 = self.roi_opencv
+        denominator = self.image_height - y2
+        if denominator <= 0:
+            denominator = 1.0
             
-        except Exception as e:
-            print(f"[CONTROL_ERROR] calculate_attitude_angle failed: {e}")
-            return 0.0
+        ground_distance = (CAMERA_HEIGHT * CAMERA_FOCAL_LENGTH_PIXELS / denominator)
+        
+        if CAMERA_FOCAL_LENGTH_PIXELS <= 0:
+            lateral_offset_meters = 0.0
+        else:
+            lateral_offset_meters = offset_pixels * ground_distance / CAMERA_FOCAL_LENGTH_PIXELS
+            
+        if ground_distance <= 0:
+            theta = 0.0
+        else:
+            theta = math.atan2(lateral_offset_meters, ground_distance)
+            
+        if math.isnan(theta) or math.isinf(theta):
+            theta = 0.0
+            
+        return theta
 
     def calculate_adaptive_speed(self, theta, position=None):
         """適応的な速度計算"""
-        try:
-            if theta is None or not isinstance(theta, (int, float)):
-                theta_deg = 0.0
-            elif math.isnan(theta) or math.isinf(theta):
-                theta_deg = 0.0
-            else:
-                theta_deg = abs(math.degrees(theta))
-            
-            self._total_calls += 1
-            
-            # 急激な変化の検出
-            theta_change = abs(theta_deg - self._last_theta_deg)
-            if theta_change > BOOST_AND_CURVE_THRESHOLD_DEG:
+        if theta is None or not isinstance(theta, (int, float)):
+            theta_deg = 0.0
+        elif math.isnan(theta) or math.isinf(theta):
+            theta_deg = 0.0
+        else:
+            theta_deg = abs(math.degrees(theta))
+        
+        self._total_calls += 1
+        
+        # 急激な変化の検出
+        theta_change = abs(theta_deg - self._last_theta_deg)
+        if theta_change > BOOST_AND_CURVE_THRESHOLD_DEG:
+            pos_str = f"{position:>6}" if position is not None else "  None"
+            print(f"[STABILITY_ALERT] pos={pos_str} | SUDDEN_THETA_CHANGE | {self._last_theta_deg:>5.1f}deg → {theta_deg:>5.1f}deg (Δ{theta_change:>5.1f})")
+        
+        # カーブパワー+ブースト同時発動
+        if theta_deg >= BOOST_AND_CURVE_THRESHOLD_DEG:
+            self._curve_power_count += 1
+            if self._total_calls % 100 == 0:
                 pos_str = f"{position:>6}" if position is not None else "  None"
-                print(f"[STABILITY_ALERT] pos={pos_str} | SUDDEN_THETA_CHANGE | {self._last_theta_deg:>5.1f}deg → {theta_deg:>5.1f}deg (Δ{theta_change:>5.1f})")
-            
-            # カーブパワー+ブースト同時発動
-            if theta_deg >= BOOST_AND_CURVE_THRESHOLD_DEG:
-                self._curve_power_count += 1
-                if self._total_calls % 100 == 0:
-                    pos_str = f"{position:>6}" if position is not None else "  None"
-                    print(f"[CURVE+BOOST] pos={pos_str} | theta={theta_deg:>5.1f}deg >= {BOOST_AND_CURVE_THRESHOLD_DEG}.0 | power={self.curve_power} + BOOST_1.1x")
-                selected_power = self.curve_power
-            else:
-                # 位置に応じた速度選択
-                if position is not None:
-                    abs_position = abs(position)
-                    if abs_position <= POSITION_STRAIGHT:
-                        if self._total_calls % 100 == 0:
-                            pos_str = f"{position:>6}"
-                            print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} <= {POSITION_STRAIGHT} | power={self.straight_power} (STRAIGHT)")
-                        selected_power = self.straight_power
-                    elif abs_position >= 16000:
-                        if self._total_calls % 100 == 0:
-                            pos_str = f"{position:>6}"
-                            print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} >= 16000 | power={self.curve_power} (DIFFICULT)")
-                        selected_power = self.curve_power
-                    else:
-                        if self._total_calls % 100 == 0:
-                            pos_str = f"{position:>6}"
-                            print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} > {POSITION_STRAIGHT} | power={self.base_power} (BASE)")
-                        selected_power = self.base_power
+                print(f"[CURVE+BOOST] pos={pos_str} | theta={theta_deg:>5.1f}deg >= {BOOST_AND_CURVE_THRESHOLD_DEG}.0 | power={self.curve_power} + BOOST_1.1x")
+            selected_power = self.curve_power
+        else:
+            # 位置に応じた速度選択
+            if position is not None:
+                abs_position = abs(position)
+                if abs_position <= POSITION_STRAIGHT:
+                    if self._total_calls % 100 == 0:
+                        pos_str = f"{position:>6}"
+                        print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} <= {POSITION_STRAIGHT} | power={self.straight_power} (STRAIGHT)")
+                    selected_power = self.straight_power
+                elif abs_position >= 16000:
+                    if self._total_calls % 100 == 0:
+                        pos_str = f"{position:>6}"
+                        print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} >= 16000 | power={self.curve_power} (DIFFICULT)")
+                    selected_power = self.curve_power
                 else:
                     if self._total_calls % 100 == 0:
-                        print(f"[SPEED_SELECT] pos=  None | theta={theta_deg:>5.1f}deg | power={self.base_power} (BASE_DEFAULT)")
+                        pos_str = f"{position:>6}"
+                        print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} > {POSITION_STRAIGHT} | power={self.base_power} (BASE)")
                     selected_power = self.base_power
-            
-            # 急激なパワー変化の検出
-            if self._last_power is not None:
-                power_change = abs(selected_power - self._last_power)
-                if power_change > BOOST_AND_CURVE_THRESHOLD_DEG * 1.25:
-                    pos_str = f"{position:>6}" if position is not None else "  None"
-                    print(f"[STABILITY_ALERT] pos={pos_str} | SUDDEN_POWER_CHANGE | {self._last_power:>2} → {selected_power:>2} (Δ{power_change:>2})")
-            
-            self._last_theta_deg = theta_deg
-            self._last_power = selected_power
-            
-            # 統計情報表示
-            current_time = time.time()
-            if current_time - self._last_stats_time >= 15.0:
-                if self._total_calls > 0:
-                    boost_rate = (self._boost_count / self._total_calls) * 100
-                    curve_rate = (self._curve_power_count / self._total_calls) * 100
-                    print(f"[STATS] calls={self._total_calls} | boost={self._boost_count}({boost_rate:.1f}%) | curve={self._curve_power_count}({curve_rate:.1f}%)")
-                    self._boost_count = 0
-                    self._curve_power_count = 0
-                    self._total_calls = 0
-                self._last_stats_time = current_time
-            
-            return selected_power
-            
-        except Exception as e:
-            print(f"[CONTROL_ERROR] calculate_adaptive_speed failed: {e}")
-            return self.base_power
+            else:
+                if self._total_calls % 100 == 0:
+                    print(f"[SPEED_SELECT] pos=  None | theta={theta_deg:>5.1f}deg | power={self.base_power} (BASE_DEFAULT)")
+                selected_power = self.base_power
+        
+        # 急激なパワー変化の検出
+        if self._last_power is not None:
+            power_change = abs(selected_power - self._last_power)
+            if power_change > BOOST_AND_CURVE_THRESHOLD_DEG * 1.25:
+                pos_str = f"{position:>6}" if position is not None else "  None"
+                print(f"[STABILITY_ALERT] pos={pos_str} | SUDDEN_POWER_CHANGE | {self._last_power:>2} → {selected_power:>2} (Δ{power_change:>2})")
+        
+        self._last_theta_deg = theta_deg
+        self._last_power = selected_power
+        
+        # 統計情報表示
+        current_time = time.time()
+        if current_time - self._last_stats_time >= 15.0:
+            if self._total_calls > 0:
+                boost_rate = (self._boost_count / self._total_calls) * 100
+                curve_rate = (self._curve_power_count / self._total_calls) * 100
+                print(f"[STATS] calls={self._total_calls} | boost={self._boost_count}({boost_rate:.1f}%) | curve={self._curve_power_count}({curve_rate:.1f}%)")
+                self._boost_count = 0
+                self._curve_power_count = 0
+                self._total_calls = 0
+            self._last_stats_time = current_time
+        
+        return selected_power
 
     def calculate_power_adjustment(self, pid_corrected_theta, position=None):
         """パワー調整値計算（ブースト機能付き）"""
-        try:
-            if pid_corrected_theta is None:
-                pid_corrected_theta = 0.0
-            if not isinstance(pid_corrected_theta, (int, float)):
-                pid_corrected_theta = 0.0
-            if self.max_theta is None or self.max_theta == 0:
-                self.max_theta = math.radians(30)
+        if pid_corrected_theta is None:
+            pid_corrected_theta = 0.0
+        if not isinstance(pid_corrected_theta, (int, float)):
+            pid_corrected_theta = 0.0
+        if self.max_theta is None or self.max_theta == 0:
+            self.max_theta = math.radians(30)
+        
+        self._current_theta_deg = abs(math.degrees(pid_corrected_theta))
+        
+        # ヒステリシス付きブースト判定
+        if self._last_boost_factor > 1.0:
+            threshold = BOOST_AND_CURVE_THRESHOLD_DEG - 4
+        else:
+            threshold = BOOST_AND_CURVE_THRESHOLD_DEG
+        
+        current_boost_factor = 1.1 if self._current_theta_deg > threshold else 1.0
+        
+        if current_boost_factor > 1.0:
+            self._boost_count += 1
             
-            self._current_theta_deg = abs(math.degrees(pid_corrected_theta))
+        # パワー差分計算
+        if self.max_theta != 0:
+            base = (pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF
+        else:
+            base = 0.0
+        
+        if not isinstance(base, (int, float)) or math.isnan(base) or math.isinf(base):
+            base = 0.0
+        
+        boosted_base = base * current_boost_factor
+        
+        # ブーストログ出力
+        current_time = time.time()
+        boost_changed = abs(current_boost_factor - self._last_boost_factor) > 0.01
+        should_log = (current_time - self._last_boost_log_time) >= 5.0 or boost_changed
+        
+        if should_log:
+            pos_str = f"{position:>6}" if position is not None else "  None"
+            boost_status = "BOOST" if current_boost_factor > 1.0 else "NORM "
+            factor_change = current_boost_factor - self._last_boost_factor
+            change_str = f"({factor_change:+.2f})" if boost_changed else ""
             
-            # ヒステリシス付きブースト判定
-            if self._last_boost_factor > 1.0:
-                threshold = BOOST_AND_CURVE_THRESHOLD_DEG - 4
+            if boost_changed:
+                event_str = "BOOST_ON " if current_boost_factor > self._last_boost_factor else "BOOST_OFF"
+                print(f"[BOOST] pos={pos_str} | {event_str} | theta={self._current_theta_deg:>5.1f}deg | factor={current_boost_factor:.3f}{change_str} | base={base:>5.1f}→{boosted_base:>5.1f}")
             else:
-                threshold = BOOST_AND_CURVE_THRESHOLD_DEG
+                if self._total_calls % 50 == 0:
+                    print(f"[BOOST] pos={pos_str} | {boost_status} | theta={self._current_theta_deg:>5.1f}deg | factor={current_boost_factor:.3f} | base={base:>5.1f}→{boosted_base:>5.1f}")
             
-            current_boost_factor = 1.1 if self._current_theta_deg > threshold else 1.0
-            
-            if current_boost_factor > 1.0:
-                self._boost_count += 1
-                
-            # パワー差分計算
-            try:
-                base = (pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF
-            except (TypeError, ZeroDivisionError):
-                base = 0.0
-            
-            if not isinstance(base, (int, float)) or math.isnan(base) or math.isinf(base):
-                base = 0.0
-            
-            boosted_base = base * current_boost_factor
-            
-            # ブーストログ出力
-            current_time = time.time()
-            boost_changed = abs(current_boost_factor - self._last_boost_factor) > 0.01
-            should_log = (current_time - self._last_boost_log_time) >= 5.0 or boost_changed
-            
-            if should_log:
+            self._last_boost_log_time = current_time
+        
+        self._last_boost_factor = current_boost_factor
+        
+        # クリップして返す
+        if boosted_base > 0:
+            power_adj = min(int(boosted_base), MAX_POWER_DIFF)
+        else:
+            power_adj = max(int(boosted_base), -MAX_POWER_DIFF)
+        
+        # 急激な調整値変化の検出
+        if hasattr(self, '_last_power_adjustment'):
+            adj_change = abs(power_adj - self._last_power_adjustment)
+            if adj_change > 25:
                 pos_str = f"{position:>6}" if position is not None else "  None"
-                boost_status = "BOOST" if current_boost_factor > 1.0 else "NORM "
-                factor_change = current_boost_factor - self._last_boost_factor
-                change_str = f"({factor_change:+.2f})" if boost_changed else ""
-                
-                if boost_changed:
-                    event_str = "BOOST_ON " if current_boost_factor > self._last_boost_factor else "BOOST_OFF"
-                    print(f"[BOOST] pos={pos_str} | {event_str} | theta={self._current_theta_deg:>5.1f}deg | factor={current_boost_factor:.3f}{change_str} | base={base:>5.1f}→{boosted_base:>5.1f}")
-                else:
-                    if self._total_calls % 50 == 0:
-                        print(f"[BOOST] pos={pos_str} | {boost_status} | theta={self._current_theta_deg:>5.1f}deg | factor={current_boost_factor:.3f} | base={base:>5.1f}→{boosted_base:>5.1f}")
-                
-                self._last_boost_log_time = current_time
+                print(f"[STABILITY_ALERT] pos={pos_str} | SUDDEN_ADJ_CHANGE | {self._last_power_adjustment:>+3} → {power_adj:>+3} (Δ{adj_change:>2})")
+        
+        self._last_power_adjustment = power_adj
             
-            self._last_boost_factor = current_boost_factor
-            
-            # クリップして返す
-            if boosted_base > 0:
-                power_adj = min(int(boosted_base), MAX_POWER_DIFF)
-            else:
-                power_adj = max(int(boosted_base), -MAX_POWER_DIFF)
-            
-            # 急激な調整値変化の検出
-            if hasattr(self, '_last_power_adjustment'):
-                adj_change = abs(power_adj - self._last_power_adjustment)
-                if adj_change > 25:
-                    pos_str = f"{position:>6}" if position is not None else "  None"
-                    print(f"[STABILITY_ALERT] pos={pos_str} | SUDDEN_ADJ_CHANGE | {self._last_power_adjustment:>+3} → {power_adj:>+3} (Δ{adj_change:>2})")
-            
-            self._last_power_adjustment = power_adj
-                
-            return int(power_adj)
-            
-        except Exception as e:
-            print(f"[CONTROL_ERROR] calculate_power_adjustment failed: {e}")
-            return 0
+        return int(power_adj)
