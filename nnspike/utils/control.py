@@ -51,8 +51,8 @@ OFFSET_Y = 400  # 例: 画像下部付近を基準にする場合
 POSITION_STRAIGHT = 4500
 POSITION_CROSS1 = 11800
 POSITION_CROSS2 = 15200
-POSITION_CROSS3 = 18500
-POSITION_CROSS4 = 20000
+POSITION_CROSS3 = 17500
+POSITION_CROSS4 = 19000
 
 class ControlCalculator:
     """
@@ -123,7 +123,13 @@ class ControlCalculator:
                 follow_edge = "right"
             elif abs_position <= POSITION_CROSS2:
                 follow_edge = "left"
+            elif abs_position <= POSITION_CROSS3:
+                follow_edge = "right"
+            elif abs_position <= POSITION_CROSS4:
+                # POSITION_CROSS3以降は左エッジ（難所エリア対応）
+                follow_edge = "left"
             else:
+                # POSITION_CROSS4以降は右エッジ（最終エリア対応）
                 follow_edge = "right"
         else:
             follow_edge = "left"
