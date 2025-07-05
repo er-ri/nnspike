@@ -281,7 +281,7 @@ class ControlCalculator:
         else:
             threshold = BOOST_AND_CURVE_THRESHOLD_DEG
         
-        current_boost_factor = 1.1 if self._current_theta_deg > threshold else 1.0
+        current_boost_factor = 1.015 if self._current_theta_deg > threshold else 1.0
         
         if current_boost_factor > 1.0:
             self._boost_count += 1
