@@ -43,16 +43,88 @@ class Camera:
         - line_width: ライン幅（ピクセル数）
         黒・青どちらかのラインが見つかれば検出し、両方重なっていれば両方を統合して検出。
         ラインが見つからない場合も「直前の点」を絶対に離さず維持し続ける（中央や初期値に戻さない）。
+        エラーが発生した場合は前回の点を維持してプログラムを継続する。
         """
-        target_y = OFFSET_Y
-        x, y, w, h = self.roi
+        try:
+            target_y = OFFSET_Y
+            x, y, w, h = self.roi
 
-        if not hasattr(self, '_prev_left_x'):
-            self._prev_left_x = None
-            self._prev_right_x = None
+            if not hasattr(self, '_prev_left_x'):
+                self._prev_left_x = None
+                self._prev_right_x = None
 
-        if target_y < y or target_y >= y + h:
-            # ROI外なら直前の点を維持
+            # 画像が無効な場合の安全チェック
+            if image is None or image.size == 0:
+                if self._prev_left_x is not None and self._prev_right_x is not None:
+                    return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
+                center_x = x + w // 2
+                self._prev_left_x = center_x
+                self._prev_right_x = center_x
+                return center_x, center_x, 1
+
+            if target_y < y or target_y >= y + h:
+                # ROI外なら直前の点を維持
+                if self._prev_left_x is not None and self._prev_right_x is not None:
+                    return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
+                # 初回のみ中央
+                center_x = x + w // 2
+                self._prev_left_x = center_x
+                self._prev_right_x = center_x
+                return center_x, center_x, 1
+
+            roi = image[y : y + h, x : x + w]
+
+            # ROIが無効な場合の安全チェック
+            if roi is None or roi.size == 0:
+                if self._prev_left_x is not None and self._prev_right_x is not None:
+                    return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
+                center_x = x + w // 2
+                self._prev_left_x = center_x
+                self._prev_right_x = center_x
+                return center_x, center_x, 1
+
+            # 黒ライン用バイナリ
+            if len(roi.shape) == 3:
+                gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+            else:
+                gray = roi.copy()
+            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+            _, binary_black = cv2.threshold(blurred, threshold_value, 255, cv2.THRESH_BINARY_INV)
+
+            # 青ライン用バイナリ（HSV色空間で青領域を抽出）
+            hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+            lower_blue = np.array([100, 80, 50])
+            upper_blue = np.array([130, 255, 255])
+            binary_blue = cv2.inRange(hsv, lower_blue, upper_blue)
+
+            # 黒ラインはそのまま、青ラインはノイズ除去（小さい点を無視）
+            # 青ラインのノイズ除去: ラベリングして十分な幅のものだけ残す
+            num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(binary_blue)
+            min_blue_width = 30  # 青ラインとみなす最小幅（ピクセル）
+            filtered_blue = np.zeros_like(binary_blue)
+            for i in range(1, num_labels):
+                left = stats[i, cv2.CC_STAT_LEFT]
+                width = stats[i, cv2.CC_STAT_WIDTH]
+                if width >= min_blue_width:
+                    filtered_blue[labels == i] = 255
+            # 黒 or "十分な幅の青" のどちらかのピクセルを1にする
+            binary = cv2.bitwise_or(binary_black, filtered_blue)
+
+            roi_row = target_y - y
+            if 0 <= roi_row < h:
+                row_data = binary[roi_row, :]
+                white_pixels = np.where(row_data == 255)[0]
+                if len(white_pixels) > 0:
+                    left_x_roi = white_pixels[0]
+                    right_x_roi = white_pixels[-1]
+                    left_x = x + left_x_roi
+                    right_x = x + right_x_roi
+                    line_width = right_x - left_x + 1
+                    # 直前の点を更新
+                    self._prev_left_x = left_x
+                    self._prev_right_x = right_x
+                    return left_x, right_x, line_width
+            # ラインが見つからない場合も、直前の点を絶対に離さず維持し続ける（中央や初期値に戻さない）
             if self._prev_left_x is not None and self._prev_right_x is not None:
                 return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
             # 初回のみ中央
@@ -61,57 +133,21 @@ class Camera:
             self._prev_right_x = center_x
             return center_x, center_x, 1
 
-        roi = image[y : y + h, x : x + w]
-
-        # 黒ライン用バイナリ
-        if len(roi.shape) == 3:
-            gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = roi.copy()
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        _, binary_black = cv2.threshold(blurred, threshold_value, 255, cv2.THRESH_BINARY_INV)
-
-        # 青ライン用バイナリ（HSV色空間で青領域を抽出）
-        hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        lower_blue = np.array([100, 80, 50])
-        upper_blue = np.array([130, 255, 255])
-        binary_blue = cv2.inRange(hsv, lower_blue, upper_blue)
-
-        # 黒ラインはそのまま、青ラインはノイズ除去（小さい点を無視）
-        # 青ラインのノイズ除去: ラベリングして十分な幅のものだけ残す
-        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(binary_blue)
-        min_blue_width = 30  # 青ラインとみなす最小幅（ピクセル）
-        filtered_blue = np.zeros_like(binary_blue)
-        for i in range(1, num_labels):
-            left = stats[i, cv2.CC_STAT_LEFT]
-            width = stats[i, cv2.CC_STAT_WIDTH]
-            if width >= min_blue_width:
-                filtered_blue[labels == i] = 255
-        # 黒 or "十分な幅の青" のどちらかのピクセルを1にする
-        binary = cv2.bitwise_or(binary_black, filtered_blue)
-
-        roi_row = target_y - y
-        if 0 <= roi_row < h:
-            row_data = binary[roi_row, :]
-            white_pixels = np.where(row_data == 255)[0]
-            if len(white_pixels) > 0:
-                left_x_roi = white_pixels[0]
-                right_x_roi = white_pixels[-1]
-                left_x = x + left_x_roi
-                right_x = x + right_x_roi
-                line_width = right_x - left_x + 1
-                # 直前の点を更新
-                self._prev_left_x = left_x
-                self._prev_right_x = right_x
-                return left_x, right_x, line_width
-        # ラインが見つからない場合も、直前の点を絶対に離さず維持し続ける（中央や初期値に戻さない）
-        if self._prev_left_x is not None and self._prev_right_x is not None:
-            return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
-        # 初回のみ中央
-        center_x = x + w // 2
-        self._prev_left_x = center_x
-        self._prev_right_x = center_x
-        return center_x, center_x, 1
+        except Exception as e:
+            # エラーが発生した場合は前回の点を維持してプログラムを継続
+            print(f"[CAMERA_ERROR] get_line_edges_at_y failed: {e}")
+            if hasattr(self, '_prev_left_x') and self._prev_left_x is not None and self._prev_right_x is not None:
+                return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
+            # フォールバック: ROI中央を返す
+            try:
+                x, y, w, h = self.roi
+                center_x = x + w // 2
+                self._prev_left_x = center_x
+                self._prev_right_x = center_x
+                return center_x, center_x, 1
+            except:
+                # 最悪の場合のフォールバック
+                return 320, 320, 1
 
     def detect_color_bottle(self, frame):
         """
