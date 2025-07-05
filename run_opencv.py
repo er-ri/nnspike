@@ -129,6 +129,11 @@ class ActionManager:
         self.right_actual_power = None
         self.last_send_time = None  # 送信タイムスタンプ（ms差分計算用）
         self.is_stopped = False  # STOP状態フラグを追加
+        # --- position関連の初期化（Noneエラー防止） ---
+        self.left_relative_position = 0
+        self.right_relative_position = 0
+        self.color = None
+        self.distance = None
 
     def reset(self):
         self.state = 0
@@ -595,17 +600,26 @@ class ActionManager:
         Spikeの最新センサーステータス・カラー・超音波・モーター情報をまとめて取得し、インスタンス変数に格納（レコーダー出力はしない）
         """
         spike_status = self.et.get_spike_status()
-        sensors = spike_status.sensors
+        if spike_status is None:
+            # spike_statusが取得できない場合はデフォルト値を使用
+            self.color = None
+            self.distance = None
+            self.left_relative_position = getattr(self, 'left_relative_position', 0)
+            self.right_relative_position = getattr(self, 'right_relative_position', 0)
+            self._latest_spike_status = None
+            return
+        
+        sensors = spike_status.sensors if spike_status else None
         self._latest_spike_status = spike_status  # レコーダー出力用に保持
         self.color = sensors.color if sensors else None
         self.distance = sensors.distance if sensors else None
         self.left_relative_position = (
             spike_status.motors['B'].relative_position
-            if 'B' in spike_status.motors and spike_status.motors['B'].relative_position is not None else 0
+            if spike_status.motors and 'B' in spike_status.motors and spike_status.motors['B'].relative_position is not None else 0
         )
         self.right_relative_position = (
             spike_status.motors['A'].relative_position
-            if 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0
+            if spike_status.motors and 'A' in spike_status.motors and spike_status.motors['A'].relative_position is not None else 0
         )
 
     def log_sensor_record(self, sensor_recorder=None, bottle_result=None, steer_result=None):
@@ -1266,7 +1280,8 @@ def main(config: Config):
             # 3. ラインエッジ検出（left_x, right_x, line_width）
             left_x, right_x, line_width = camera.get_line_edges_at_y(frame)
             # 4. ステアリング計算（steer_result: ライントレース用画像処理結果）
-            steer_result = calc.calc_steer_result(left_x, right_x, position=action.right_relative_position)
+            position = action.right_relative_position if action.right_relative_position is not None else 0
+            steer_result = calc.calc_steer_result(left_x, right_x, position=position)
             # 5. ペットボトル検出（bottle_result: 色ごとのピクセル数辞書, bottle_masks: 各色マスク）
             bottle_result, bottle_masks = camera.detect_color_bottle(frame)  # 辞書とマスク両方を取得
             # 6. センサ情報・CSV記録（steer_result, bottle_resultを計算後に記録）
