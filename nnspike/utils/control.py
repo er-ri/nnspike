@@ -282,11 +282,11 @@ class ControlCalculator:
                         pos_str = f"{position:>6}"
                         print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} <= {POSITION_STRAIGHT} | power={self.straight_power} (STRAIGHT)")
                     selected_power = self.straight_power
-                elif abs_position >= 15000:  # 15000以降の難所エリアはさらに減速
+                elif abs_position >= 16000:  # 16000以降の難所エリアはさらに減速
                     # 難所エリア（カーブが多い箇所）
                     if self._total_calls % 100 == 0:  # 100回に1回ログ出力（大幅削減）
                         pos_str = f"{position:>6}"
-                        print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} >= 15000 | power={self.curve_power} (DIFFICULT)")
+                        print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} >= 16000 | power={self.curve_power} (DIFFICULT)")
                     selected_power = self.curve_power
                 else:
                     # ベースパワーエリア（ログ頻度抑制）
