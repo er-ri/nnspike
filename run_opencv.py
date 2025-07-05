@@ -723,19 +723,19 @@ class VideoManager:
         if self.send_video and self.client_socket is not None:
             self.client_socket.close()
 
-    def prepare_driving_info(self, steer_result, scenario, action, bottle=None):
+    def prepare_driving_info(self, steer_result, scenario, action, bottle=None, calc=None):
         """
         可視化用の走行情報を生成
         steer_result: steer_by_cameraの辞書
         scenario: NormalScenarioインスタンス
         action: ActionManagerインスタンス
         bottle: ペットボトル検出結果（色ごとのピクセル数辞書など）
+        calc: ControlCalculatorインスタンス（ブースト状態取得用）
         """
         # ROIは現状opencvのみを使用
         x1, y1, x2, y2 = ROI_OPENCV
         mx = steer_result["mx"]
         my = steer_result["my"]
-        offset_pixels = steer_result["offset_pixels"]
         max_contour = steer_result["max_contour"]
         def to_distance_cm(pos):
             return int(float(pos) * 0.0471) if pos is not None else 0
@@ -800,6 +800,13 @@ class VideoManager:
             "mode": scenario.mode.name,
             "bottle": bottle_str
         }
+        
+        # ブースト状態を追加
+        if calc is not None and hasattr(calc, 'is_boost_active'):
+            info["boost_active"] = calc.is_boost_active
+        else:
+            info["boost_active"] = False
+            
         return info
 
     def create_visualization_frame(self, frame, steer_result, info, bottle_masks=None):
@@ -850,9 +857,9 @@ class VideoManager:
                         cv2.drawContours(gray, [adjusted_cnt], -1, (255, 255, 255), 2)
         return gray
 
-    def process_and_send(self, frame, steer_result, scenario, action, bottle_result=None, bottle_masks=None):
+    def process_and_send(self, frame, steer_result, scenario, action, bottle_result=None, bottle_masks=None, calc=None):
         # 走行情報を準備し、可視化フレームを生成してビデオ保存・送信
-        info = self.prepare_driving_info(steer_result, scenario, action, bottle=bottle_result)
+        info = self.prepare_driving_info(steer_result, scenario, action, bottle=bottle_result, calc=calc)
         gray = self.create_visualization_frame(frame, steer_result, info, bottle_masks=bottle_masks)
         self.write_video(frame)
         return self.send_frame(gray)
@@ -910,6 +917,19 @@ def draw_driving_info(
             (255, 255, 255),
             1,
             cv2.LINE_4,
+        )
+
+    # ブースト状態の表示（右上に大きく表示）
+    if info.get("boost_active", False):
+        image = cv2.putText(
+            image,
+            "BOOST",
+            (image.shape[1] - 100, 50),  # 右上
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.5,
+            (0, 255, 255),  # 黄色
+            3,
+            cv2.LINE_AA,
         )
 
     return image
@@ -1246,7 +1266,7 @@ def main(config: Config):
                 scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result)
             # 9. 動画保存・PC送信（必要時のみ）
             if (config.log_save_video or config.log_send_video) and video is not None:
-                if not video.process_and_send(frame, steer_result, scenario, action, bottle_result, bottle_masks):
+                if not video.process_and_send(frame, steer_result, scenario, action, bottle_result, bottle_masks, calc=calc):
                     print("[ERROR] send_camera_capture failed. Breaking main loop.")
                     break
             # 10. ループ周期調整（MOTOR_SEND_INTERVALサイクルで動作）

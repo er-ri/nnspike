@@ -76,6 +76,12 @@ class ControlCalculator:
         self._boost_buildup_duration = 1.0  # ブーストが1.2倍に達するまでの時間（秒）
         self._theta_3deg_start_time = None  # theta > 3度状態の開始時刻
         self._theta_3deg_duration_threshold = 1.0  # theta > 3度が継続する必要な時間（秒）
+        self._boost_active = False  # ブースト状態フラグ（ログ出力用）
+
+    @property
+    def is_boost_active(self):
+        """ブースト状態が有効かどうかを返す"""
+        return self._boost_active
 
     def calc_steer_result(self, left_x, right_x, position=None):
         """
@@ -212,7 +218,7 @@ class ControlCalculator:
         """
         PID補正値（ラジアン）をパワー差分（左右モーター出力の調整値）に変換する。
         - シンプルなリニア変換のみ（ブーストなし）
-        - theta_degが3度を超えた状態が1秒以上続いた場合、パワー差分を段階的に1.2倍までブースト
+        - theta_degが3度を超えた状態が1秒以上続いた場合、パワー差分を段階的に1.5倍までブースト
         - theta_degが3度以下になると即座にブースト停止
         - 最大パワー差分はMAX_POWER_DIFFでクリップ
         """
@@ -236,15 +242,23 @@ class ControlCalculator:
                     # ブースト開始
                     self._boost_start_time = current_time
                     boost_factor = 1.0
+                    if not self._boost_active:
+                        print(f"[BOOST] Started: theta={theta_deg:.1f}deg (>3deg for {theta_3deg_elapsed:.1f}s)")
+                        self._boost_active = True
                 else:
                     # ブースト継続中：時間経過に応じて段階的に増加
                     elapsed_time = current_time - self._boost_start_time
                     boost_progress = min(elapsed_time / self._boost_buildup_duration, 1.0)
-                    boost_factor = 1.0 + (0.2 * boost_progress)  # 1.0から1.2に段階的に増加
+                    boost_factor = 1.0 + (0.5 * boost_progress)  # 1.0から1.5に段階的に増加
+                    if self.debug and int(elapsed_time * 10) % 5 == 0:  # 0.5秒ごとにログ出力
+                        print(f"[BOOST] Active: factor={boost_factor:.2f}, theta={theta_deg:.1f}deg")
                 
                 base = base * boost_factor
         else:
             # theta_degが3度以下：即座にブースト停止とtheta > 3度状態のリセット
+            if self._boost_active:
+                print(f"[BOOST] Stopped: theta={theta_deg:.1f}deg (<=3deg)")
+                self._boost_active = False
             self._boost_start_time = None
             self._theta_3deg_start_time = None
         
