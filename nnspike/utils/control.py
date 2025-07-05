@@ -39,7 +39,7 @@ OFFSET_Y = 400  # 例: 画像下部付近を基準にする場合
 # ---【ダブルループ交差点判定用の相対位置しきい値】---
 # run_opencv.py など他ファイルと値を揃えること
 POSITION_STRAIGHT = 4500
-POSITION_CROSS1 = 11500
+POSITION_CROSS1 = 12000
 POSITION_CROSS2 = 15500
 POSITION_CROSS3 = 18500
 POSITION_CROSS4 = 20000
@@ -74,6 +74,8 @@ class ControlCalculator:
         # 段階的ブースト用の状態管理
         self._boost_start_time = None  # ブースト開始時刻
         self._boost_buildup_duration = 1.0  # ブーストが1.2倍に達するまでの時間（秒）
+        self._theta_3deg_start_time = None  # theta > 3度状態の開始時刻
+        self._theta_3deg_duration_threshold = 1.0  # theta > 3度が継続する必要な時間（秒）
 
     def calc_steer_result(self, left_x, right_x, position=None):
         """
@@ -210,32 +212,41 @@ class ControlCalculator:
         """
         PID補正値（ラジアン）をパワー差分（左右モーター出力の調整値）に変換する。
         - シンプルなリニア変換のみ（ブーストなし）
-        - theta_degが7度を超えた場合、パワー差分を段階的に1.2倍までブースト
-        - theta_degが7度以下になると即座にブースト停止
+        - theta_degが3度を超えた状態が1秒以上続いた場合、パワー差分を段階的に1.2倍までブースト
+        - theta_degが3度以下になると即座にブースト停止
         - 最大パワー差分はMAX_POWER_DIFFでクリップ
         """
         base = (pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF
         
-        # theta_degが7度を超えた場合の段階的ブースト処理
+        # theta_degが3度を超えた状態が1秒以上続く場合の段階的ブースト処理
         theta_deg = abs(math.degrees(pid_corrected_theta))
         current_time = time.time()
         
-        if theta_deg > 6.0:
-            # ブーストが必要な状態
-            if self._boost_start_time is None:
-                # ブースト開始
-                self._boost_start_time = current_time
-                boost_factor = 1.0
-            else:
-                # ブースト継続中：時間経過に応じて段階的に増加
-                elapsed_time = current_time - self._boost_start_time
-                boost_progress = min(elapsed_time / self._boost_buildup_duration, 1.0)
-                boost_factor = 1.0 + (0.2 * boost_progress)  # 1.0から1.2に段階的に増加
+        if theta_deg > 3.0:
+            # theta > 3度の状態
+            if self._theta_3deg_start_time is None:
+                # theta > 3度状態の開始
+                self._theta_3deg_start_time = current_time
             
-            base = base * boost_factor
+            # theta > 3度が1秒以上継続しているかチェック
+            theta_3deg_elapsed = current_time - self._theta_3deg_start_time
+            if theta_3deg_elapsed >= self._theta_3deg_duration_threshold:
+                # ブーストが必要な状態
+                if self._boost_start_time is None:
+                    # ブースト開始
+                    self._boost_start_time = current_time
+                    boost_factor = 1.0
+                else:
+                    # ブースト継続中：時間経過に応じて段階的に増加
+                    elapsed_time = current_time - self._boost_start_time
+                    boost_progress = min(elapsed_time / self._boost_buildup_duration, 1.0)
+                    boost_factor = 1.0 + (0.2 * boost_progress)  # 1.0から1.2に段階的に増加
+                
+                base = base * boost_factor
         else:
-            # theta_degが7度以下：即座にブースト停止
+            # theta_degが3度以下：即座にブースト停止とtheta > 3度状態のリセット
             self._boost_start_time = None
+            self._theta_3deg_start_time = None
         
         if base > 0:
             power_adj = min(int(base), MAX_POWER_DIFF)
