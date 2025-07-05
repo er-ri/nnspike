@@ -927,7 +927,7 @@ def draw_driving_info(
     try:
         from nnspike.utils.camera import OFFSET_Y
     except ImportError:
-        OFFSET_Y = 350  # fallback
+        OFFSET_Y = 330  # fallback
     image = cv2.line(image, (ROI_OPENCV[0], OFFSET_Y), (ROI_OPENCV[2], OFFSET_Y), (0, 255, 255), 2)  # 黄色
 
     image = cv2.circle(
