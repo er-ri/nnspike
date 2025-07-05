@@ -39,8 +39,8 @@ OFFSET_Y = 350  # 例: 画像下部付近を基準にする場合
 # ---【ダブルループ交差点判定用の相対位置しきい値】---
 # run_opencv.py など他ファイルと値を揃えること
 POSITION_STRAIGHT = 5000
-POSITION_CROSS1 = 12000
-POSITION_CROSS2 = 13000
+POSITION_CROSS1 = 11500
+POSITION_CROSS2 = 16000
 POSITION_CROSS3 = 16000
 POSITION_CROSS4 = 20000
 
@@ -90,12 +90,10 @@ class ControlCalculator:
             abs_position = abs(position)
             if abs_position <= POSITION_CROSS1:   #12000
                 follow_edge = "right"
-            elif abs_position <= POSITION_CROSS2: #14000
+            elif abs_position <= POSITION_CROSS2: #15000
                 follow_edge = "left"
-            elif abs_position <= POSITION_CROSS3: #16000
+            elif abs_position <= POSITION_CROSS3: #17500
                 follow_edge = "right"
-            elif abs_position <= POSITION_CROSS4: #20000
-                follow_edge = "left"
             else:
                 follow_edge = "right"
         else:
