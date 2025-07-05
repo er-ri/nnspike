@@ -28,8 +28,8 @@ CAMERA_HEIGHT = 0.20  # Camera height above ground in meters
 CAMERA_FOCAL_LENGTH_PIXELS = 640  # ピクセル単位のカメラ焦点距離（概算値、キャリブレーション推奨）
 WHEELBASE = 0.10  # Distance between wheels in meters
 
-MAX_THETA_DEG = 20          # θの最大値[deg]（パワー補正の正規化用, 50→20で曲がり強化）
-MAX_POWER_DIFF = 30         # PID補正による最大パワー差分 40→50 で最大出力幅UP
+MAX_THETA_DEG = 15          # θの最大値[deg]（10～20の間で微調整推奨。直進安定性とカーブ追従性のバランス）
+MAX_POWER_DIFF = 40         # PID補正による最大パワー差分（30～50の間で微調整推奨。カーブ追従性と直進ふらつきのバランス）
 
 # ---【ライン検出Y座標（カメラ画像基準, camera.pyのOFFSET_Yと揃える）】---
 # ライントレース時に進行方向の基準とする画像内Y座標。
