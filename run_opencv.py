@@ -264,40 +264,32 @@ class ActionManager:
             if theta is None:
                 print(f"[ERROR] theta is None, using 0")
                 theta = 0
-            print(f"[DEBUG] Step 1: theta={theta}")
                 
             # 2. θとpositionに応じた推奨速度（パワー）を決定
             current_power = self.calc.calculate_adaptive_speed(theta, position)
             if current_power is None:
                 print(f"[ERROR] current_power is None, using 30")
                 current_power = 30  # デフォルト値
-            print(f"[DEBUG] Step 2: current_power={current_power}")
                 
             # 3. PID制御で進行角度を補正
             pid_corrected_theta = self.pid.update(theta)
             if pid_corrected_theta is None:
                 print(f"[ERROR] pid_corrected_theta is None, using 0")
                 pid_corrected_theta = 0
-            print(f"[DEBUG] Step 3: pid_corrected_theta={pid_corrected_theta}")
                 
             # 4. PID補正値をパワー差分に変換
-            print(f"[DEBUG] About to call calculate_power_adjustment with pid_corrected_theta={pid_corrected_theta}, position={position}")
             try:
                 power_adjustment = self.calc.calculate_power_adjustment(pid_corrected_theta, position)
             except Exception as calc_error:
                 print(f"[ERROR] calculate_power_adjustment failed: {calc_error}")
                 power_adjustment = 0
-            print(f"[DEBUG] Step 4: power_adjustment={power_adjustment}")
             if power_adjustment is None:
                 power_adjustment = 0
                 print(f"[WARNING] power_adjustment is None, using 0")
                 
             # 5. 左右パワーを計算（負値にならないようクリッピング）
-            print(f"[DEBUG] About to calculate: current_power={current_power}, power_adjustment={power_adjustment}")
-            print(f"[DEBUG] Types: current_power={type(current_power)}, power_adjustment={type(power_adjustment)}")
             self.left_power = max(0, int(current_power - power_adjustment))
             self.right_power = max(0, int(current_power + power_adjustment))
-            print(f"[DEBUG] Step 5: left_power={self.left_power}, right_power={self.right_power}")
             
             # 6. モーター出力を即時反映
             self.apply_power()
@@ -305,11 +297,15 @@ class ActionManager:
             self.theta = theta
             self.pid_corrected_theta = pid_corrected_theta
             self.current_power = current_power
+            
+            # ライン検出状況のデバッグ出力（1秒ごと）
+            if not hasattr(self, '_last_line_debug') or time.time() - self._last_line_debug >= 1.0:
+                print(f"[LINE] pos={position:>5} | offset={offset_pixels:>3}px | theta={math.degrees(theta):>5.1f}deg | power=L{self.left_power:>2}/R{self.right_power:>2}")
+                self._last_line_debug = time.time()
+            
         except Exception as e:
             print(f"[ERROR] do_line_trace calculation failed: {e}")
             print(f"[DEBUG] offset_pixels={offset_pixels}, position={position}")
-            if hasattr(self, 'calc'):
-                print(f"[DEBUG] calc object exists: {self.calc}")
             # 安全停止
             self.left_power = 0
             self.right_power = 0
@@ -1340,6 +1336,11 @@ def main(config: Config):
             # 3. ラインエッジ検出（left_x, right_x, line_width）
             try:
                 left_x, right_x, line_width = camera.get_line_edges_at_y(frame)
+                # ライン検出状況をログ出力（デバッグ用）
+                if not hasattr(action, '_last_line_detect_debug') or time.time() - action._last_line_detect_debug >= 2.0:
+                    line_status = f"L:{left_x if left_x is not None else 'None'} R:{right_x if right_x is not None else 'None'} W:{line_width}"
+                    print(f"[DETECT] {line_status}")
+                    action._last_line_detect_debug = time.time()
             except Exception as e:
                 print(f"[ERROR] get_line_edges_at_y failed: {e}")
                 left_x, right_x, line_width = None, None, 0

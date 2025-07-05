@@ -151,6 +151,7 @@ class ControlCalculator:
             self._last_my = my
             roi_center_x = (x2 - x1) // 2
             offset_pixels = mx - roi_center_x
+            line_status = "DETECTED"
         else:
             # ラインが消えても直前の点を絶対に維持（中央や初期値に戻さない）
             if self._last_mx is not None and self._last_my is not None:
@@ -159,11 +160,22 @@ class ControlCalculator:
                 roi_center_x = (x2 - x1) // 2
                 offset_pixels = mx - roi_center_x
                 max_contour = None
+                line_status = "LOST_HOLDING"
             else:
                 mx = (x2 - x1) // 2
                 my = (y2 - y1) // 2
                 offset_pixels = 0
                 max_contour = None
+                line_status = "LOST_CENTER"
+        
+        # ライン検出状況を定期的にログ出力
+        if hasattr(self, '_last_steer_debug'):
+            if time.time() - self._last_steer_debug >= 3.0:
+                pos_str = f"{position:>6}" if position is not None else "  None"
+                print(f"[STEER] pos={pos_str} | {line_status} | mx={mx:>3} offset={offset_pixels:>3}px | edge={follow_edge}")
+                self._last_steer_debug = time.time()
+        else:
+            self._last_steer_debug = time.time()
         steer_result = {
             "mx": mx,
             "my": my,
