@@ -464,7 +464,7 @@ class ActionManager:
             if not self.action_sent:
                 self.start_time = now
                 self.action_sent = True
-                self.arc_end_time = now + 0.6
+                self.arc_end_time = now + 0.5
                 self.left_power = 15   # 左モーターを弱く（右向き）
                 self.right_power = 75  # 右モーターを強く（右向き）
             else:
@@ -473,6 +473,19 @@ class ActionManager:
                     self.state = 3
                     self._reset_action_vars()
         elif self.state == 3:
+            # 0.5秒間停止
+            if not self.action_sent:
+                self.start_time = now
+                self.action_sent = True
+                self.arc_end_time = now + 0.5
+                self.left_power = 0   # 停止
+                self.right_power = 0  # 停止
+            else:
+                if now >= self.arc_end_time:
+                    self.et.brake()
+                    self.state = 4
+                    self._reset_action_vars()
+        elif self.state == 4:
             # 完了
             self.finished = True
         self.apply_power()
