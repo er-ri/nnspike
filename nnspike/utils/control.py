@@ -70,6 +70,10 @@ class ControlCalculator:
         self.max_theta = math.radians(MAX_THETA_DEG)  # θ最大値[rad]
         self.debug = debug  # デバッグ出力ON/OFF
         self.roi_opencv = roi_opencv
+        
+        # 段階的ブースト用の状態管理
+        self._boost_start_time = None  # ブースト開始時刻
+        self._boost_buildup_duration = 1.0  # ブーストが1.2倍に達するまでの時間（秒）
 
     def calc_steer_result(self, left_x, right_x, position=None):
         """
@@ -206,15 +210,32 @@ class ControlCalculator:
         """
         PID補正値（ラジアン）をパワー差分（左右モーター出力の調整値）に変換する。
         - シンプルなリニア変換のみ（ブーストなし）
-        - theta_degが7度を超えた場合、パワー差分を1.2倍にブースト
+        - theta_degが7度を超えた場合、パワー差分を段階的に1.2倍までブースト
+        - theta_degが7度以下になると即座にブースト停止
         - 最大パワー差分はMAX_POWER_DIFFでクリップ
         """
         base = (pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF
         
-        # theta_degが7度を超えた場合のブースト処理
+        # theta_degが7度を超えた場合の段階的ブースト処理
         theta_deg = abs(math.degrees(pid_corrected_theta))
+        current_time = time.time()
+        
         if theta_deg > 7.0:
-            base = base * 1.2
+            # ブーストが必要な状態
+            if self._boost_start_time is None:
+                # ブースト開始
+                self._boost_start_time = current_time
+                boost_factor = 1.0
+            else:
+                # ブースト継続中：時間経過に応じて段階的に増加
+                elapsed_time = current_time - self._boost_start_time
+                boost_progress = min(elapsed_time / self._boost_buildup_duration, 1.0)
+                boost_factor = 1.0 + (0.2 * boost_progress)  # 1.0から1.2に段階的に増加
+            
+            base = base * boost_factor
+        else:
+            # theta_degが7度以下：即座にブースト停止
+            self._boost_start_time = None
         
         if base > 0:
             power_adj = min(int(base), MAX_POWER_DIFF)
