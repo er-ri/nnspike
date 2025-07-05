@@ -24,7 +24,7 @@ import numpy as np
 # パラメータ定数
 BASE_POWER = 30
 STRAIGHT_POWER = 50
-CURVE_POWER = 10
+CURVE_POWER = 15
 STRAIGHT_THRESHOLD_DEG = 3
 BOOST_AND_CURVE_THRESHOLD_DEG = 12  # 6→12に大幅アップ
 
@@ -39,7 +39,7 @@ OFFSET_Y = 400
 POSITION_STRAIGHT = 4500
 POSITION_CROSS1 = 11800
 POSITION_CROSS2 = 15200
-POSITION_CROSS3 = 17000
+POSITION_CROSS3 = 16800
 POSITION_CROSS4 = 19000
 
 class ControlCalculator:
@@ -313,11 +313,20 @@ class ControlCalculator:
         if current_boost_factor > 1.0:
             self._boost_count += 1
             
-        # パワー差分計算
-        if self.max_theta != 0:
-            base = (pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF
+        # パワー差分計算（16000-18999は極端な舵角）
+        if position is not None and 16000 <= abs(position) < 19000:
+            # 16000-18999は極端な舵角でしっかり曲がる
+            extreme_power_diff = 80  # 通常の2倍の舵角
+            if self.max_theta != 0:
+                base = (pid_corrected_theta / self.max_theta) * extreme_power_diff
+            else:
+                base = 0.0
         else:
-            base = 0.0
+            # 通常の舵角（0-15999と19000以降）
+            if self.max_theta != 0:
+                base = (pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF
+            else:
+                base = 0.0
         
         if not isinstance(base, (int, float)) or math.isnan(base) or math.isinf(base):
             base = 0.0
@@ -346,11 +355,19 @@ class ControlCalculator:
         
         self._last_boost_factor = current_boost_factor
         
-        # クリップして返す
-        if boosted_base > 0:
-            power_adj = min(int(boosted_base), MAX_POWER_DIFF)
+        # クリップして返す（16000-18999は極端な舵角対応）
+        if position is not None and 16000 <= abs(position) < 19000:
+            extreme_limit = 80  # 16000-18999は±80まで許可
+            if boosted_base > 0:
+                power_adj = min(int(boosted_base), extreme_limit)
+            else:
+                power_adj = max(int(boosted_base), -extreme_limit)
         else:
-            power_adj = max(int(boosted_base), -MAX_POWER_DIFF)
+            # 通常のクリッピング（0-15999と19000以降）
+            if boosted_base > 0:
+                power_adj = min(int(boosted_base), MAX_POWER_DIFF)
+            else:
+                power_adj = max(int(boosted_base), -MAX_POWER_DIFF)
         
         # 急激な調整値変化の検出
         if hasattr(self, '_last_power_adjustment'):
