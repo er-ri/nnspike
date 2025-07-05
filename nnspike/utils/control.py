@@ -100,6 +100,8 @@ class ControlCalculator:
         if not hasattr(self, '_last_mx'):
             self._last_mx = None
             self._last_my = None
+
+        # ラインが見つかった場合は常に最新のcandidate_xを目標点とし、絶対に離さない
         if left_x is not None and right_x is not None:
             min_x = x1 + int((x2 - x1) * 0.2)
             max_x = x1 + int((x2 - x1) * 0.8)
@@ -112,7 +114,6 @@ class ControlCalculator:
             else:
                 candidate_x = np.clip((left_x + right_x) // 2, min_x, max_x)
                 max_contour = np.array([[[np.clip(left_x, min_x, max_x) - x1, OFFSET_Y - y1]], [[np.clip(right_x, min_x, max_x) - x1, OFFSET_Y - y1]]], dtype=np.int32)
-            # ラインがある限り、常に最新のcandidate_xを目標点とし、絶対に離さない
             mx = candidate_x - x1
             my = OFFSET_Y - y1
             self._last_mx = mx
@@ -120,7 +121,7 @@ class ControlCalculator:
             roi_center_x = (x2 - x1) // 2
             offset_pixels = mx - roi_center_x
         else:
-            # ラインが消えても直前の点を絶対に維持
+            # ラインが消えても直前の点を絶対に維持（中央や初期値に戻さない）
             if self._last_mx is not None and self._last_my is not None:
                 mx = self._last_mx
                 my = self._last_my

@@ -42,8 +42,7 @@ class Camera:
         - left_x, right_x: 画像全体座標でのライン端点
         - line_width: ライン幅（ピクセル数）
         黒・青どちらかのラインが見つかれば検出し、両方重なっていれば両方を統合して検出。
-        ラインが見つからない場合は「ROIの中央を仮想ライン」として返す（止まらないようにする）。
-        急激なジャンプ（前回値からの変化がROI幅のLINE_EDGE_MAX_JUMP_RATIOを超える場合）は無視する。
+        ラインが見つからない場合も「直前の点」を絶対に離さず維持し続ける（中央や初期値に戻さない）。
         """
         target_y = OFFSET_Y
         x, y, w, h = self.roi
@@ -53,7 +52,10 @@ class Camera:
             self._prev_right_x = None
 
         if target_y < y or target_y >= y + h:
-            # ROI外なら中央を返す
+            # ROI外なら直前の点を維持
+            if self._prev_left_x is not None and self._prev_right_x is not None:
+                return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
+            # 初回のみ中央
             center_x = x + w // 2
             self._prev_left_x = center_x
             self._prev_right_x = center_x
@@ -95,13 +97,14 @@ class Camera:
             if len(white_pixels) > 0:
                 left_x_roi = white_pixels[0]
                 right_x_roi = white_pixels[-1]
-                # 画面端への極端なジャンプを抑制（端制限なし）
                 left_x = x + left_x_roi
                 right_x = x + right_x_roi
                 line_width = right_x - left_x + 1
-                # 目標点を常に最新値で追従（前回値は使わない）
+                # 直前の点を更新
+                self._prev_left_x = left_x
+                self._prev_right_x = right_x
                 return left_x, right_x, line_width
-        # ラインが見つからない場合も、直前の点を絶対に離さず維持し続ける
+        # ラインが見つからない場合も、直前の点を絶対に離さず維持し続ける（中央や初期値に戻さない）
         if self._prev_left_x is not None and self._prev_right_x is not None:
             return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
         # 初回のみ中央
