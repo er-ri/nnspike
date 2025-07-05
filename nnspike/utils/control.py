@@ -232,7 +232,7 @@ class ControlCalculator:
         if self.debug and int(current_time * 10) % 10 == 0:  # 1秒ごと
             print(f"[DEBUG] theta={theta_deg:.1f}deg, boost_active={self._boost_active}")
         
-        if theta_deg > 2.0:  # 3度から2度に下げて早期発動
+        if theta_deg > 3.0:  # 3度から2度に下げて早期発動
             # theta > 2度の状態
             if self._theta_3deg_start_time is None:
                 # theta > 2度状態の開始
