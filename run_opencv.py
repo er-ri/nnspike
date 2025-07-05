@@ -464,8 +464,8 @@ class ActionManager:
             if not self.action_sent:
                 self.start_time = now
                 self.action_sent = True
-                self.arc_end_time = now + 0.5
-                self.left_power = 30  # 左モーターを弱く（右向き）
+                self.arc_end_time = now + 0.7
+                self.left_power = 20  # 左モーターを弱く（右向き）
                 self.right_power = 80 # 右モーターを強く（右向き）
             else:
                 if now >= self.arc_end_time:
