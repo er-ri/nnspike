@@ -5,9 +5,6 @@ import hub# type: ignore
 import time
 import uasyncio# type: ignore
 
-MAX_IDLE_TIME = 120000# Maximum idle time, unit: millisecond
-MAX_RUN_TIME = 600# Maximum running time, unit: second
-
 # Command ID list
 COMMAND_SET_MOTOR_FORWARD_POWER_ID = 201
 COMMAND_SET_MOTOR_BACKWARD_POWER_ID = 202
