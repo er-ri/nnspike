@@ -40,8 +40,8 @@ OFFSET_Y = 350  # 例: 画像下部付近を基準にする場合
 # run_opencv.py など他ファイルと値を揃えること
 POSITION_STRAIGHT = 5000
 POSITION_CROSS1 = 11500
-POSITION_CROSS2 = 16000
-POSITION_CROSS3 = 16000
+POSITION_CROSS2 = 15000
+POSITION_CROSS3 = 18000
 POSITION_CROSS4 = 20000
 
 class ControlCalculator:
@@ -88,12 +88,10 @@ class ControlCalculator:
         # follow_edge自動判定: positionが指定されていれば区間ごとに切り替え、なければleft
         if position is not None:
             abs_position = abs(position)
-            if abs_position <= POSITION_CROSS1:   #12000
+            if abs_position <= POSITION_CROSS1:
                 follow_edge = "right"
-            elif abs_position <= POSITION_CROSS2: #15000
+            elif abs_position <= POSITION_CROSS2:
                 follow_edge = "left"
-            elif abs_position <= POSITION_CROSS3: #17500
-                follow_edge = "right"
             else:
                 follow_edge = "right"
         else:
