@@ -434,13 +434,13 @@ class ActionManager:
             self.apply_power()
             return
         if self.state == 0:
-            # 3秒間左迂回（左カーブ走行）
+            # 3秒間右迂回（右カーブ走行）
             if not self.action_sent:
                 self.start_time = now
                 self.action_sent = True
-                self.arc_end_time = now + 3.0
-                self.left_power = 30  # 左モーターを弱く（左カーブ）
-                self.right_power = 60  # 右モーターを強く
+                self.arc_end_time = now + 2.0
+                self.left_power = 60  # 左モーターを強く
+                self.right_power = 30  # 右モーターを弱く（右カーブ）
             else:
                 if now >= self.arc_end_time:
                     self.et.brake()
