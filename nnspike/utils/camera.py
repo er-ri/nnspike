@@ -3,7 +3,7 @@ import numpy as np
 
 
 BLACK_THRESHOLD = 130  # 黒判定のしきい値（固定, steer_by_camera用）
-ROI_OPENCV = (40, 50, 600, 450)  # run_opencv.pyと完全一致（左右+30px拡張）
+ROI_OPENCV = (10, 50, 630, 450)  # run_opencv.pyと完全一致（左右さらに+30px拡張）
 ROI_BOTTLE = (100, 20, 540, 450)  # run_opencv.pyと完全一致
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480     
