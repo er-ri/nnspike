@@ -196,8 +196,18 @@ class ControlCalculator:
     def calculate_power_adjustment(self, pid_corrected_theta):
         """
         PID補正値（ラジアン）をパワー差分（左右モーター出力の調整値）に変換する。
+        - 8度（約0.14rad）を超えたら出力をブースト（1.5倍）
         - 最大パワー差分はMAX_POWER_DIFFでクリップ。
-        - 暴走抑制等の制限は現状なし。
         """
-        power_adj = int((pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF)
+        boost_threshold_deg = 8
+        boost_threshold_rad = math.radians(boost_threshold_deg)
+        boost_ratio = 1.5
+        base = (pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF
+        if abs(pid_corrected_theta) > boost_threshold_rad:
+            base *= boost_ratio
+        # クリップ
+        if base > 0:
+            power_adj = min(int(base), MAX_POWER_DIFF)
+        else:
+            power_adj = max(int(base), -MAX_POWER_DIFF)
         return power_adj
