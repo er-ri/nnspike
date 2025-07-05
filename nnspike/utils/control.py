@@ -65,6 +65,7 @@ class ControlCalculator:
         self._last_boost_log_time = 0
         self._last_boost_factor = 1.0
         self._last_boost_change_time = 0  # ブースト状態変更の時間制限用
+        self._last_curve_boost_state = False  # カーブ+ブースト状態のヒステリシス用
         
         # 状態監視用
         self._last_power = None
@@ -237,14 +238,23 @@ class ControlCalculator:
             pos_str = f"{position:>6}" if position is not None else "  None"
             print(f"[STABILITY_ALERT] pos={pos_str} | SUDDEN_THETA_CHANGE | {self._last_theta_deg:>5.1f}deg → {theta_deg:>5.1f}deg (Δ{theta_change:>5.1f})")
         
-        # カーブパワー+ブースト同時発動
-        if theta_deg >= BOOST_AND_CURVE_THRESHOLD_DEG:
+        # カーブパワー+ブースト同時発動（ヒステリシス付き）
+        if self._last_curve_boost_state:
+            # 現在カーブ状態なら、3度下回るまで継続（ヒステリシス）
+            curve_boost_active = theta_deg >= (BOOST_AND_CURVE_THRESHOLD_DEG - 3)
+        else:
+            # 現在非カーブ状態なら、6度を超えたらカーブ状態に
+            curve_boost_active = theta_deg >= BOOST_AND_CURVE_THRESHOLD_DEG
+        
+        if curve_boost_active:
             self._curve_power_count += 1
             if self._total_calls % 100 == 0:
                 pos_str = f"{position:>6}" if position is not None else "  None"
                 print(f"[CURVE+BOOST] pos={pos_str} | theta={theta_deg:>5.1f}deg >= {BOOST_AND_CURVE_THRESHOLD_DEG}.0 | power={self.curve_power} + BOOST_1.1x")
             selected_power = self.curve_power
+            self._last_curve_boost_state = True
         else:
+            self._last_curve_boost_state = False
             # 位置に応じた速度選択
             if position is not None:
                 abs_position = abs(position)
