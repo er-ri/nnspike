@@ -426,7 +426,7 @@ class ActionManager:
     def do_obstacle_avoid_with_bottle(self):
         if getattr(self, 'is_stopped', False):
             return
-        # --- 障害物回避動作（状態遷移あり, 7段階, state=0から開始） ---
+        # --- 障害物回避動作（3秒間の右迂回のみ） ---
         now = time.time()
         if self.finished:
             self.left_power = 0
@@ -434,84 +434,19 @@ class ActionManager:
             self.apply_power()
             return
         if self.state == 0:
-            # 45度右旋回
+            # 3秒間左迂回（左カーブ走行）
             if not self.action_sent:
                 self.start_time = now
                 self.action_sent = True
-                self.turn_duration = 60 * 1.0 / 90
-                self.left_power = 0
-                self.right_power = 30
+                self.arc_end_time = now + 3.0
+                self.left_power = 30  # 左モーターを弱く（左カーブ）
+                self.right_power = 60  # 右モーターを強く
             else:
-                if now - self.start_time >= self.turn_duration:
+                if now >= self.arc_end_time:
                     self.et.brake()
                     self.state = 1
                     self._reset_action_vars()
         elif self.state == 1:
-            # 直進
-            if not self.action_sent:  
-                self.start_time = now
-                self.action_sent = True
-                self.arc_end_time = now + 1.5
-                self.left_power = 80
-                self.right_power = 80
-            else:
-                if now >= self.arc_end_time:
-                    self.et.brake()
-                    self.state = 2
-                    self._reset_action_vars()
-        elif self.state == 2:
-            # 90度左旋回
-            if not self.action_sent:
-                self.start_time = now
-                self.action_sent = True
-                self.turn_duration = 90 * 1.0 / 90
-                self.left_power = 30
-                self.right_power = 0
-            else:
-                if now - self.start_time >= self.turn_duration:
-                    self.et.brake()
-                    self.state = 3
-                    self._reset_action_vars()
-        elif self.state == 3:
-            # 直進
-            if not self.action_sent:  
-                self.start_time = now
-                self.action_sent = True
-                self.arc_end_time = now + 1.0
-                self.left_power = 80
-                self.right_power = 80
-            else:
-                if now >= self.arc_end_time:
-                    self.et.brake()
-                    self.state = 4
-                    self._reset_action_vars()
-        elif self.state == 4:
-            # 45度右旋回
-            if not self.action_sent:
-                self.start_time = now
-                self.action_sent = True
-                self.turn_duration = 60 * 1.0 / 90
-                self.left_power = 0
-                self.right_power = 30
-            else:
-                if now - self.start_time >= self.turn_duration:
-                    self.et.brake()
-                    self.state = 5
-                    self._reset_action_vars()
-        elif self.state == 5:
-            # 直進
-            if not self.action_sent:
-                self.start_time = now
-                self.action_sent = True
-                self.arc_end_time = now + 2.0
-                self.left_power = 80
-                self.right_power = 80
-            else:
-                if now >= self.arc_end_time:
-                    self.et.brake()
-                    self.state = 6
-                    self._reset_action_vars()
-        elif self.state == 6:
             # 完了
             self.finished = True
         self.apply_power()
@@ -1013,7 +948,7 @@ class NormalScenario(DefaultScenario):
         # --- モーター相対位置によるシナリオ遷移用の指標（deg単位） ---
         if self.mode == Mode.LINE_TRACE:
             # ライントレース中に各色ボトルを検出したら該当モードへ遷移
-            if yellow_pixels >= BOTTLE_YELLOW_THRESHOLD:
+            if yellow_pixels >= BOTTLE_YELLOW_THRESHOLD and abs(right_pos) <= POSITION_YELLOW_BOTTLE:
                 self.mode = Mode.YELLOW_BOTTLE
             elif blue_pixels >= BOTTLE_BLUE_THRESHOLD and abs(right_pos) >= POSITION_BLUE_BOTTLE:
                 self.mode = Mode.BLUE_BOTTLE
