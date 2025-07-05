@@ -76,7 +76,7 @@ class ControlCalculator:
         self.straight_power = STRAIGHT_POWER  # 直線時の推奨パワー
         self.curve_power = CURVE_POWER  # カーブ時の推奨パワー
         self.straight_threshold = math.radians(STRAIGHT_THRESHOLD_DEG)  # 直線判定しきい値[rad]
-        self.curve_threshold = math.radians(CURVE_THRESHOLD_DEG)  # カーブ判定しきい値[rad]
+        self.boost_and_curve_threshold = math.radians(BOOST_AND_CURVE_THRESHOLD_DEG)  # ブースト+カーブ判定しきい値[rad]
         self.max_theta = math.radians(MAX_THETA_DEG)  # θ最大値[rad]
         self.debug = debug  # デバッグ出力ON/OFF
         self.roi_opencv = roi_opencv
