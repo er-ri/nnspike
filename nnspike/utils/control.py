@@ -112,12 +112,15 @@ class ControlCalculator:
             else:
                 candidate_x = np.clip((left_x + right_x) // 2, min_x, max_x)
                 max_contour = np.array([[[np.clip(left_x, min_x, max_x) - x1, OFFSET_Y - y1]], [[np.clip(right_x, min_x, max_x) - x1, OFFSET_Y - y1]]], dtype=np.int32)
-            max_jump = int((x2 - x1) * 0.4)
+            # ジャンプ抑制閾値を緩和（前回値からROI幅の70%を超える変化のみ無視）
+            max_jump = int((x2 - x1) * 0.7)
             if self._prev_target_x is not None and abs(candidate_x - self._prev_target_x) > max_jump:
-                target_x = self._prev_target_x
+                # 急激なジャンプは前回値にαブレンドで追従
+                alpha = 0.5
+                target_x = int((1 - alpha) * self._prev_target_x + alpha * candidate_x)
             else:
                 target_x = candidate_x
-                self._prev_target_x = candidate_x
+            self._prev_target_x = target_x
             mx = target_x - x1
             my = OFFSET_Y - y1
             roi_center_x = (x2 - x1) // 2

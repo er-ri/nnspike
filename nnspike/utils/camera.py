@@ -98,16 +98,17 @@ class Camera:
                 left_x = x + left_x_roi
                 right_x = x + right_x_roi
                 line_width = right_x - left_x + 1
-                # シンプルなジャンプ抑制のみ（前回値からROI幅の40%を超える変化は無視）
-                max_jump = int(w * 0.4)
+                # ジャンプ抑制閾値を緩和（前回値からROI幅の70%を超える変化のみ無視）
+                max_jump = int(w * 0.7)
                 if self._prev_left_x is not None and abs(left_x - self._prev_left_x) > max_jump:
-                    left_x = self._prev_left_x
-                else:
-                    self._prev_left_x = left_x
+                    # 急激なジャンプは前回値にαブレンドで追従
+                    alpha = 0.5
+                    left_x = int((1 - alpha) * self._prev_left_x + alpha * left_x)
+                self._prev_left_x = left_x
                 if self._prev_right_x is not None and abs(right_x - self._prev_right_x) > max_jump:
-                    right_x = self._prev_right_x
-                else:
-                    self._prev_right_x = right_x
+                    alpha = 0.5
+                    right_x = int((1 - alpha) * self._prev_right_x + alpha * right_x)
+                self._prev_right_x = right_x
                 return self._prev_left_x, self._prev_right_x, abs(self._prev_right_x - self._prev_left_x) + 1
         # ラインが見つからない場合はROI中央を仮想ラインとして返す（絶対に止まらない）
         center_x = x + w // 2
