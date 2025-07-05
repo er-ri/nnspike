@@ -218,46 +218,56 @@ class ControlCalculator:
         """
         PID補正値（ラジアン）をパワー差分（左右モーター出力の調整値）に変換する。
         - シンプルなリニア変換のみ（ブーストなし）
-        - theta_degが3度を超えた状態が1秒以上続いた場合、パワー差分を段階的に1.5倍までブースト
-        - theta_degが3度以下になると即座にブースト停止
+        - theta_degが2度を超えた状態が0.5秒以上続いた場合、パワー差分を段階的に2.0倍までブースト
+        - theta_degが2度以下になると即座にブースト停止
         - 最大パワー差分はMAX_POWER_DIFFでクリップ
         """
         base = (pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF
         
-        # theta_degが3度を超えた状態が1秒以上続く場合の段階的ブースト処理
+        # theta_degが2度を超えた状態が0.5秒以上続く場合の段階的ブースト処理
         theta_deg = abs(math.degrees(pid_corrected_theta))
         current_time = time.time()
         
-        if theta_deg > 3.0:
-            # theta > 3度の状態
+        # デバッグ：theta値を常時出力
+        if self.debug and int(current_time * 10) % 10 == 0:  # 1秒ごと
+            print(f"[DEBUG] theta={theta_deg:.1f}deg, boost_active={self._boost_active}")
+        
+        if theta_deg > 2.0:  # 3度から2度に下げて早期発動
+            # theta > 2度の状態
             if self._theta_3deg_start_time is None:
-                # theta > 3度状態の開始
+                # theta > 2度状態の開始
                 self._theta_3deg_start_time = current_time
+                if self.debug:
+                    print(f"[DEBUG] theta > 2deg started: {theta_deg:.1f}deg")
             
-            # theta > 3度が1秒以上継続しているかチェック
+            # theta > 3度が0.5秒以上継続しているかチェック
             theta_3deg_elapsed = current_time - self._theta_3deg_start_time
-            if theta_3deg_elapsed >= self._theta_3deg_duration_threshold:
+            if theta_3deg_elapsed >= 0.5:  # 0.5秒に短縮
                 # ブーストが必要な状態
                 if self._boost_start_time is None:
                     # ブースト開始
                     self._boost_start_time = current_time
                     boost_factor = 1.0
                     if not self._boost_active:
-                        print(f"[BOOST] Started: theta={theta_deg:.1f}deg (>3deg for {theta_3deg_elapsed:.1f}s)")
+                        print(f"[BOOST] Started: theta={theta_deg:.1f}deg (>2deg for {theta_3deg_elapsed:.1f}s)")
                         self._boost_active = True
                 else:
                     # ブースト継続中：時間経過に応じて段階的に増加
                     elapsed_time = current_time - self._boost_start_time
                     boost_progress = min(elapsed_time / self._boost_buildup_duration, 1.0)
-                    boost_factor = 1.0 + (0.5 * boost_progress)  # 1.0から1.5に段階的に増加
+                    boost_factor = 1.0 + (1.0 * boost_progress)  # 1.0から2.0に段階的に増加（1.5→2.0に強化）
                     if self.debug and int(elapsed_time * 10) % 5 == 0:  # 0.5秒ごとにログ出力
                         print(f"[BOOST] Active: factor={boost_factor:.2f}, theta={theta_deg:.1f}deg")
                 
                 base = base * boost_factor
+            else:
+                # まだ0.5秒経過していない
+                if self.debug:
+                    print(f"[DEBUG] Waiting for boost: theta={theta_deg:.1f}deg, elapsed={theta_3deg_elapsed:.1f}s")
         else:
-            # theta_degが3度以下：即座にブースト停止とtheta > 3度状態のリセット
+            # theta_degが2度以下：即座にブースト停止とtheta > 2度状態のリセット
             if self._boost_active:
-                print(f"[BOOST] Stopped: theta={theta_deg:.1f}deg (<=3deg)")
+                print(f"[BOOST] Stopped: theta={theta_deg:.1f}deg (<=2deg)")
                 self._boost_active = False
             self._boost_start_time = None
             self._theta_3deg_start_time = None
