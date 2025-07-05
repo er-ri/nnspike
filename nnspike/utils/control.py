@@ -13,7 +13,13 @@
 import math
 import time
 from collections import deque
-import numpy as np
+impo                else:
+                    # theta > 8度状態が継続中
+                    theta_5deg_elapsed = current_time - self._theta_5deg_start_time
+                    if self.debug and (current_time - self._last_debug_time) >= 0.2:  # 0.3秒→0.2秒でより頻繁に
+                        pos_str = f"{position:>6}" if position is not None else "  None"
+                        print(f"[DEBUG] pos={pos_str} | theta > 8deg continues: {theta_deg:.1f}deg, elapsed={theta_5deg_elapsed:.1f}s, cumulative={self._theta_cumulative_time:.1f}s")
+                        self._last_debug_time = current_timey as np
 
 # ====【現場でよく調整する推奨パラメータ】====
 BASE_POWER = 30             # 通常走行時の基準パワー
@@ -40,7 +46,7 @@ OFFSET_Y = 400  # 例: 画像下部付近を基準にする場合
 # run_opencv.py など他ファイルと値を揃えること
 POSITION_STRAIGHT = 4500
 POSITION_CROSS1 = 11800
-POSITION_CROSS2 = 15000
+POSITION_CROSS2 = 15500
 POSITION_CROSS3 = 18500
 POSITION_CROSS4 = 20000
 
@@ -75,12 +81,12 @@ class ControlCalculator:
         self._boost_start_time = None  # ブースト開始時刻
         self._boost_buildup_duration = 1.0  # ブーストが1.2倍に達するまでの時間（秒）
         self._theta_5deg_start_time = None  # theta > 8度状態の開始時刻（5度→8度に変更で安定化）
-        self._theta_5deg_duration_threshold = 0.5  # theta > 8度が継続する必要な時間（秒、1.0s→0.5sで緩和）
+        self._theta_5deg_duration_threshold = 0.3  # theta > 8度が継続する必要な時間（秒、0.5s→0.3sでさらに緩和）
         self._boost_active = False  # ブースト状態フラグ（ログ出力用）
         self._boost_cooldown_time = None  # ブースト停止後のクールダウン開始時刻
-        self._boost_cooldown_duration = 3.0  # クールダウン期間（3秒）
+        self._boost_cooldown_duration = 1.0  # クールダウン期間（3秒→1秒に短縮）
         self._theta_cumulative_time = 0.0  # theta > 8度の累積時間
-        self._theta_cumulative_threshold = 0.3  # 累積時間のしきい値（0.3秒）
+        self._theta_cumulative_threshold = 0.15  # 累積時間のしきい値（0.3秒→0.15秒に大幅緩和）
         self._last_debug_time = 0  # デバッグ出力頻度制御用
         self._last_boost_debug_time = 0  # ブーストデバッグ出力頻度制御用
 
@@ -270,7 +276,7 @@ class ControlCalculator:
                     self._theta_5deg_start_time = current_time
                     if self.debug and (current_time - self._last_debug_time) >= 0.5:
                         pos_str = f"{position:>6}" if position is not None else "  None"
-                        print(f"[DEBUG] pos={pos_str} | theta > 8deg started: {theta_deg:.1f}deg (need 0.5s for boost)")
+                        print(f"[DEBUG] pos={pos_str} | theta > 8deg started: {theta_deg:.1f}deg (need 0.3s for boost)")
                         self._last_debug_time = current_time
                 else:
                     # theta > 8度状態が継続中
@@ -282,7 +288,7 @@ class ControlCalculator:
                 
                 # theta > 8度が0.5秒以上継続、または累積0.3秒以上でブースト開始
                 theta_5deg_elapsed = current_time - self._theta_5deg_start_time
-                if theta_5deg_elapsed >= 0.5 or self._theta_cumulative_time >= self._theta_cumulative_threshold:  # 継続0.5秒 OR 累積0.3秒
+                if theta_5deg_elapsed >= 0.3 or self._theta_cumulative_time >= self._theta_cumulative_threshold:  # 継続0.3秒 OR 累積0.15秒
                     # ブーストが必要な状態
                     if self._boost_start_time is None:
                         # ブースト開始
@@ -290,8 +296,8 @@ class ControlCalculator:
                         current_boost_factor = 1.0
                         if not self._boost_active:
                             pos_str = f"{position:>6}" if position is not None else "  None"
-                            trigger_reason = f"continuous {theta_5deg_elapsed:.1f}s" if theta_5deg_elapsed >= 0.5 else f"cumulative {self._theta_cumulative_time:.1f}s"
-                            print(f"[BOOST] pos={pos_str} | Started: theta={theta_deg:.1f}deg ({trigger_reason})")
+                            trigger_reason = f"continuous {theta_5deg_elapsed:.1f}s" if theta_5deg_elapsed >= 0.3 else f"cumulative {self._theta_cumulative_time:.1f}s"
+                            print(f"[BOOST] pos={pos_str} | Started: theta={theta_deg:.1f}deg ({trigger_reason}) | cooldown was {self._boost_cooldown_duration}s")
                             self._boost_active = True
                             self._last_debug_time = current_time
                     else:
@@ -306,10 +312,10 @@ class ControlCalculator:
                     
                     base = base * current_boost_factor
                 else:
-                    # まだ0.5秒経過していない かつ 累積時間も不足（出力頻度抑制）
-                    if self.debug and (current_time - self._last_debug_time) >= 0.5:  # 0.8秒→0.5秒でより頻繁に出力
+                    # まだ0.3秒経過していない かつ 累積時間も不足（出力頻度抑制）
+                    if self.debug and (current_time - self._last_debug_time) >= 0.3:  # 0.5秒→0.3秒でより頻繁に出力
                         pos_str = f"{position:>6}" if position is not None else "  None"
-                        print(f"[DEBUG] pos={pos_str} | Waiting for boost: theta={theta_deg:.1f}deg, elapsed={theta_5deg_elapsed:.1f}s, cumulative={self._theta_cumulative_time:.1f}s (need 0.5s OR 0.3s)")
+                        print(f"[DEBUG] pos={pos_str} | Waiting for boost: theta={theta_deg:.1f}deg, elapsed={theta_5deg_elapsed:.1f}s, cumulative={self._theta_cumulative_time:.1f}s (need 0.3s OR 0.15s)")
                         self._last_debug_time = current_time
         else:
             # theta_degが8度以下：累積時間をリセット
