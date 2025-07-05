@@ -220,7 +220,7 @@ class ControlCalculator:
         theta_deg = abs(math.degrees(pid_corrected_theta))
         current_time = time.time()
         
-        if theta_deg > 7.0:
+        if theta_deg > 6.0:
             # ブーストが必要な状態
             if self._boost_start_time is None:
                 # ブースト開始
