@@ -169,15 +169,11 @@ def receiver():
         command_id, command_parameter1, command_parameter2 = latest_command
         lego_spike.execute_command(command_id, command_parameter1, command_parameter2)
 
-    if time.ticks_ms() - lego_spike.command_counter > MAX_IDLE_TIME:
-        raise SystemExit("Maximum idle time reached, terminate lego spike.")
-
     time.sleep(0.01)
 
 
 def main_task():
-    start_time = time.time()
-    while time.time() - start_time < MAX_RUN_TIME:
+    while True:
         receiver()
 
 
