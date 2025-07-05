@@ -58,9 +58,9 @@ from nnspike.utils import (
 
 # ==== ユーザー調整用パラメータ（ここだけ編集すればOK） ====
  # ROI_OPENCV: OpenCV画像処理で使用する領域（左上x, 左上y, 右下x, 右下y）
-ROI_BOTTLE = (100, 20, 540, 400)   # (x1, y1, x2, y2)
+ROI_BOTTLE = (100, 20, 540, 450)   # (x1, y1, x2, y2)  # 下端を50上げて下側を広げる
 # ROI_OPENCV: 左右を均等に30ピクセルずつ広げる（例: x1-30, x2+30）
-ROI_OPENCV = (70, 50, 570, 400)   # x1=100-30=70, x2=540+30=570
+ROI_OPENCV = (70, 50, 570, 450)   # x1=100-30=70, x2=540+30=570, 下端を50上げ
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480                 # カメラ画像の高さ
 # 黒判定の閾値（反射光R: 40以下, color: 150以下なら黒と判定）
@@ -927,7 +927,7 @@ def draw_driving_info(
     try:
         from nnspike.utils.camera import OFFSET_Y
     except ImportError:
-        OFFSET_Y = 330  # fallback
+        OFFSET_Y = 380  # fallback
     image = cv2.line(image, (ROI_OPENCV[0], OFFSET_Y), (ROI_OPENCV[2], OFFSET_Y), (0, 255, 255), 2)  # 黄色
 
     image = cv2.circle(

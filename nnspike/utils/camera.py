@@ -9,7 +9,7 @@ IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480     
 COLOR_DETECT_PIXEL_THRESHOLD = 3000  # 色領域検出のピクセル数しきい値
 
-OFFSET_Y = 330  # ライン検出Y座標（カメラ画像基準）
+OFFSET_Y = 380  # ライン検出Y座標（カメラ画像基準）
 
 class Camera:
     """
