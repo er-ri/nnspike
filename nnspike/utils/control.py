@@ -26,7 +26,7 @@ BASE_POWER = 30
 STRAIGHT_POWER = 50
 CURVE_POWER = 15
 STRAIGHT_THRESHOLD_DEG = 3
-BOOST_AND_CURVE_THRESHOLD_DEG = 6
+BOOST_AND_CURVE_THRESHOLD_DEG = 12  # 6→12に大幅アップ
 
 CAMERA_HEIGHT = 0.20
 CAMERA_FOCAL_LENGTH_PIXELS = 640
@@ -305,7 +305,7 @@ class ControlCalculator:
         
         # シンプルなブースト判定
         if self._current_theta_deg >= BOOST_AND_CURVE_THRESHOLD_DEG:
-            current_boost_factor = 1.3  # 1.3倍ブースト
+            current_boost_factor = 1.1  # 1.3→1.1に下げて影響を小さく
         else:
             current_boost_factor = 1.0
         
