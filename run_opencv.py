@@ -426,7 +426,7 @@ class ActionManager:
     def do_obstacle_avoid_with_bottle(self):
         if getattr(self, 'is_stopped', False):
             return
-        # --- 障害物回避動作（3秒間の右迂回のみ） ---
+        # --- 障害物回避動作（3段階：右向き→左迂回→完了） ---
         now = time.time()
         if self.finished:
             self.left_power = 0
@@ -434,19 +434,32 @@ class ActionManager:
             self.apply_power()
             return
         if self.state == 0:
-            # 3秒間右迂回（右カーブ走行）
+            # 0.5秒間右を強くして左向き（両モーター動作、右が強い）
             if not self.action_sent:
                 self.start_time = now
                 self.action_sent = True
-                self.arc_end_time = now + 2.0
-                self.left_power = 60  # 左モーターを強く
-                self.right_power = 30  # 右モーターを弱く（右カーブ）
+                self.arc_end_time = now + 0.5
+                self.left_power = 20  # 左モーターも動かす（弱く）
+                self.right_power = 50 # 右モーターを強く（左向き）
             else:
                 if now >= self.arc_end_time:
                     self.et.brake()
                     self.state = 1
                     self._reset_action_vars()
         elif self.state == 1:
+            # 2秒間左を強くして迂回
+            if not self.action_sent:
+                self.start_time = now
+                self.action_sent = True
+                self.arc_end_time = now + 2.0
+                self.left_power = 50  # 左モーターを強く
+                self.right_power = 20 # 右モーターを弱く（左迂回）
+            else:
+                if now >= self.arc_end_time:
+                    self.et.brake()
+                    self.state = 2
+                    self._reset_action_vars()
+        elif self.state == 2:
             # 完了
             self.finished = True
         self.apply_power()
