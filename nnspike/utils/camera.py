@@ -74,8 +74,18 @@ class Camera:
         upper_blue = np.array([130, 255, 255])
         binary_blue = cv2.inRange(hsv, lower_blue, upper_blue)
 
-        # 黒 or 青のどちらかのピクセルを1にする
-        binary = cv2.bitwise_or(binary_black, binary_blue)
+        # 黒ラインはそのまま、青ラインはノイズ除去（小さい点を無視）
+        # 青ラインのノイズ除去: ラベリングして十分な幅のものだけ残す
+        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(binary_blue)
+        min_blue_width = 30  # 青ラインとみなす最小幅（ピクセル）
+        filtered_blue = np.zeros_like(binary_blue)
+        for i in range(1, num_labels):
+            left = stats[i, cv2.CC_STAT_LEFT]
+            width = stats[i, cv2.CC_STAT_WIDTH]
+            if width >= min_blue_width:
+                filtered_blue[labels == i] = 255
+        # 黒 or "十分な幅の青" のどちらかのピクセルを1にする
+        binary = cv2.bitwise_or(binary_black, filtered_blue)
 
         roi_row = target_y - y
         if 0 <= roi_row < h:
