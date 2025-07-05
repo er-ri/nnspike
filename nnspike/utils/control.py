@@ -28,7 +28,7 @@ import numpy as np
 # ====【現場でよく調整する推奨パラメータ】====
 BASE_POWER = 30             # 通常走行時の基準パワー
 STRAIGHT_POWER = 50         # 直線判定時のパワー
-CURVE_POWER = 20            # カーブ判定時のパワー（25→20にさらに下げて安定性重視）
+CURVE_POWER = 15            # カーブ判定時のパワー（20→15にさらに下げて制御重視）
 
 # --- 追加: しきい値・閾値のグローバル定数定義 ---
 STRAIGHT_THRESHOLD_DEG = 3   # 直線判定しきい値[deg]
@@ -39,7 +39,7 @@ CAMERA_FOCAL_LENGTH_PIXELS = 640  # ピクセル単位のカメラ焦点距離�
 WHEELBASE = 0.10  # Distance between wheels in meters
 
 MAX_THETA_DEG = 30          # θの最大値[deg]（直線・90度カーブの挙動は維持しつつ、限界付近でパワー差を最大化）
-MAX_POWER_DIFF = 40         # PID補正による最大パワー差分（限界付近でのパワー差を強調）
+MAX_POWER_DIFF = 30         # PID補正による最大パワー差分（40→30に下げて急激変化抑制）
 
 # ---【ライン検出Y座標（カメラ画像基準, camera.pyのOFFSET_Yと揃える）】---
 # ライントレース時に進行方向の基準とする画像内Y座標。
@@ -266,7 +266,7 @@ class ControlCalculator:
                         pos_str = f"{position:>6}"
                         print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} <= {POSITION_STRAIGHT} | power={self.straight_power} (STRAIGHT)")
                     selected_power = self.straight_power
-                elif abs_position >= 16000:  # 15000以降の難所エリアはさらに減速
+                elif abs_position >= 15000:  # 15000以降の難所エリアはさらに減速
                     # 難所エリア（カーブが多い箇所）
                     if self._total_calls % 20 == 0:  # 20回に1回ログ出力
                         pos_str = f"{position:>6}"
@@ -328,14 +328,14 @@ class ControlCalculator:
         self._current_theta_deg = abs(math.degrees(pid_corrected_theta))
         
         # ブーストファクターの計算（ヒステリシス付きで安定化）
-        # 現在ブーストONの場合は6度まで下がらないとOFFにしない（8-2=6度）
+        # 現在ブーストONの場合は5度まで下がらないとOFFにしない（8-3=5度）
         # 現在ブーストOFFの場合は8度を超えたらONにする
         if self._last_boost_factor > 1.0:  # 現在ブーストON
-            threshold = BOOST_AND_CURVE_THRESHOLD_DEG - 2  # 6度
+            threshold = BOOST_AND_CURVE_THRESHOLD_DEG - 3  # 5度（ヒステリシス拡大）
         else:  # 現在ブーストOFF
             threshold = BOOST_AND_CURVE_THRESHOLD_DEG  # 8度
         
-        current_boost_factor = 1.03 if self._current_theta_deg > threshold else 1.0
+        current_boost_factor = 1.02 if self._current_theta_deg > threshold else 1.0  # 1.03→1.02にさらに穏やか化
         
         # ブースト統計の更新
         if current_boost_factor > 1.0:
@@ -391,7 +391,7 @@ class ControlCalculator:
         # パワー調整値の急激な変化を検出（BOOST_AND_CURVE_THRESHOLD_DEGベースの適度な値）
         if hasattr(self, '_last_power_adjustment'):
             adj_change = abs(power_adj - self._last_power_adjustment)
-            if adj_change > BOOST_AND_CURVE_THRESHOLD_DEG * 1.67:  # 統一閾値の1.67倍（20）の急激な調整値変化
+            if adj_change > 15:  # 15以上の急激な調整値変化（より厳しい基準）
                 pos_str = f"{position:>6}" if position is not None else "  None"
                 print(f"[STABILITY_ALERT] pos={pos_str} | SUDDEN_ADJ_CHANGE | {self._last_power_adjustment:>+3} → {power_adj:>+3} (Δ{adj_change:>2})")
         
