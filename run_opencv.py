@@ -262,48 +262,37 @@ class ActionManager:
             offset_pixels = 0
             
         # === ライントレース制御のメイン処理 ===
-        try:
-            # 1. 進行角度thetaをオフセットピクセルから算出
-            theta = self.calc.calculate_attitude_angle(offset_pixels)
-            if theta is None:
-                theta = 0
-                
-            # 2. θとpositionに応じた推奨速度（パワー）を決定
-            current_power = self.calc.calculate_adaptive_speed(theta, position)
-            if current_power is None:
-                current_power = 30  # デフォルト値
-                
-            # 3. PID制御で進行角度を補正
-            pid_corrected_theta = self.pid.update(theta)
-            if pid_corrected_theta is None:
-                pid_corrected_theta = 0
-                
-            # 4. PID補正値をパワー差分に変換
-            try:
-                power_adjustment = self.calc.calculate_power_adjustment(pid_corrected_theta, position)
-            except Exception:
-                power_adjustment = 0
-            if power_adjustment is None:
-                power_adjustment = 0
-                
-            # 5. 左右パワーを計算（負値にならないようクリッピング）
-            self.left_power = max(0, int(current_power - power_adjustment))
-            self.right_power = max(0, int(current_power + power_adjustment))
+        # 1. 進行角度thetaをオフセットピクセルから算出
+        theta = self.calc.calculate_attitude_angle(offset_pixels)
+        if theta is None:
+            theta = 0
             
-            # 6. モーター出力を即時反映
-            self.apply_power()
+        # 2. θとpositionに応じた推奨速度（パワー）を決定
+        current_power = self.calc.calculate_adaptive_speed(theta, position)
+        if current_power is None:
+            current_power = 30  # デフォルト値
             
-            # 7. デバッグ・可視化用の値を保存
-            self.theta = theta
-            self.pid_corrected_theta = pid_corrected_theta
-            self.current_power = current_power
+        # 3. PID制御で進行角度を補正
+        pid_corrected_theta = self.pid.update(theta)
+        if pid_corrected_theta is None:
+            pid_corrected_theta = 0
             
-        except Exception as e:
-            print(f"[ERROR] do_line_trace calculation failed: {e}")
-            # 安全停止
-            self.left_power = 0
-            self.right_power = 0
-            self.apply_power_immediate()
+        # 4. PID補正値をパワー差分に変換
+        power_adjustment = self.calc.calculate_power_adjustment(pid_corrected_theta, position)
+        if power_adjustment is None:
+            power_adjustment = 0
+            
+        # 5. 左右パワーを計算（負値にならないようクリッピング）
+        self.left_power = max(0, int(current_power - power_adjustment))
+        self.right_power = max(0, int(current_power + power_adjustment))
+        
+        # 6. モーター出力を即時反映
+        self.apply_power()
+        
+        # 7. デバッグ・可視化用の値を保存
+        self.theta = theta
+        self.pid_corrected_theta = pid_corrected_theta
+        self.current_power = current_power
 
     def do_obstacle_avoid(self):
         if getattr(self, 'is_stopped', False):
