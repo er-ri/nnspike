@@ -736,6 +736,7 @@ class VideoManager:
         x1, y1, x2, y2 = ROI_OPENCV
         mx = steer_result["mx"]
         my = steer_result["my"]
+        offset_pixels = steer_result["offset_pixels"]
         max_contour = steer_result["max_contour"]
         def to_distance_cm(pos):
             return int(float(pos) * 0.0471) if pos is not None else 0
