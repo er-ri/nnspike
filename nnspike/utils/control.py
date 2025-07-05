@@ -77,8 +77,10 @@ class ControlCalculator:
         self._theta_5deg_start_time = None  # theta > 8度状態の開始時刻（5度→8度に変更で安定化）
         self._theta_5deg_duration_threshold = 1.0  # theta > 8度が継続する必要な時間（秒、0.8s→1.0sで慎重に）
         self._boost_active = False  # ブースト状態フラグ（ログ出力用）
+        self._boost_cooldown_time = None  # ブースト停止後のクールダウン開始時刻
+        self._boost_cooldown_duration = 3.0  # クールダウン期間（3秒）
         self._last_debug_time = 0  # デバッグ出力頻度制御用
-        self._last_boost_debug_time = 0  # ブースト専用デバッグ出力頻度制御用
+        self._last_boost_debug_time = 0  # ブーストデバッグ出力頻度制御用
 
     @property
     def is_boost_active(self):
@@ -234,53 +236,88 @@ class ControlCalculator:
         current_boost_factor = 1.0
         
         if theta_deg > 8.0:  # 8度を超えた場合にブースト処理開始（5度→8度でより厳格に）
-            # theta > 8度の状態
-            if self._theta_5deg_start_time is None:
-                # theta > 8度状態の開始
-                self._theta_5deg_start_time = current_time
-                if self.debug and (current_time - self._last_debug_time) >= 0.5:
-                    pos_str = f"{position:>6}" if position is not None else "  None"
-                    print(f"[DEBUG] pos={pos_str} | theta > 8deg started: {theta_deg:.1f}deg")
-                    self._last_debug_time = current_time
-            
-            # theta > 8度が1.0秒以上継続しているかチェック
-            theta_5deg_elapsed = current_time - self._theta_5deg_start_time
-            if theta_5deg_elapsed >= 1.0:  # 1.0秒に延長（より慎重なブースト開始）
-                # ブーストが必要な状態
-                if self._boost_start_time is None:
-                    # ブースト開始
-                    self._boost_start_time = current_time
-                    current_boost_factor = 1.0
-                    if not self._boost_active:
+            # クールダウン中かチェック
+            if self._boost_cooldown_time is not None:
+                cooldown_elapsed = current_time - self._boost_cooldown_time
+                if cooldown_elapsed < self._boost_cooldown_duration:
+                    # まだクールダウン中：ブースト無効
+                    if self.debug and (current_time - self._last_debug_time) >= 1.0:
                         pos_str = f"{position:>6}" if position is not None else "  None"
-                        print(f"[BOOST] pos={pos_str} | Started: theta={theta_deg:.1f}deg (>8deg for {theta_5deg_elapsed:.1f}s)")
-                        self._boost_active = True
+                        print(f"[DEBUG] pos={pos_str} | Cooldown: theta={theta_deg:.1f}deg | remaining={self._boost_cooldown_duration - cooldown_elapsed:.1f}s")
+                        self._last_debug_time = current_time
+                    # クールダウン中はブースト開始しない
+                    pass
+                else:
+                    # クールダウン終了
+                    self._boost_cooldown_time = None
+                    if self.debug:
+                        pos_str = f"{position:>6}" if position is not None else "  None"
+                        print(f"[DEBUG] pos={pos_str} | Cooldown ended: theta={theta_deg:.1f}deg")
+            
+            # クールダウン中でなければ通常のブースト処理
+            if self._boost_cooldown_time is None:
+                # theta > 8度の状態
+                if self._theta_5deg_start_time is None:
+                    # theta > 8度状態の開始
+                    self._theta_5deg_start_time = current_time
+                    if self.debug and (current_time - self._last_debug_time) >= 0.5:
+                        pos_str = f"{position:>6}" if position is not None else "  None"
+                        print(f"[DEBUG] pos={pos_str} | theta > 8deg started: {theta_deg:.1f}deg (need 1.0s for boost)")
                         self._last_debug_time = current_time
                 else:
-                    # ブースト継続中：時間経過に応じて段階的に増加
-                    elapsed_time = current_time - self._boost_start_time
-                    boost_progress = min(elapsed_time / self._boost_buildup_duration, 1.0)
-                    current_boost_factor = 1.0 + (0.2 * boost_progress)  # 1.0から1.2に段階的に増加（1.3→1.2でより穏やか）
-                    if self.debug and (current_time - self._last_boost_debug_time) >= 0.3:  # 0.3秒ごとにブースト状態ログ出力
+                    # theta > 8度状態が継続中
+                    theta_5deg_elapsed = current_time - self._theta_5deg_start_time
+                    if self.debug and (current_time - self._last_debug_time) >= 0.3:
                         pos_str = f"{position:>6}" if position is not None else "  None"
-                        print(f"[BOOST] pos={pos_str} | Active: factor={current_boost_factor:.2f} | theta={theta_deg:.1f}deg | elapsed={elapsed_time:.1f}s")
-                        self._last_boost_debug_time = current_time
+                        print(f"[DEBUG] pos={pos_str} | theta > 8deg continues: {theta_deg:.1f}deg, elapsed={theta_5deg_elapsed:.1f}s")
+                        self._last_debug_time = current_time
                 
-                base = base * current_boost_factor
-            else:
-                # まだ1.0秒経過していない（出力頻度抑制）
-                if self.debug and (current_time - self._last_debug_time) >= 0.8:  # 0.8秒ごとの出力
-                    pos_str = f"{position:>6}" if position is not None else "  None"
-                    print(f"[DEBUG] pos={pos_str} | Waiting for boost: theta={theta_deg:.1f}deg, elapsed={theta_5deg_elapsed:.1f}s")
-                    self._last_debug_time = current_time
+                # theta > 8度が1.0秒以上継続しているかチェック
+                theta_5deg_elapsed = current_time - self._theta_5deg_start_time
+                if theta_5deg_elapsed >= 1.0:  # 1.0秒に延長（より慎重なブースト開始）
+                    # ブーストが必要な状態
+                    if self._boost_start_time is None:
+                        # ブースト開始
+                        self._boost_start_time = current_time
+                        current_boost_factor = 1.0
+                        if not self._boost_active:
+                            pos_str = f"{position:>6}" if position is not None else "  None"
+                            print(f"[BOOST] pos={pos_str} | Started: theta={theta_deg:.1f}deg (>8deg for {theta_5deg_elapsed:.1f}s)")
+                            self._boost_active = True
+                            self._last_debug_time = current_time
+                    else:
+                        # ブースト継続中：時間経過に応じて段階的に増加
+                        elapsed_time = current_time - self._boost_start_time
+                        boost_progress = min(elapsed_time / self._boost_buildup_duration, 1.0)
+                        current_boost_factor = 1.0 + (0.2 * boost_progress)  # 1.0から1.2に段階的に増加（1.3→1.2でより穏やか）
+                        if self.debug and (current_time - self._last_boost_debug_time) >= 0.3:  # 0.3秒ごとにブースト状態ログ出力
+                            pos_str = f"{position:>6}" if position is not None else "  None"
+                            print(f"[BOOST] pos={pos_str} | Active: factor={current_boost_factor:.2f} | theta={theta_deg:.1f}deg | elapsed={elapsed_time:.1f}s")
+                            self._last_boost_debug_time = current_time
+                    
+                    base = base * current_boost_factor
+                else:
+                    # まだ1.0秒経過していない（出力頻度抑制）
+                    if self.debug and (current_time - self._last_debug_time) >= 0.5:  # 0.8秒→0.5秒でより頻繁に出力
+                        pos_str = f"{position:>6}" if position is not None else "  None"
+                        print(f"[DEBUG] pos={pos_str} | Waiting for boost: theta={theta_deg:.1f}deg, elapsed={theta_5deg_elapsed:.1f}s (need 1.0s)")
+                        self._last_debug_time = current_time
         else:
             # theta_degが8度以下：即座にブースト停止とtheta > 8度状態のリセット
             if self._boost_active:
                 pos_str = f"{position:>6}" if position is not None else "  None"
-                print(f"[BOOST] pos={pos_str} | Stopped: theta={theta_deg:.1f}deg (<=8deg)")
+                print(f"[BOOST] pos={pos_str} | Stopped: theta={theta_deg:.1f}deg (<=8deg) | Starting cooldown")
                 self._boost_active = False
+                self._boost_cooldown_time = current_time  # クールダウン開始
                 self._last_debug_time = current_time
                 self._last_boost_debug_time = current_time
+            elif self._theta_5deg_start_time is not None:
+                # ブーストは開始していないが、theta > 8度状態がリセットされる場合
+                theta_5deg_elapsed = current_time - self._theta_5deg_start_time
+                if self.debug and theta_5deg_elapsed > 0.1:  # 0.1秒以上継続していた場合のみログ出力
+                    pos_str = f"{position:>6}" if position is not None else "  None"
+                    print(f"[DEBUG] pos={pos_str} | theta <= 8deg: {theta_deg:.1f}deg | Reset timer (was {theta_5deg_elapsed:.1f}s)")
+                    self._last_debug_time = current_time
             self._boost_start_time = None
             self._theta_5deg_start_time = None
         
