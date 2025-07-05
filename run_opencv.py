@@ -261,12 +261,25 @@ class ActionManager:
         try:
             # 1. 進行角度thetaをオフセットピクセルから算出
             theta = self.calc.calculate_attitude_angle(offset_pixels)
+            if theta is None:
+                theta = 0
+                
             # 2. θとpositionに応じた推奨速度（パワー）を決定
             current_power = self.calc.calculate_adaptive_speed(theta, position)
+            if current_power is None:
+                current_power = 30  # デフォルト値
+                
             # 3. PID制御で進行角度を補正
             pid_corrected_theta = self.pid.update(theta)
+            if pid_corrected_theta is None:
+                pid_corrected_theta = 0
+                
             # 4. PID補正値をパワー差分に変換
             power_adjustment = self.calc.calculate_power_adjustment(pid_corrected_theta, position)
+            if power_adjustment is None:
+                power_adjustment = 0
+                print(f"[WARNING] power_adjustment is None, using 0")
+                
             # 5. 左右パワーを計算（負値にならないようクリッピング）
             self.left_power = max(0, int(current_power - power_adjustment))
             self.right_power = max(0, int(current_power + power_adjustment))
@@ -278,6 +291,9 @@ class ActionManager:
             self.current_power = current_power
         except Exception as e:
             print(f"[ERROR] do_line_trace calculation failed: {e}")
+            print(f"[DEBUG] offset_pixels={offset_pixels}, position={position}")
+            if hasattr(self, 'calc'):
+                print(f"[DEBUG] calc object exists: {self.calc}")
             # 安全停止
             self.left_power = 0
             self.right_power = 0
@@ -825,14 +841,12 @@ class VideoManager:
         right_rel_pos = action.right_relative_position or 0
         left_distance_cm_val = left_distance_cm or 0
         right_distance_cm_val = right_distance_cm or 0
-        # スピード表示とブースト状態表示
+        # スピード表示（ブースト状態表示は削除）
         current_power_str = f"{round(action.current_power, 1)}%"
-        boost_status = "BOOST" if (action.calc is not None and hasattr(action.calc, 'is_boost_active') and action.calc.is_boost_active) else "NORMAL"
         info["text"] = {
             "offset_pixels": f"{round(offset_pixels, 1)}px",
             "theta_deg": f"{round(math.degrees(action.theta), 2)}deg",
             "pid_corrected_theta": f"{round(math.degrees(action.pid_corrected_theta), 2)}deg",
-            "boost_status": boost_status,
             "current_power": current_power_str,
             "on_color": (
                 "BLACK" if (color and color.is_black) else ("BLUE" if (color and color.is_blue) else "N/A")
@@ -966,18 +980,18 @@ def draw_driving_info(
             cv2.LINE_4,
         )
 
-    # ブースト状態の表示（右上に大きく表示）
-    if info.get("boost_active", False):
-        image = cv2.putText(
-            image,
-            "BOOST",
-            (image.shape[1] - 100, 50),  # 右上
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1.5,
-            (0, 255, 255),  # 黄色
-            3,
-            cv2.LINE_AA,
-        )
+    # ブースト状態の表示（右上に大きく表示）- 無効化
+    # if info.get("boost_active", False):
+    #     image = cv2.putText(
+    #         image,
+    #         "BOOST",
+    #         (image.shape[1] - 100, 50),  # 右上
+    #         cv2.FONT_HERSHEY_SIMPLEX,
+    #         1.5,
+    #         (0, 255, 255),  # 黄色
+    #         3,
+    #         cv2.LINE_AA,
+    #     )
 
     return image
 

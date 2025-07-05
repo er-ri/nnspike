@@ -241,7 +241,20 @@ class ControlCalculator:
         - theta_degが4度以下になると即座にブースト停止（ヒステリシス）
         - 最大パワー差分はMAX_POWER_DIFFでクリップ
         """
+        # 安全性チェック：入力値の検証
+        if pid_corrected_theta is None:
+            print(f"[WARNING] pid_corrected_theta is None, using 0")
+            pid_corrected_theta = 0
+        if self.max_theta is None or self.max_theta == 0:
+            print(f"[WARNING] max_theta is invalid: {self.max_theta}, using default")
+            self.max_theta = math.radians(30)
+            
         base = (pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF
+        
+        # 安全性チェック：base値の検証
+        if base is None or not isinstance(base, (int, float)):
+            print(f"[WARNING] Invalid base calculation: {base}, using 0")
+            base = 0
         
         # theta_degが5度を超えた状態が0.2秒以上続く場合の段階的ブースト処理
         theta_deg = abs(math.degrees(pid_corrected_theta))
@@ -387,4 +400,10 @@ class ControlCalculator:
             power_adj = min(int(base), MAX_POWER_DIFF)
         else:
             power_adj = max(int(base), -MAX_POWER_DIFF)
-        return power_adj
+        
+        # 安全性チェック：Noneや異常値を防止
+        if power_adj is None or not isinstance(power_adj, (int, float)):
+            print(f"[WARNING] Invalid power_adj: {power_adj}, using 0")
+            power_adj = 0
+            
+        return int(power_adj)
