@@ -16,7 +16,7 @@ from collections import deque
 import numpy as np
 
 # ====【現場でよく調整する推奨パラメータ】====
-BASE_POWER = 25             # 通常走行時の基準パワー
+BASE_POWER = 35             # 通常走行時の基準パワー
 STRAIGHT_POWER = 50         # 直線判定時のパワー
 CURVE_POWER = 25            # カーブ判定時のパワー（20→25で復帰力UP）
 
