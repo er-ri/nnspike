@@ -779,14 +779,14 @@ class VideoManager:
         right_rel_pos = action.right_relative_position or 0
         left_distance_cm_val = left_distance_cm or 0
         right_distance_cm_val = right_distance_cm or 0
-        # スピード表示・power_statusは常に表示（条件分岐なし）
+        # スピード表示とブースト状態表示
         current_power_str = f"{round(action.current_power, 1)}%"
-        power_status_str = "CURVE"
+        boost_status = "BOOST" if (calc is not None and hasattr(calc, 'is_boost_active') and calc.is_boost_active) else "NORMAL"
         info["text"] = {
             "offset_pixels": f"{round(offset_pixels, 1)}px",
             "theta_deg": f"{round(math.degrees(action.theta), 2)}deg",
             "pid_corrected_theta": f"{round(math.degrees(action.pid_corrected_theta), 2)}deg",
-            "power_status": power_status_str,
+            "boost_status": boost_status,
             "current_power": current_power_str,
             "on_color": (
                 "BLACK" if (color and color.is_black) else ("BLUE" if (color and color.is_blue) else "N/A")
