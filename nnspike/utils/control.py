@@ -266,7 +266,7 @@ class ControlCalculator:
                         pos_str = f"{position:>6}"
                         print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} <= {POSITION_STRAIGHT} | power={self.straight_power} (STRAIGHT)")
                     selected_power = self.straight_power
-                elif abs_position >= 15000:  # 15000以降の難所エリアはさらに減速
+                elif abs_position >= 16000:  # 15000以降の難所エリアはさらに減速
                     # 難所エリア（カーブが多い箇所）
                     if self._total_calls % 20 == 0:  # 20回に1回ログ出力
                         pos_str = f"{position:>6}"
