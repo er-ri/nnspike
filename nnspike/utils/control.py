@@ -39,7 +39,7 @@ CAMERA_FOCAL_LENGTH_PIXELS = 640  # ピクセル単位のカメラ焦点距離�
 WHEELBASE = 0.10  # Distance between wheels in meters
 
 MAX_THETA_DEG = 30          # θの最大値[deg]（直線・90度カーブの挙動は維持しつつ、限界付近でパワー差を最大化）
-MAX_POWER_DIFF = 35         # PID補正による最大パワー差分（40→30に下げて急激変化抑制）
+MAX_POWER_DIFF = 35         # PID補正による最大パワー差分（35固定、他パラメータで調整）
 
 # ---【ライン検出Y座標（カメラ画像基準, camera.pyのOFFSET_Yと揃える）】---
 # ライントレース時に進行方向の基準とする画像内Y座標。
@@ -99,8 +99,18 @@ class ControlCalculator:
 
     @property
     def is_boost_active(self):
-        """theta値がBOOST_AND_CURVE_THRESHOLD_DEGを超えた場合にブースト状態と判定"""
-        return self._current_theta_deg > BOOST_AND_CURVE_THRESHOLD_DEG
+        """実際のブーストファクターが1.0より大きい場合にブースト状態と判定（ヒステリシス考慮）"""
+        return self._last_boost_factor > 1.0
+
+    @property
+    def current_boost_factor(self):
+        """現在適用されているブーストファクターを返す"""
+        return self._last_boost_factor
+    
+    @property
+    def current_theta_deg(self):
+        """現在のtheta値（度）を返す"""
+        return self._current_theta_deg
 
     def calc_steer_result(self, left_x, right_x, position=None):
         """
@@ -334,14 +344,14 @@ class ControlCalculator:
         self._current_theta_deg = abs(math.degrees(pid_corrected_theta))
         
         # ブーストファクターの計算（ヒステリシス付きで安定化）
-        # 現在ブーストONの場合は5度まで下がらないとOFFにしない（8-3=5度）
+        # 現在ブーストONの場合は4度まで下がらないとOFFにしない（8-4=4度、ヒステリシス拡大）
         # 現在ブーストOFFの場合は8度を超えたらONにする
         if self._last_boost_factor > 1.0:  # 現在ブーストON
-            threshold = BOOST_AND_CURVE_THRESHOLD_DEG - 3  # 5度（ヒステリシス拡大）
+            threshold = BOOST_AND_CURVE_THRESHOLD_DEG - 4  # 4度（ヒステリシスさらに拡大）
         else:  # 現在ブーストOFF
             threshold = BOOST_AND_CURVE_THRESHOLD_DEG  # 8度
         
-        current_boost_factor = 1.02 if self._current_theta_deg > threshold else 1.0  # 1.03→1.02にさらに穏やか化
+        current_boost_factor = 1.015 if self._current_theta_deg > threshold else 1.0  # 1.02→1.015にさらに穏やか化（MAX_POWER_DIFF=35対応）
         
         # ブースト統計の更新
         if current_boost_factor > 1.0:
@@ -394,10 +404,10 @@ class ControlCalculator:
         else:
             power_adj = max(int(boosted_base), -MAX_POWER_DIFF)
         
-        # パワー調整値の急激な変化を検出（BOOST_AND_CURVE_THRESHOLD_DEGベースの適度な値）
+        # パワー調整値の急激な変化を検出（MAX_POWER_DIFFベースの適度な値）
         if hasattr(self, '_last_power_adjustment'):
             adj_change = abs(power_adj - self._last_power_adjustment)
-            if adj_change > 15:  # 15以上の急激な調整値変化（より厳しい基準）
+            if adj_change > 22:  # 22以上の急激な調整値変化（MAX_POWER_DIFF=35の約2/3で警告）
                 pos_str = f"{position:>6}" if position is not None else "  None"
                 print(f"[STABILITY_ALERT] pos={pos_str} | SUDDEN_ADJ_CHANGE | {self._last_power_adjustment:>+3} → {power_adj:>+3} (Δ{adj_change:>2})")
         

@@ -849,7 +849,14 @@ class VideoManager:
         right_distance_cm_val = right_distance_cm or 0
         # スピード表示とブースト状態表示
         current_power_str = f"{round(action.current_power, 1)}%"
-        boost_status = "BOOST" if (action.calc is not None and hasattr(action.calc, 'is_boost_active') and action.calc.is_boost_active) else "NORMAL"
+        # ブースト状態をより詳細に表示（ヒステリシス考慮）
+        if action.calc is not None and hasattr(action.calc, 'is_boost_active'):
+            boost_active = action.calc.is_boost_active
+            boost_factor = getattr(action.calc, 'current_boost_factor', 1.0)
+            boost_status = f"BOOST×{boost_factor:.3f}" if boost_active else "NORMAL"
+        else:
+            boost_status = "NORMAL"
+            boost_active = False
         info["text"] = {
             "offset_pixels": f"{round(offset_pixels, 1)}px",
             "theta_deg": f"{round(math.degrees(action.theta), 2)}deg",
@@ -874,7 +881,7 @@ class VideoManager:
         if action.calc is not None and hasattr(action.calc, 'is_boost_active'):
             info["boost_active"] = action.calc.is_boost_active
         else:
-            info["boost_active"] = False
+            info["boost_active"] = boost_active  # 上で定義したboost_active変数を使用
             
         return info
 
