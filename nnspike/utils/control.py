@@ -39,7 +39,7 @@ CAMERA_FOCAL_LENGTH_PIXELS = 640  # ピクセル単位のカメラ焦点距離�
 WHEELBASE = 0.10  # Distance between wheels in meters
 
 MAX_THETA_DEG = 30          # θの最大値[deg]（直線・90度カーブの挙動は維持しつつ、限界付近でパワー差を最大化）
-MAX_POWER_DIFF = 35         # PID補正による最大パワー差分（35固定、他パラメータで調整）
+MAX_POWER_DIFF = 40         # PID補正による最大パワー差分（35固定、他パラメータで調整）
 
 # ---【ライン検出Y座標（カメラ画像基準, camera.pyのOFFSET_Yと揃える）】---
 # ライントレース時に進行方向の基準とする画像内Y座標。
