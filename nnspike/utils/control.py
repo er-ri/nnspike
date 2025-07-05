@@ -207,10 +207,10 @@ class ControlCalculator:
         if abs_theta <= boost_rad:
             base = (pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF
         else:
-            # 8度以降は非常にゆるやかにMAX_POWER_DIFFへ近づく（tanhの傾きを1.0→0.5に変更）
+            # 8度以降はやや強めにMAX_POWER_DIFFへ近づく（tanhの傾きを1.2に変更）
             over = (abs_theta - boost_rad) / (self.max_theta - boost_rad)
-            # tanhの傾きを0.5にして、よりソフトな立ち上がりに
-            base = sign * (boost_rad / self.max_theta + (1 - boost_rad / self.max_theta) * math.tanh(over * 0.5)) * MAX_POWER_DIFF
+            # tanhの傾きを1.2にして、やや強めの立ち上がりに
+            base = sign * (boost_rad / self.max_theta + (1 - boost_rad / self.max_theta) * math.tanh(over * 1.2)) * MAX_POWER_DIFF
         # クリップ
         if base > 0:
             power_adj = min(int(base), MAX_POWER_DIFF)
