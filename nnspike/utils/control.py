@@ -28,7 +28,7 @@ import numpy as np
 # ====【現場でよく調整する推奨パラメータ】====
 BASE_POWER = 30             # 通常走行時の基準パワー
 STRAIGHT_POWER = 50         # 直線判定時のパワー
-CURVE_POWER = 27            # カーブ判定時のパワー
+CURVE_POWER = 25            # カーブ判定時のパワー（安定性重視でベースより低く設定）
 
 # --- 追加: しきい値・閾値のグローバル定数定義 ---
 STRAIGHT_THRESHOLD_DEG = 3   # 直線判定しきい値[deg]
@@ -251,9 +251,10 @@ class ControlCalculator:
         # theta値が大きい場合（BOOST_AND_CURVE_THRESHOLD_DEG度以上）はカーブパワー+ブースト同時発動
         if theta_deg >= BOOST_AND_CURVE_THRESHOLD_DEG:
             self._curve_power_count += 1
-            # カーブパワー+ブースト同時発動時の詳細ログ出力
-            pos_str = f"{position:>6}" if position is not None else "  None"
-            print(f"[CURVE+BOOST] pos={pos_str} | theta={theta_deg:>5.1f}deg >= {BOOST_AND_CURVE_THRESHOLD_DEG}.0 | power={self.curve_power} + BOOST_1.1x (CURVE+BOOST_ACTIVATED)")
+            # カーブパワー+ブースト同時発動時の詳細ログ出力（頻度制限）
+            if self._total_calls % 10 == 0:  # 10回に1回ログ出力（処理軽量化）
+                pos_str = f"{position:>6}" if position is not None else "  None"
+                print(f"[CURVE+BOOST] pos={pos_str} | theta={theta_deg:>5.1f}deg >= {BOOST_AND_CURVE_THRESHOLD_DEG}.0 | power={self.curve_power} + BOOST_1.1x")
             selected_power = self.curve_power
         else:
             # ストレート/ベースパワー判定と詳細ログ
@@ -288,9 +289,9 @@ class ControlCalculator:
         self._last_theta_deg = theta_deg
         self._last_power = selected_power
         
-        # 定期的な統計情報表示（10秒ごと）
+        # 定期的な統計情報表示（15秒ごとに変更）
         current_time = time.time()
-        if current_time - self._last_stats_time >= 10.0:
+        if current_time - self._last_stats_time >= 15.0:
             if self._total_calls > 0:
                 boost_rate = (self._boost_count / self._total_calls) * 100
                 curve_rate = (self._curve_power_count / self._total_calls) * 100
@@ -320,8 +321,8 @@ class ControlCalculator:
         # 現在のtheta値を保存（ブースト判定用）
         self._current_theta_deg = abs(math.degrees(pid_corrected_theta))
         
-        # ブーストファクターの計算（BOOST_AND_CURVE_THRESHOLD_DEGを使用）
-        current_boost_factor = 1.1 if self._current_theta_deg > BOOST_AND_CURVE_THRESHOLD_DEG else 1.0
+        # ブーストファクターの計算（BOOST_AND_CURVE_THRESHOLD_DEGを使用、安定化のため1.05倍に調整）
+        current_boost_factor = 1.05 if self._current_theta_deg > BOOST_AND_CURVE_THRESHOLD_DEG else 1.0
         
         # ブースト統計の更新
         if current_boost_factor > 1.0:
@@ -340,10 +341,10 @@ class ControlCalculator:
         # ブーストの適用
         boosted_base = base * current_boost_factor
         
-        # ブースト状況の詳細ログ出力
+        # ブースト状況の詳細ログ出力（頻度制限）
         current_time = time.time()
         boost_changed = abs(current_boost_factor - self._last_boost_factor) > 0.01
-        should_log = (current_time - self._last_boost_log_time) >= 1.0 or boost_changed
+        should_log = (current_time - self._last_boost_log_time) >= 2.0 or boost_changed  # 2秒間隔に延長
         
         if should_log:
             pos_str = f"{position:>6}" if position is not None else "  None"
@@ -359,7 +360,9 @@ class ControlCalculator:
                     event_str = "BOOST_OFF"
                 print(f"[BOOST] pos={pos_str} | {event_str} | theta={self._current_theta_deg:>5.1f}deg | factor={current_boost_factor:.2f}{change_str} | base={base:>5.1f}→{boosted_base:>5.1f}")
             else:
-                print(f"[BOOST] pos={pos_str} | {boost_status} | theta={self._current_theta_deg:>5.1f}deg | factor={current_boost_factor:.2f} | base={base:>5.1f}→{boosted_base:>5.1f}")
+                # 継続状態は10回に1回のみ出力
+                if self._total_calls % 10 == 0:
+                    print(f"[BOOST] pos={pos_str} | {boost_status} | theta={self._current_theta_deg:>5.1f}deg | factor={current_boost_factor:.2f} | base={base:>5.1f}→{boosted_base:>5.1f}")
             
             self._last_boost_log_time = current_time
         
