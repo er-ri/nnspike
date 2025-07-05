@@ -120,11 +120,40 @@ class Camera:
             - dict: {'yellow': int, 'blue': int, 'red': int}  # 各色のピクセル数
             - dict: {'yellow': mask, 'blue': mask, 'red': mask}  # 各色の2値マスク画像
         ボトルが検出されない場合はピクセル数0・マスクNoneを返す。
-        
-        注意: 青色・黄色検出の閾値は統計分析により最適化されています
         """
-        # 新しい高度な検出機能を使用
-        return self.detect_color_bottle_advanced(frame)
+        x1, y1, x2, y2 = self.roi_bottle
+        roi_img = frame[y1:y2, x1:x2]
+        if roi_img is None or roi_img.size == 0:
+            return {'yellow': 0, 'blue': 0, 'red': 0}, {'yellow': None, 'blue': None, 'red': None}
+        
+        hsv = cv2.cvtColor(roi_img, cv2.COLOR_BGR2HSV)
+        
+        # 赤色検出
+        lower_red1 = np.array([0, 100, 100])
+        upper_red1 = np.array([10, 255, 255])
+        lower_red2 = np.array([160, 100, 100])
+        upper_red2 = np.array([180, 255, 255])
+        red_mask = cv2.inRange(hsv, lower_red1, upper_red1) + cv2.inRange(hsv, lower_red2, upper_red2)
+        
+        # 青色検出
+        lower_blue = np.array([100, 80, 50])
+        upper_blue = np.array([130, 255, 255])
+        blue_mask = cv2.inRange(hsv, lower_blue, upper_blue)
+        
+        # 黄色検出
+        lower_yellow = np.array([15, 100, 100])
+        upper_yellow = np.array([35, 255, 255])
+        yellow_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+        
+        # 面積計算
+        red_pixels = int(cv2.countNonZero(red_mask))
+        blue_pixels = int(cv2.countNonZero(blue_mask))
+        yellow_pixels = int(cv2.countNonZero(yellow_mask))
+        
+        return (
+            {'yellow': yellow_pixels, 'blue': blue_pixels, 'red': red_pixels},
+            {'yellow': yellow_mask, 'blue': blue_mask, 'red': red_mask}
+        )
     
     def detect_color_bottle_advanced(self, frame):
         """
