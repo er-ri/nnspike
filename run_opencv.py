@@ -262,27 +262,43 @@ class ActionManager:
             # 1. 進行角度thetaをオフセットピクセルから算出
             theta = self.calc.calculate_attitude_angle(offset_pixels)
             if theta is None:
+                print(f"[ERROR] theta is None, using 0")
                 theta = 0
+            print(f"[DEBUG] Step 1: theta={theta}")
                 
             # 2. θとpositionに応じた推奨速度（パワー）を決定
             current_power = self.calc.calculate_adaptive_speed(theta, position)
             if current_power is None:
+                print(f"[ERROR] current_power is None, using 30")
                 current_power = 30  # デフォルト値
+            print(f"[DEBUG] Step 2: current_power={current_power}")
                 
             # 3. PID制御で進行角度を補正
             pid_corrected_theta = self.pid.update(theta)
             if pid_corrected_theta is None:
+                print(f"[ERROR] pid_corrected_theta is None, using 0")
                 pid_corrected_theta = 0
+            print(f"[DEBUG] Step 3: pid_corrected_theta={pid_corrected_theta}")
                 
             # 4. PID補正値をパワー差分に変換
-            power_adjustment = self.calc.calculate_power_adjustment(pid_corrected_theta, position)
+            print(f"[DEBUG] About to call calculate_power_adjustment with pid_corrected_theta={pid_corrected_theta}, position={position}")
+            try:
+                power_adjustment = self.calc.calculate_power_adjustment(pid_corrected_theta, position)
+            except Exception as calc_error:
+                print(f"[ERROR] calculate_power_adjustment failed: {calc_error}")
+                power_adjustment = 0
+            print(f"[DEBUG] Step 4: power_adjustment={power_adjustment}")
             if power_adjustment is None:
                 power_adjustment = 0
                 print(f"[WARNING] power_adjustment is None, using 0")
                 
             # 5. 左右パワーを計算（負値にならないようクリッピング）
+            print(f"[DEBUG] About to calculate: current_power={current_power}, power_adjustment={power_adjustment}")
+            print(f"[DEBUG] Types: current_power={type(current_power)}, power_adjustment={type(power_adjustment)}")
             self.left_power = max(0, int(current_power - power_adjustment))
             self.right_power = max(0, int(current_power + power_adjustment))
+            print(f"[DEBUG] Step 5: left_power={self.left_power}, right_power={self.right_power}")
+            
             # 6. モーター出力を即時反映
             self.apply_power()
             # 7. デバッグ・可視化用の値を保存
