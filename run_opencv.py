@@ -59,7 +59,8 @@ from nnspike.utils import (
 # ==== ユーザー調整用パラメータ（ここだけ編集すればOK） ====
  # ROI_OPENCV: OpenCV画像処理で使用する領域（左上x, 左上y, 右下x, 右下y）
 ROI_BOTTLE = (100, 20, 540, 400)   # (x1, y1, x2, y2)
-ROI_OPENCV = (100, 50, 540, 400)   # ROI_BOTTLEと同じ横幅に変更
+# ROI_OPENCV: 左右を均等に30ピクセルずつ広げる（例: x1-30, x2+30）
+ROI_OPENCV = (70, 50, 570, 400)   # x1=100-30=70, x2=540+30=570
 IMAGE_WIDTH = 640                  # カメラ画像の幅
 IMAGE_HEIGHT = 480                 # カメラ画像の高さ
 # 黒判定の閾値（反射光R: 40以下, color: 150以下なら黒と判定）
@@ -916,9 +917,18 @@ def draw_driving_info(
     offset_x, offset_y = int(info["offset_x"]), int(info["offset_y"])
     x1, y1, x2, y2 = info["roi"]  # info辞書からROIを取得
 
+
     # ROI_OPENCV（赤）とROI_BOTTLE（緑）を必ず両方描画
     image = cv2.rectangle(image, ROI_OPENCV[:2], ROI_OPENCV[2:], (0, 0, 255), 2)  # 赤
     image = cv2.rectangle(image, ROI_BOTTLE[:2], ROI_BOTTLE[2:], (0, 255, 0), 2)  # 緑
+
+
+    # OFFSET_Yのライン線を描画（camera.py/control.pyと同じ値を使う）
+    try:
+        from nnspike.utils.camera import OFFSET_Y
+    except ImportError:
+        OFFSET_Y = 350  # fallback
+    image = cv2.line(image, (ROI_OPENCV[0], OFFSET_Y), (ROI_OPENCV[2], OFFSET_Y), (0, 255, 255), 2)  # 黄色
 
     image = cv2.circle(
         image, (offset_x, offset_y), 3, (255, 255, 0), -1
