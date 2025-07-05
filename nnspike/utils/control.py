@@ -39,7 +39,7 @@ CAMERA_FOCAL_LENGTH_PIXELS = 640  # ピクセル単位のカメラ焦点距離�
 WHEELBASE = 0.10  # Distance between wheels in meters
 
 MAX_THETA_DEG = 30          # θの最大値[deg]（直線・90度カーブの挙動は維持しつつ、限界付近でパワー差を最大化）
-MAX_POWER_DIFF = 40         # PID補正による最大パワー差分（35固定、他パラメータで調整）
+MAX_POWER_DIFF = 40         # PID補正による最大パワー差分（40で固定、正しい値）
 
 # ---【ライン検出Y座標（カメラ画像基準, camera.pyのOFFSET_Yと揃える）】---
 # ライントレース時に進行方向の基準とする画像内Y座標。
@@ -268,7 +268,7 @@ class ControlCalculator:
         if theta_deg >= BOOST_AND_CURVE_THRESHOLD_DEG:
             self._curve_power_count += 1
             # カーブパワー+ブースト同時発動時の詳細ログ出力（頻度制限）
-            if self._total_calls % 10 == 0:  # 10回に1回ログ出力（処理軽量化）
+            if self._total_calls % 100 == 0:  # 100回に1回ログ出力（処理軽量化、大幅削減でバグ解決）
                 pos_str = f"{position:>6}" if position is not None else "  None"
                 print(f"[CURVE+BOOST] pos={pos_str} | theta={theta_deg:>5.1f}deg >= {BOOST_AND_CURVE_THRESHOLD_DEG}.0 | power={self.curve_power} + BOOST_1.1x")
             selected_power = self.curve_power
@@ -278,25 +278,25 @@ class ControlCalculator:
                 abs_position = abs(position)
                 if abs_position <= POSITION_STRAIGHT:
                     # ストレートエリア（ログ頻度抑制）
-                    if self._total_calls % 20 == 0:  # 20回に1回ログ出力
+                    if self._total_calls % 100 == 0:  # 100回に1回ログ出力（大幅削減）
                         pos_str = f"{position:>6}"
                         print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} <= {POSITION_STRAIGHT} | power={self.straight_power} (STRAIGHT)")
                     selected_power = self.straight_power
                 elif abs_position >= 15000:  # 15000以降の難所エリアはさらに減速
                     # 難所エリア（カーブが多い箇所）
-                    if self._total_calls % 20 == 0:  # 20回に1回ログ出力
+                    if self._total_calls % 100 == 0:  # 100回に1回ログ出力（大幅削減）
                         pos_str = f"{position:>6}"
                         print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} >= 15000 | power={self.curve_power} (DIFFICULT)")
                     selected_power = self.curve_power
                 else:
                     # ベースパワーエリア（ログ頻度抑制）
-                    if self._total_calls % 20 == 0:  # 20回に1回ログ出力
+                    if self._total_calls % 100 == 0:  # 100回に1回ログ出力（大幅削減）
                         pos_str = f"{position:>6}"
                         print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} > {POSITION_STRAIGHT} | power={self.base_power} (BASE)")
                     selected_power = self.base_power
             else:
                 # ポジション不明時のデフォルト（ログ頻度抑制）
-                if self._total_calls % 20 == 0:  # 20回に1回ログ出力
+                if self._total_calls % 100 == 0:  # 100回に1回ログ出力（大幅削減）
                     print(f"[SPEED_SELECT] pos=  None | theta={theta_deg:>5.1f}deg | power={self.base_power} (BASE_DEFAULT)")
                 selected_power = self.base_power
         
@@ -373,7 +373,7 @@ class ControlCalculator:
         # ブースト状況の詳細ログ出力（頻度制限）
         current_time = time.time()
         boost_changed = abs(current_boost_factor - self._last_boost_factor) > 0.01
-        should_log = (current_time - self._last_boost_log_time) >= 2.0 or boost_changed  # 2秒間隔に延長
+        should_log = (current_time - self._last_boost_log_time) >= 5.0 or boost_changed  # 5秒間隔に延長（バグ対策）
         
         if should_log:
             pos_str = f"{position:>6}" if position is not None else "  None"
@@ -387,11 +387,11 @@ class ControlCalculator:
                     event_str = "BOOST_ON "
                 else:
                     event_str = "BOOST_OFF"
-                print(f"[BOOST] pos={pos_str} | {event_str} | theta={self._current_theta_deg:>5.1f}deg | factor={current_boost_factor:.2f}{change_str} | base={base:>5.1f}→{boosted_base:>5.1f}")
+                print(f"[BOOST] pos={pos_str} | {event_str} | theta={self._current_theta_deg:>5.1f}deg | factor={current_boost_factor:.3f}{change_str} | base={base:>5.1f}→{boosted_base:>5.1f}")
             else:
-                # 継続状態は10回に1回のみ出力
-                if self._total_calls % 10 == 0:
-                    print(f"[BOOST] pos={pos_str} | {boost_status} | theta={self._current_theta_deg:>5.1f}deg | factor={current_boost_factor:.2f} | base={base:>5.1f}→{boosted_base:>5.1f}")
+                # 継続状態は50回に1回のみ出力（大幅削減）
+                if self._total_calls % 50 == 0:
+                    print(f"[BOOST] pos={pos_str} | {boost_status} | theta={self._current_theta_deg:>5.1f}deg | factor={current_boost_factor:.3f} | base={base:>5.1f}→{boosted_base:>5.1f}")
             
             self._last_boost_log_time = current_time
         
@@ -407,7 +407,7 @@ class ControlCalculator:
         # パワー調整値の急激な変化を検出（MAX_POWER_DIFFベースの適度な値）
         if hasattr(self, '_last_power_adjustment'):
             adj_change = abs(power_adj - self._last_power_adjustment)
-            if adj_change > 22:  # 22以上の急激な調整値変化（MAX_POWER_DIFF=35の約2/3で警告）
+            if adj_change > 25:  # 25以上の急激な調整値変化（MAX_POWER_DIFF=40の約2/3で警告）
                 pos_str = f"{position:>6}" if position is not None else "  None"
                 print(f"[STABILITY_ALERT] pos={pos_str} | SUDDEN_ADJ_CHANGE | {self._last_power_adjustment:>+3} → {power_adj:>+3} (Δ{adj_change:>2})")
         
