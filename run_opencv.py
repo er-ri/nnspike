@@ -248,7 +248,7 @@ class ActionManager:
         # 3. PID制御で進行角度を補正
         pid_corrected_theta = self.pid.update(theta)
         # 4. PID補正値をパワー差分に変換
-        power_adjustment = self.calc.calculate_power_adjustment(pid_corrected_theta)
+        power_adjustment = self.calc.calculate_power_adjustment(pid_corrected_theta, position)
         # 5. 左右パワーを計算（負値にならないようクリッピング）
         self.left_power = max(0, int(current_power - power_adjustment))
         self.right_power = max(0, int(current_power + power_adjustment))
