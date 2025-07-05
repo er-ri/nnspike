@@ -64,6 +64,7 @@ class ControlCalculator:
         self._current_theta_deg = 0.0
         self._last_boost_log_time = 0
         self._last_boost_factor = 1.0
+        self._last_boost_change_time = 0  # ブースト状態変更の時間制限用
         
         # 状態監視用
         self._last_power = None
@@ -117,8 +118,13 @@ class ControlCalculator:
 
         # ライン検出処理
         if left_x is not None and right_x is not None:
-            min_x = x1 + int((x2 - x1) * 0.2)
-            max_x = x1 + int((x2 - x1) * 0.8)
+            # 左エッジ検出時は検出範囲を拡張して安定性向上
+            if follow_edge == "left":
+                min_x = x1 + int((x2 - x1) * 0.05)  # 0.2→0.05に拡張
+                max_x = x1 + int((x2 - x1) * 0.95)  # 0.8→0.95に拡張
+            else:
+                min_x = x1 + int((x2 - x1) * 0.2)
+                max_x = x1 + int((x2 - x1) * 0.8)
             if follow_edge == "left":
                 candidate_x = np.clip(left_x, min_x, max_x)
                 max_contour = np.array([[[candidate_x - x1, OFFSET_Y - y1]], [[(x2 + x1)//2 - x1, OFFSET_Y - y1]]], dtype=np.int32)
@@ -248,6 +254,7 @@ class ControlCalculator:
                         print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} <= {POSITION_STRAIGHT} | power={self.straight_power} (STRAIGHT)")
                     selected_power = self.straight_power
                 elif abs_position >= 16000:
+                    # 16000以降（POSITION_CROSS3含む）は低速で安定制御
                     if self._total_calls % 100 == 0:
                         pos_str = f"{position:>6}"
                         print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} >= 16000 | power={self.curve_power} (DIFFICULT)")
@@ -297,13 +304,21 @@ class ControlCalculator:
         
         self._current_theta_deg = abs(math.degrees(pid_corrected_theta))
         
-        # ヒステリシス付きブースト判定
+        # ヒステリシス付きブースト判定（幅をさらに拡大して安定化）
         if self._last_boost_factor > 1.0:
-            threshold = BOOST_AND_CURVE_THRESHOLD_DEG - 4
+            threshold = BOOST_AND_CURVE_THRESHOLD_DEG - 8  # 6→8にさらに拡大
         else:
             threshold = BOOST_AND_CURVE_THRESHOLD_DEG
         
         current_boost_factor = 1.5 if self._current_theta_deg > threshold else 1.0
+        
+        # ブースト状態変更の時間制限（最低1秒間は同じ状態を維持）
+        current_time = time.time()
+        if abs(current_boost_factor - self._last_boost_factor) > 0.01:  # ブースト状態が変わる場合
+            if current_time - self._last_boost_change_time < 1.0:  # 前回変更から1秒未満
+                current_boost_factor = self._last_boost_factor  # 前回の状態を維持
+            else:
+                self._last_boost_change_time = current_time  # 変更時間を記録
         
         if current_boost_factor > 1.0:
             self._boost_count += 1
