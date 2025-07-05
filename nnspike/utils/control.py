@@ -170,23 +170,20 @@ class ControlCalculator:
         if math.isnan(offset_pixels) or math.isinf(offset_pixels):
             offset_pixels = 0.0
             
+        # シンプルで直接的な角度計算
+        # ROI幅310ピクセルに対して、オフセットを角度に変換
         x1, y1, x2, y2 = self.roi_opencv
-        denominator = self.image_height - y2
-        if denominator <= 0:
-            denominator = 1.0
-            
-        ground_distance = (CAMERA_HEIGHT * CAMERA_FOCAL_LENGTH_PIXELS / denominator)
+        roi_width = x2 - x1  # 620ピクセル
         
-        if CAMERA_FOCAL_LENGTH_PIXELS <= 0:
-            lateral_offset_meters = 0.0
-        else:
-            lateral_offset_meters = offset_pixels * ground_distance / CAMERA_FOCAL_LENGTH_PIXELS
-            
-        if ground_distance <= 0:
-            theta = 0.0
-        else:
-            theta = math.atan2(lateral_offset_meters, ground_distance)
-            
+        # オフセットを正規化して角度に変換
+        # 最大オフセット±310px -> ±30度
+        normalized_offset = offset_pixels / (roi_width / 2)  # -1.0 to 1.0
+        theta = normalized_offset * math.radians(MAX_THETA_DEG)  # ±30度
+        
+        # 範囲制限
+        max_theta_rad = math.radians(MAX_THETA_DEG)
+        theta = max(-max_theta_rad, min(max_theta_rad, theta))
+        
         if math.isnan(theta) or math.isinf(theta):
             theta = 0.0
             
