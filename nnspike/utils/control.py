@@ -73,11 +73,12 @@ class ControlCalculator:
         
         # 段階的ブースト用の状態管理
         self._boost_start_time = None  # ブースト開始時刻
-        self._boost_buildup_duration = 1.0  # ブーストが1.3倍に達するまでの時間（秒）
+        self._boost_buildup_duration = 1.0  # ブーストが1.2倍に達するまでの時間（秒）
         self._theta_5deg_start_time = None  # theta > 8度状態の開始時刻（5度→8度に変更で安定化）
         self._theta_5deg_duration_threshold = 1.0  # theta > 8度が継続する必要な時間（秒、0.8s→1.0sで慎重に）
         self._boost_active = False  # ブースト状態フラグ（ログ出力用）
         self._last_debug_time = 0  # デバッグ出力頻度制御用
+        self._last_boost_debug_time = 0  # ブースト専用デバッグ出力頻度制御用
 
     @property
     def is_boost_active(self):
@@ -219,7 +220,7 @@ class ControlCalculator:
         """
         PID補正値（ラジアン）をパワー差分（左右モーター出力の調整値）に変換する。
         - シンプルなリニア変換のみ（ブーストなし）
-        - theta_degが8度を超えた状態が1.0秒以上続いた場合、パワー差分を段階的に1.3倍までブースト
+        - theta_degが8度を超えた状態が1.0秒以上続いた場合、パワー差分を段階的に1.2倍までブースト
         - theta_degが8度以下になると即座にブースト停止
         - 最大パワー差分はMAX_POWER_DIFFでクリップ
         """
@@ -259,16 +260,16 @@ class ControlCalculator:
                     # ブースト継続中：時間経過に応じて段階的に増加
                     elapsed_time = current_time - self._boost_start_time
                     boost_progress = min(elapsed_time / self._boost_buildup_duration, 1.0)
-                    current_boost_factor = 1.0 + (0.3 * boost_progress)  # 1.0から1.3に段階的に増加（1.5→1.3でより穏やか）
-                    if self.debug and (current_time - self._last_debug_time) >= 1.0:  # 1.0秒ごとにログ出力
+                    current_boost_factor = 1.0 + (0.2 * boost_progress)  # 1.0から1.2に段階的に増加（1.3→1.2でより穏やか）
+                    if self.debug and (current_time - self._last_boost_debug_time) >= 0.3:  # 0.3秒ごとにブースト状態ログ出力
                         pos_str = f"{position:>6}" if position is not None else "  None"
-                        print(f"[BOOST] pos={pos_str} | Active: factor={current_boost_factor:.2f} | theta={theta_deg:.1f}deg")
-                        self._last_debug_time = current_time
+                        print(f"[BOOST] pos={pos_str} | Active: factor={current_boost_factor:.2f} | theta={theta_deg:.1f}deg | elapsed={elapsed_time:.1f}s")
+                        self._last_boost_debug_time = current_time
                 
                 base = base * current_boost_factor
             else:
                 # まだ1.0秒経過していない（出力頻度抑制）
-                if self.debug and (current_time - self._last_debug_time) >= 1.0:  # 1.0秒ごとの出力
+                if self.debug and (current_time - self._last_debug_time) >= 0.8:  # 0.8秒ごとの出力
                     pos_str = f"{position:>6}" if position is not None else "  None"
                     print(f"[DEBUG] pos={pos_str} | Waiting for boost: theta={theta_deg:.1f}deg, elapsed={theta_5deg_elapsed:.1f}s")
                     self._last_debug_time = current_time
@@ -279,15 +280,25 @@ class ControlCalculator:
                 print(f"[BOOST] pos={pos_str} | Stopped: theta={theta_deg:.1f}deg (<=8deg)")
                 self._boost_active = False
                 self._last_debug_time = current_time
+                self._last_boost_debug_time = current_time
             self._boost_start_time = None
             self._theta_5deg_start_time = None
         
-        # デバッグ：position、theta値、boost状態、factor値を整列表示（1.0秒ごと）
-        if self.debug and (current_time - self._last_debug_time) >= 1.0:  # 1.0秒ごと（重複防止）
-            pos_str = f"{position:>6}" if position is not None else "  None"
-            boost_str = "BOOST" if self._boost_active else "NORM "
-            print(f"[DEBUG] pos={pos_str} | theta={theta_deg:>5.1f}deg | {boost_str} | factor={current_boost_factor:.2f}")
-            self._last_debug_time = current_time
+        # デバッグ：position、theta値、boost状態、factor値を整列表示（通常は2.0秒ごと、ブースト時は頻繁に）
+        if self._boost_active:
+            # ブースト中はより詳細な情報を0.5秒ごとに表示
+            if self.debug and (current_time - self._last_debug_time) >= 0.5:
+                pos_str = f"{position:>6}" if position is not None else "  None"
+                boost_str = "BOOST"
+                print(f"[DEBUG] pos={pos_str} | theta={theta_deg:>5.1f}deg | {boost_str} | factor={current_boost_factor:.2f}")
+                self._last_debug_time = current_time
+        else:
+            # 通常時は2.0秒ごとに表示
+            if self.debug and (current_time - self._last_debug_time) >= 2.0:
+                pos_str = f"{position:>6}" if position is not None else "  None"
+                boost_str = "NORM "
+                print(f"[DEBUG] pos={pos_str} | theta={theta_deg:>5.1f}deg | {boost_str} | factor={current_boost_factor:.2f}")
+                self._last_debug_time = current_time
         
         if base > 0:
             power_adj = min(int(base), MAX_POWER_DIFF)
