@@ -74,7 +74,7 @@ BOTTLE_BLUE_THRESHOLD = 14000
 BOTTLE_RED_THRESHOLD = 14000
 MOTOR_SEND_INTERVAL = 0.04
 
-POSITION_YELLOW_BOTTLE = 3000         # 黄色ボトル回避開始位置
+POSITION_YELLOW_BOTTLE = 4500         # 黄色ボトル回避開始位置
 POSITION_BLUE_BOTTLE = 20000           # 青ボトル運搬開始位置
 POSITION_RED_BOTTLE = 250000            # 赤ボトル運搬開始位置
 # ================================================
