@@ -440,7 +440,7 @@ class ActionManager:
                 self.action_sent = True
                 self.arc_end_time = now + 0.8
                 self.left_power = 20  # 左モーターも動かす（弱く）
-                self.right_power = 60 # 右モーターを強く（左向き）
+                self.right_power = 50 # 右モーターを強く（左向き）
             else:
                 if now >= self.arc_end_time:
                     self.et.brake()
