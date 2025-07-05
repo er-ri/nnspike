@@ -17,7 +17,7 @@ import numpy as np
 
 # ====【現場でよく調整する推奨パラメータ】====
 BASE_POWER = 30             # 通常走行時の基準パワー
-STRAIGHT_POWER = 30         # 直線判定時のパワー
+STRAIGHT_POWER = 80         # 直線判定時のパワー
 CURVE_POWER = 30            # カーブ判定時のパワー（20→25で復帰力UP）
 
 # --- 追加: しきい値・閾値のグローバル定数定義 ---
@@ -38,10 +38,11 @@ OFFSET_Y = 350  # 例: 画像下部付近を基準にする場合
 
 # ---【ダブルループ交差点判定用の相対位置しきい値】---
 # run_opencv.py など他ファイルと値を揃えること
-POSITION_CROSS0 = 10000
-POSITION_CROSS1 = 13000
-POSITION_CROSS2 = 16000
-POSITION_CROSS3 = 20000
+POSITION_STRAIGHT = 5000
+POSITION_CROSS1 = 12000
+POSITION_CROSS2 = 13000
+POSITION_CROSS3 = 16000
+POSITION_CROSS4 = 20000
 
 class ControlCalculator:
     """
@@ -87,13 +88,13 @@ class ControlCalculator:
         # follow_edge自動判定: positionが指定されていれば区間ごとに切り替え、なければleft
         if position is not None:
             abs_position = abs(position)
-            if abs_position <= POSITION_CROSS0:
+            if abs_position <= POSITION_CROSS1:   #12000
                 follow_edge = "right"
-            elif abs_position <= POSITION_CROSS1:
+            elif abs_position <= POSITION_CROSS2: #14000
                 follow_edge = "left"
-            elif abs_position <= POSITION_CROSS2:
+            elif abs_position <= POSITION_CROSS3: #16000
                 follow_edge = "right"
-            elif abs_position <= POSITION_CROSS3:
+            elif abs_position <= POSITION_CROSS4: #20000
                 follow_edge = "left"
             else:
                 follow_edge = "right"
@@ -187,13 +188,13 @@ class ControlCalculator:
 
     def calculate_adaptive_speed(self, theta, position=None):
         """
-        POSITION_CROSS2～POSITION_CROSS3の期間はカーブスピード。
-        それ以外はベーススピード。
+        POSITION_STRAIGHTまではストレートパワー、それ以外はベースパワー。
+        カーブパワーはbase_powerと同じなので条件式を統合。
         """
         if position is not None:
             abs_position = abs(position)
-            if POSITION_CROSS2 < abs_position <= POSITION_CROSS3:
-                return self.curve_power
+            if abs_position <= POSITION_STRAIGHT:
+                return self.straight_power
             else:
                 return self.base_power
         else:
