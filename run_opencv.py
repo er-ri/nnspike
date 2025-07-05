@@ -1013,7 +1013,7 @@ class NormalScenario(DefaultScenario):
         # --- モーター相対位置によるシナリオ遷移用の指標（deg単位） ---
         if self.mode == Mode.LINE_TRACE:
             # ライントレース中に各色ボトルを検出したら該当モードへ遷移
-            if yellow_pixels >= BOTTLE_YELLOW_THRESHOLD and abs(right_pos) <= POSITION_YELLOW_BOTTLE:
+            if yellow_pixels >= BOTTLE_YELLOW_THRESHOLD:
                 self.mode = Mode.YELLOW_BOTTLE
             elif blue_pixels >= BOTTLE_BLUE_THRESHOLD and abs(right_pos) >= POSITION_BLUE_BOTTLE:
                 self.mode = Mode.BLUE_BOTTLE
