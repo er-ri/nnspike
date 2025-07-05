@@ -261,6 +261,13 @@ class ActionManager:
         if offset_pixels is None:
             offset_pixels = 0
             
+        # デバッグ出力: 入力値を確認（頻度制限）
+        if not hasattr(self, '_last_linetrace_debug'):
+            self._last_linetrace_debug = 0
+        if time.time() - self._last_linetrace_debug >= 2.0:  # 2秒間隔
+            print(f"[LINE_TRACE_DEBUG] offset_pixels={offset_pixels} | position={position}")
+            self._last_linetrace_debug = time.time()
+            
         # === ライントレース制御のメイン処理 ===
         # 1. 進行角度thetaをオフセットピクセルから算出
         theta = self.calc.calculate_attitude_angle(offset_pixels)

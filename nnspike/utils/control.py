@@ -128,20 +128,22 @@ class ControlCalculator:
             else:
                 candidate_x = np.clip((left_x + right_x) // 2, min_x, max_x)
                 max_contour = np.array([[[np.clip(left_x, min_x, max_x) - x1, OFFSET_Y - y1]], [[np.clip(right_x, min_x, max_x) - x1, OFFSET_Y - y1]]], dtype=np.int32)
-            mx = candidate_x - x1
-            my = OFFSET_Y - y1
+            mx = candidate_x - x1  # ROI内相対座標
+            my = OFFSET_Y - y1     # ROI内相対座標
             self._last_mx = mx
             self._last_my = my
-            roi_center_x = (x2 - x1) // 2
-            offset_pixels = mx - roi_center_x
+            # 画像全体の中心からの差分を計算（画像全体の中心は IMAGE_WIDTH//2 = 320）
+            absolute_x = x1 + mx  # 画像全体での絶対座標
+            offset_pixels = absolute_x - (self.image_width // 2)
             line_status = "DETECTED"
         else:
             # 前回の点を維持
             if self._last_mx is not None and self._last_my is not None:
                 mx = self._last_mx
                 my = self._last_my
-                roi_center_x = (x2 - x1) // 2
-                offset_pixels = mx - roi_center_x
+                # 画像全体の中心からの差分を計算
+                absolute_x = x1 + mx  # 画像全体での絶対座標
+                offset_pixels = absolute_x - (self.image_width // 2)
                 max_contour = None
                 line_status = "LOST_HOLDING"
             else:
@@ -196,6 +198,14 @@ class ControlCalculator:
             
         if math.isnan(theta) or math.isinf(theta):
             theta = 0.0
+            
+        # デバッグ出力: θ計算過程を詳細表示（頻度制限）
+        theta_deg = math.degrees(theta)
+        if not hasattr(self, '_last_theta_debug'):
+            self._last_theta_debug = 0
+        if time.time() - self._last_theta_debug >= 2.0:  # 2秒間隔
+            print(f"[THETA_DEBUG] offset_px={offset_pixels:.1f} | roi_y2={y2} | denom={denominator:.1f} | ground_dist={ground_distance:.3f} | lateral_m={lateral_offset_meters:.4f} | theta_rad={theta:.4f} | theta_deg={theta_deg:.2f}")
+            self._last_theta_debug = time.time()
             
         return theta
 
