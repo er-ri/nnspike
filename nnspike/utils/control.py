@@ -28,11 +28,11 @@ import numpy as np
 # ====【現場でよく調整する推奨パラメータ】====
 BASE_POWER = 30             # 通常走行時の基準パワー
 STRAIGHT_POWER = 50         # 直線判定時のパワー
-CURVE_POWER = 25            # カーブ判定時のパワー（安定性重視でベースより低く設定）
+CURVE_POWER = 20            # カーブ判定時のパワー（25→20にさらに下げて安定性重視）
 
 # --- 追加: しきい値・閾値のグローバル定数定義 ---
 STRAIGHT_THRESHOLD_DEG = 3   # 直線判定しきい値[deg]
-BOOST_AND_CURVE_THRESHOLD_DEG = 12  # ブースト発動+カーブパワー切替の統一しきい値[deg]（同時発動）
+BOOST_AND_CURVE_THRESHOLD_DEG = 8  # ブースト発動+カーブパワー切替の統一しきい値[deg]（12→8に下げて早期制御）
 
 CAMERA_HEIGHT = 0.20  # Camera height above ground in meters
 CAMERA_FOCAL_LENGTH_PIXELS = 640  # ピクセル単位のカメラ焦点距離（概算値、キャリブレーション推奨）
@@ -266,6 +266,12 @@ class ControlCalculator:
                         pos_str = f"{position:>6}"
                         print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} <= {POSITION_STRAIGHT} | power={self.straight_power} (STRAIGHT)")
                     selected_power = self.straight_power
+                elif abs_position >= 15000:  # 15000以降の難所エリアはさらに減速
+                    # 難所エリア（カーブが多い箇所）
+                    if self._total_calls % 20 == 0:  # 20回に1回ログ出力
+                        pos_str = f"{position:>6}"
+                        print(f"[SPEED_SELECT] pos={pos_str} | theta={theta_deg:>5.1f}deg | abs_pos={abs_position:>3.0f} >= 15000 | power={self.curve_power} (DIFFICULT)")
+                    selected_power = self.curve_power
                 else:
                     # ベースパワーエリア（ログ頻度抑制）
                     if self._total_calls % 20 == 0:  # 20回に1回ログ出力
@@ -321,8 +327,15 @@ class ControlCalculator:
         # 現在のtheta値を保存（ブースト判定用）
         self._current_theta_deg = abs(math.degrees(pid_corrected_theta))
         
-        # ブーストファクターの計算（BOOST_AND_CURVE_THRESHOLD_DEGを使用、安定化のため1.05倍に調整）
-        current_boost_factor = 1.05 if self._current_theta_deg > BOOST_AND_CURVE_THRESHOLD_DEG else 1.0
+        # ブーストファクターの計算（ヒステリシス付きで安定化）
+        # 現在ブーストONの場合は6度まで下がらないとOFFにしない（8-2=6度）
+        # 現在ブーストOFFの場合は8度を超えたらONにする
+        if self._last_boost_factor > 1.0:  # 現在ブーストON
+            threshold = BOOST_AND_CURVE_THRESHOLD_DEG - 2  # 6度
+        else:  # 現在ブーストOFF
+            threshold = BOOST_AND_CURVE_THRESHOLD_DEG  # 8度
+        
+        current_boost_factor = 1.03 if self._current_theta_deg > threshold else 1.0
         
         # ブースト統計の更新
         if current_boost_factor > 1.0:
