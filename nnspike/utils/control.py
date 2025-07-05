@@ -2,7 +2,17 @@
 ラインフォロワー制御モジュール
 
 このモジュールは、カメラ画像を用いたラインフォロー制御アルゴリズムを実装します。
-主に学習データ収集やリアルタイムロボット制御で利用されます。
+主に学習データ        # 段階的ブースト用の状態管理
+        self._boost_start_time = None  # ブースト開始時刻
+        self._boost_buildup_duration = 1.0  # ブーストが1.2倍に達するまでの時間（秒）
+        self._theta_5deg_start_time = None  # theta > 8度状態の開始時刻（5度→8度に変更で安定化）
+        self._theta_5deg_duration_threshold = 0.2  # theta > 8度が継続する必要な時間（秒、0.3s→0.2sでさらに緩和）
+        self._boost_active = False  # ブースト状態フラグ（ログ出力用）
+        self._boost_cooldown_time = None  # ブースト停止後のクールダウン開始時刻
+        self._boost_cooldown_duration = 0.2  # クールダウン期間（1秒→0.2秒に大幅短縮）
+        self._theta_cumulative_time = 0.0  # theta > 8度の累積時間
+        self._theta_cumulative_threshold = 0.1  # 累積時間のしきい値（0.15秒→0.1秒にさらに緩和）
+        self._boost_min_duration = 0.8  # ブースト最低継続時間（0.3秒→0.8秒に延長で安定化）ット制御で利用されます。
 
 クラス:
     ControlCalculator:
@@ -40,7 +50,7 @@ OFFSET_Y = 400  # 例: 画像下部付近を基準にする場合
 # run_opencv.py など他ファイルと値を揃えること
 POSITION_STRAIGHT = 4500
 POSITION_CROSS1 = 11800
-POSITION_CROSS2 = 15500
+POSITION_CROSS2 = 15200
 POSITION_CROSS3 = 18500
 POSITION_CROSS4 = 20000
 
@@ -78,9 +88,12 @@ class ControlCalculator:
         self._theta_5deg_duration_threshold = 0.3  # theta > 8度が継続する必要な時間（秒、0.5s→0.3sでさらに緩和）
         self._boost_active = False  # ブースト状態フラグ（ログ出力用）
         self._boost_cooldown_time = None  # ブースト停止後のクールダウン開始時刻
-        self._boost_cooldown_duration = 1.0  # クールダウン期間（3秒→1秒に短縮）
+        self._boost_cooldown_duration = 0.5  # クールダウン期間（1秒→0.5秒に短縮）
         self._theta_cumulative_time = 0.0  # theta > 8度の累積時間
         self._theta_cumulative_threshold = 0.15  # 累積時間のしきい値（0.3秒→0.15秒に大幅緩和）
+        self._boost_min_duration = 0.5  # ブースト最低継続時間（0.3秒→0.5秒に延長で安定化）
+        self._boost_start_threshold = 5.0  # ブースト開始のtheta閾値（度、8度→5度に緩和）
+        self._boost_stop_threshold = 4.0   # ブースト停止のtheta閾値（度、6度→4度に緩和でヒステリシス）
         self._last_debug_time = 0  # デバッグ出力頻度制御用
         self._last_boost_debug_time = 0  # ブーストデバッグ出力頻度制御用
 
@@ -224,20 +237,20 @@ class ControlCalculator:
         """
         PID補正値（ラジアン）をパワー差分（左右モーター出力の調整値）に変換する。
         - シンプルなリニア変換のみ（ブーストなし）
-        - theta_degが8度を超えた状態が1.0秒以上続いた場合、パワー差分を段階的に1.2倍までブースト
-        - theta_degが8度以下になると即座にブースト停止
+        - theta_degが5度を超えた状態が0.2秒以上続いた場合、パワー差分を段階的に1.2倍までブースト
+        - theta_degが4度以下になると即座にブースト停止（ヒステリシス）
         - 最大パワー差分はMAX_POWER_DIFFでクリップ
         """
         base = (pid_corrected_theta / self.max_theta) * MAX_POWER_DIFF
         
-        # theta_degが8度を超えた状態が1.0秒以上続く場合の段階的ブースト処理
+        # theta_degが5度を超えた状態が0.2秒以上続く場合の段階的ブースト処理
         theta_deg = abs(math.degrees(pid_corrected_theta))
         current_time = time.time()
         
         # boost factorの計算（デバッグ表示用）
         current_boost_factor = 1.0
         
-        if theta_deg > 8.0:  # 8度を超えた場合にブースト処理開始（5度→8度でより厳格に）
+        if theta_deg > 5.0:  # 5度を超えた場合にブースト処理開始（8度→5度に緩和）
             # 累積時間を増加（フレーム間の時間差を加算）
             if hasattr(self, '_last_frame_time'):
                 frame_delta = current_time - self._last_frame_time
@@ -258,9 +271,10 @@ class ControlCalculator:
                 else:
                     # クールダウン終了
                     self._boost_cooldown_time = None
+                    self._theta_cumulative_time = 0.0  # クールダウン終了時に累積時間もリセット
                     if self.debug:
                         pos_str = f"{position:>6}" if position is not None else "  None"
-                        print(f"[DEBUG] pos={pos_str} | Cooldown ended: theta={theta_deg:.1f}deg")
+                        print(f"[DEBUG] pos={pos_str} | Cooldown ended: theta={theta_deg:.1f}deg | Reset cumulative time")
             
             # クールダウン中でなければ通常のブースト処理
             if self._boost_cooldown_time is None:
@@ -309,31 +323,49 @@ class ControlCalculator:
                     # まだ0.3秒経過していない かつ 累積時間も不足（出力頻度抑制）
                     if self.debug and (current_time - self._last_debug_time) >= 0.3:  # 0.5秒→0.3秒でより頻繁に出力
                         pos_str = f"{position:>6}" if position is not None else "  None"
-                        print(f"[DEBUG] pos={pos_str} | Waiting for boost: theta={theta_deg:.1f}deg, elapsed={theta_5deg_elapsed:.1f}s, cumulative={self._theta_cumulative_time:.1f}s (need 0.3s OR 0.15s)")
+                        print(f"[DEBUG] pos={pos_str} | Waiting for boost: theta={theta_deg:.1f}deg, elapsed={theta_5deg_elapsed:.1f}s, cumulative={self._theta_cumulative_time:.1f}s (need {self._theta_5deg_duration_threshold}s OR {self._theta_cumulative_threshold}s)")
                         self._last_debug_time = current_time
         else:
-            # theta_degが8度以下：累積時間をリセット
+            # theta_degが5度以下：累積時間をリセット
             self._theta_cumulative_time = 0.0
             if hasattr(self, '_last_frame_time'):
                 self._last_frame_time = current_time
             
-            # theta_degが8度以下：即座にブースト停止とtheta > 8度状態のリセット
-            if self._boost_active:
-                pos_str = f"{position:>6}" if position is not None else "  None"
-                print(f"[BOOST] pos={pos_str} | Stopped: theta={theta_deg:.1f}deg (<=8deg) | Starting cooldown")
-                self._boost_active = False
-                self._boost_cooldown_time = current_time  # クールダウン開始
-                self._last_debug_time = current_time
-                self._last_boost_debug_time = current_time
+            # theta_degが4度以下：即座にブースト停止とtheta > 5度状態のリセット（ヒステリシス）
+            if self._boost_active and theta_deg <= self._boost_stop_threshold:
+                # ブースト最低継続時間チェック
+                boost_elapsed = current_time - self._boost_start_time if self._boost_start_time else 0
+                if boost_elapsed >= self._boost_min_duration:
+                    # 最低継続時間を満たした場合のみ停止
+                    pos_str = f"{position:>6}" if position is not None else "  None"
+                    print(f"[BOOST] pos={pos_str} | Stopped: theta={theta_deg:.1f}deg (<={self._boost_stop_threshold}deg) after {boost_elapsed:.1f}s | Starting cooldown")
+                    self._boost_active = False
+                    self._boost_cooldown_time = current_time  # クールダウン開始
+                    self._theta_cumulative_time = 0.0  # クールダウン開始時に累積時間もリセット
+                    self._last_debug_time = current_time
+                    self._last_boost_debug_time = current_time
+                    self._boost_start_time = None
+                    self._theta_5deg_start_time = None
+                else:
+                    # 最低継続時間を満たしていない場合は継続
+                    if self.debug and (current_time - self._last_debug_time) >= 0.3:
+                        pos_str = f"{position:>6}" if position is not None else "  None"
+                        print(f"[BOOST] pos={pos_str} | Continuing (min duration): theta={theta_deg:.1f}deg, elapsed={boost_elapsed:.1f}s")
+                        self._last_debug_time = current_time
+                    # ブースト継続のため、baseにfactorを適用
+                    elapsed_time = current_time - self._boost_start_time
+                    boost_progress = min(elapsed_time / self._boost_buildup_duration, 1.0)
+                    current_boost_factor = 1.0 + (0.2 * boost_progress)
+                    base = base * current_boost_factor
             elif self._theta_5deg_start_time is not None:
-                # ブーストは開始していないが、theta > 8度状態がリセットされる場合
+                # ブーストは開始していないが、theta > 5度状態がリセットされる場合
                 theta_5deg_elapsed = current_time - self._theta_5deg_start_time
                 if self.debug and theta_5deg_elapsed > 0.1:  # 0.1秒以上継続していた場合のみログ出力
                     pos_str = f"{position:>6}" if position is not None else "  None"
-                    print(f"[DEBUG] pos={pos_str} | theta <= 8deg: {theta_deg:.1f}deg | Reset timer (was {theta_5deg_elapsed:.1f}s, cumulative was {self._theta_cumulative_time:.1f}s)")
+                    print(f"[DEBUG] pos={pos_str} | theta <= 5deg: {theta_deg:.1f}deg | Reset timer (was {theta_5deg_elapsed:.1f}s, cumulative was {self._theta_cumulative_time:.1f}s)")
                     self._last_debug_time = current_time
-            self._boost_start_time = None
-            self._theta_5deg_start_time = None
+                self._boost_start_time = None
+                self._theta_5deg_start_time = None
         
         # デバッグ：position、theta値、boost状態、factor値を整列表示（通常は2.0秒ごと、ブースト時は頻繁に）
         if self._boost_active:
