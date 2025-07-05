@@ -239,30 +239,49 @@ class ActionManager:
         self.pid_corrected_theta = 0
         self.current_power = 0
         self.is_stopped = False  # STOP状態解除
+        # position関連の安全性確保
+        if not hasattr(self, 'left_relative_position') or self.left_relative_position is None:
+            self.left_relative_position = 0
+        if not hasattr(self, 'right_relative_position') or self.right_relative_position is None:
+            self.right_relative_position = 0
 
     def do_line_trace(self, offset_pixels, position=None):
         if getattr(self, 'is_stopped', False):
             return  # STOP状態なら何もしない
-        # === ライントレース制御のメイン処理 ===
-        # 1. 進行角度thetaをオフセットピクセルから算出
-        theta = self.calc.calculate_attitude_angle(offset_pixels)
-        # 2. θとpositionに応じた推奨速度（パワー）を決定
+        
+        # position安全性チェック
         if position is None:
-            position = getattr(self, 'right_relative_position', 0)
-        current_power = self.calc.calculate_adaptive_speed(theta, position)
-        # 3. PID制御で進行角度を補正
-        pid_corrected_theta = self.pid.update(theta)
-        # 4. PID補正値をパワー差分に変換
-        power_adjustment = self.calc.calculate_power_adjustment(pid_corrected_theta, position)
-        # 5. 左右パワーを計算（負値にならないようクリッピング）
-        self.left_power = max(0, int(current_power - power_adjustment))
-        self.right_power = max(0, int(current_power + power_adjustment))
-        # 6. モーター出力を即時反映
-        self.apply_power()
-        # 7. デバッグ・可視化用の値を保存
-        self.theta = theta
-        self.pid_corrected_theta = pid_corrected_theta
-        self.current_power = current_power
+            position = getattr(self, 'right_relative_position', 0) or 0
+        
+        # offset_pixels安全性チェック
+        if offset_pixels is None:
+            offset_pixels = 0
+            
+        # === ライントレース制御のメイン処理 ===
+        try:
+            # 1. 進行角度thetaをオフセットピクセルから算出
+            theta = self.calc.calculate_attitude_angle(offset_pixels)
+            # 2. θとpositionに応じた推奨速度（パワー）を決定
+            current_power = self.calc.calculate_adaptive_speed(theta, position)
+            # 3. PID制御で進行角度を補正
+            pid_corrected_theta = self.pid.update(theta)
+            # 4. PID補正値をパワー差分に変換
+            power_adjustment = self.calc.calculate_power_adjustment(pid_corrected_theta, position)
+            # 5. 左右パワーを計算（負値にならないようクリッピング）
+            self.left_power = max(0, int(current_power - power_adjustment))
+            self.right_power = max(0, int(current_power + power_adjustment))
+            # 6. モーター出力を即時反映
+            self.apply_power()
+            # 7. デバッグ・可視化用の値を保存
+            self.theta = theta
+            self.pid_corrected_theta = pid_corrected_theta
+            self.current_power = current_power
+        except Exception as e:
+            print(f"[ERROR] do_line_trace calculation failed: {e}")
+            # 安全停止
+            self.left_power = 0
+            self.right_power = 0
+            self.apply_power_immediate()
 
     def do_obstacle_avoid(self):
         if getattr(self, 'is_stopped', False):
@@ -1276,28 +1295,75 @@ def main(config: Config):
             # === メイン制御ループ ===
             # 1. 画像取得（frame）
             # 2. センサー情報を最新化（self.xxx更新のみ、レコーダー出力はしない）
-            action.update_sensor_state()
+            try:
+                action.update_sensor_state()
+            except Exception as e:
+                print(f"[ERROR] update_sensor_state failed: {e}")
+                # 安全な値でフォールバック
+                action.left_relative_position = getattr(action, 'left_relative_position', 0) or 0
+                action.right_relative_position = getattr(action, 'right_relative_position', 0) or 0
+                action.color = None
+                action.distance = None
+            
             # 3. ラインエッジ検出（left_x, right_x, line_width）
-            left_x, right_x, line_width = camera.get_line_edges_at_y(frame)
+            try:
+                left_x, right_x, line_width = camera.get_line_edges_at_y(frame)
+            except Exception as e:
+                print(f"[ERROR] get_line_edges_at_y failed: {e}")
+                left_x, right_x, line_width = None, None, 0
+            
             # 4. ステアリング計算（steer_result: ライントレース用画像処理結果）
-            position = action.right_relative_position if action.right_relative_position is not None else 0
-            steer_result = calc.calc_steer_result(left_x, right_x, position=position)
+            try:
+                position = action.right_relative_position if action.right_relative_position is not None else 0
+                steer_result = calc.calc_steer_result(left_x, right_x, position=position)
+            except Exception as e:
+                print(f"[ERROR] calc_steer_result failed: {e}")
+                steer_result = {
+                    "mx": 0, "my": 0, "offset_pixels": 0, "max_contour": None,
+                    "roi_type": "opencv", "follow_edge": "left", "position": 0
+                }
+            
             # 5. ペットボトル検出（bottle_result: 色ごとのピクセル数辞書, bottle_masks: 各色マスク）
-            bottle_result, bottle_masks = camera.detect_color_bottle(frame)  # 辞書とマスク両方を取得
+            try:
+                bottle_result, bottle_masks = camera.detect_color_bottle(frame)  # 辞書とマスク両方を取得
+            except Exception as e:
+                print(f"[ERROR] detect_color_bottle failed: {e}")
+                bottle_result = ({}, {})
+                bottle_masks = {}
+            
             # 6. センサ情報・CSV記録（steer_result, bottle_resultを計算後に記録）
-            action.log_sensor_record(sensor_recorder, bottle_result=bottle_result, steer_result=steer_result)
+            try:
+                action.log_sensor_record(sensor_recorder, bottle_result=bottle_result, steer_result=steer_result)
+            except Exception as e:
+                print(f"[ERROR] log_sensor_record failed: {e}")
+            
             # 7. キー入力取得（マニュアル時のみ）
-            key_input = key.get_key() if config.log_manual else None
+            try:
+                key_input = key.get_key() if config.log_manual else None
+            except Exception as e:
+                print(f"[ERROR] key.get_key failed: {e}")
+                key_input = None
+            
             # 8. シナリオに応じたアクション実行（自動/手動/ボトル回避等）
-            if config.log_manual:
-                scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result, key=key_input)
-            else:
-                scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result)
+            try:
+                if config.log_manual:
+                    scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result, key=key_input)
+                else:
+                    scenario.execute_mode_action(action=action, steer_result=steer_result, bottle=bottle_result)
+            except Exception as e:
+                print(f"[ERROR] scenario.execute_mode_action failed: {e}")
+                # 緊急停止
+                action.do_stop()
+            
             # 9. 動画保存・PC送信（必要時のみ）
-            if (config.log_save_video or config.log_send_video) and video is not None:
-                if not video.process_and_send(frame, steer_result, scenario, action, bottle_result, bottle_masks, calc=calc):
-                    print("[ERROR] send_camera_capture failed. Breaking main loop.")
-                    break
+            try:
+                if (config.log_save_video or config.log_send_video) and video is not None:
+                    if not video.process_and_send(frame, steer_result, scenario, action, bottle_result, bottle_masks, calc=calc):
+                        print("[ERROR] send_camera_capture failed. Breaking main loop.")
+                        break
+            except Exception as e:
+                print(f"[ERROR] video.process_and_send failed: {e}")
+                # 動画送信エラーは継続可能
             # 10. ループ周期調整（MOTOR_SEND_INTERVALサイクルで動作）
             loop_elapsed = time.time() - loop_start
             sleep_time = max(0, MOTOR_SEND_INTERVAL - loop_elapsed)
