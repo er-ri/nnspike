@@ -54,9 +54,9 @@ def view_data_distribution(df: pd.DataFrame) -> None:
     plt.ylabel("Frequency")
     plt.title("Distribution of 'offset_x'")
 
-    # Plot the 'line_type' distribution
+    # Plot the 'data_type' distribution
     plt.subplot(1, 2, 2)
-    sns.histplot(df["line_type"], bins=20, color="forestgreen", edgecolor=None)
+    sns.histplot(df["data_type"], bins=20, color="forestgreen", edgecolor=None)
     plt.xlabel("Values")
     plt.ylabel("Frequency")
     plt.title("Distribution of 'line_type'")

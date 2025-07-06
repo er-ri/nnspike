@@ -12,7 +12,7 @@ The project integrates a LEGO SPIKE Prime Hub and a Raspberry Pi to implement a 
 </p>
 
 ## Environment
-
+- LEGO: HubOS Legacy 
 - OS: Raspberry Pi OS Bookworm 64-bit
 - Python: 3.11.2
 - pytorch: 2.3.1
@@ -20,21 +20,27 @@ The project integrates a LEGO SPIKE Prime Hub and a Raspberry Pi to implement a 
 > Note: A 64-bit Raspberry Pi is required because `pytorch` doesn't work on a 32-bit system.
 
 ## Gettting Started
-
 1.  Install dependencies on Host PC
 
         pip install -r requirements.txt
 
-2.  Upload `spike/main.py` to LEGO SPIKE Prime Hub, the VSCode plugin **LEGO SPIKE Prime / MINDSTORMS Robot Inventor Extension** is required. For more details, see [here](https://marketplace.visualstudio.com/items?itemName=PeterStaev.lego-spikeprime-mindstorms-vscode)
+2.  Upload `spike/slot2.py` to LEGO SPIKE Prime Hub through [**SPIKE Legacy App**](https://education.lego.com/en-us/downloads/spike-legacy-app/software/).
 
-    > Note: Sometimes, the hub might be running a cached version of the program. Try restarting the hub to clear any cached programs and upload again.
+> Downgrade the **HubOS** from [here](https://spikelegacy.legoeducation.com/hubdowngrade/#step-1) if you are using 3.x version. For Windows environment, the tool [Zadig](https://zadig.akeo.ie/) is also required. 
 
 3.  Connect to Raspberry Pi to open the remote terminal by a ssh client such as [PuTTY](https://www.putty.org/) or the VSCode [Remote Development Plugin](https://code.visualstudio.com/docs/remote/ssh). Install the dependencies on Raspberry Pi by
 
         pip install -r requirements-raspi.txt
 
-4.  Select the corresponing slot on SPIKE and press the button to launch the script of `spike/main.py`.
+4.  Select the corresponing slot on SPIKE and press the button to launch the script of `spike/slot_prod.py`.
 5.  Run the command `python run_slient.py` on Raspberry Pi to starting the lego spike robot.
+
+
+> [!IMPORTANT]  
+> This project requires `LEGO® Education SPIKE™ Legacy App v. 2.0.10` and will not work with `LEGO® Education SPIKE™ App v. 3+`. You can:
+> 1. Download the Legacy App from [here](https://education.lego.com/en-us/downloads/spike-legacy-app/software/)
+> 2. Use [this site](https://spikelegacy.legoeducation.com/hubdowngrade/) to downgrade your hub to version `2.0`
+> 3. If using Windows, you may need [Zadig](https://zadig.akeo.ie/) to properly install USB drivers
 
 ## Project Structure
 
@@ -88,17 +94,17 @@ The training data were collected by using the OpenCV `VideoCapture` object to ca
 
 ### Data Labeling
 
-1. The function `create_label_df()` will return a pandas dataframe for a folder that stores the frame files.
+1. The function `create_label_dataframe()` will return a pandas dataframe for a folder that stores the frame files.
 2. By default, the dataframe's records are ordered by its filename which is not convenient for inspection. You can feed the dataframe to the function `sort_by_frames_number()` to sort the dataframe by its frame number.
 3. Besides the frames in the intersection, most data can be labeled automatically by calculating the image _moments_ through the OpenCV library. Setting the appropriate ROI(Region of Interest) and feeding the dataframe to the function `label_dataset_by_opencv()` will fill the value of the column `mx`, which represents the x-coordinates of the moments for the lines that need to be followed.
 4. Save the dataframe to a csv file by `df.to_csv(f"./storage/frames/{timestamp}_label.csv")` where the variable _timestamp_ should be the same as the frames folder name.
 5. The script `./scripts/labeler.py` is for the other records that need to be labeled manually. You can dynamically update the values in the csv file and view the result.
 
 ```python
-    from nnspike.data import label_dataset_by_opencv, sort_by_frames_number, create_label_df
+    from nnspike.data import label_dataset_by_opencv, sort_by_frames_number, create_label_dataframe
     from nnspike.constant import ROI_OPENCV
 
-    df = create_label_df(f"../storage/frames_goal/{timestamp}/*.png", course="left", worker="opencv")
+    df = create_label_dataframe(f"../storage/frames_goal/{timestamp}/*.png", course="left", worker="opencv")
     df = sort_by_frames_number(df)
     df = label_dataset_by_opencv(df=df, interval=1, line_types=[0], use=True, worker="opencv", roi=ROI_OPENCV)
     df.to_csv(f"../storage/frames/{timestamp}_label.csv", index=False)

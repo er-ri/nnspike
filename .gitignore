@@ -1,6 +1,9 @@
-# Model training & data collection
-test*.py
+# Models
 *.pth
+
+# Test outputs
+#  This is a general rule for test outputs, but you may want to keep some specific outputs
+tests/output/
 
 # vscode
 .vscode

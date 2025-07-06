@@ -79,10 +79,10 @@ def draw_driving_info(
         image = cv2.putText(
             image,
             f"{key} : {text}",
-            (50, 370 + index * 20),
+            (50, 20 + index * 20),
             cv2.FONT_HERSHEY_PLAIN,
             1,
-            (255, 255, 255),
+            (0, 255, 255),
             1,
             cv2.LINE_4,
         )
@@ -126,3 +126,5 @@ def extract_video_frames(video_path: str, frame_path: str) -> None:
         frame_count = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
         # Saves the frames with frame-count
         cv2.imwrite(f"{frame_path}frame_{frame_count}.png", image)
+
+    print(f"Frames extracted to: {path.absolute()}")

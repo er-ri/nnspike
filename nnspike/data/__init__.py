@@ -10,5 +10,6 @@ from .preprocess import (
     label_dataset_by_model,
     balance_dataset,
     sort_by_frames_number,
-    create_label_df,
+    create_label_dataframe,
+    set_spike_status,
 )

@@ -11,15 +11,15 @@ import random
 import pandas as pd
 import torchvision.transforms as transforms
 from nnspike.utils import draw_driving_info
-from nnspike.constant import ROI_CNN
+from nnspike.constants import ROI_CNN_LEGACY, ROI_CNN, OFFSET_Y_LEGACY, OFFSET_Y
 from scripts.utils import process_image
 from scripts.utils import load_and_prepare_model
 
 transform = transforms.ToTensor()
 
-x1, y1, x2, y2 = ROI_CNN
+x1, y1, x2, y2 = ROI_CNN_LEGACY
 
-FILE_LABEL = "20240827203641_label"
+FILE_LABEL = "20240905190151_label"
 intervals = [1, 1.2, 2, 2.3, 3, 4]
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -27,9 +27,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 course = "left"  # "left" or "right"
 model_paths = [
-    f"./storage/models/{course}_interval1_0904_01.pth",
-    f"./storage/models/{course}_interval2_0904_01.pth",
-    f"./storage/models/{course}_interval3_0909_01.pth",
+    f"./storage/models/{course}_interval1_0601.pth",
+    f"./storage/models/{course}_interval2_0601.pth",
+    f"./storage/models/{course}_interval3_0601.pth",
 ]
 
 
@@ -37,7 +37,7 @@ models = [load_and_prepare_model(path, device) for path in model_paths]
 
 
 def read_label_data(image_path: str = None):
-    df = pd.read_csv(f"./storage/frames/{FILE_LABEL}.csv")
+    df = pd.read_csv(f"./storage/labels/{FILE_LABEL}.csv")
 
     filtered_df = df[
         (df["interval"].isin(intervals))
@@ -70,7 +70,7 @@ def main():
         image_path = row["image_path"].replace("../", "./")
 
         image = cv2.imread(image_path)
-        roi_area = process_image(image=image, device=device, roi=ROI_CNN)
+        roi_area = process_image(image=image, device=device, roi=(x1, y1, x2, y2))
 
         interval = row["interval"]
         if interval == 1.2:
@@ -87,7 +87,7 @@ def main():
                 output = models[2](roi_area)
 
         offset_x = x1 + (output[0][0] * (x2 - x1)).detach().item()
-        offset_y = 250
+        offset_y = OFFSET_Y_LEGACY
 
         dir_path, filename = image_path.rsplit("/", 1)
 
@@ -97,7 +97,7 @@ def main():
             train_x = row["predicted_x"]
         else:
             train_x = row["mx"]
-        train_y = 250
+        train_y = OFFSET_Y_LEGACY
 
         info = dict()
         info["offset_x"], info["offset_y"] = offset_x, offset_y
@@ -105,10 +105,10 @@ def main():
             "image path": filename,
             "offset x": offset_x,
             "difference": offset_x - train_x,
-            "type": row["line_type"],
+            "type": row["data_type"],
             "interval": interval,
         }
-        image = draw_driving_info(image.copy(), info, ROI_CNN)
+        image = draw_driving_info(image.copy(), info, (x1, y1, x2, y2))
 
         image = cv2.circle(
             image.copy(), (int(train_x), train_y), 3, (255, 0, 0), -1

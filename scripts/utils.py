@@ -26,21 +26,3 @@ def process_image(image, device, roi):
     roi_area = roi_area.to(device)
 
     return roi_area
-
-
-def get_dominant_color(image):
-    pixels = np.float32(image.reshape(-1, 3))
-    n_colors = 1
-    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 200, 0.1)
-    flags = cv2.KMEANS_RANDOM_CENTERS
-    _, labels, palette = cv2.kmeans(pixels, n_colors, None, criteria, 10, flags)
-    dominant_color = palette[0]
-
-    # Determine if the dominant color is closer to blue or red
-    blue_distance = np.linalg.norm(dominant_color - np.array([255, 0, 0]))
-    red_distance = np.linalg.norm(dominant_color - np.array([0, 0, 255]))
-
-    if blue_distance < red_distance:
-        return "blue"
-    else:
-        return "red"
