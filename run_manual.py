@@ -189,9 +189,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "c":  # 'c' key for bottle carrying
                 mode = Mode.BOTTLE_CARRYING
                 print("Switched to bottle carrying mode")
-            elif key == "b":  # 'b' key for blue bottle carrying
-                mode = Mode.BOTTLE_CARRYING_BLUE
-                print("Switched to blue bottle carrying mode")
+            elif key == "b":  # 'b' key for blue bottle catching
+                mode = Mode.BOTTLE_CATCH_BLUE
+                print("Switched to blue bottle catching mode")
             elif key == "o":  # 'o' key to avoid obstacle
                 previous_mode = mode  # Save current mode
                 mode = Mode.OBSTACLE_AVOIDANCE
@@ -217,8 +217,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     if yellow_pixel_count > 15000:
                         avoid_obstacle(et)
                         print("Obstacle avoided!")
-                case Mode.BOTTLE_CARRYING_BLUE:
-                    # In blue bottle carrying mode, use blue bottle detection
+                case Mode.BOTTLE_CATCH_BLUE:
+                    # In blue bottle catching mode, use blue bottle detection
                     (cx, _), _, blue_pixel_count = find_bottle_center_with_blue_count(frame)
                     target_x = cx
                     
