@@ -63,3 +63,20 @@ def avoid_obstacle(et: ETRobot) -> None:
     )
 
     _perform_action_chain(action_chain)
+
+
+def catch_bottle_blue(et: ETRobot) -> None:
+    """
+    青いボトルをキャッチするための一連のアクション（1回目）を実行します。
+
+    引数:
+        et (ETRobot): 制御対象のETRobotインスタンス。
+    """
+    action_chain = (
+        (et, 30, 30, 2.0),  # 2秒間ボトルにまっすぐ接近（左30、右30）
+        (et, 0, 60, 0.5),   # 60度左に回転（左0、右60）
+    )
+
+    _perform_action_chain(action_chain)
+
+
