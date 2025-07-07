@@ -80,3 +80,18 @@ def catch_bottle_blue(et: ETRobot) -> None:
     _perform_action_chain(action_chain)
 
 
+def release_bottle_blue(et: ETRobot) -> None:
+    """
+    青いボトルをリリースするための一連のアクションを実行します。
+
+    引数:
+        et (ETRobot): 制御対象のETRobotインスタンス。
+    """
+    action_chain = (
+        (et, -30, -30, 2.0),  # 2秒間後退してボトルから離れる（左-30、右-30）
+        (et, 60, 0, 1.5),     # 180度右に回転（左60、右0）
+    )
+
+    _perform_action_chain(action_chain)
+
+
