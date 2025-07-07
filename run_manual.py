@@ -34,8 +34,8 @@ import argparse
 import numpy as np
 import sys
 from nnspike.unit import ETRobot
-from nnspike.unit.actions import avoid_obstacle
-from nnspike.utils.control import find_bottle_center
+from nnspike.unit.actions import avoid_obstacle, catch_bottle_blue
+from nnspike.utils.control import find_bottle_center, find_bottle_center_with_yellow_count, find_bottle_center_with_blue_count
 
 # Platform-specific imports for keyboard input
 try:
@@ -189,10 +189,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "c":  # 'c' key for bottle carrying
                 mode = Mode.BOTTLE_CARRYING
                 print("Switched to bottle carrying mode")
+            elif key == "b":  # 'b' key for blue bottle carrying
+                mode = Mode.BOTTLE_CARRYING_BLUE
+                print("Switched to blue bottle carrying mode")
             elif key == "o":  # 'o' key to avoid obstacle
                 previous_mode = mode  # Save current mode
                 mode = Mode.OBSTACLE_AVOIDANCE
-                avoid_obstacle(et, 1.5, 1.5)  # Avoid obstacle with a turn
+                # avoid_obstacle(et)  # Avoid obstacle with a turn
                 print("Avoiding obstacle...")
                 mode = previous_mode  # Restore previous mode after avoiding obstacle
 
@@ -206,6 +209,23 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.BOTTLE_CARRYING:
                     (cx, _), _ = find_bottle_center(frame)
                     target_x = cx
+                case Mode.OBSTACLE_AVOIDANCE:
+                    # In obstacle avoidance mode, use yellow bottle detection
+                    (cx, _), _, yellow_pixel_count = find_bottle_center_with_yellow_count(frame)
+                    target_x = cx
+                    # If yellow pixel count exceeds threshold, execute obstacle avoidance
+                    if yellow_pixel_count > 15000:
+                        avoid_obstacle(et)
+                        print("Obstacle avoided!")
+                case Mode.BOTTLE_CARRYING_BLUE:
+                    # In blue bottle carrying mode, use blue bottle detection
+                    (cx, _), _, blue_pixel_count = find_bottle_center_with_blue_count(frame)
+                    target_x = cx
+                    
+                    # If blue pixel count exceeds threshold, execute blue bottle catching
+                    if blue_pixel_count > 15000:
+                        catch_bottle_blue(et)
+                        print("Blue bottle caught!")
                 case _:
                     # Default to center if invalid edge specified
                     target_x = (left_x + right_x) // 2
