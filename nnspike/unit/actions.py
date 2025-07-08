@@ -24,27 +24,18 @@ def _perform_action_chain(action_chain: tuple[ETRobot, int, int, float]) -> None
 
         start_time = time.time()
         while time.time() - start_time < duration:
-            # ロボットがまだ接続されているか確認
+            # Check if the robot is still connected
             if not et.is_connected():
-                print("ETRobotが切断されました。アクションチェーンを停止します。")
+                print("ETRobot disconnected, stopping action chain.")
                 return
 
-            # モーター速度を設定
+            # Set motor speeds
             if left_speed >= 0 and right_speed >= 0:
                 et.set_motor_forward_speed(left_speed, right_speed)
-            elif left_speed < 0 and right_speed < 0:
+            elif left_speed <= 0 and right_speed <= 0:
                 et.set_motor_backward_speed(abs(left_speed), abs(right_speed))
             else:
-                # 異なる方向のモーター（左右非対称）の場合
-                if left_speed >= 0:
-                    et.set_motor_forward_speed(left_speed, 0)
-                else:
-                    et.set_motor_backward_speed(abs(left_speed), 0)
-                    
-                if right_speed >= 0:
-                    et.set_motor_forward_speed(0, right_speed)
-                else:
-                    et.set_motor_backward_speed(0, abs(right_speed))
+                raise ValueError("Both speeds must be either positive or negative.")
 
             time.sleep(0.05)  # ロボットへの過負荷を避けるための短い遅延
 
