@@ -203,9 +203,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 print("Switched to blue bottle to gate carrying mode")
             elif key == "o":  # 'o' key to avoid obstacle
                 if mode == Mode.OBSTACLE_AVOIDANCE and obstacle_avoided:
-                    # If already in obstacle avoidance mode and completed, switch back to previous mode
-                    mode = previous_mode
-                    print(f"Switched back to {previous_mode.name}")
+                    # If already in obstacle avoidance mode and completed, switch back to default mode
+                    mode = Mode.LEFT_EDGE_FOLLOWING
+                    print("Switched back to LEFT_EDGE_FOLLOWING")
                 else:
                     # Enter obstacle avoidance mode
                     previous_mode = mode  # Save current mode
@@ -306,10 +306,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if frame_count % 30 == 0:  # Print every 30 frames (~1 second at 30fps)
                 print(f"DEBUG: Motor speeds - Left: {left_speed}, Right: {right_speed}, Mode: {mode.name}")
 
-            # et.set_motor_forward_speed(
-            #     left_speed=left_speed,
-            #     right_speed=right_speed,
-            # )
+            et.set_motor_forward_speed(
+                left_speed=left_speed,
+                right_speed=right_speed,
+            )
 
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
