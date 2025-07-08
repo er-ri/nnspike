@@ -65,7 +65,7 @@ def catch_bottle_blue(et: ETRobot) -> None:
     """
     action_chain = (
         (et, 30, 30, 3.0),  # 2秒間ボトルにまっすぐ接近（左30、右30）
-        (et, 0, 60, 0.5),   # 60度左に回転（左0、右60）
+        (et, 0, 80, 0.5),   # 60度左に回転（左0、右60）
     )
 
     _perform_action_chain(action_chain)
