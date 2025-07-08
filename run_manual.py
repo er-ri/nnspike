@@ -326,10 +326,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if frame_count % 30 == 0:  # Print every 30 frames (~1 second at 30fps)
                 print(f"DEBUG: Motor speeds - Left: {left_speed}, Right: {right_speed}, Mode: {mode.name}")
 
-            # et.set_motor_forward_speed(
-            #     left_speed=left_speed,
-            #     right_speed=right_speed,
-            # )
+            et.set_motor_forward_speed(
+                left_speed=left_speed,
+                right_speed=right_speed,
+            )
 
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
