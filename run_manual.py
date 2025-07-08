@@ -216,7 +216,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     (cx, _), _ = find_bottle_center(frame)
                     target_x = cx
                 case Mode.OBSTACLE_AVOIDANCE:
-                    # In obstacle avoidance mode, use yellow bottle detection
+                    # In obstacle avoidance mode, execute obstacle avoidance action
                     try:
                         yellow_result = find_bottle_center_with_yellow_count(frame)
                         
@@ -229,20 +229,16 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                             
                             if frame_count % 30 == 0:
                                 print(f"DEBUG: Yellow bottle detected - center: ({cx}, _), pixel count: {yellow_pixel_count}")
-                            
-                            # If yellow pixel count exceeds threshold, execute obstacle avoidance
-                            if yellow_pixel_count > 8000:  # Threshold for obstacle detection
-                                if frame_count % 30 == 0:
-                                    print("DEBUG: Yellow pixel count exceeds threshold, executing obstacle avoidance")
-                                avoid_obstacle(et)
-                                print("Avoiding obstacle...")
-                            else:
-                                if frame_count % 30 == 0:
-                                    print(f"DEBUG: Yellow pixel count ({yellow_pixel_count}) below threshold (8000)")
                         else:
                             if frame_count % 30 == 0:
                                 print("DEBUG: No yellow bottle detected")
                             target_x = None
+                        
+                        # Execute obstacle avoidance action
+                        if frame_count % 30 == 0:
+                            print("DEBUG: Executing obstacle avoidance")
+                        avoid_obstacle(et)
+                        print("Avoiding obstacle...")
                             
                     except Exception as e:
                         print(f"DEBUG: Error in OBSTACLE_AVOIDANCE mode: {e}")
