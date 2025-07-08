@@ -202,6 +202,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 print("Switched to blue bottle catching mode")
             elif key == "g":  # 'g' key for blue bottle to gate carrying
                 mode = Mode.BLUE_BOTTLE_TO_GATE
+                # ゲートモードに入る時にロックをリセット
+                from nnspike.utils.control import reset_gate_lock
+                reset_gate_lock()
                 print("Switched to blue bottle to gate carrying mode")
             elif key == "o":  # 'o' key to avoid obstacle
                 if mode == Mode.OBSTACLE_AVOIDANCE and obstacle_avoided:
@@ -279,16 +282,35 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     gate_result = find_gate_center(frame)
                     roi_center = (x1 + x2) // 2  # Calculate ROI center
                     
-                    if gate_result[0] is not None:
-                        (cx, _), confidence = gate_result
-                        target_x = cx
-                        deviation = cx - roi_center  # Deviation from center
-                        direction = "RIGHT" if deviation > 0 else "LEFT" if deviation < 0 else "CENTER"
-                        print(f"Gate at x={cx}, ROI center={roi_center}, deviation={deviation:+d}, direction={direction}, confidence={confidence:.3f}")
+                    if len(gate_result) == 3:  # 新しい形式の戻り値
+                        gate_pos, confidence, status = gate_result
+                        
+                        if status == 'passed':
+                            # ゲート通過検知 - ロボット停止
+                            print("GATE PASSED! Stopping robot.")
+                            et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                            target_x = None
+                        elif gate_pos is not None:
+                            (cx, _) = gate_pos
+                            target_x = cx
+                            deviation = cx - roi_center
+                            direction = "RIGHT" if deviation > 0 else "LEFT" if deviation < 0 else "CENTER"
+                            print(f"Gate [{status}] at x={cx}, ROI center={roi_center}, deviation={deviation:+d}, direction={direction}, confidence={confidence:.3f}")
+                        else:
+                            # If no gate detected, head to center
+                            target_x = roi_center
+                            print(f"Gate not detected, heading to ROI center (x={roi_center})")
                     else:
-                        # If no gate detected, head to center
-                        target_x = roi_center  # Screen center
-                        print(f"Gate not detected, heading to ROI center (x={roi_center})")
+                        # 古い形式の戻り値（互換性維持）
+                        if gate_result[0] is not None:
+                            (cx, _), confidence = gate_result
+                            target_x = cx
+                            deviation = cx - roi_center
+                            direction = "RIGHT" if deviation > 0 else "LEFT" if deviation < 0 else "CENTER"
+                            print(f"Gate at x={cx}, ROI center={roi_center}, deviation={deviation:+d}, direction={direction}, confidence={confidence:.3f}")
+                        else:
+                            target_x = roi_center
+                            print(f"Gate not detected, heading to ROI center (x={roi_center})")
                 case _:
                     # Default to center if invalid edge specified
                     target_x = (left_x + right_x) // 2
@@ -304,34 +326,46 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
                 # Create a simple contour for visualization (approximate target point)
                 max_contour = np.array([[[mx, my]]], dtype=np.int32)
+                
+                # Calculate attitude angle using camera geometry
+                theta = calculate_attitude_angle(
+                    offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS
+                )
+                
+                # Use simplified speed control
+                current_base_speed = BASE_SPEED
+                steering_correction = pid.update(theta)
+
+                # Apply simple differential steering
+                left_speed = current_base_speed - steering_correction
+                right_speed = current_base_speed + steering_correction
+
+                # Clamp speed values to valid range
+                left_speed = int(max(0, min(100, left_speed)))
+                right_speed = int(max(0, min(100, right_speed)))
+                
+                # Set motor speeds
+                et.set_motor_forward_speed(
+                    left_speed=left_speed,
+                    right_speed=right_speed,
+                )
             else:
-                # No line detected, use center values
+                # No line detected or gate passed, use center values for visualization
                 mx = (x2 - x1) // 2
                 my = (y2 - y1) // 2
                 offset_pixels = 0
-                max_contour = None  # Calculate attitude angle using camera geometry
-
-            theta = calculate_attitude_angle(
-                offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS
-            )  # Use simplified speed control
-            current_base_speed = BASE_SPEED
-
-            steering_correction = pid.update(theta)
-
-            # Apply simple differential steering
-            left_speed = current_base_speed - steering_correction
-            right_speed = current_base_speed + steering_correction
-
-            # Clamp speed values to valid range
-            left_speed = int(max(0, min(100, left_speed)))
-            right_speed = int(max(0, min(100, right_speed)))
+                max_contour = None
+                theta = 0
+                steering_correction = 0
+                left_speed = 0
+                right_speed = 0
 
             # DEBUG: Print motor speeds only when mode changes or occasionally
             if frame_count % 30 == 0:  # Print every 30 frames (~1 second at 30fps)
                 print(f"DEBUG: Motor speeds - Left: {left_speed}, Right: {right_speed}, Mode: {mode.name}")
             
             # Additional debug for gate mode
-            if mode == Mode.BLUE_BOTTLE_TO_GATE:
+            if mode == Mode.BLUE_BOTTLE_TO_GATE and target_x is not None:
                 print(f"Control: theta={theta:.3f}, correction={steering_correction:.2f}, left_speed={left_speed}, right_speed={right_speed}")
 
             et.set_motor_forward_speed(

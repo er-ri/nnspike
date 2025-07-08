@@ -492,11 +492,20 @@ def calculate_attitude_angle(
     return theta
 
 
-def find_gate_center(image):
+# グローバル変数でゲート状態を管理
+_gate_target_locked = False
+_gate_target_position = None
+_gate_lock_confidence = 0.0
+_gate_passed = False
+
+def find_gate_center(image, lock_threshold=0.7, reset_lock=False):
     """
     Extended ROIを使用してVP13パイプ長方形ゲートの中心座標を検出します。
     
     この関数は以下の特徴を持ちます:
+    - 両足検知時の位置ロック機能
+    - 一度確実なゲートを検知したら、その位置を基準に安定追跡
+    - ゲート通過検知機能（足が見えなくなったら停止信号）
     - Extended ROI: 画面最上部（Y=0）から検索範囲を設定
     - HSV色空間での黒い物体検出により高精度な支柱認識
     - 2つの支柱（左右の足）の検出と中心点計算
@@ -505,15 +514,71 @@ def find_gate_center(image):
     
     引数:
         image (numpy.ndarray): numpy配列としての入力画像（BGR形式）
+        lock_threshold (float): ゲート位置をロックする信頼度閾値（デフォルト: 0.7）
+        reset_lock (bool): ロック状態をリセットするかどうか（デフォルト: False）
     
     戻り値:
-        tuple: ((x, y), confidence) ここで(x, y)は中心座標、confidenceは信頼度
-               見つからない場合は(None, None)
+        tuple: ((x, y), confidence, status) ここで(x, y)は中心座標、confidenceは信頼度、
+               statusは 'detected'（検出中）、'locked'（ロック中）、'passed'（通過）のいずれか
+               見つからない場合は(None, None, 'not_found')
+    """
+    global _gate_target_locked, _gate_target_position, _gate_lock_confidence, _gate_passed
+    
+    # ロック状態のリセット
+    if reset_lock:
+        _gate_target_locked = False
+        _gate_target_position = None
+        _gate_lock_confidence = 0.0
+        _gate_passed = False
+        print("Gate lock reset")
+    
+    # 既にゲートを通過している場合は停止信号を返す
+    if _gate_passed:
+        return (None, None, 'passed')
+    
+    # 既にロックされている場合は、現在のゲート検出をチェックして通過判定
+    if _gate_target_locked and _gate_target_position is not None:
+        # 現在のフレームでゲート検出を行い、通過したかチェック
+        current_detection = _detect_gate_raw(image)
+        
+        if current_detection is None:
+            # ゲートが見えなくなった = 通過した
+            _gate_passed = True
+            print("Gate passed! Robot should stop.")
+            return (None, None, 'passed')
+        else:
+            # まだゲートが見える = ロック位置を維持
+            return _gate_target_position, _gate_lock_confidence, 'locked'
+    
+    # 新しい検出を実行
+    detection_result = _detect_gate_raw(image)
+    
+    if detection_result is None:
+        return (None, None, 'not_found')
+    
+    center, confidence, legs_detected = detection_result
+    
+    # 高信頼度でかつ両足が検出された場合、位置をロック
+    if confidence >= lock_threshold and legs_detected >= 2:
+        _gate_target_locked = True
+        _gate_target_position = center
+        _gate_lock_confidence = confidence
+        print(f"Gate locked at ({center[0]}, {center[1]}) with confidence {confidence:.3f}")
+        return center, confidence, 'locked'
+    
+    return center, confidence, 'detected'
+
+
+def _detect_gate_raw(image):
+    """
+    ゲート検出の実際の処理を行う内部関数
+    
+    戻り値:
+        tuple: (center, confidence, legs_detected) または None
     """
     # 画像が有効かチェック
     if image is None or image.size == 0:
-        print("エラー: 無効な画像データ")
-        return None, None
+        return None
     
     h, w = image.shape[:2]
     
@@ -545,7 +610,7 @@ def find_gate_center(image):
     contours, _ = cv2.findContours(black_mask_processed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     if not contours:
-        return None, None
+        return None
     
     # ゲート支柱候補をフィルタリング
     candidates = []
@@ -574,7 +639,6 @@ def find_gate_center(image):
         })
     
     # ゲート特有の特徴を持つ候補を選択
-    # 目標: 面積1000-1400かつアスペクト比1.0-1.5 または 面積900-1300かつアスペクト比2.0-3.0
     target_candidates = []
     for candidate in candidates:
         area = candidate['area']
@@ -584,7 +648,7 @@ def find_gate_center(image):
            (900 <= area <= 1300 and 2.0 <= aspect <= 3.0):
             target_candidates.append(candidate)
     
-    # 2つの支柱が見つかった場合
+    # 2つの支柱が見つかった場合（高信頼度検出）
     if len(target_candidates) >= 2:
         # X座標でソート（左から右へ）
         target_candidates.sort(key=lambda c: c['center'][0])
@@ -601,7 +665,7 @@ def find_gate_center(image):
         aspect_score = min(left_leg['aspect_ratio'], right_leg['aspect_ratio']) / 3.0
         confidence = (area_score + aspect_score) / 2
         
-        return (center_x, center_y), confidence
+        return (center_x, center_y), confidence, 2
     
     # フォールバック: 面積が最大の2つの候補を使用
     elif len(candidates) >= 2:
@@ -615,6 +679,16 @@ def find_gate_center(image):
             center_x = (left_leg['center'][0] + right_leg['center'][0]) // 2
             center_y = (left_leg['center'][1] + right_leg['center'][1]) // 2
             
-            return (center_x, center_y), 0.5  # 低い信頼度
+            return (center_x, center_y), 0.5, 2  # 低い信頼度、2本足検出
     
-    return None, None
+    return None
+
+
+def reset_gate_lock():
+    """ゲートロック状態をリセットする関数"""
+    global _gate_target_locked, _gate_target_position, _gate_lock_confidence, _gate_passed
+    _gate_target_locked = False
+    _gate_target_position = None
+    _gate_lock_confidence = 0.0
+    _gate_passed = False
+    print("Gate lock manually reset")
