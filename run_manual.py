@@ -296,8 +296,14 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             left_speed = int(max(0, min(100, left_speed)))
             right_speed = int(max(0, min(100, right_speed)))
 
-            # DEBUG: Print motor speeds
-            print(f"DEBUG: Motor speeds - Left: {left_speed}, Right: {right_speed}, Mode: {mode.name}")
+            # DEBUG: Print motor speeds only when mode changes or occasionally
+            if hasattr(main, 'debug_counter'):
+                main.debug_counter += 1
+            else:
+                main.debug_counter = 0
+            
+            if main.debug_counter % 30 == 0:  # Print every 30 frames (~1 second at 30fps)
+                print(f"DEBUG: Motor speeds - Left: {left_speed}, Right: {right_speed}, Mode: {mode.name}")
 
             # et.set_motor_forward_speed(
             #     left_speed=left_speed,
