@@ -25,21 +25,22 @@ Camera Geometry Parameters:
 - ROI_CNN: Region of Interest for processing
 - OFFSET_Y: Y-offset for line detection
 """
-import cv2
-import socket
+import os
+import sys
+
+# Add parent directory to path to import nnspike modules
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, parent_dir)
+
+
 import pickle
+import socket
 import struct
 
-from nnspike.utils import (
-    get_line_edges_at_y,
-    calculate_attitude_angle,
-)
-from nnspike.constants import (
-    ROI_CNN,
-    OFFSET_Y,
-    CAMERA_HEIGHT,
-    CAMERA_FOCAL_LENGTH_PIXELS,
-)
+import cv2
+
+from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN
+from nnspike.utils import calculate_attitude_angle, get_line_edges_at_y
 
 # User defined constants
 x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
@@ -48,9 +49,7 @@ x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
 BASE_SPEED = 45  # Base speed for straight lines (adjust this first)
 
 # Socket connection settings
-HOST_IP_ADDRESS = (
-    "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
-)
+HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
 
 # Camera setup
 cap = cv2.VideoCapture(0)
