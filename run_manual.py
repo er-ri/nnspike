@@ -114,6 +114,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     mode = Mode.LEFT_EDGE_FOLLOWING  # 0 for left edge, 1 for right edge
     previous_mode = Mode.LEFT_EDGE_FOLLOWING  # Initialize previous_mode
     obstacle_avoided = False  # Flag to track if obstacle avoidance has been executed
+    bottle_caught = False  # Flag to track if blue bottle has been caught
 
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = (
@@ -197,6 +198,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 print("Switched to bottle carrying mode")
             elif key == "b":  # 'b' key for blue bottle catching
                 mode = Mode.BOTTLE_CATCH_BLUE
+                bottle_caught = False  # Reset the flag when entering blue bottle catching mode
                 print("Switched to blue bottle catching mode")
             elif key == "g":  # 'g' key for blue bottle to gate carrying
                 mode = Mode.BLUE_BOTTLE_TO_GATE
@@ -251,13 +253,22 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         target_x = None
                 case Mode.BOTTLE_CATCH_BLUE:
                     # In blue bottle catching mode, use blue bottle detection
-                    (cx, _), _, blue_pixel_count = find_bottle_center_with_blue_count(frame)
-                    target_x = cx
-                    
-                    # If blue pixel count exceeds thresholqd, execute blue bottle catching
-                    if blue_pixel_count > 14000:
-                        catch_bottle_blue(et)
-                        print("Blue bottle caught!")
+                    if not bottle_caught:
+                        (cx, _), _, blue_pixel_count = find_bottle_center_with_blue_count(frame)
+                        target_x = cx
+                        
+                        # If blue pixel count exceeds threshold, execute blue bottle catching
+                        if blue_pixel_count > 14000:
+                            catch_bottle_blue(et)
+                            print("Blue bottle caught!")
+                            bottle_caught = True  # Mark as completed
+                            
+                            # Stop the robot after blue bottle catching by setting speeds to 0
+                            et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                            print("Robot stopped after blue bottle catching.")
+                    else:
+                        # Blue bottle already caught, keep robot stopped
+                        target_x = None
                 case Mode.BLUE_BOTTLE_TO_GATE:
                     # In blue bottle to gate carrying mode, use gate detection
                     gate_result = find_gate_center(frame)
@@ -310,10 +321,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if frame_count % 30 == 0:  # Print every 30 frames (~1 second at 30fps)
                 print(f"DEBUG: Motor speeds - Left: {left_speed}, Right: {right_speed}, Mode: {mode.name}")
 
-            et.set_motor_forward_speed(
-                left_speed=left_speed,
-                right_speed=right_speed,
-            )
+            # et.set_motor_forward_speed(
+            #     left_speed=left_speed,
+            #     right_speed=right_speed,
+            # )
 
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
