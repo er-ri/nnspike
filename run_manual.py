@@ -113,6 +113,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     # Initialize edge following preference
     mode = Mode.LEFT_EDGE_FOLLOWING  # 0 for left edge, 1 for right edge
     previous_mode = Mode.LEFT_EDGE_FOLLOWING  # Initialize previous_mode
+    obstacle_avoided = False  # Flag to track if obstacle avoidance has been executed
 
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = (
@@ -203,6 +204,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "o":  # 'o' key to avoid obstacle
                 previous_mode = mode  # Save current mode
                 mode = Mode.OBSTACLE_AVOIDANCE
+                obstacle_avoided = False  # Reset the flag when entering obstacle avoidance mode
                 print("Switched to obstacle avoidance mode")
 
             match mode:
@@ -216,32 +218,26 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     (cx, _), _ = find_bottle_center(frame)
                     target_x = cx
                 case Mode.OBSTACLE_AVOIDANCE:
-                    # In obstacle avoidance mode, execute obstacle avoidance action
-                    try:
+                    # In obstacle avoidance mode, execute obstacle avoidance action only once
+                    if not obstacle_avoided:
                         yellow_result = find_bottle_center_with_yellow_count(frame)
-                        
-                        if frame_count % 30 == 0:  # Print debug info every 30 frames
-                            print(f"DEBUG: Yellow detection result: {yellow_result}")
                         
                         if yellow_result[0] is not None:
                             (cx, _), _, yellow_pixel_count = yellow_result
                             target_x = cx
-                            
-                            if frame_count % 30 == 0:
-                                print(f"DEBUG: Yellow bottle detected - center: ({cx}, _), pixel count: {yellow_pixel_count}")
                         else:
-                            if frame_count % 30 == 0:
-                                print("DEBUG: No yellow bottle detected")
                             target_x = None
                         
-                        # Execute obstacle avoidance action
-                        if frame_count % 30 == 0:
-                            print("DEBUG: Executing obstacle avoidance")
+                        # Execute obstacle avoidance action only once
                         avoid_obstacle(et)
-                        print("Avoiding obstacle...")
-                            
-                    except Exception as e:
-                        print(f"DEBUG: Error in OBSTACLE_AVOIDANCE mode: {e}")
+                        print("Obstacle avoided! Stopping robot.")
+                        obstacle_avoided = True  # Mark as completed
+                        
+                        # Stop the robot after obstacle avoidance
+                        et.stop()
+                        print("Robot stopped after obstacle avoidance.")
+                    else:
+                        # Obstacle avoidance already completed, keep robot stopped
                         target_x = None
                 case Mode.BOTTLE_CATCH_BLUE:
                     # In blue bottle catching mode, use blue bottle detection
