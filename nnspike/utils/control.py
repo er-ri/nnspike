@@ -588,6 +588,8 @@ def _detect_gate_raw(image):
     roi_x_start = int(w * 0.05)  # 左端5%から
     roi_x_end = int(w * 0.95)    # 右端95%まで
     
+    print(f"DEBUG: Image size ({w}, {h}), ROI: ({roi_x_start}, {roi_y_start}) to ({roi_x_end}, {roi_y_end})")
+    
     # ROI領域を抽出
     roi = image[roi_y_start:roi_y_end, roi_x_start:roi_x_end]
     
@@ -626,16 +628,20 @@ def _detect_gate_raw(image):
         # アスペクト比計算
         aspect_ratio = h_rect / w_rect if w_rect > 0 else 0
         
-        # 元の画像座標に変換
+        # 元の画像座標に変換（ROI座標からグローバル座標へ）
         global_center_x = x + w_rect // 2 + roi_x_start
         global_center_y = y + h_rect // 2 + roi_y_start
+        
+        # デバッグ用座標変換の確認
+        print(f"DEBUG: ROI coord ({x + w_rect // 2}, {y + h_rect // 2}) -> Global coord ({global_center_x}, {global_center_y})")
         
         candidates.append({
             'center': (global_center_x, global_center_y),
             'area': area,
             'aspect_ratio': aspect_ratio,
             'width': w_rect,
-            'height': h_rect
+            'height': h_rect,
+            'roi_center': (x + w_rect // 2, y + h_rect // 2)  # デバッグ用
         })
     
     # ゲート特有の特徴を持つ候補を選択
@@ -644,9 +650,14 @@ def _detect_gate_raw(image):
         area = candidate['area']
         aspect = candidate['aspect_ratio']
         
-        if (1000 <= area <= 1400 and 1.0 <= aspect <= 1.5) or \
-           (900 <= area <= 1300 and 2.0 <= aspect <= 3.0):
+        # より柔軟な条件に変更
+        if (500 <= area <= 2000 and 0.8 <= aspect <= 4.0):
             target_candidates.append(candidate)
+            print(f"DEBUG: Candidate accepted - area={area}, aspect={aspect:.2f}, center={candidate['center']}")
+        else:
+            print(f"DEBUG: Candidate rejected - area={area}, aspect={aspect:.2f}, center={candidate['center']}")
+    
+    print(f"DEBUG: Found {len(target_candidates)} valid gate candidates out of {len(candidates)} total")
     
     # 2つの支柱が見つかった場合（高信頼度検出）
     if len(target_candidates) >= 2:
@@ -656,9 +667,17 @@ def _detect_gate_raw(image):
         left_leg = target_candidates[0]
         right_leg = target_candidates[1]
         
+        # 詳細なデバッグ出力
+        print(f"DEBUG: Left leg at x={left_leg['center'][0]}, area={left_leg['area']}, aspect={left_leg['aspect_ratio']:.2f}")
+        print(f"DEBUG: Right leg at x={right_leg['center'][0]}, area={right_leg['area']}, aspect={right_leg['aspect_ratio']:.2f}")
+        
         # 中心点計算
         center_x = (left_leg['center'][0] + right_leg['center'][0]) // 2
         center_y = (left_leg['center'][1] + right_leg['center'][1]) // 2
+        
+        # ゲート幅の計算
+        gate_width = abs(right_leg['center'][0] - left_leg['center'][0])
+        print(f"DEBUG: Gate center calculated at ({center_x}, {center_y}), gate width={gate_width}")
         
         # 信頼度計算（面積とアスペクト比の一致度）
         area_score = min(left_leg['area'] / 1000, right_leg['area'] / 1000, 1.0)
@@ -669,17 +688,24 @@ def _detect_gate_raw(image):
     
     # フォールバック: 面積が最大の2つの候補を使用
     elif len(candidates) >= 2:
+        # 面積でソートして最大2つ選択
         candidates.sort(key=lambda c: c['area'], reverse=True)
-        candidates.sort(key=lambda c: c['center'][0])  # X座標でソート
+        top_candidates = candidates[:2]
         
-        if len(candidates) >= 2:
-            left_leg = candidates[0]
-            right_leg = candidates[1]
-            
-            center_x = (left_leg['center'][0] + right_leg['center'][0]) // 2
-            center_y = (left_leg['center'][1] + right_leg['center'][1]) // 2
-            
-            return (center_x, center_y), 0.5, 2  # 低い信頼度、2本足検出
+        # X座標でソート（左から右へ）
+        top_candidates.sort(key=lambda c: c['center'][0])
+        
+        left_leg = top_candidates[0]
+        right_leg = top_candidates[1]
+        
+        print(f"DEBUG: Fallback - Left leg at x={left_leg['center'][0]}, Right leg at x={right_leg['center'][0]}")
+        
+        center_x = (left_leg['center'][0] + right_leg['center'][0]) // 2
+        center_y = (left_leg['center'][1] + right_leg['center'][1]) // 2
+        
+        print(f"DEBUG: Fallback gate center at ({center_x}, {center_y})")
+        
+        return (center_x, center_y), 0.5, 2  # 低い信頼度、2本足検出
     
     return None
 

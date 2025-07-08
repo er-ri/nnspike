@@ -296,6 +296,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                             deviation = cx - roi_center
                             direction = "RIGHT" if deviation > 0 else "LEFT" if deviation < 0 else "CENTER"
                             print(f"Gate [{status}] at x={cx}, ROI center={roi_center}, deviation={deviation:+d}, direction={direction}, confidence={confidence:.3f}")
+                            
+                            # 制御の詳細情報も表示
+                            if target_x is not None:
+                                mx_debug = target_x - x1
+                                roi_center_x_debug = (x2 - x1) // 2
+                                offset_pixels_debug = mx_debug - roi_center_x_debug
+                                print(f"Control calc: mx={mx_debug}, roi_center_x={roi_center_x_debug}, offset_pixels={offset_pixels_debug}")
                         else:
                             # If no gate detected, head to center
                             target_x = roi_center
