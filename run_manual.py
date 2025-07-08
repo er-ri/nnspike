@@ -261,14 +261,14 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                             target_x = cx
                             
                             # If blue pixel count exceeds threshold, execute blue bottle catching
-                            if blue_pixel_count > 14000:
-                                catch_bottle_blue(et)
-                                print("Blue bottle caught!")
-                                bottle_caught = True  # Mark as completed
-                                
-                                # Stop the robot after blue bottle catching by setting speeds to 0
-                                et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                                print("Robot stopped after blue bottle catching.")
+                            # if blue_pixel_count > 14000:
+                            catch_bottle_blue(et)
+                            print("Blue bottle caught!")
+                            bottle_caught = True  # Mark as completed
+                            
+                            # Stop the robot after blue bottle catching by setting speeds to 0
+                            et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                            print("Robot stopped after blue bottle catching.")
                         else:
                             target_x = None
                     else:
