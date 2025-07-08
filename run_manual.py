@@ -202,10 +202,16 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 mode = Mode.BLUE_BOTTLE_TO_GATE
                 print("Switched to blue bottle to gate carrying mode")
             elif key == "o":  # 'o' key to avoid obstacle
-                previous_mode = mode  # Save current mode
-                mode = Mode.OBSTACLE_AVOIDANCE
-                obstacle_avoided = False  # Reset the flag when entering obstacle avoidance mode
-                print("Switched to obstacle avoidance mode")
+                if mode == Mode.OBSTACLE_AVOIDANCE and obstacle_avoided:
+                    # If already in obstacle avoidance mode and completed, switch back to previous mode
+                    mode = previous_mode
+                    print(f"Switched back to {previous_mode.name}")
+                else:
+                    # Enter obstacle avoidance mode
+                    previous_mode = mode  # Save current mode
+                    mode = Mode.OBSTACLE_AVOIDANCE
+                    obstacle_avoided = False  # Reset the flag when entering obstacle avoidance mode
+                    print("Switched to obstacle avoidance mode")
 
             match mode:
                 case Mode.LEFT_EDGE_FOLLOWING:
@@ -233,8 +239,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         print("Obstacle avoided! Stopping robot.")
                         obstacle_avoided = True  # Mark as completed
                         
-                        # Stop the robot after obstacle avoidance
-                        et.stop()
+                        # Stop the robot after obstacle avoidance by setting speeds to 0
+                        et.set_motor_forward_speed(left_speed=0, right_speed=0)
                         print("Robot stopped after obstacle avoidance.")
                     else:
                         # Obstacle avoidance already completed, keep robot stopped
