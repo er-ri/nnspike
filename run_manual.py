@@ -112,6 +112,7 @@ class KeyboardController:
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False):
     # Initialize edge following preference
     mode = Mode.LEFT_EDGE_FOLLOWING  # 0 for left edge, 1 for right edge
+    previous_mode = Mode.LEFT_EDGE_FOLLOWING  # Initialize previous_mode
 
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = (
@@ -200,11 +201,15 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 mode = Mode.BLUE_BOTTLE_TO_GATE
                 print("Switched to blue bottle to gate carrying mode")
             elif key == "o":  # 'o' key to avoid obstacle
-                #previous_mode = mode  # Save current mode
+                previous_mode = mode  # Save current mode
                 mode = Mode.OBSTACLE_AVOIDANCE
                 # avoid_obstacle(et)  # Avoid obstacle with a turn
                 print("Avoiding obstacle...")
-                #mode = previous_mode  # Restore previous mode after avoiding obstacle
+                # Reset counters when entering obstacle avoidance mode
+                if hasattr(main, 'no_obstacle_counter'):
+                    main.no_obstacle_counter = 0
+                if hasattr(main, 'error_counter'):
+                    main.error_counter = 0
 
             match mode:
                 case Mode.LEFT_EDGE_FOLLOWING:
@@ -217,6 +222,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     (cx, _), _ = find_bottle_center(frame)
                     target_x = cx
                 case Mode.OBSTACLE_AVOIDANCE:
+                    # Check if previous_mode is defined, if not set default
+                    if 'previous_mode' not in locals():
+                        previous_mode = Mode.LEFT_EDGE_FOLLOWING
+                    
                     # In obstacle avoidance mode, use yellow bottle detection
                     try:
                         yellow_result = find_bottle_center_with_yellow_count(frame)
