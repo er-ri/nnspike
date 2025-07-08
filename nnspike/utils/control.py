@@ -490,3 +490,131 @@ def calculate_attitude_angle(
     theta = math.atan2(lateral_offset_meters, ground_distance)
 
     return theta
+
+
+def find_gate_center(image):
+    """
+    Extended ROIを使用してVP13パイプ長方形ゲートの中心座標を検出します。
+    
+    この関数は以下の特徴を持ちます:
+    - Extended ROI: 画面最上部（Y=0）から検索範囲を設定
+    - HSV色空間での黒い物体検出により高精度な支柱認識
+    - 2つの支柱（左右の足）の検出と中心点計算
+    - 面積とアスペクト比による厳密なフィルタリング
+    - ゲート特有の形状パターンマッチング
+    
+    引数:
+        image (numpy.ndarray): numpy配列としての入力画像（BGR形式）
+    
+    戻り値:
+        tuple: ((x, y), confidence) ここで(x, y)は中心座標、confidenceは信頼度
+               見つからない場合は(None, None)
+    """
+    # 画像が有効かチェック
+    if image is None or image.size == 0:
+        print("エラー: 無効な画像データ")
+        return None, None
+    
+    h, w = image.shape[:2]
+    
+    # Extended ROI設定：最上部まで拡張
+    roi_y_start = 0              # 最上部から開始
+    roi_y_end = int(h * 0.95)    # 下部95%まで
+    roi_x_start = int(w * 0.05)  # 左端5%から
+    roi_x_end = int(w * 0.95)    # 右端95%まで
+    
+    # ROI領域を抽出
+    roi = image[roi_y_start:roi_y_end, roi_x_start:roi_x_end]
+    
+    # HSV変換で黒い物体（ゲート支柱）を検出
+    hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    
+    # 黒い物体の範囲（ゲート支柱用に調整）
+    lower_black = np.array([0, 0, 0])
+    upper_black = np.array([180, 255, 60])  # 暗い範囲
+    black_mask = cv2.inRange(hsv_roi, lower_black, upper_black)
+    
+    # モルフォロジー処理でノイズ除去
+    kernel_close = np.ones((3, 3), np.uint8)
+    kernel_open = np.ones((2, 2), np.uint8)
+    
+    black_mask_processed = cv2.morphologyEx(black_mask, cv2.MORPH_CLOSE, kernel_close)
+    black_mask_processed = cv2.morphologyEx(black_mask_processed, cv2.MORPH_OPEN, kernel_open)
+    
+    # 輪郭検出
+    contours, _ = cv2.findContours(black_mask_processed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    if not contours:
+        return None, None
+    
+    # ゲート支柱候補をフィルタリング
+    candidates = []
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area < 100:  # 最小面積フィルタ
+            continue
+            
+        x, y, w_rect, h_rect = cv2.boundingRect(contour)
+        if w_rect < 10 or h_rect < 20:  # 最小サイズフィルタ
+            continue
+        
+        # アスペクト比計算
+        aspect_ratio = h_rect / w_rect if w_rect > 0 else 0
+        
+        # 元の画像座標に変換
+        global_center_x = x + w_rect // 2 + roi_x_start
+        global_center_y = y + h_rect // 2 + roi_y_start
+        
+        candidates.append({
+            'center': (global_center_x, global_center_y),
+            'area': area,
+            'aspect_ratio': aspect_ratio,
+            'width': w_rect,
+            'height': h_rect
+        })
+    
+    # ゲート特有の特徴を持つ候補を選択
+    # 目標: 面積1000-1400かつアスペクト比1.0-1.5 または 面積900-1300かつアスペクト比2.0-3.0
+    target_candidates = []
+    for candidate in candidates:
+        area = candidate['area']
+        aspect = candidate['aspect_ratio']
+        
+        if (1000 <= area <= 1400 and 1.0 <= aspect <= 1.5) or \
+           (900 <= area <= 1300 and 2.0 <= aspect <= 3.0):
+            target_candidates.append(candidate)
+    
+    # 2つの支柱が見つかった場合
+    if len(target_candidates) >= 2:
+        # X座標でソート（左から右へ）
+        target_candidates.sort(key=lambda c: c['center'][0])
+        
+        left_leg = target_candidates[0]
+        right_leg = target_candidates[1]
+        
+        # 中心点計算
+        center_x = (left_leg['center'][0] + right_leg['center'][0]) // 2
+        center_y = (left_leg['center'][1] + right_leg['center'][1]) // 2
+        
+        # 信頼度計算（面積とアスペクト比の一致度）
+        area_score = min(left_leg['area'] / 1000, right_leg['area'] / 1000, 1.0)
+        aspect_score = min(left_leg['aspect_ratio'], right_leg['aspect_ratio']) / 3.0
+        confidence = (area_score + aspect_score) / 2
+        
+        return (center_x, center_y), confidence
+    
+    # フォールバック: 面積が最大の2つの候補を使用
+    elif len(candidates) >= 2:
+        candidates.sort(key=lambda c: c['area'], reverse=True)
+        candidates.sort(key=lambda c: c['center'][0])  # X座標でソート
+        
+        if len(candidates) >= 2:
+            left_leg = candidates[0]
+            right_leg = candidates[1]
+            
+            center_x = (left_leg['center'][0] + right_leg['center'][0]) // 2
+            center_y = (left_leg['center'][1] + right_leg['center'][1]) // 2
+            
+            return (center_x, center_y), 0.5  # 低い信頼度
+    
+    return None, None
