@@ -242,8 +242,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         # Stop the robot after obstacle avoidance by setting speeds to 0
                         et.set_motor_forward_speed(left_speed=0, right_speed=0)
                         print("Robot stopped after obstacle avoidance.")
+                        
+                        # Automatically switch back to LEFT_EDGE_FOLLOWING after obstacle avoidance
+                        mode = Mode.LEFT_EDGE_FOLLOWING
+                        print("Automatically switched back to LEFT_EDGE_FOLLOWING")
                     else:
-                        # Obstacle avoidance already completed, keep robot stopped
+                        # Obstacle avoidance already completed, should not reach here due to automatic mode switch
                         target_x = None
                 case Mode.BOTTLE_CATCH_BLUE:
                     # In blue bottle catching mode, use blue bottle detection
