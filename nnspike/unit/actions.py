@@ -26,7 +26,7 @@ def _perform_action_chain(action_chain: tuple[ETRobot, int, int, float]) -> None
         start_time = time.time()
         while time.time() - start_time < duration:
             # Check if the robot is still connected
-            if not et.is_connected():
+            if not et.is_running:
                 print("ETRobot disconnected, stopping action chain.")
                 return
 
