@@ -277,14 +277,18 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.BLUE_BOTTLE_TO_GATE:
                     # In blue bottle to gate carrying mode, use gate detection
                     gate_result = find_gate_center(frame)
+                    roi_center = (x1 + x2) // 2  # Calculate ROI center
+                    
                     if gate_result[0] is not None:
                         (cx, _), confidence = gate_result
                         target_x = cx
-                        print(f"Gate detected at ({cx}, _), confidence: {confidence:.3f}")
+                        deviation = cx - roi_center  # Deviation from center
+                        direction = "RIGHT" if deviation > 0 else "LEFT" if deviation < 0 else "CENTER"
+                        print(f"Gate at x={cx}, ROI center={roi_center}, deviation={deviation:+d}, direction={direction}, confidence={confidence:.3f}")
                     else:
                         # If no gate detected, head to center
-                        target_x = (x1 + x2) // 2  # Screen center
-                        print("Gate not detected, heading to center")
+                        target_x = roi_center  # Screen center
+                        print(f"Gate not detected, heading to ROI center (x={roi_center})")
                 case _:
                     # Default to center if invalid edge specified
                     target_x = (left_x + right_x) // 2
@@ -325,6 +329,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             # DEBUG: Print motor speeds only when mode changes or occasionally
             if frame_count % 30 == 0:  # Print every 30 frames (~1 second at 30fps)
                 print(f"DEBUG: Motor speeds - Left: {left_speed}, Right: {right_speed}, Mode: {mode.name}")
+            
+            # Additional debug for gate mode
+            if mode == Mode.BLUE_BOTTLE_TO_GATE:
+                print(f"Control: theta={theta:.3f}, correction={steering_correction:.2f}, left_speed={left_speed}, right_speed={right_speed}")
 
             et.set_motor_forward_speed(
                 left_speed=left_speed,
