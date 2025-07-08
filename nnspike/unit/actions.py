@@ -64,7 +64,7 @@ def catch_bottle_blue(et: ETRobot) -> None:
         et (ETRobot): 制御対象のETRobotインスタンス。
     """
     action_chain = (
-        (et, 30, 30, 2.0),  # 2秒間ボトルにまっすぐ接近（左30、右30）
+        (et, 30, 30, 3.0),  # 2秒間ボトルにまっすぐ接近（左30、右30）
         (et, 0, 60, 0.5),   # 60度左に回転（左0、右60）
     )
 
