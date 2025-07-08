@@ -254,18 +254,23 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.BOTTLE_CATCH_BLUE:
                     # In blue bottle catching mode, use blue bottle detection
                     if not bottle_caught:
-                        (cx, _), _, blue_pixel_count = find_bottle_center_with_blue_count(frame)
-                        target_x = cx
+                        blue_result = find_bottle_center_with_blue_count(frame)
                         
-                        # If blue pixel count exceeds threshold, execute blue bottle catching
-                        if blue_pixel_count > 14000:
-                            catch_bottle_blue(et)
-                            print("Blue bottle caught!")
-                            bottle_caught = True  # Mark as completed
+                        if blue_result[0] is not None:
+                            (cx, _), _, blue_pixel_count = blue_result
+                            target_x = cx
                             
-                            # Stop the robot after blue bottle catching by setting speeds to 0
-                            et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                            print("Robot stopped after blue bottle catching.")
+                            # If blue pixel count exceeds threshold, execute blue bottle catching
+                            if blue_pixel_count > 14000:
+                                catch_bottle_blue(et)
+                                print("Blue bottle caught!")
+                                bottle_caught = True  # Mark as completed
+                                
+                                # Stop the robot after blue bottle catching by setting speeds to 0
+                                et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                                print("Robot stopped after blue bottle catching.")
+                        else:
+                            target_x = None
                     else:
                         # Blue bottle already caught, keep robot stopped
                         target_x = None
