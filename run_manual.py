@@ -163,12 +163,16 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     et.move_arm(2, 0.5)
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
+    frame_count = 0  # Initialize frame counter
+
     try:
         while et.is_running and keyboard.running:
             ret, frame = cap.read()
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
+
+            frame_count += 1  # Increment frame counter
 
             # Save video frame if enabled
             if save_camera_video and video_writer is not None:
@@ -214,31 +218,73 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     target_x = cx
                 case Mode.OBSTACLE_AVOIDANCE:
                     # In obstacle avoidance mode, use yellow bottle detection
-                    print("DEBUG: Entering OBSTACLE_AVOIDANCE mode")
-                    
                     try:
                         yellow_result = find_bottle_center_with_yellow_count(frame)
-                        print(f"DEBUG: Yellow detection result: {yellow_result}")
+                        
+                        if frame_count % 30 == 0:  # Print debug info every 30 frames
+                            print(f"DEBUG: Yellow detection result: {yellow_result}")
                         
                         if yellow_result[0] is not None:
                             (cx, _), _, yellow_pixel_count = yellow_result
                             target_x = cx
-                            print(f"DEBUG: Yellow bottle detected - center: ({cx}, _), pixel count: {yellow_pixel_count}")
+                            
+                            if frame_count % 30 == 0:
+                                print(f"DEBUG: Yellow bottle detected - center: ({cx}, _), pixel count: {yellow_pixel_count}")
                             
                             # If yellow pixel count exceeds threshold, execute obstacle avoidance
-                            if yellow_pixel_count > 15000:
-                                print("DEBUG: Yellow pixel count exceeds threshold, executing obstacle avoidance")
+                            if yellow_pixel_count > 8000:  # Lower threshold for better detection
+                                if frame_count % 30 == 0:
+                                    print("DEBUG: Yellow pixel count exceeds threshold, executing obstacle avoidance")
                                 avoid_obstacle(et)
-                                print("Obstacle avoided!")
+                                print("Avoiding obstacle...")
+                                
+                                # After avoiding obstacle, return to previous mode
+                                mode = previous_mode
+                                print(f"Obstacle avoided, returning to {previous_mode.name} mode")
+                                
+                                # Reset no-obstacle counter
+                                if hasattr(main, 'no_obstacle_counter'):
+                                    main.no_obstacle_counter = 0
                             else:
-                                print(f"DEBUG: Yellow pixel count ({yellow_pixel_count}) below threshold (15000)")
+                                if frame_count % 30 == 0:
+                                    print(f"DEBUG: Yellow pixel count ({yellow_pixel_count}) below threshold (8000)")
+                                
+                                # If no obstacle detected for several frames, return to previous mode
+                                if not hasattr(main, 'no_obstacle_counter'):
+                                    main.no_obstacle_counter = 0
+                                main.no_obstacle_counter += 1
+                                
+                                if main.no_obstacle_counter > 60:  # After 60 frames (~2 seconds) with no obstacle
+                                    mode = previous_mode
+                                    print(f"No obstacle detected for 60 frames, returning to {previous_mode.name} mode")
+                                    main.no_obstacle_counter = 0
                         else:
-                            print("DEBUG: No yellow bottle detected")
+                            if frame_count % 30 == 0:
+                                print("DEBUG: No yellow bottle detected")
                             target_x = None
+                            
+                            # If no yellow bottle detected for several frames, return to previous mode
+                            if not hasattr(main, 'no_obstacle_counter'):
+                                main.no_obstacle_counter = 0
+                            main.no_obstacle_counter += 1
+                            
+                            if main.no_obstacle_counter > 90:  # After 90 frames (~3 seconds) with no detection
+                                mode = previous_mode
+                                print(f"No yellow bottle detected for 90 frames, returning to {previous_mode.name} mode")
+                                main.no_obstacle_counter = 0
                             
                     except Exception as e:
                         print(f"DEBUG: Error in OBSTACLE_AVOIDANCE mode: {e}")
                         target_x = None
+                        # On error, return to previous mode after a delay
+                        if not hasattr(main, 'error_counter'):
+                            main.error_counter = 0
+                        main.error_counter += 1
+                        
+                        if main.error_counter > 30:  # After 30 frames with errors
+                            mode = previous_mode
+                            print(f"Persistent errors in obstacle avoidance, returning to {previous_mode.name} mode")
+                            main.error_counter = 0
                 case Mode.BOTTLE_CATCH_BLUE:
                     # In blue bottle catching mode, use blue bottle detection
                     (cx, _), _, blue_pixel_count = find_bottle_center_with_blue_count(frame)
@@ -297,12 +343,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             right_speed = int(max(0, min(100, right_speed)))
 
             # DEBUG: Print motor speeds only when mode changes or occasionally
-            if hasattr(main, 'debug_counter'):
-                main.debug_counter += 1
-            else:
-                main.debug_counter = 0
-            
-            if main.debug_counter % 30 == 0:  # Print every 30 frames (~1 second at 30fps)
+            if frame_count % 30 == 0:  # Print every 30 frames (~1 second at 30fps)
                 print(f"DEBUG: Motor speeds - Left: {left_speed}, Right: {right_speed}, Mode: {mode.name}")
 
             # et.set_motor_forward_speed(
