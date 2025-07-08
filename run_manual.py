@@ -231,21 +231,21 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         if yellow_result[0] is not None:
                             (cx, _), _, yellow_pixel_count = yellow_result
                             target_x = cx
+                            
+                            # Execute obstacle avoidance only if yellow pixel count exceeds threshold
+                            if yellow_pixel_count > 14000:
+                                avoid_obstacle(et)
+                                print("Obstacle avoided!")
+                                obstacle_avoided = True  # Mark as completed
+                                
+                                # Automatically switch back to LEFT_EDGE_FOLLOWING after obstacle avoidance
+                                mode = Mode.LEFT_EDGE_FOLLOWING
+                                print("Automatically switched back to LEFT_EDGE_FOLLOWING")
+                            else:
+                                # Yellow detected but not enough pixels, continue in obstacle avoidance mode
+                                target_x = cx
                         else:
                             target_x = None
-                        
-                        # Execute obstacle avoidance action only once
-                        avoid_obstacle(et)
-                        print("Obstacle avoided! Stopping robot.")
-                        obstacle_avoided = True  # Mark as completed
-                        
-                        # Stop the robot after obstacle avoidance by setting speeds to 0
-                        et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                        print("Robot stopped after obstacle avoidance.")
-                        
-                        # Automatically switch back to LEFT_EDGE_FOLLOWING after obstacle avoidance
-                        mode = Mode.LEFT_EDGE_FOLLOWING
-                        print("Automatically switched back to LEFT_EDGE_FOLLOWING")
                     else:
                         # Obstacle avoidance already completed, should not reach here due to automatic mode switch
                         target_x = None
