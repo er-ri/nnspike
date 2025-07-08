@@ -35,7 +35,7 @@ import numpy as np
 import sys
 from nnspike.unit import ETRobot
 from nnspike.unit.actions import avoid_obstacle, catch_bottle_blue
-from nnspike.utils.control import find_bottle_center, find_bottle_center_with_yellow_count, find_bottle_center_with_blue_count
+from nnspike.utils.control import find_bottle_center, find_bottle_center_with_yellow_count, find_bottle_center_with_blue_count, find_gate_center
 
 # Platform-specific imports for keyboard input
 try:
@@ -192,6 +192,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "b":  # 'b' key for blue bottle catching
                 mode = Mode.BOTTLE_CATCH_BLUE
                 print("Switched to blue bottle catching mode")
+            elif key == "g":  # 'g' key for blue bottle to gate carrying
+                mode = Mode.BLUE_BOTTLE_TO_GATE
+                print("Switched to blue bottle to gate carrying mode")
             elif key == "o":  # 'o' key to avoid obstacle
                 previous_mode = mode  # Save current mode
                 mode = Mode.OBSTACLE_AVOIDANCE
@@ -226,6 +229,17 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     if blue_pixel_count > 15000:
                         catch_bottle_blue(et)
                         print("Blue bottle caught!")
+                case Mode.BLUE_BOTTLE_TO_GATE:
+                    # In blue bottle to gate carrying mode, use gate detection
+                    gate_result = find_gate_center(frame)
+                    if gate_result[0] is not None:
+                        (cx, _), confidence = gate_result
+                        target_x = cx
+                        print(f"Gate detected at ({cx}, _), confidence: {confidence:.3f}")
+                    else:
+                        # If no gate detected, head to center
+                        target_x = (x1 + x2) // 2  # Screen center
+                        print("Gate not detected, heading to center")
                 case _:
                     # Default to center if invalid edge specified
                     target_x = (left_x + right_x) // 2
@@ -359,6 +373,10 @@ if __name__ == "__main__":
     print("Controls:")
     print("  'a' - Follow left edge")
     print("  'd' - Follow right edge")
+    print("  'c' - Bottle carrying mode")
+    print("  'b' - Blue bottle catching mode")
+    print("  'g' - Blue bottle to gate carrying mode")
+    print("  'o' - Obstacle avoidance")
     print("  'q' - Quit")
     print("Press Ctrl+C to stop")
 
