@@ -255,7 +255,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     target_x = cx
                     
                     # If blue pixel count exceeds thresholqd, execute blue bottle catching
-                    if blue_pixel_count > 15000:
+                    if blue_pixel_count > 14000:
                         catch_bottle_blue(et)
                         print("Blue bottle caught!")
                 case Mode.BLUE_BOTTLE_TO_GATE:
