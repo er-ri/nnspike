@@ -217,15 +217,15 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     (cx, _), _, yellow_pixel_count = find_bottle_center_with_yellow_count(frame)
                     target_x = cx
                     # If yellow pixel count exceeds threshold, execute obstacle avoidance
-                    if yellow_pixel_count > 15000:
-                        avoid_obstacle(et)
-                        print("Obstacle avoided!")
+                    #if yellow_pixel_count > 15000:
+                    avoid_obstacle(et)
+                    print("Obstacle avoided!")
                 case Mode.BOTTLE_CATCH_BLUE:
                     # In blue bottle catching mode, use blue bottle detection
                     (cx, _), _, blue_pixel_count = find_bottle_center_with_blue_count(frame)
                     target_x = cx
                     
-                    # If blue pixel count exceeds threshold, execute blue bottle catching
+                    # If blue pixel count exceeds thresholqd, execute blue bottle catching
                     if blue_pixel_count > 15000:
                         catch_bottle_blue(et)
                         print("Blue bottle caught!")
