@@ -214,12 +214,31 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     target_x = cx
                 case Mode.OBSTACLE_AVOIDANCE:
                     # In obstacle avoidance mode, use yellow bottle detection
-                    (cx, _), _, yellow_pixel_count = find_bottle_center_with_yellow_count(frame)
-                    target_x = cx
-                    # If yellow pixel count exceeds threshold, execute obstacle avoidance
-                    #if yellow_pixel_count > 15000:
-                    avoid_obstacle(et)
-                    print("Obstacle avoided!")
+                    print("DEBUG: Entering OBSTACLE_AVOIDANCE mode")
+                    
+                    try:
+                        yellow_result = find_bottle_center_with_yellow_count(frame)
+                        print(f"DEBUG: Yellow detection result: {yellow_result}")
+                        
+                        if yellow_result[0] is not None:
+                            (cx, _), _, yellow_pixel_count = yellow_result
+                            target_x = cx
+                            print(f"DEBUG: Yellow bottle detected - center: ({cx}, _), pixel count: {yellow_pixel_count}")
+                            
+                            # If yellow pixel count exceeds threshold, execute obstacle avoidance
+                            if yellow_pixel_count > 15000:
+                                print("DEBUG: Yellow pixel count exceeds threshold, executing obstacle avoidance")
+                                avoid_obstacle(et)
+                                print("Obstacle avoided!")
+                            else:
+                                print(f"DEBUG: Yellow pixel count ({yellow_pixel_count}) below threshold (15000)")
+                        else:
+                            print("DEBUG: No yellow bottle detected")
+                            target_x = None
+                            
+                    except Exception as e:
+                        print(f"DEBUG: Error in OBSTACLE_AVOIDANCE mode: {e}")
+                        target_x = None
                 case Mode.BOTTLE_CATCH_BLUE:
                     # In blue bottle catching mode, use blue bottle detection
                     (cx, _), _, blue_pixel_count = find_bottle_center_with_blue_count(frame)
@@ -277,10 +296,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             left_speed = int(max(0, min(100, left_speed)))
             right_speed = int(max(0, min(100, right_speed)))
 
-            #et.set_motor_forward_speed(
-            #    left_speed=left_speed,
-            #    right_speed=right_speed,
-            #)
+            # DEBUG: Print motor speeds
+            print(f"DEBUG: Motor speeds - Left: {left_speed}, Right: {right_speed}, Mode: {mode.name}")
+
+            et.set_motor_forward_speed(
+                left_speed=left_speed,
+                right_speed=right_speed,
+            )
 
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
