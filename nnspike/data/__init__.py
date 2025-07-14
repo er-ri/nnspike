@@ -1,5 +1,5 @@
 from .aug import augment_dataset, random_shift_scale_rotate
-from .dataset import MobileNetV2Dataset, NvidiaDataset
+from .dataset import NvidiaDataset
 from .preprocess import (
     balance_dataset,
     create_label_dataframe,
@@ -15,7 +15,6 @@ __all__ = [
     "augment_dataset",
     # Dataset
     "NvidiaDataset",
-    "MobileNetV2Dataset",
     # Preprocessing
     "label_dataset_by_opencv",
     "label_dataset_by_model",

@@ -1,9 +1,8 @@
-import cv2
 import torch
-import numpy as np
 import torchvision.transforms as transforms
-from nnspike.utils import normalize_image
+
 from nnspike.models import NvidiaModel
+from nnspike.utils import normalize_image
 
 transform = transforms.ToTensor()
 

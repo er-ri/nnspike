@@ -24,15 +24,17 @@ PID Tuning Parameters:
     - Too low: May overshoot on turns
     - Start with: 2-10
 """
-import cv2
-import math
-import time
-import socket
-import pickle
-import struct
 import argparse
-import numpy as np
+import math
+import pickle
+import socket
+import struct
 import sys
+import time
+
+import cv2
+import numpy as np
+
 from nnspike.unit import ETRobot
 from nnspike.unit.actions import avoid_obstacle
 from nnspike.utils.control import find_bottle_center
@@ -44,23 +46,17 @@ try:
     WINDOWS = True
 except ImportError:
     import select
-    import tty
     import termios
+    import tty
 
     WINDOWS = False
+from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode
 from nnspike.utils import (
-    get_line_edges_at_y,
-    draw_driving_info,
     PIDController,
     SensorRecorder,
     calculate_attitude_angle,
-)
-from nnspike.constants import (
-    ROI_CNN,
-    OFFSET_Y,
-    Mode,
-    CAMERA_HEIGHT,
-    CAMERA_FOCAL_LENGTH_PIXELS,
+    draw_driving_info,
+    get_line_edges_at_y,
 )
 
 # User defined constants
@@ -70,9 +66,7 @@ x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
 BASE_SPEED = 45  # Base speed for straight lines (adjust this first)
 
 # Socket connection settings
-HOST_IP_ADDRESS = (
-    "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
-)
+HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
 
 # Camera setup
 cap = cv2.VideoCapture(0)
@@ -114,11 +108,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     mode = Mode.LEFT_EDGE_FOLLOWING  # 0 for left edge, 1 for right edge
 
     # Generate timestamp for consistent naming if recording is enabled
-    TIMESTAMP = (
-        time.strftime("%Y%m%d%H%M%S", time.localtime())
-        if (record_sensor_data or save_camera_video)
-        else None
-    )
+    TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
 
     # Initialize sensor recorder conditionally
     sensor_recorder = None
@@ -126,8 +116,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         sensor_recorder = SensorRecorder(timestamp=TIMESTAMP)
         sensor_recorder.start_recording()  # Initialize video writer conditionally
     video_writer = None
+
     if save_camera_video:
-        fourcc = cv2.VideoWriter_fourcc(*"XVID")
+        fourcc = cv2.VideoWriter_fourcc(*"XVID")  # type: ignore[attr-defined]
         video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
         video_writer = cv2.VideoWriter(
             filename=video_filename,
@@ -136,6 +127,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             frameSize=(640, 480),
         )  # Socket connection for sending camera capture (only if enabled)
     client_socket = None
+
     if send_video_stream:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -228,9 +220,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 offset_pixels = 0
                 max_contour = None  # Calculate attitude angle using camera geometry
 
-            theta = calculate_attitude_angle(
-                offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS
-            )  # Use simplified speed control
+            theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use simplified speed control
             current_base_speed = BASE_SPEED
 
             steering_correction = pid.update(theta)
@@ -276,9 +266,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if max_contour is not None:
                 # Adjust contour coordinates to full frame
                 adjusted_contour = max_contour + np.array([x1, y1])
-                cv2.drawContours(
-                    gray, [adjusted_contour], -1, (255, 255, 255), 2
-                )  # Draw centroid
+                cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)  # Draw centroid
                 cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
             if send_video_stream and client_socket is not None:
                 try:
@@ -316,18 +304,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Run the OpenCV-based line following robot with optional sensor recording and video saving"
-    )
-    parser.add_argument(
-        "--record-sensor", action="store_true", help="Record sensor data to file"
-    )
-    parser.add_argument(
-        "--save-video", action="store_true", help="Save camera video to file"
-    )
-    parser.add_argument(
-        "--send-video", action="store_true", help="Send video stream to host PC"
-    )
+    parser = argparse.ArgumentParser(description="Run the OpenCV-based line following robot with optional sensor recording and video saving")
+    parser.add_argument("--record-sensor", action="store_true", help="Record sensor data to file")
+    parser.add_argument("--save-video", action="store_true", help="Save camera video to file")
+    parser.add_argument("--send-video", action="store_true", help="Send video stream to host PC")
 
     args = parser.parse_args()
 

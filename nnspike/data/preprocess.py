@@ -21,21 +21,21 @@ Functions:
         Sets the motor position values in label_df from status_df based on matching frame numbers.
 """
 
+from glob import glob
+
 import cv2
-import torch
 import numpy as np
 import pandas as pd
+import torch
 import torchvision.transforms as transforms
-from tqdm import tqdm
-from glob import glob
 from sklearn.utils import shuffle
-from nnspike.utils import get_line_edges_at_y, normalize_image
+from tqdm import tqdm
+
 from nnspike.constants import OFFSET_Y
+from nnspike.utils import get_line_edges_at_y, normalize_image
 
 
-def label_dataset_by_opencv(
-    df, roi: tuple[int, int, int, int], threshold_value: int
-) -> pd.DataFrame:
+def label_dataset_by_opencv(df, roi: tuple[int, int, int, int], threshold_value: int) -> pd.DataFrame:
     """
     Labels all the frame files in the provided DataFrame using OpenCV and updates the 'mx' column with the calculated values.
 
@@ -48,17 +48,11 @@ def label_dataset_by_opencv(
     """
     filtered_df = df[(df["use"] == True)]
 
-    for index, row in tqdm(
-        filtered_df.iterrows(), total=len(filtered_df), desc="Processing"
-    ):
+    for index, row in tqdm(filtered_df.iterrows(), total=len(filtered_df), desc="Processing"):
         image_path = row["image_path"]
         image = cv2.imread(image_path)
-        gray = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2GRAY)
 
-        # roi_area = gray[y1:y2, x1:x2]
-        left_x, right_x, _ = get_line_edges_at_y(
-            image=image, roi=roi, target_y=OFFSET_Y, threshold_value=threshold_value
-        )
+        left_x, right_x, _ = get_line_edges_at_y(image=image, roi=roi, target_y=OFFSET_Y, threshold_value=threshold_value)
 
         # Add `trace_x` to column 'predicted_x'
         df.at[index, "left_x"] = left_x
@@ -89,9 +83,7 @@ def label_dataset_by_model(df, model, data_types, roi):
     # Filter the DataFrame based on the conditions before iterating
     filtered_df = df[(df["data_type"].isin(data_types)) & (df["use"] == True)]
 
-    for index, row in tqdm(
-        filtered_df.iterrows(), total=len(filtered_df), desc="Processing"
-    ):
+    for index, row in tqdm(filtered_df.iterrows(), total=len(filtered_df), desc="Processing"):
         image_path = row["image_path"]
         image = cv2.imread(image_path)
         roi_area = image[y1:y2, x1:x2]
@@ -111,9 +103,7 @@ def label_dataset_by_model(df, model, data_types, roi):
     return df
 
 
-def balance_dataset(
-    df: pd.DataFrame, col_name: str, max_samples: int, num_bins: int
-) -> pd.DataFrame:
+def balance_dataset(df: pd.DataFrame, col_name: str, max_samples: int, num_bins: int) -> pd.DataFrame:
     """
     Balances the dataset by limiting the number of samples in each bin of a specified column.
 
@@ -145,9 +135,7 @@ def balance_dataset(
     # Iterate over each bin
     for i in range(num_bins):
         # Get the indices of the samples in the current bin
-        bin_indices = df[
-            (df[col_name] >= bins[i]) & (df[col_name] <= bins[i + 1])
-        ].index.tolist()
+        bin_indices = df[(df[col_name] >= bins[i]) & (df[col_name] <= bins[i + 1])].index.tolist()
 
         # Shuffle the indices
         bin_indices = shuffle(bin_indices)
@@ -178,9 +166,7 @@ def sort_by_frames_number(df: pd.DataFrame) -> pd.DataFrame:
         pd.DataFrame: The sorted DataFrame with rows ordered by the extracted
         frame numbers and the frame_number column as the 2nd column.
     """
-    df["frame_number"] = (
-        df["image_path"].str.extract(r"frame_(\d+)", expand=False).astype(int)
-    )
+    df["frame_number"] = df["image_path"].str.extract(r"frame_(\d+)", expand=False).astype(int)
 
     # Sort the DataFrame by the extracted frame number
     df_sorted = df.sort_values(by="frame_number")
@@ -265,17 +251,11 @@ def set_spike_status(label_df: pd.DataFrame, status_df: pd.DataFrame) -> pd.Data
 
     # Merge the DataFrames on frame_number, updating motor position columns
     # Use left join to preserve all rows in label_df
-    merged_df = label_df.merge(
-        spike_subset, on="frame_number", how="left", suffixes=("", "_temp")
-    )
+    merged_df = label_df.merge(spike_subset, on="frame_number", how="left", suffixes=("", "_temp"))
 
     # Update the motor position columns where spike data is available
-    merged_df["motor_a_relative_position"] = merged_df[
-        "motor_a_relative_position_temp"
-    ].fillna(merged_df["motor_a_relative_position"])
-    merged_df["motor_b_relative_position"] = merged_df[
-        "motor_b_relative_position_temp"
-    ].fillna(merged_df["motor_b_relative_position"])
+    merged_df["motor_a_relative_position"] = merged_df["motor_a_relative_position_temp"].fillna(merged_df["motor_a_relative_position"])
+    merged_df["motor_b_relative_position"] = merged_df["motor_b_relative_position_temp"].fillna(merged_df["motor_b_relative_position"])
 
     # Drop the temporary spike columns
     columns_to_drop = [col for col in merged_df.columns if col.endswith("_temp")]

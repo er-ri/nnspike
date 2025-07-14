@@ -1,30 +1,25 @@
 #!/usr/bin/env python3
+import argparse
 import os
 import sys
-import argparse
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, parent_dir)
 
 import cv2
 import pandas as pd
+
+from nnspike.constants import OFFSET_Y, ROI_CNN
 from nnspike.utils import draw_driving_info
-from nnspike.constants import ROI_CNN, OFFSET_Y
 
 
-def read_label_data(label_path: str, image_path: str = None):
+def read_label_data(label_path: str, image_path: str | None = None):
     df = pd.read_csv(label_path)
 
     filtered_df = df[df["use"] == True]
-    filtered_df = filtered_df.reset_index(
-        drop=True
-    )  # Reset index for easier navigation
+    filtered_df = filtered_df.reset_index(drop=True)  # Reset index for easier navigation
     image_path = image_path.replace("./", "../") if image_path is not None else None
-    index = (
-        filtered_df[filtered_df["image_path"] == image_path].index[0]
-        if image_path is not None
-        else 0
-    )
+    index = filtered_df[filtered_df["image_path"] == image_path].index[0] if image_path is not None else 0
 
     return filtered_df, index
 
@@ -76,7 +71,7 @@ def main():
         info["text"] = {
             "image path": filename,
             "offset x": offset_x,
-            "frame": index,
+            "frame": row["frame_number"],
             "data type": row["data_type"],
         }
         image = draw_driving_info(image.copy(), info, ROI_CNN)

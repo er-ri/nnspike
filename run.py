@@ -11,50 +11,43 @@ Speed Tuning Parameters:
 PID Tuning Parameters:
 - Kp, Ki, Kd: Standard PID parameters for steering correction
 """
-import cv2
-import math
-import time
-import torch
-import socket
-import pickle
-import struct
 import argparse
-from nnspike.unit import ETRobot
-from nnspike.utils import (
-    draw_driving_info,
-    PIDController,
-    SensorRecorder,
-)
-from nnspike.utils.control import calculate_attitude_angle
-from nnspike.constants import (
-    ROI_CNN_LEGACY,
-    OFFSET_Y_LEGACY,
-    CAMERA_HEIGHT,
-    CAMERA_FOCAL_LENGTH_PIXELS,
-    WHEELBASE,
-)
-from scripts.utils import load_and_prepare_model, process_image
+import math
+import pickle
+import socket
+import struct
+import time
 
+import cv2
+import torch
+
+from nnspike.constants import (
+    CAMERA_FOCAL_LENGTH_PIXELS,
+    CAMERA_HEIGHT,
+    OFFSET_Y,
+    RELATIVE_POSITION_SCALE,
+    ROI_CNN,
+    Mode,
+)
+from nnspike.models import NvidiaModel
+from nnspike.unit import ETRobot
+from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info
+from scripts.utils import process_image
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # User defined constants
-x1, y1, x2, y2 = ROI_CNN_LEGACY  # Region of Interest
+x1, y1, x2, y2 = ROI_CNN  # Region of Interest
 
 # Simplified Speed Control Parameters (Easy to tune)
 BASE_SPEED = 35  # Base speed for straight lines (adjust this first)
-HOST_IP_ADDRESS = (
-    "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
-)
+HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
 
 course = "right"  # "left" or "right"
-model_paths = [
-    f"./storage/models/{course}_interval1_0601.pth",
-    f"./storage/models/{course}_interval2_0601.pth",
-    f"./storage/models/{course}_interval3_0601.pth",
-]
 
-models = [load_and_prepare_model(path, device) for path in model_paths]
+model = NvidiaModel()
+model.load_state_dict(torch.load("./storage/models/model_left_0713.pth", map_location=device))
+model.eval()
 
 # Camera
 cap = cv2.VideoCapture(0)
@@ -63,11 +56,7 @@ cap.set(cv2.CAP_PROP_FPS, 30)
 
 def main(record_sensor_data=False, save_camera_video=False):
     # Generate timestamp for consistent naming if recording is enabled
-    TIMESTAMP = (
-        time.strftime("%Y%m%d%H%M%S", time.localtime())
-        if (record_sensor_data or save_camera_video)
-        else None
-    )
+    TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
 
     # Initialize sensor recorder conditionally
     sensor_recorder = None
@@ -78,7 +67,7 @@ def main(record_sensor_data=False, save_camera_video=False):
     # Initialize video writer conditionally
     video_writer = None
     if save_camera_video:
-        fourcc = cv2.VideoWriter_fourcc(*"XVID")
+        fourcc = cv2.VideoWriter_fourcc(*"XVID")  # type: ignore[attr-defined]
         video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
         video_writer = cv2.VideoWriter(
             filename=video_filename,
@@ -92,7 +81,7 @@ def main(record_sensor_data=False, save_camera_video=False):
     pid = PIDController(
         Kp=50,
         Ki=0,
-        Kd=0,
+        Kd=5,
         setpoint=0,
         output_limits=(-100, 100),  # Direct radian limits for steering correction
     )
@@ -100,7 +89,6 @@ def main(record_sensor_data=False, save_camera_video=False):
     time.sleep(0.5)
 
     et.set_motor_relative_position(left_positon=0, right_position=0)
-    interval_idx = 0
 
     try:
         while et.is_running == True:
@@ -114,25 +102,28 @@ def main(record_sensor_data=False, save_camera_video=False):
             if save_camera_video and video_writer is not None:
                 video_writer.write(frame)
 
-            roi_area = process_image(
-                image=frame.copy(), device=device, roi=(x1, y1, x2, y2)
-            )
+            roi_area = process_image(image=frame.copy(), device=device, roi=(x1, y1, x2, y2))
 
-            # Todo: stage determination
-            interval_idx = 0
+            status = et.get_spike_status()
+            relative_position = abs(status.motors["A"].relative_position / RELATIVE_POSITION_SCALE)
+            relative_position = torch.tensor(relative_position, dtype=torch.float32).unsqueeze(0).to(device)
 
             with torch.no_grad():
-                output = models[interval_idx](
-                    roi_area
-                )  # Calculate pixel offset from center
+                outputs = model(roi_area, relative_position)  # Calculate pixel offset from center
+
+            # ToDO: Use the 'Mode' output to determine the driving mode
+            prob, mode = torch.max(outputs[0][0], dim=1)
+            prob_value = round(prob[0].item(), 2)
+            mode_value = mode.item()  # Convert to Python integer
+            if mode_value == Mode.OBSTACLE_AVOIDANCE:
+                # Invoke obstacle avoidance behavior
+                continue
+
             roi_center_x = (x1 + x2) / 2
-            offset_x = (x1 + output * (x2 - x1))[0][0].detach().item()
-            offset_pixels = (
-                offset_x - roi_center_x
-            )  # Calculate attitude angle using camera geometry
-            theta = calculate_attitude_angle(
-                offset_pixels, y2, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS
-            )  # Use base speed consistently
+            offset_x = x1 + (outputs[1][0][0] * (x2 - x1)).detach().item()
+
+            offset_pixels = offset_x - roi_center_x  # Calculate attitude angle using camera geometry
+            theta = calculate_attitude_angle(offset_pixels, y2, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use base speed consistently
 
             steering_correction = pid.update(theta)
 
@@ -142,18 +133,21 @@ def main(record_sensor_data=False, save_camera_video=False):
             et.set_motor_forward_speed(
                 left_speed=int(max(0, min(100, left_speed))),
                 right_speed=int(max(0, min(100, right_speed))),
-            )  # Log sensor data using the recorder if enabled
+            )
+
+            # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
-                sensor_recorder.log_frame_data(
-                    et.get_spike_status()
-                )  # Send driving information for the real-time inspection
+                sensor_recorder.log_frame_data(et.get_spike_status())  # Send driving information for the real-time inspection
+
             info = dict()
-            info["offset_x"], info["offset_y"] = offset_x, OFFSET_Y_LEGACY
+            info["offset_x"], info["offset_y"] = offset_x, OFFSET_Y
             info["text"] = {
                 "theta_deg": math.degrees(theta),
                 "steering_correction": steering_correction,
                 "left_speed": int(left_speed),
                 "right_speed": int(right_speed),
+                "mode": mode,
+                "probability": prob_value,
             }
 
             gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
@@ -182,15 +176,9 @@ def main(record_sensor_data=False, save_camera_video=False):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Run the robot with optional sensor recording and video saving"
-    )
-    parser.add_argument(
-        "--record-sensor", action="store_true", help="Record sensor data to file"
-    )
-    parser.add_argument(
-        "--save-video", action="store_true", help="Save camera video to file"
-    )
+    parser = argparse.ArgumentParser(description="Run the robot with optional sensor recording and video saving")
+    parser.add_argument("--record-sensor", action="store_true", help="Record sensor data to file")
+    parser.add_argument("--save-video", action="store_true", help="Save camera video to file")
 
     args = parser.parse_args()
 

@@ -1,7 +1,3 @@
-[build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "nnspike"
 version = "0.1.0"
@@ -11,7 +7,7 @@ requires-python = ">=3.11.2"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [
-    {name = "nnspike developers"}
+    {name = "er-ri"}
 ]
 keywords = ["LEGO", "SPIKE", "neural-network", "robotics", "line-follower"]
 classifiers = [
@@ -52,8 +48,8 @@ dev = [
 "Bug Tracker" = "https://github.com/er-ri/nnspike/issues"
 
 [tool.flake8]
-max-line-length = 120
-extend-ignore = ["E201"]
+max-line-length = 180
+extend-ignore = ["E201", "E203","E402", "E712"]
 exclude = [
     ".git",
     "__pycache__",
@@ -64,7 +60,7 @@ exclude = [
 ]
 
 [tool.black]
-line-length = 120
+line-length = 180
 target-version = ["py311", "py312"]
 include = '\.py$'
 exclude = '''
@@ -85,7 +81,7 @@ exclude = '''
 
 [tool.isort]
 profile = "black"
-line_length = 120
+line_length = 180
 multi_line_output = 3
 
 [tool.mypy]
@@ -99,6 +95,3 @@ strict_optional = true
 warn_redundant_casts = true
 warn_return_any = true
 warn_unused_ignores = true
-
-[tool.setuptools]
-packages = ["nnspike"]

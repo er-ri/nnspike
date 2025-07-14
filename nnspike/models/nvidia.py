@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+from nnspike.constants import NUM_MODES
+
 
 class NvidiaModel(nn.Module):
     """
@@ -16,7 +18,8 @@ class NvidiaModel(nn.Module):
         conv3 (nn.Conv2d): Third convolutional layer with 36 input channels and 48 output channels.
         conv4 (nn.Conv2d): Fourth convolutional layer with 48 input channels and 64 output channels.
         conv5 (nn.Conv2d): Fifth convolutional layer with 64 input channels and 64 output channels.
-        flatten (nn.Flatten): Layer to flatten the output from the convolutional layers.        fc1 (nn.Linear): First fully connected layer with input size adjusted to include sensor inputs.
+        flatten (nn.Flatten): Layer to flatten the output from the convolutional layers.
+        fc1 (nn.Linear): First fully connected layer with input size adjusted to include sensor inputs.
         fc2 (nn.Linear): Second fully connected layer.
         fc3 (nn.Linear): Third fully connected layer.
         mode_classifier (nn.Linear): Output layer for behavior mode classification (4 modes).
@@ -49,15 +52,14 @@ class NvidiaModel(nn.Module):
         self.conv3 = nn.Conv2d(36, 48, kernel_size=5, stride=2)
         self.conv4 = nn.Conv2d(48, 64, kernel_size=3)
         self.conv5 = nn.Conv2d(64, 64, kernel_size=3)
+
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(
-            64 * 1 * 18 + 1, 100
-        )  # Adjust input size to include left_x, right_x, and relative_position
+        self.fc1 = nn.Linear(64 * 1 * 18 + 1, 100)  # Adjust input size to include left_x, right_x, and relative_position
         self.fc2 = nn.Linear(100, 50)
         self.fc3 = nn.Linear(50, 10)
 
         # Mode classification head (4 modes: left_x following, right_x following, obstacle avoidance, self driving)
-        self.mode_classifier = nn.Linear(10, 4)
+        self.mode_classifier = nn.Linear(10, NUM_MODES)
 
         # Self-driving control head
         self.self_driving_head = nn.Linear(10, 1)
@@ -94,3 +96,29 @@ class NvidiaModel(nn.Module):
         control_output = self.self_driving_head(x)
 
         return mode_output, control_output
+
+
+class MultiTaskLoss(nn.Module):
+
+    def __init__(self, mode_weight=1.0, control_weight=30.0, control_scale=10.0):
+        super(MultiTaskLoss, self).__init__()
+        self.mode_weight = mode_weight
+        self.control_weight = control_weight
+        self.control_scale = control_scale
+        self.classification_loss = nn.CrossEntropyLoss()
+        self.regression_loss = nn.MSELoss()  # or nn.SmoothL1Loss()
+
+    def forward(self, outputs, targets):
+        mode_output, control_output = outputs
+        mode_target, control_target = targets
+
+        mode_loss = self.classification_loss(mode_output, mode_target)
+        # Scale only for loss calculation, keep outputs normalized
+        scaled_control_loss = self.regression_loss(control_output * self.control_scale, control_target * self.control_scale)
+
+        # print(f"Control target range: min={control_target.min():.6f}, max={control_target.max():.6f}")
+        # print(f"Control target std: {control_target.std():.6f}")
+
+        total_loss = self.mode_weight * mode_loss + self.control_weight * scaled_control_loss
+
+        return total_loss, mode_loss, scaled_control_loss

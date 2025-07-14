@@ -18,6 +18,11 @@ class Mode(Enum):
     BACKWARD_AND_HEADING_GOAL = 8
 
 
+# One-Hot Encoding for Modes
+NUM_MODES = 2
+# Scale for relative position in motor control
+RELATIVE_POSITION_SCALE = 40000
+
 # Camera and Robot Geometry Constants
 CAMERA_HEIGHT = 0.20  # Camera height above ground in meters
 CAMERA_FOCAL_LENGTH_PIXELS = 640  # Approximate focal length in pixels

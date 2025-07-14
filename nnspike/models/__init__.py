@@ -1,3 +1,3 @@
-from .nvidia import NvidiaModel
+from .nvidia import MultiTaskLoss, NvidiaModel
 
-__all__ = ["NvidiaModel"]
+__all__ = ["NvidiaModel", MultiTaskLoss]
