@@ -194,6 +194,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 offset_pixels = 0
                 max_contour = None  # Calculate attitude angle using camera geometry
 
+            print(f"333333333333333{target_x}")
+
             theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use simplified speed control
             current_base_speed = BASE_SPEED
 
