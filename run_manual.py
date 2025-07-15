@@ -27,37 +27,24 @@ PID Tuning Parameters:
 import argparse
 import math
 import pickle
+
+# Platform-specific imports for keyboard input (Raspberry Pi only)
+import select
 import socket
 import struct
 import sys
+import termios
 import time
+import tty
 
 import cv2
 import numpy as np
 
+from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode
 from nnspike.unit import ETRobot
 from nnspike.unit.actions import avoid_obstacle
+from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y
 from nnspike.utils.control import find_bottle_center
-
-# Platform-specific imports for keyboard input
-try:
-    import msvcrt  # Windows
-
-    WINDOWS = True
-except ImportError:
-    import select
-    import termios
-    import tty
-
-    WINDOWS = False
-from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode
-from nnspike.utils import (
-    PIDController,
-    SensorRecorder,
-    calculate_attitude_angle,
-    draw_driving_info,
-    get_line_edges_at_y,
-)
 
 # User defined constants
 x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
@@ -80,27 +67,20 @@ class KeyboardController:
         self.running = True
         self.current_key = None
 
-        if not WINDOWS:
-            # Save terminal settings for Unix-like systems
-            self.old_settings = termios.tcgetattr(sys.stdin)
-            tty.setraw(sys.stdin.fileno())
+        # Save terminal settings for Unix-like systems
+        self.old_settings = termios.tcgetattr(sys.stdin)  # type: ignore
+        tty.setraw(sys.stdin.fileno())  # type: ignore
 
     def get_key(self):
         """Get a single keypress"""
-        if WINDOWS:
-            if msvcrt.kbhit():
-                key = msvcrt.getch().decode("utf-8").lower()
-                return key
-        else:
-            if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-                key = sys.stdin.read(1).lower()
-                return key
+        if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+            key = sys.stdin.read(1).lower()
+            return key
         return None
 
     def cleanup(self):
         """Restore terminal settings"""
-        if not WINDOWS:
-            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)  # type: ignore
 
 
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False):

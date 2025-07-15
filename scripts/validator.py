@@ -22,7 +22,7 @@ transform = transforms.ToTensor()
 
 x1, y1, x2, y2 = ROI_CNN
 
-FILE_LABEL = "20250705150757_label"
+FILE_LABEL = "20250705153842_label"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

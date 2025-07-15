@@ -5,12 +5,12 @@ This module provides a class for recording ETRobot sensor status and control dat
 It's designed for high-performance logging during robot operation without impacting frame rates.
 """
 
+import atexit
 import csv
+import logging
 import os
 import time
-import atexit
-import logging
-from typing import Optional, Any
+from typing import Any, Optional, TextIO
 
 
 class SensorRecorder:
@@ -27,9 +27,7 @@ class SensorRecorder:
     - Comprehensive sensor and control data logging
     """
 
-    def __init__(
-        self, output_dir: str = "storage/sensor_data", timestamp: Optional[str] = None
-    ):
+    def __init__(self, output_dir: str = "storage/sensor_data", timestamp: Optional[str] = None):
         """
         Initialize the sensor recorder.
 
@@ -41,15 +39,13 @@ class SensorRecorder:
         self.timestamp = timestamp or time.strftime("%Y%m%d%H%M%S", time.localtime())
         self.csv_filename = os.path.join(output_dir, f"{self.timestamp}_sensor_log.csv")
 
-        self.csv_file = None
-        self.csv_writer = None
+        self.csv_file: Optional[TextIO] = None
+        self.csv_writer: Optional[Any] = None
         self.is_recording = False
         self.frame_count = 0
 
         # Set up logger for this instance
-        self.logger = logging.getLogger(
-            f"{__name__}.{self.__class__.__name__}"
-        )  # CSV headers for sensor data only
+        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")  # CSV headers for sensor data only
         self.headers = [
             "timestamp",
             "frame_number",
@@ -111,7 +107,7 @@ class SensorRecorder:
             spike_status: SpikeStatus object with sensor data
             behavior_mode: Current behavior mode (e.g., Mode.LEFT_EDGE_FOLLOWING)
         """
-        if not self.is_recording or self.csv_writer is None:
+        if not self.is_recording or self.csv_writer is None or self.csv_file is None:
             return
 
         self.frame_count += 1
@@ -133,15 +129,9 @@ class SensorRecorder:
             self._safe_get(sensors.gyro.x if sensors.gyro else None, 0.0),
             self._safe_get(sensors.gyro.y if sensors.gyro else None, 0.0),
             self._safe_get(sensors.gyro.z if sensors.gyro else None, 0.0),
-            self._safe_get(
-                sensors.accelerometer.x if sensors.accelerometer else None, 0.0
-            ),
-            self._safe_get(
-                sensors.accelerometer.y if sensors.accelerometer else None, 0.0
-            ),
-            self._safe_get(
-                sensors.accelerometer.z if sensors.accelerometer else None, 0.0
-            ),
+            self._safe_get(sensors.accelerometer.x if sensors.accelerometer else None, 0.0),
+            self._safe_get(sensors.accelerometer.y if sensors.accelerometer else None, 0.0),
+            self._safe_get(sensors.accelerometer.z if sensors.accelerometer else None, 0.0),
             self._safe_get(sensors.position.x if sensors.position else None, 0.0),
             self._safe_get(sensors.position.y if sensors.position else None, 0.0),
             self._safe_get(motors["A"].position, 0),
@@ -178,9 +168,7 @@ class SensorRecorder:
         if self.csv_file and not self.csv_file.closed:
             self.csv_file.flush()  # Ensure all data is written
             self.csv_file.close()
-            self.logger.info(
-                f"CSV recording stopped. Data saved to: {self.csv_filename}"
-            )
+            self.logger.info(f"CSV recording stopped. Data saved to: {self.csv_filename}")
 
         self.is_recording = False
         self.csv_file = None

@@ -1,7 +1,7 @@
 import threading
 import time
 
-import serial  # type: ignore
+import serial
 
 from .spike_status import SpikeStatus
 

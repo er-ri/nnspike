@@ -54,7 +54,7 @@ cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FPS, 30)
 
 
-def main(record_sensor_data=False, save_camera_video=False):
+def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False):
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
 
@@ -74,9 +74,16 @@ def main(record_sensor_data=False, save_camera_video=False):
             fourcc=fourcc,
             fps=30,
             frameSize=(640, 480),
-        )  # Socket connection for sending camera capture
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect((HOST_IP_ADDRESS, 8485))  # Initialization
+        )  # Socket connection for sending camera capture (only if enabled)
+    client_socket = None
+    if send_video_stream:
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            client_socket.connect((HOST_IP_ADDRESS, 8485))
+            print(f"Connected to host PC at {HOST_IP_ADDRESS}:8485 for video streaming")
+        except Exception as e:
+            print(f"Warning: Could not connect to host PC for video streaming: {e}")
+            client_socket = None  # Initialization
     et = ETRobot()
     pid = PIDController(
         Kp=50,
@@ -109,7 +116,7 @@ def main(record_sensor_data=False, save_camera_video=False):
             relative_position = torch.tensor(relative_position, dtype=torch.float32).unsqueeze(0).to(device)
 
             with torch.no_grad():
-                outputs = model(roi_area, relative_position)  # Calculate pixel offset from center
+                outputs = model(roi_area, relative_position)
 
             # ToDO: Use the 'Mode' output to determine the driving mode
             prob, mode = torch.max(outputs[0][0], dim=1)
@@ -152,17 +159,23 @@ def main(record_sensor_data=False, save_camera_video=False):
 
             gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
             gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
-            try:
-                ret, buffer = cv2.imencode(".jpg", gray)
-                img_encoded = buffer.tobytes()
-                data = pickle.dumps(img_encoded)
-                client_socket.sendall(struct.pack("L", len(data)) + data)
-            except Exception:
-                break
+            if send_video_stream and client_socket is not None:
+                try:
+                    ret, buffer = cv2.imencode(".jpg", gray)
+                    img_encoded = buffer.tobytes()
+                    data = pickle.dumps(img_encoded)
+                    client_socket.sendall(struct.pack("L", len(data)) + data)
+                except Exception as e:
+                    print(f"Socket error: {e}")
+                    break
 
     finally:
         et.stop()
         cap.release()
+
+        # Clean up socket connection if it was used
+        if send_video_stream and client_socket is not None:
+            client_socket.close()
 
         # Clean up video writer if it was used
         if save_camera_video and video_writer is not None:
@@ -179,7 +192,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the robot with optional sensor recording and video saving")
     parser.add_argument("--record-sensor", action="store_true", help="Record sensor data to file")
     parser.add_argument("--save-video", action="store_true", help="Save camera video to file")
+    parser.add_argument("--send-video", action="store_true", help="Send video stream to host PC")
 
     args = parser.parse_args()
 
-    main(record_sensor_data=args.record_sensor, save_camera_video=args.save_video)
+    main(record_sensor_data=args.record_sensor, save_camera_video=args.save_video, send_video_stream=args.send_video)

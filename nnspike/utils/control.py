@@ -14,8 +14,9 @@ Functions:
         for more accurate steering control.
 """
 
-import cv2
 import math
+
+import cv2
 import numpy as np
 
 
@@ -203,15 +204,13 @@ def find_bottle_center(image):
     upper_red2 = np.array([180, 255, 255])
 
     # Create masks for red color
-    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
-    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)  # type: ignore[arg-type]
+    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)  # type: ignore[arg-type]
     red_mask = mask1 + mask2
 
     # Method 2: Edge detection for bottle outline
     # Use adaptive threshold for better edge detection under varying lighting
-    edges = cv2.adaptiveThreshold(
-        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-    )
+    edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     edges = cv2.bitwise_not(edges)  # Invert to get edges as white
 
     # Combine color and edge information
@@ -220,12 +219,8 @@ def find_bottle_center(image):
     # Apply morphological operations to clean up the mask
     kernel = np.ones((3, 3), np.uint8)  # Smaller kernel for real-time performance
     combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
-    combined_mask = cv2.morphologyEx(
-        combined_mask, cv2.MORPH_OPEN, kernel
-    )  # Find contours
-    contours, _ = cv2.findContours(
-        combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-    )
+    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)  # Find contours
+    contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if not contours:
         return None, None
@@ -292,9 +287,7 @@ def calculate_attitude_angle(
     # Calculate ground distance from camera to the line detection point
     # Using similar triangles: ground_distance / camera_height = focal_length / (image_height - roi_bottom_y)
     image_height = 480  # Assuming standard camera resolution
-    ground_distance = (
-        camera_height * focal_length_pixels / (image_height - roi_bottom_y)
-    )
+    ground_distance = camera_height * focal_length_pixels / (image_height - roi_bottom_y)
 
     # Calculate lateral offset in meters
     # Using similar triangles: lateral_offset / ground_distance = offset_pixels / focal_length

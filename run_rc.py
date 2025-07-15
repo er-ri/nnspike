@@ -1,25 +1,18 @@
 #!/usr/bin/env python3
 import argparse
 import os
+
+# Platform-specific imports for keyboard input (Raspberry Pi only)
+import select
 import sys
+import termios
 import time
+import tty
 
 import cv2
 
 from nnspike.unit import ETRobot
 from nnspike.utils.recorder import SensorRecorder
-
-# Platform-specific imports for keyboard input
-try:
-    import msvcrt  # Windows
-
-    WINDOWS = True
-except ImportError:
-    import select
-    import termios
-    import tty
-
-    WINDOWS = False
 
 # User defined constants
 BASE_SPEED = 55
@@ -31,27 +24,20 @@ class KeyboardController:
         self.running = True
         self.current_key = None
 
-        if not WINDOWS:
-            # Save terminal settings for Unix-like systems
-            self.old_settings = termios.tcgetattr(sys.stdin)
-            tty.setraw(sys.stdin.fileno())
+        # Save terminal settings for Unix-like systems
+        self.old_settings = termios.tcgetattr(sys.stdin)  # type: ignore
+        tty.setraw(sys.stdin.fileno())  # type: ignore
 
     def get_key(self):
         """Get a single keypress"""
-        if WINDOWS:
-            if msvcrt.kbhit():
-                key = msvcrt.getch().decode("utf-8").lower()
-                return key
-        else:
-            if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-                key = sys.stdin.read(1).lower()
-                return key
+        if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+            key = sys.stdin.read(1).lower()
+            return key
         return None
 
     def cleanup(self):
         """Restore terminal settings"""
-        if not WINDOWS:
-            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)  # type: ignore
 
 
 def main():
@@ -80,7 +66,7 @@ def main():
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-        fourcc = cv2.VideoWriter_fourcc(*"XVID")
+        fourcc = cv2.VideoWriter_fourcc(*"XVID")  # type: ignore[attr-defined]
         video_filename = f"storage/videos/{TIMESTAMP}_rc_control.avi"
 
         # Ensure the directory exists

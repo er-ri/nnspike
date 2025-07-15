@@ -41,6 +41,10 @@ dev = [
     "flake8>=6.0.0",
     "flake8-pyproject>=1.2.3",
     "mypy>=1.0.0",
+    # Type stubs for better mypy support
+    "types-tqdm>=4.66.0",
+    "pandas-stubs>=2.0.0",
+    "types-requests>=2.31.0",
 ]
 
 [project.urls]
@@ -86,12 +90,85 @@ multi_line_output = 3
 
 [tool.mypy]
 python_version = "3.11"
+# Use explicit package bases to resolve module naming conflicts
+explicit_package_bases = true
+# Control import following to avoid errors from external modules
+follow_imports = "silent"
+# Allow some flexibility for gradual typing
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 check_untyped_defs = true
 disallow_untyped_decorators = false
+# Type checking strictness
 no_implicit_optional = true
 strict_optional = true
 warn_redundant_casts = true
-warn_return_any = true
-warn_unused_ignores = true
+warn_return_any = false  # Reduce noise from untyped libraries
+warn_unused_ignores = false  # Disable unused ignore warnings for cv2 compatibility
+# Show error codes for easier debugging
+show_error_codes = true
+# Exclude common directories that shouldn't be type-checked
+exclude = [
+    "build/",
+    "dist/",
+    "docs/",
+    "tests/",
+    "scripts/",
+    "storage/",
+    "notebooks/",
+    "__pycache__/",
+    ".*.egg-info/",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "cv2"
+ignore_missing_imports = true
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "cv2.*"
+ignore_missing_imports = true
+ignore_errors = true
+
+# Disable specific warnings for files using cv2
+[[tool.mypy.overrides]]
+module = "nnspike.utils.control"
+disable_error_code = ["arg-type", "unused-ignore"]
+
+[[tool.mypy.overrides]]
+module = "nnspike.utils.image"
+disable_error_code = ["call-arg", "unused-ignore"]
+
+[[tool.mypy.overrides]]
+module = [
+    "pandas",
+    "pandas.*", 
+    "torch",
+    "torch.*",
+    "torchvision",
+    "torchvision.*",
+    "torchaudio",
+    "torchaudio.*",
+    "sklearn",
+    "sklearn.*",
+    "tqdm",
+    "tqdm.*",
+    "albumentations",
+    "albumentations.*",
+    "matplotlib",
+    "matplotlib.*",
+    "seaborn",
+    "seaborn.*",
+    "tensorboard",
+    "tensorboard.*",
+    "numpy",
+    "numpy.*",
+    "jupyterlab",
+    "jupyterlab.*",
+    "termios",
+    "termios.*",
+    "tty",
+    "tty.*",
+]
+ignore_missing_imports = true

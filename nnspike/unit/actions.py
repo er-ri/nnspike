@@ -1,8 +1,9 @@
 import time
+
 from nnspike.unit.etrobot import ETRobot
 
 
-def _perform_action_chain(action_chain: tuple[ETRobot, int, int, float]) -> None:
+def _perform_action_chain(action_chain: tuple[tuple[ETRobot, int, int, float], ...]) -> None:
     """
     Execute a sequence of motor control actions on an ETRobot with specified speeds and durations.
 

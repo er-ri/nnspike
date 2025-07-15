@@ -95,9 +95,7 @@ class SensorStatus:
             force=data.get("force"),
             color=(ColorSensorStatus.from_dict(data.get("color", {})) if data.get("color") else None),
             gyro=(VectorStatus.from_dict(data.get("gyro", {})) if data.get("gyro") else None),
-            accelerometer=(
-                VectorStatus.from_dict(data.get("accelerometer", {})) if data.get("accelerometer") else None
-            ),
+            accelerometer=(VectorStatus.from_dict(data.get("accelerometer", {})) if data.get("accelerometer") else None),
             position=(Position.from_dict(data.get("position", {})) if data.get("position") else None),
         )
 
@@ -177,6 +175,9 @@ class SpikeStatus:
         # 63: force sensor (D)
         # 62: distance sensor (F)
 
+        # Store original data for error reporting
+        original_data = data
+
         # If already a dictionary, return as is
         if isinstance(data, dict):
             return data
@@ -244,9 +245,7 @@ class SpikeStatus:
                 # Distance sensor - Port 62
                 distance_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 62]
                 if distance_entries:
-                    result["sensors"]["distance"] = (
-                        distance_entries[0][1][0] if len(distance_entries[0][1]) > 0 else None
-                    )
+                    result["sensors"]["distance"] = distance_entries[0][1][0] if len(distance_entries[0][1]) > 0 else None
 
                 # Color sensor - Port 61
                 color_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 61]
@@ -291,10 +290,12 @@ class SpikeStatus:
             return result
 
         except json.JSONDecodeError as e:
-            print(f"JSON parsing error: {e}, raw data: {data}")
+            display_data = original_data.decode("utf-8") if isinstance(original_data, bytes) else original_data
+            print(f"JSON parsing error: {e}, raw data: {display_data}")
             return {"error": "json_parse_error", "raw": data}
         except Exception as e:
-            print(f"General parsing error: {e}, raw data: {data}")
+            display_data = original_data.decode("utf-8") if isinstance(original_data, bytes) else original_data
+            print(f"General parsing error: {e}, raw data: {display_data}")
             return {"error": "parsing_error", "raw": data}
 
     def __str__(self) -> str:
@@ -315,19 +316,13 @@ class SpikeStatus:
             lines.append(f"  Force: {self.sensors.force}")
 
         if self.sensors.color:
-            lines.append(
-                f"  Color - Reflected: {self.sensors.color.reflected}, "
-                f"Ambient: {self.sensors.color.ambient}, Color: {self.sensors.color.color}"
-            )
+            lines.append(f"  Color - Reflected: {self.sensors.color.reflected}, " f"Ambient: {self.sensors.color.ambient}, Color: {self.sensors.color.color}")
 
         if self.sensors.gyro:
             lines.append(f"  Gyro - X: {self.sensors.gyro.x}, Y: {self.sensors.gyro.y}, Z: {self.sensors.gyro.z}")
 
         if self.sensors.accelerometer:
-            lines.append(
-                f"  Accel - X: {self.sensors.accelerometer.x}, "
-                f"Y: {self.sensors.accelerometer.y}, Z: {self.sensors.accelerometer.z}"
-            )
+            lines.append(f"  Accel - X: {self.sensors.accelerometer.x}, " f"Y: {self.sensors.accelerometer.y}, Z: {self.sensors.accelerometer.z}")
 
         if self.sensors.position:
             lines.append(f"  Position - X: {self.sensors.position.x}, Y: {self.sensors.position.y}")
