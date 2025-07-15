@@ -24,7 +24,7 @@ import torch
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode
 from nnspike.models import NvidiaModel
 from nnspike.unit import ETRobot
-from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info
+from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y
 from scripts.utils import process_image
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -120,9 +120,17 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 continue
 
             roi_center_x = (x1 + x2) / 2
-            offset_x = x1 + (outputs[1][0][0] * (x2 - x1)).detach().item()
+            predicted_x = x1 + (outputs[1][0][0] * (x2 - x1)).detach().item()
+            target_x = predicted_x  # Default to predicted x if no edge following mode is set
+            match mode_value:
+                case Mode.LEFT_EDGE_FOLLOWING:
+                    left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+                    target_x = left_x
+                case Mode.RIGHT_EDGE_FOLLOWING:
+                    _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+                    target_x = right_x
 
-            offset_pixels = offset_x - roi_center_x  # Calculate attitude angle using camera geometry
+            offset_pixels = target_x - roi_center_x  # Calculate attitude angle using camera geometry
             theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use base speed consistently
 
             steering_correction = pid.update(theta)
@@ -140,7 +148,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 sensor_recorder.log_frame_data(et.get_spike_status())  # Send driving information for the real-time inspection
 
             info = dict()
-            info["offset_x"], info["offset_y"] = offset_x, OFFSET_Y
+            info["target_x"], info["offset_y"] = target_x, OFFSET_Y
             info["text"] = {
                 "theta_deg": math.degrees(theta),
                 "steering_correction": steering_correction,
