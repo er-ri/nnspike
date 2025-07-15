@@ -148,9 +148,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if save_camera_video and video_writer is not None:
                 video_writer.write(frame)
 
-            left_x, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-            target_x = (x2 + x1) / 2  # Default to center if no edges detected
-
             # Check for keyboard input to change behavior mode
             key = keyboard.get_key()
             if key == "q":  # 'q' key to quit
@@ -159,11 +156,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 break
             elif key == "a":  # 'a' key for left
                 mode = Mode.LEFT_EDGE_FOLLOWING
-                target_x = left_x
                 print("Switched to following: left edge")
             elif key == "d":  # 'd' key for right
                 mode = Mode.RIGHT_EDGE_FOLLOWING
-                target_x = right_x
                 print("Switched to following: right edge")
             elif key == "c":  # 'c' key for bottle carrying
                 mode = Mode.BOTTLE_CARRYING
@@ -175,6 +170,20 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 print("Avoiding obstacle...")
                 mode = previous_mode  # Restore previous mode after avoiding obstacle
                 continue
+
+            match mode:
+                case Mode.LEFT_EDGE_FOLLOWING:
+                    left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+                    target_x = left_x
+                case Mode.RIGHT_EDGE_FOLLOWING:
+                    _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+                    target_x = right_x
+                case Mode.BOTTLE_CARRYING:
+                    (cx, _), _ = find_bottle_center(frame)
+                    target_x = cx
+                case _:
+                    # Default to center if invalid edge specified
+                    target_x = (left_x + right_x) // 2
 
             if target_x is not None:
                 # Calculate position relative to ROI
