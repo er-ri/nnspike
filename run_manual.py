@@ -148,7 +148,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             left_x, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
             target_x = (x2 + x1) / 2  # Default to center if no edges detected
-            print(f"faslfjalsjfals{target_x}")
+
             # Check for keyboard input to change behavior mode
             key = keyboard.get_key()
             if key == "q":  # 'q' key to quit
@@ -174,8 +174,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 mode = previous_mode  # Restore previous mode after avoiding obstacle
                 continue
 
-            print(f"fa123123123{target_x}")
-
             if target_x is not None:
                 # Calculate position relative to ROI
                 mx = target_x - x1  # Relative to ROI
@@ -193,8 +191,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 my = (y2 - y1) // 2
                 offset_pixels = 0
                 max_contour = None  # Calculate attitude angle using camera geometry
-
-            print(f"333333333333333{target_x}")
 
             theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use simplified speed control
             current_base_speed = BASE_SPEED
@@ -223,7 +219,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             right_pos = status.motors["B"].relative_position
 
             info = dict()
-            info["offset_x"], info["offset_y"] = x1 + mx, y1 + my
+            info["target_x"], info["offset_y"] = x1 + mx, y1 + my
             info["text"] = {
                 "mode": mode.name,
                 "left_relative_position": left_pos,
