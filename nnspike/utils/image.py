@@ -63,10 +63,10 @@ def draw_driving_info(image: np.ndarray, info: dict, roi: tuple[int, int, int, i
     Returns:
         np.ndarray: The image with the overlaid driving information.
     """
-    offset_x, offset_y = int(info["offset_x"]), int(info["offset_y"])
+    target_x, offset_y = int(info["target_x"]), int(info["offset_y"])
     x1, y1, x2, y2 = roi
 
-    image = cv2.circle(image, (offset_x, offset_y), 3, (255, 255, 0), -1)  # Tracing point
+    image = cv2.circle(image, (target_x, offset_y), 3, (255, 255, 0), -1)  # Tracing point
     image = cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)  # ROI
 
     for index, key in enumerate(info["text"]):
