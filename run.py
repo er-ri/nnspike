@@ -125,10 +125,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             match mode_value:
                 case Mode.LEFT_EDGE_FOLLOWING.value:
                     left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                    target_x = left_x
+                    target_x = left_x if left_x is not None else target_x
                 case Mode.RIGHT_EDGE_FOLLOWING.value:
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                    target_x = right_x
+                    target_x = right_x if right_x is not None else target_x
 
             offset_pixels = target_x - roi_center_x  # Calculate attitude angle using camera geometry
             theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use base speed consistently
