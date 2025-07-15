@@ -21,14 +21,7 @@ import time
 import cv2
 import torch
 
-from nnspike.constants import (
-    CAMERA_FOCAL_LENGTH_PIXELS,
-    CAMERA_HEIGHT,
-    OFFSET_Y,
-    RELATIVE_POSITION_SCALE,
-    ROI_CNN,
-    Mode,
-)
+from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode
 from nnspike.models import NvidiaModel
 from nnspike.unit import ETRobot
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info
@@ -119,7 +112,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 outputs = model(roi_area, relative_position)
 
             # ToDO: Use the 'Mode' output to determine the driving mode
-            prob, mode = torch.max(outputs[0][0], dim=1)
+            prob, mode = torch.max(outputs[0], dim=1)
             prob_value = round(prob[0].item(), 2)
             mode_value = mode.item()  # Convert to Python integer
             if mode_value == Mode.OBSTACLE_AVOIDANCE:
