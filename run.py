@@ -123,10 +123,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             predicted_x = x1 + (outputs[1][0][0] * (x2 - x1)).detach().item()
             target_x = predicted_x  # Default to predicted x if no edge following mode is set
             match mode_value:
-                case Mode.LEFT_EDGE_FOLLOWING:
+                case Mode.LEFT_EDGE_FOLLOWING.value:
                     left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     target_x = left_x
-                case Mode.RIGHT_EDGE_FOLLOWING:
+                case Mode.RIGHT_EDGE_FOLLOWING.value:
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     target_x = right_x
 
