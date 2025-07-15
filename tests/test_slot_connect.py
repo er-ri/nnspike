@@ -13,9 +13,7 @@ def main():
     try:
         et = ETRobot(port="COM4")  # Windows example port, change as needed
 
-        et.set_motor_forward_speed(
-            left_speed=30, right_speed=30
-        )  # Reset motors to ensure they are stopped
+        et.set_motor_forward_speed(left_speed=30, right_speed=30)  # Reset motors to ensure they are stopped
 
         # Print status every 0.5 seconds for 5 seconds
         end_time = time.time() + 5

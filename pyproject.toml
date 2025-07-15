@@ -143,7 +143,7 @@ disable_error_code = ["call-arg", "unused-ignore"]
 [[tool.mypy.overrides]]
 module = [
     "pandas",
-    "pandas.*", 
+    "pandas.*",
     "torch",
     "torch.*",
     "torchvision",

@@ -12,7 +12,7 @@ The project integrates a LEGO SPIKE Prime Hub and a Raspberry Pi to implement a 
 </p>
 
 ## Environment
-- LEGO: HubOS Legacy 
+- LEGO: HubOS Legacy
 - OS: Raspberry Pi OS Bookworm 64-bit
 - Python: 3.11.2
 - pytorch: 2.3.1
@@ -26,7 +26,7 @@ The project integrates a LEGO SPIKE Prime Hub and a Raspberry Pi to implement a 
 
 2.  Upload `spike/slot2.py` to LEGO SPIKE Prime Hub through [**SPIKE Legacy App**](https://education.lego.com/en-us/downloads/spike-legacy-app/software/).
 
-> Downgrade the **HubOS** from [here](https://spikelegacy.legoeducation.com/hubdowngrade/#step-1) if you are using 3.x version. For Windows environment, the tool [Zadig](https://zadig.akeo.ie/) is also required. 
+> Downgrade the **HubOS** from [here](https://spikelegacy.legoeducation.com/hubdowngrade/#step-1) if you are using 3.x version. For Windows environment, the tool [Zadig](https://zadig.akeo.ie/) is also required.
 
 3.  Connect to Raspberry Pi to open the remote terminal by a ssh client such as [PuTTY](https://www.putty.org/) or the VSCode [Remote Development Plugin](https://code.visualstudio.com/docs/remote/ssh). Install the dependencies on Raspberry Pi by
 
@@ -36,7 +36,7 @@ The project integrates a LEGO SPIKE Prime Hub and a Raspberry Pi to implement a 
 5.  Run the command `python run_slient.py` on Raspberry Pi to starting the lego spike robot.
 
 
-> [!IMPORTANT]  
+> [!IMPORTANT]
 > This project requires `LEGO® Education SPIKE™ Legacy App v. 2.0.10` and will not work with `LEGO® Education SPIKE™ App v. 3+`. You can:
 > 1. Download the Legacy App from [here](https://education.lego.com/en-us/downloads/spike-legacy-app/software/)
 > 2. Use [this site](https://spikelegacy.legoeducation.com/hubdowngrade/) to downgrade your hub to version `2.0`
@@ -130,7 +130,7 @@ The function `balance_dataset()` simply removes the samples if the number of the
 
 ### DataFrame Columns Description
 
-The dataframe of training data contains the image path, the offset to x-coordinate, etc. The brief description for each column is summarized as the following table.  
+The dataframe of training data contains the image path, the offset to x-coordinate, etc. The brief description for each column is summarized as the following table.
 | Column | Type | Description |
 | --- | --- | --- |
 | _image_path_ | `string` | Relative path of the image |
@@ -153,7 +153,7 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 
 ## References
 
-[1]: [End to End Learning for Self-Driving Cars](https://arxiv.org/abs/1604.07316)  
-[2]: [ET Robocon Github Repository](https://github.com/ETrobocon)  
-[3]: [MobileNetV2: Inverted Residuals and Linear Bottlenecks](https://arxiv.org/abs/1801.04381)  
+[1]: [End to End Learning for Self-Driving Cars](https://arxiv.org/abs/1604.07316)
+[2]: [ET Robocon Github Repository](https://github.com/ETrobocon)
+[3]: [MobileNetV2: Inverted Residuals and Linear Bottlenecks](https://arxiv.org/abs/1801.04381)
 [4]: [Albumentations: Fast and flexible image augmentation library](https://github.com/albumentations-team/albumentations)
