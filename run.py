@@ -146,7 +146,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 "steering_correction": steering_correction,
                 "left_speed": int(left_speed),
                 "right_speed": int(right_speed),
-                "mode": mode,
+                "mode": mode_value,
                 "probability": prob_value,
             }
 
