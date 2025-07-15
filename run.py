@@ -123,7 +123,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             offset_x = x1 + (outputs[1][0][0] * (x2 - x1)).detach().item()
 
             offset_pixels = offset_x - roi_center_x  # Calculate attitude angle using camera geometry
-            theta = calculate_attitude_angle(offset_pixels, y2, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use base speed consistently
+            theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use base speed consistently
 
             steering_correction = pid.update(theta)
 
