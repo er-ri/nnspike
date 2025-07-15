@@ -148,7 +148,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             left_x, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
             target_x = (x2 + x1) / 2  # Default to center if no edges detected
-
+            print(f"faslfjalsjfals{target_x}")
             # Check for keyboard input to change behavior mode
             key = keyboard.get_key()
             if key == "q":  # 'q' key to quit
@@ -173,6 +173,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 print("Avoiding obstacle...")
                 mode = previous_mode  # Restore previous mode after avoiding obstacle
                 continue
+
+            print(f"fa123123123{target_x}")
 
             if target_x is not None:
                 # Calculate position relative to ROI
