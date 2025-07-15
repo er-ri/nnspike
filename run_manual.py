@@ -164,9 +164,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "o":  # 'o' key to avoid obstacle
                 previous_mode = mode  # Save current mode
                 mode = Mode.OBSTACLE_AVOIDANCE
-                avoid_obstacle(et, 1.5, 1.5)  # Avoid obstacle with a turn
+                avoid_obstacle(et)  # Avoid obstacle with a turn
                 print("Avoiding obstacle...")
                 mode = previous_mode  # Restore previous mode after avoiding obstacle
+                continue
 
             match mode:
                 case Mode.LEFT_EDGE_FOLLOWING:

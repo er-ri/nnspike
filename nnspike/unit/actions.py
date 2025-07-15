@@ -32,15 +32,17 @@ def _perform_action_chain(action_chain: tuple[tuple[ETRobot, int, int, float], .
                 return
 
             # Set motor speeds
-            if left_speed > 0 and right_speed > 0:
+            if left_speed >= 0 and right_speed >= 0:
                 et.set_motor_forward_speed(left_speed, right_speed)
-            elif left_speed < 0 and right_speed < 0:
-                et.set_motor_backward_speed(left_speed, right_speed)
+            elif left_speed <= 0 and right_speed <= 0:
+                et.set_motor_backward_speed(abs(left_speed), abs(right_speed))
+            else:
+                raise ValueError("Both speeds must be either positive or negative.")
 
             time.sleep(0.05)  # Small delay to avoid overwhelming the robot
 
 
-def avoid_obstacle(et: ETRobot, left_duration: float, right_duration: float) -> None:
+def avoid_obstacle(et: ETRobot) -> None:
     """
     Perform a sequence of actions to avoid an obstacle.
 
@@ -48,8 +50,8 @@ def avoid_obstacle(et: ETRobot, left_duration: float, right_duration: float) -> 
         et (ETRobot): The ETRobot instance to control.
     """
     action_chain = (
-        (et, 50, 20, left_duration),  # Turn left for 1 seconds
-        (et, 20, 50, right_duration),  # Turn right for 1 seconds
+        (et, 40, 70, 0.8),  # Turn left for 0.8 seconds
+        (et, 80, 50, 1.3),  # Turn right for 1.3 seconds
     )
 
     _perform_action_chain(action_chain)
