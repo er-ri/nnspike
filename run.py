@@ -144,6 +144,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             info["target_x"], info["offset_y"] = target_x, OFFSET_Y
             info["text"] = {
                 "theta_deg": math.degrees(theta),
+                "relative_position": relative_position.item(),
                 "steering_correction": steering_correction,
                 "left_speed": int(left_speed),
                 "right_speed": int(right_speed),
