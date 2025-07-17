@@ -169,13 +169,13 @@ def get_all_line_edges_at_y(image, roi, target_y, threshold_value=50, max_edges=
     return []
 
 
-def find_bottle_center(image):
+def find_bottle_center_with_yellow_count(image):
     """
-    Find the center coordinates of a bottle in an image using OpenCV.
+    Find the center coordinates and yellow pixel count of a bottle in an image using OpenCV.
 
-    This function has been optimized for real-time applications with the following improvements:
-    - Accepts numpy array input instead of file path for real-time processing
-    - Uses adaptive threshold for better edge detection under varying lighting conditions
+    This function is optimized for real-time applications with the following improvements:
+    - Accepts numpy array input instead of file paths for real-time processing
+    - Uses adaptive thresholding for better edge detection under various lighting conditions
     - Applies contour area filtering to reduce noise and false detections
     - Includes aspect ratio validation to ensure bottle-like shapes
     - Uses smaller morphological kernels for better performance
@@ -185,75 +185,79 @@ def find_bottle_center(image):
         image (numpy.ndarray): Input image as numpy array (BGR format)
 
     Returns:
-        tuple: ((x, y), size) where (x, y) are the center coordinates and size is the area of the largest contour,
-               or (None, None) if not found
+        tuple: ((x, y), size, yellow_pixel_count) where (x, y) is the center coordinates,
+               size is the area of the largest contour, and yellow_pixel_count is the
+               number of detected yellow pixels. Returns (None, None, 0) if not found.
     """
     # Check if image is valid
     if image is None or image.size == 0:
         print("Error: Invalid image data")
-        return None, None  # Convert to different color spaces for better detection
+        return None, None, 0
+
+    # Convert to different color spaces for better detection
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     # Method 1: Color-based detection (for bottles with distinctive colors)
-    # Define color ranges for the bottle (adjust based on your bottle's color)
-    # For red liquid in the bottle
-    lower_red1 = np.array([0, 50, 50])
-    upper_red1 = np.array([10, 255, 255])
-    lower_red2 = np.array([170, 50, 50])
-    upper_red2 = np.array([180, 255, 255])
+    # Define bottle color range (adjust based on bottle color)
+    # For yellow liquid inside bottle (same thresholds as detect_color_bottle in camera.py)
+    lower_yellow = np.array([15, 100, 100], dtype=np.uint8)
+    upper_yellow = np.array([35, 255, 255], dtype=np.uint8)
 
-    # Create masks for red color
-    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)  # type: ignore[arg-type]
-    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)  # type: ignore[arg-type]
-    red_mask = mask1 + mask2
+    # Create mask for yellow
+    yellow_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)  # type: ignore[arg-type]
 
-    # Method 2: Edge detection for bottle outline
-    # Use adaptive threshold for better edge detection under varying lighting
+    # Calculate yellow pixel count
+    yellow_pixel_count = cv2.countNonZero(yellow_mask)
+
+    # Method 2: Edge detection for bottle contours
+    # Use adaptive thresholding for better edge detection under various lighting
     edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-    edges = cv2.bitwise_not(edges)  # Invert to get edges as white
+    edges = cv2.bitwise_not(edges)  # Invert to make edges white
 
     # Combine color and edge information
-    combined_mask = cv2.bitwise_or(red_mask, edges)
+    combined_mask = cv2.bitwise_or(yellow_mask, edges)
 
     # Apply morphological operations to clean up the mask
-    kernel = np.ones((3, 3), np.uint8)  # Smaller kernel for real-time performance
+    kernel = np.ones((3, 3), np.uint8)  # Small kernel for real-time performance
     combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
-    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)  # Find contours
+    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
+
+    # Find contours
     contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if not contours:
-        return None, None
+        return None, None, yellow_pixel_count
 
     # Filter contours by area to remove noise (adjust minimum area as needed)
     min_area = 500  # Minimum area threshold for real-time filtering
     valid_contours = [c for c in contours if cv2.contourArea(c) >= min_area]
 
     if not valid_contours:
-        return None, None
+        return None, None, yellow_pixel_count
 
-    # Find the largest contour (assuming it's the bottle)
+    # Find the largest contour (assume it's the bottle)
     largest_contour = max(valid_contours, key=cv2.contourArea)
 
     # Calculate the size (area) of the largest contour
     contour_size = cv2.contourArea(largest_contour)
 
-    # Additional validation: check contour aspect ratio to ensure it's bottle-like
+    # Additional validation: Check aspect ratio of contour to ensure bottle-like shape
     x, y, w, h = cv2.boundingRect(largest_contour)
     aspect_ratio = h / w if w > 0 else 0
 
     # Bottles are typically taller than they are wide (aspect ratio > 1)
     if aspect_ratio < 0.8:  # Adjust threshold as needed
-        return None, None
+        return None, None, yellow_pixel_count
 
-    # Calculate the center using moments
+    # Calculate center using moments
     M = cv2.moments(largest_contour)
     if M["m00"] != 0:
         cx = int(M["m10"] / M["m00"])
         cy = int(M["m01"] / M["m00"])
-        return (cx, cy), contour_size
+        return (cx, cy), contour_size, yellow_pixel_count
 
-    return None, None
+    return None, None, yellow_pixel_count
 
 
 def calculate_attitude_angle(

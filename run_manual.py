@@ -44,7 +44,6 @@ from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_
 from nnspike.unit import ETRobot
 from nnspike.unit.actions import avoid_obstacle
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y
-from nnspike.utils.control import find_bottle_center
 
 # User defined constants
 x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
@@ -83,9 +82,9 @@ class KeyboardController:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)  # type: ignore
 
 
-def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False):
-    # Initialize edge following preference
-    mode = Mode.LEFT_EDGE_FOLLOWING  # 0 for left edge, 1 for right edge
+def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, initial_course="left"):
+    # Initialize edge following preference based on the initial_course parameter
+    mode = Mode.LEFT_EDGE_FOLLOWING if initial_course == "left" else Mode.RIGHT_EDGE_FOLLOWING
 
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
@@ -179,8 +178,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     target_x = right_x
                 case Mode.BOTTLE_CARRYING:
-                    (cx, _), _ = find_bottle_center(frame)
-                    target_x = cx
+                    print("Not implemented: Bottle carrying mode")
+                    target_x = (left_x + right_x) // 2
                 case _:
                     # Default to center if invalid edge specified
                     target_x = (left_x + right_x) // 2
@@ -291,13 +290,16 @@ if __name__ == "__main__":
     parser.add_argument("--record-sensor", action="store_true", help="Record sensor data to file")
     parser.add_argument("--save-video", action="store_true", help="Save camera video to file")
     parser.add_argument("--send-video", action="store_true", help="Send video stream to host PC")
+    parser.add_argument(
+        "--initial-course", choices=["left", "right"], default="left", help="Initial course to follow: 'left' for left edge, 'right' for right edge (default: left)"
+    )
 
     args = parser.parse_args()
 
     print("Starting OpenCV-based line following robot...")
     print(f"Using ROI: {ROI_CNN}")
     print(f"Base speed: {BASE_SPEED}")
-    print("Default: Following left edge")
+    print(f"Initial course: Following {args.initial_course} edge")
     print(f"Video streaming to host PC: {'Enabled' if args.send_video else 'Disabled'}")
     print("Controls:")
     print("  'a' - Follow left edge")
@@ -309,4 +311,5 @@ if __name__ == "__main__":
         record_sensor_data=args.record_sensor,
         save_camera_video=args.save_video,
         send_video_stream=args.send_video,
+        initial_course=args.initial_course,
     )

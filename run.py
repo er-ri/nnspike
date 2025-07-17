@@ -36,18 +36,17 @@ x1, y1, x2, y2 = ROI_CNN  # Region of Interest
 BASE_SPEED = 35  # Base speed for straight lines (adjust this first)
 HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
 
-course = "right"  # "left" or "right"
-
-model = NvidiaModel()
-model.load_state_dict(torch.load("./storage/models/model_left_0713.pth", map_location=device))
-model.eval()
-
 # Camera
 cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FPS, 30)
 
 
-def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False):
+def main(model_path, record_sensor_data=False, save_camera_video=False, send_video_stream=False):
+    # Initialize model
+    model = NvidiaModel()
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.eval()
+
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
 
@@ -105,7 +104,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             roi_area = process_image(image=frame.copy(), device=device, roi=(x1, y1, x2, y2))
 
             status = et.get_spike_status()
-            relative_position = abs(status.motors["A"].relative_position / RELATIVE_POSITION_SCALE)
+            relative_pos_value = status.motors["A"].relative_position
+            relative_position = abs(relative_pos_value / RELATIVE_POSITION_SCALE) if relative_pos_value is not None else 0.0
             relative_position = torch.tensor(relative_position, dtype=torch.float32).unsqueeze(0).to(device)
 
             with torch.no_grad():
@@ -184,11 +184,15 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run the robot with optional sensor recording and video saving")
+    parser = argparse.ArgumentParser(
+        description="Run the robot with optional sensor recording and video saving",
+        epilog='Example usage: python run.py --model-path "./storage/models/model_left.pth"',
+    )
+    parser.add_argument("--model-path", required=True, help="Path to the trained model file")
     parser.add_argument("--record-sensor", action="store_true", help="Record sensor data to file")
     parser.add_argument("--save-video", action="store_true", help="Save camera video to file")
     parser.add_argument("--send-video", action="store_true", help="Send video stream to host PC")
 
     args = parser.parse_args()
 
-    main(record_sensor_data=args.record_sensor, save_camera_video=args.save_video, send_video_stream=args.send_video)
+    main(model_path=args.model_path, record_sensor_data=args.record_sensor, save_camera_video=args.save_video, send_video_stream=args.send_video)

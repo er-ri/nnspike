@@ -21,6 +21,7 @@ Functions:
         Sets the motor position values in label_df from status_df based on matching frame numbers.
 """
 
+import random
 from glob import glob
 
 import cv2
@@ -28,11 +29,10 @@ import numpy as np
 import pandas as pd
 import torch
 import torchvision.transforms as transforms
-from sklearn.utils import shuffle
 from tqdm import tqdm
 
-from nnspike.constants import OFFSET_Y
-from nnspike.utils import get_line_edges_at_y, normalize_image
+from nnspike.constants import OBSTACLE_AVOIDANCE_THRESHOLD, OFFSET_Y, Mode
+from nnspike.utils import find_bottle_center_with_yellow_count, get_line_edges_at_y, normalize_image
 
 
 def label_dataset_by_opencv(df, roi: tuple[int, int, int, int], threshold_value: int) -> pd.DataFrame:
@@ -54,9 +54,13 @@ def label_dataset_by_opencv(df, roi: tuple[int, int, int, int], threshold_value:
 
         left_x, right_x, _ = get_line_edges_at_y(image=image, roi=roi, target_y=OFFSET_Y, threshold_value=threshold_value)
 
-        # Add `trace_x` to column 'predicted_x'
-        df.at[index, "left_x"] = left_x
-        df.at[index, "right_x"] = right_x
+        df.at[row.name, "left_x"] = left_x
+        df.at[row.name, "right_x"] = right_x
+
+        _, _, yellow_pixel_count = find_bottle_center_with_yellow_count(image=image)
+
+        if yellow_pixel_count > OBSTACLE_AVOIDANCE_THRESHOLD:
+            df.at[row.name, "mode"] = Mode.OBSTACLE_AVOIDANCE.value
 
     return df
 
@@ -138,7 +142,7 @@ def balance_dataset(df: pd.DataFrame, col_name: str, max_samples: int, num_bins:
         bin_indices = df[(df[col_name] >= bins[i]) & (df[col_name] <= bins[i + 1])].index.tolist()
 
         # Shuffle the indices
-        bin_indices = shuffle(bin_indices)
+        random.shuffle(bin_indices)
 
         # If the number of samples in the bin exceeds the limit, add the excess to the remove list
         if len(bin_indices) > max_samples:
@@ -207,14 +211,20 @@ def create_label_dataframe(path_pattern: str, course: str) -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "image_path": image_paths,
+            "mode": [np.nan] * len(image_paths),
             "target_x": [np.nan] * len(image_paths),
             "left_x": [np.nan] * len(image_paths),
             "right_x": [np.nan] * len(image_paths),
+            "motor_a_speed": [0] * len(image_paths),
+            "motor_b_speed": [0] * len(image_paths),
             "motor_a_relative_position": [0] * len(image_paths),
             "motor_b_relative_position": [0] * len(image_paths),
-            "mode": [np.nan] * len(image_paths),
-            "course": [course] * len(image_paths),
+            "distance_sensor": [0] * len(image_paths),
+            "color_reflected": [0] * len(image_paths),
+            "color_ambient": [0] * len(image_paths),
+            "color_value": [0] * len(image_paths),
             "data_type": [0] * len(image_paths),
+            "course": [course] * len(image_paths),
             "use": [True] * len(image_paths),
         }
     )
@@ -244,8 +254,15 @@ def set_spike_status(label_df: pd.DataFrame, status_df: pd.DataFrame) -> pd.Data
     # Select relevant columns from status_df for merging
     spike_columns = [
         "frame_number",
+        "mode",
+        "motor_a_speed",
+        "motor_b_speed",
         "motor_a_relative_position",
         "motor_b_relative_position",
+        "distance_sensor",
+        "color_reflected",
+        "color_ambient",
+        "color_value",
     ]
     spike_subset = status_df[spike_columns].copy()
 
@@ -256,6 +273,13 @@ def set_spike_status(label_df: pd.DataFrame, status_df: pd.DataFrame) -> pd.Data
     # Update the motor position columns where spike data is available
     merged_df["motor_a_relative_position"] = merged_df["motor_a_relative_position_temp"].fillna(merged_df["motor_a_relative_position"])
     merged_df["motor_b_relative_position"] = merged_df["motor_b_relative_position_temp"].fillna(merged_df["motor_b_relative_position"])
+    merged_df["mode"] = label_df["mode"].fillna(merged_df["mode_temp"])  # Use label_df's mode which was set by label_dataset_by_opencv
+    merged_df["motor_a_speed"] = merged_df["motor_a_speed_temp"].fillna(merged_df["motor_a_speed"])
+    merged_df["motor_b_speed"] = merged_df["motor_b_speed_temp"].fillna(merged_df["motor_b_speed"])
+    merged_df["distance_sensor"] = merged_df["distance_sensor_temp"].fillna(merged_df["distance_sensor"])
+    merged_df["color_reflected"] = merged_df["color_reflected_temp"].fillna(merged_df["color_reflected"])
+    merged_df["color_ambient"] = merged_df["color_ambient_temp"].fillna(merged_df["color_ambient"])
+    merged_df["color_value"] = merged_df["color_value_temp"].fillna(merged_df["color_value"])
 
     # Drop the temporary spike columns
     columns_to_drop = [col for col in merged_df.columns if col.endswith("_temp")]

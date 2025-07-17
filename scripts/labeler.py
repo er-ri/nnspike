@@ -9,8 +9,8 @@ sys.path.insert(0, parent_dir)
 import cv2
 import pandas as pd
 
-from nnspike.constants import OFFSET_Y, ROI_CNN
-from nnspike.utils import draw_driving_info
+from nnspike.constants import OFFSET_Y, ROI_CNN, Mode
+from nnspike.utils import draw_driving_info, find_bottle_center_with_yellow_count
 
 
 def read_label_data(label_path: str, image_path: str | None = None):
@@ -48,14 +48,7 @@ def main():
 
         row = df.iloc[index]
         mode = row["mode"]
-        if mode == 0:
-            offset_x = row["left_x"] if not pd.isna(row["left_x"]) else 0
-        elif mode == 1:
-            offset_x = row["right_x"] if not pd.isna(row["right_x"]) else 0
-        elif mode == 2:
-            offset_x = 0
-        elif mode == 3:
-            offset_x = row["target_x"] if not pd.isna(row["target_x"]) else 0
+        target_x = row["target_x"] if not pd.isna(row["target_x"]) else 0
 
         # interval = row["interval"]
         image_path = row["image_path"].replace("../", "./")
@@ -63,14 +56,18 @@ def main():
 
         offset_y = OFFSET_Y  # Constant value for y-offset in ROI_CNN (new: 350)
 
+        _, _, yellow_pixel_count = find_bottle_center_with_yellow_count(image=image)
+
         info = dict()
-        info["offset_x"], info["offset_y"] = offset_x, offset_y
+        info["target_x"], info["offset_y"] = target_x, offset_y
 
         dir_path, filename = image_path.rsplit("/", 1)
 
         info["text"] = {
             "image path": filename,
-            "offset x": offset_x,
+            "mode": mode,
+            "target_x": target_x,
+            "yellow_pixel_count": yellow_pixel_count,
             "frame": row["frame_number"],
             "data type": row["data_type"],
         }

@@ -49,7 +49,7 @@ class SensorRecorder:
         self.headers = [
             "timestamp",
             "frame_number",
-            "behavior_mode",
+            "mode",
             "distance_sensor",
             "force_sensor",
             "color_reflected",
@@ -99,13 +99,13 @@ class SensorRecorder:
 
         self.logger.info(f"CSV logging started: {self.csv_filename}")
 
-    def log_frame_data(self, spike_status, behavior_mode=None) -> None:
+    def log_frame_data(self, spike_status, mode=None) -> None:
         """
         Log sensor data for a single frame.
 
         Args:
             spike_status: SpikeStatus object with sensor data
-            behavior_mode: Current behavior mode (e.g., Mode.LEFT_EDGE_FOLLOWING)
+            mode: Current behavior mode (e.g., Mode.LEFT_EDGE_FOLLOWING)
         """
         if not self.is_recording or self.csv_writer is None or self.csv_file is None:
             return
@@ -120,7 +120,7 @@ class SensorRecorder:
         row_data = [
             current_time,
             self.frame_count,
-            behavior_mode.name if behavior_mode else "UNKNOWN",
+            mode.value if mode else "UNKNOWN",
             self._safe_get(sensors.distance, 0),
             self._safe_get(sensors.force, 0),
             self._safe_get(sensors.color.reflected if sensors.color else None, 0),
