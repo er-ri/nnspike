@@ -260,6 +260,97 @@ def find_bottle_center_with_yellow_count(image):
     return None, None, yellow_pixel_count
 
 
+def find_bottle_center_with_blue_count(image):
+    """
+    Find the center coordinates and blue pixel count of a bottle in an image using OpenCV.
+
+    This function is optimized for real-time applications with the following improvements:
+    - Accepts numpy array input instead of file paths for real-time processing
+    - Uses adaptive thresholding for better edge detection under various lighting conditions
+    - Applies contour area filtering to reduce noise and false detections
+    - Includes aspect ratio validation to ensure bottle-like shapes
+    - Uses smaller morphological kernels for better performance
+    - Removes debug print statements for cleaner real-time operation
+
+    Args:
+        image (numpy.ndarray): Input image as numpy array (BGR format)
+
+    Returns:
+        tuple: ((x, y), size, blue_pixel_count) where (x, y) is the center coordinates,
+               size is the area of the largest contour, and blue_pixel_count is the
+               number of detected blue pixels. Returns (None, None, 0) if not found.
+    """
+    # Check if image is valid
+    if image is None or image.size == 0:
+        print("Error: Invalid image data")
+        return None, None, 0
+
+    # Convert to different color spaces for better detection
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Method 1: Color-based detection (for bottles with distinctive colors)
+    # Define bottle color range (adjust based on bottle color)
+    # For blue liquid inside bottle (same thresholds as detect_color_bottle in camera.py)
+    lower_blue = np.array([100, 80, 50])
+    upper_blue = np.array([130, 255, 255])
+
+    # Create mask for blue
+    blue_mask = cv2.inRange(hsv, lower_blue, upper_blue)  # type: ignore[arg-type]
+
+    # Calculate blue pixel count
+    blue_pixel_count = cv2.countNonZero(blue_mask)
+
+    # Method 2: Edge detection for bottle contours
+    # Use adaptive thresholding for better edge detection under various lighting
+    edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    edges = cv2.bitwise_not(edges)  # Invert to make edges white
+
+    # Combine color and edge information
+    combined_mask = cv2.bitwise_or(blue_mask, edges)
+
+    # Apply morphological operations to clean up the mask
+    kernel = np.ones((3, 3), np.uint8)  # Small kernel for real-time performance
+    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
+    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
+
+    # Find contours
+    contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if not contours:
+        return None, None, blue_pixel_count
+
+    # Filter contours by area to remove noise (adjust minimum area as needed)
+    min_area = 500  # Minimum area threshold for real-time filtering
+    valid_contours = [c for c in contours if cv2.contourArea(c) >= min_area]
+
+    if not valid_contours:
+        return None, None, blue_pixel_count
+
+    # Find the largest contour (assume it's the bottle)
+    largest_contour = max(valid_contours, key=cv2.contourArea)
+
+    # Calculate the size (area) of the largest contour
+    contour_size = cv2.contourArea(largest_contour)
+
+    # Additional validation: Check aspect ratio of contour to ensure bottle-like shape
+    x, y, w, h = cv2.boundingRect(largest_contour)
+    aspect_ratio = h / w if w > 0 else 0
+
+    # Bottles are typically taller than they are wide (aspect ratio > 1)
+    if aspect_ratio < 0.8:  # Adjust threshold as needed
+        return None, None, blue_pixel_count
+
+    # Calculate center using moments
+    M = cv2.moments(largest_contour)
+    if M["m00"] != 0:
+        cx = int(M["m10"] / M["m00"])
+        cy = int(M["m01"] / M["m00"])
+        return (cx, cy), contour_size, blue_pixel_count
+
+    return None, None, blue_pixel_count
+
+
 def calculate_attitude_angle(
     offset_pixels: float,
     roi_bottom_y: int,

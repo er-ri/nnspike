@@ -10,7 +10,7 @@ import cv2
 import pandas as pd
 
 from nnspike.constants import OFFSET_Y, ROI_CNN, Mode
-from nnspike.utils import draw_driving_info, find_bottle_center_with_yellow_count
+from nnspike.utils import draw_driving_info, find_bottle_center_with_blue_count, find_bottle_center_with_yellow_count
 
 
 def read_label_data(label_path: str, image_path: str | None = None):
@@ -57,6 +57,7 @@ def main():
         offset_y = OFFSET_Y  # Constant value for y-offset in ROI_CNN (new: 350)
 
         _, _, yellow_pixel_count = find_bottle_center_with_yellow_count(image=image)
+        _, _, blue_pixel_count = find_bottle_center_with_blue_count(image=image)
 
         info = dict()
         info["target_x"], info["offset_y"] = target_x, offset_y
@@ -68,6 +69,7 @@ def main():
             "mode": mode,
             "target_x": target_x,
             "yellow_pixel_count": yellow_pixel_count,
+            "blue_pixel_count": blue_pixel_count,
             "frame": row["frame_number"],
             "data type": row["data_type"],
         }
