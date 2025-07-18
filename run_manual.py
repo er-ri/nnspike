@@ -134,8 +134,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     et.move_arm(2, 0.5)
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
-    mode = Mode.LEFT_EDGE_FOLLOWING  # Default mode
-
     try:
         while et.is_running and keyboard.running:
             ret, frame = cap.read()
