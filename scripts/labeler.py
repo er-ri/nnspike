@@ -19,6 +19,10 @@ def read_label_data(label_path: str, image_path: str | None = None):
     filtered_df = df[df["use"] == True]
     filtered_df = filtered_df.reset_index(drop=True)  # Reset index for easier navigation
     image_path = image_path.replace("./", "../") if image_path is not None else None
+    # Check whether image_path exists
+    if image_path is not None and not os.path.exists(image_path):
+        print(f"Warning: Image path '{image_path}' does not exist. Using first available image instead.")
+        image_path = filtered_df["image_path"].iloc[0] if not filtered_df.empty else None
     index = filtered_df[filtered_df["image_path"] == image_path].index[0] if image_path is not None else 0
 
     return filtered_df, index

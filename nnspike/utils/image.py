@@ -79,7 +79,7 @@ def draw_driving_info(image: np.ndarray, info: dict, roi: tuple[int, int, int, i
             (50, 20 + index * 20),
             cv2.FONT_HERSHEY_PLAIN,
             1,
-            (0, 255, 255),
+            (0, 0, 0),  # Font color (black)
             1,
             cv2.LINE_4,
         )

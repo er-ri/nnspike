@@ -41,6 +41,7 @@ dev = [
     "flake8>=6.0.0",
     "flake8-pyproject>=1.2.3",
     "mypy>=1.0.0",
+    "commitizen>=3.0.0",
     # Type stubs for better mypy support
     "types-tqdm>=4.66.0",
     "pandas-stubs>=2.0.0",
@@ -172,3 +173,11 @@ module = [
     "tty.*",
 ]
 ignore_missing_imports = true
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_scheme = "pep440"
+version_provider = "pep621"
+update_changelog_on_bump = true
+major_version_zero = true
