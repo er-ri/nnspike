@@ -131,6 +131,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     )
 
     et.move_arm(0, 1.0)
+    et.move_arm(1, 1.0)
     et.move_arm(2, 0.5)
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
