@@ -223,7 +223,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     right_speed=right_speed,
                 )
             else:
-                et.stop()
+                et.brake()
 
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
