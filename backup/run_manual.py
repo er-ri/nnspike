@@ -44,7 +44,6 @@ from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_
 from nnspike.unit import ETRobot
 from nnspike.unit.actions import avoid_obstacle
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y
-from nnspike.utils import find_bottle_center_with_yellow_count, find_bottle_center_with_red_count, find_bottle_center_with_blue_count
 
 # User defined constants
 x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
@@ -85,8 +84,7 @@ class KeyboardController:
 
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, initial_course="left"):
     # Initialize edge following preference based on the initial_course parameter
-    #mode = Mode.LEFT_EDGE_FOLLOWING if initial_course == "left" else Mode.RIGHT_EDGE_FOLLOWING
-    mode = Mode.PAUSE  # 最初はpause状態で開始
+    mode = Mode.LEFT_EDGE_FOLLOWING if initial_course == "left" else Mode.RIGHT_EDGE_FOLLOWING
 
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
@@ -106,10 +104,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             fourcc=fourcc,
             fps=30,
             frameSize=(640, 480),
-        )
-
-    # Socket connection for sending camera capture (only if enabled)
+        )  # Socket connection for sending camera capture (only if enabled)
     client_socket = None
+
     if send_video_stream:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -133,9 +130,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         ),  # Direct radian limits for steering correction
     )
 
-    et.move_arm(1, 1.0)  # アームを上げる
-    et.move_arm(0, 1.0)  # アームを下げる
-    et.move_arm(2, 0.5)  # アームを止める
+    et.move_arm(0, 1.0)
+    et.move_arm(2, 0.5)
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
     try:
@@ -162,14 +158,14 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 mode = Mode.RIGHT_EDGE_FOLLOWING
                 print("Switched to following: right edge")
             elif key == "c":  # 'c' key for moving forward
-                mode = Mode.FORWARD
-                print("Switched to forward mode")
-            elif key == "b":  # 'b' key for moving backward
-                mode = Mode.BACKWARD
-                print("Switched to backward mode")
-            elif key == "p":  # 'p' key for pause
-                mode = Mode.PAUSE
-                print("Switched to pause mode")
+                mode = Mode.BOTTLE_CARRYING
+                print("Switched to bottle carrying mode")
+            elif key == "b":  # 'c' key for moving backward
+                mode = Mode.HEADING_GATE
+                print("Switched to bottle carrying mode")
+            elif key == "p":  # 'c' key for pause
+                mode = Mode.TURN_LEFT
+                print("Switched to bottle carrying mode")
             elif key == "o":  # 'o' key to avoid obstacle
                 previous_mode = mode  # Save current mode
                 mode = Mode.OBSTACLE_AVOIDANCE
@@ -188,23 +184,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.BOTTLE_CARRYING:
                     print("Not implemented: Bottle carrying mode")
                     target_x = (x1 + x2) // 2
-                case Mode.FORWARD:
-                    # 画像全体の黄色重心に向かって進む
-                    yellow_cx, _, yellow_pixel_count = find_bottle_center_with_yellow_count(frame)
-                    if yellow_pixel_count > 14000:
-                        previous_mode = mode
-                        mode = Mode.OBSTACLE_AVOIDANCE
-                        avoid_obstacle(et)
-                        print("Avoiding obstacle (auto FORWARD)...")
-                        mode = previous_mode
-                        target_x = (x1 + x2) // 2
-                    elif yellow_pixel_count > 4000:
-                        if yellow_cx is not None:
-                            target_x = yellow_cx
-                        else:
-                            target_x = (x1 + x2) // 2
-                    else:
-                        target_x = (x1 + x2) // 2
                 case _:
                     # Default to center if invalid edge specified
                     target_x = (x1 + x2) // 2
@@ -240,23 +219,18 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             left_speed = int(max(0, min(100, left_speed)))
             right_speed = int(max(0, min(100, right_speed)))
 
-            # モードごとの動作
-            if mode == Mode.FORWARD:
+            # Temporarily set Heading Gate mode 
+            if mode == Mode.BOTTLE_CARRYING:
                 et.set_motor_forward_speed(
                     left_speed=left_speed,
                     right_speed=right_speed,
                 )
-            elif mode == Mode.BACKWARD:
+            elif mode == Mode.HEADING_GATE:
                 et.set_motor_backward_speed(
                     left_speed=left_speed,
                     right_speed=right_speed,
                 )
-            elif mode == Mode.BOTTLE_CARRYING:
-                et.set_motor_forward_speed(
-                    left_speed=left_speed,
-                    right_speed=right_speed,
-                )
-            elif mode == Mode.PAUSE:
+            elif mode == Mode.TURN_LEFT:
                 et.brake()
             else:
                 et.set_motor_forward_speed(
