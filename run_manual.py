@@ -257,32 +257,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 left_speed = int(max(0, min(100, left_speed)))
                 right_speed = int(max(0, min(100, right_speed)))
 
-            # モードごとの動作
-            if mode == Mode.OBSTACLE_AVOIDANCE:
-                # avoid_obstacle_stepで得たleft_speed, right_speedをそのまま使う
-                et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-            elif mode == Mode.FORWARD:
-                et.set_motor_forward_speed(
-                    left_speed=left_speed,
-                    right_speed=right_speed,
-                )
-            elif mode == Mode.BACKWARD:
-                et.set_motor_backward_speed(
-                    left_speed=left_speed,
-                    right_speed=right_speed,
-                )
-            elif mode == Mode.BOTTLE_CARRYING:
-                et.set_motor_forward_speed(
-                    left_speed=left_speed,
-                    right_speed=right_speed,
-                )
+            # モーター制御の集約: BACKWARD以外はforwardで統一
+            if mode == Mode.BACKWARD:
+                et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.PAUSE:
                 et.brake()
             else:
-                et.set_motor_forward_speed(
-                    left_speed=left_speed,
-                    right_speed=right_speed,
-                )
+                et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
 
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
