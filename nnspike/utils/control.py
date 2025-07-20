@@ -260,6 +260,72 @@ def find_bottle_center_with_yellow_count(image):
     return None, None, yellow_pixel_count
 
 
+def find_bottle_center_with_red_count(image):
+    """
+    Find the center coordinates and red pixel count of a bottle in an image using OpenCV.
+
+    この関数はfind_bottle_center_with_yellow_countの赤色版です。
+    赤色領域の検出・面積・中心座標・赤ピクセル数を返します。
+
+    Args:
+        image (numpy.ndarray): 入力画像 (BGR形式)
+
+    Returns:
+        tuple: ((x, y), size, red_pixel_count)  (中心座標, 輪郭面積, 赤ピクセル数)。見つからなければ (None, None, 0)
+    """
+    if image is None or image.size == 0:
+        print("Error: Invalid image data")
+        return None, None, 0
+
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # 赤色はHSVで2つの範囲に分かれる
+    lower_red1 = np.array([0, 100, 100], dtype=np.uint8)
+    upper_red1 = np.array([10, 255, 255], dtype=np.uint8)
+    lower_red2 = np.array([160, 100, 100], dtype=np.uint8)
+    upper_red2 = np.array([180, 255, 255], dtype=np.uint8)
+
+    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+    red_mask = cv2.bitwise_or(mask1, mask2)
+
+    red_pixel_count = cv2.countNonZero(red_mask)
+
+    edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    edges = cv2.bitwise_not(edges)
+    combined_mask = cv2.bitwise_or(red_mask, edges)
+
+    kernel = np.ones((3, 3), np.uint8)
+    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
+    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
+
+    contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return None, None, red_pixel_count
+
+    min_area = 500
+    valid_contours = [c for c in contours if cv2.contourArea(c) >= min_area]
+    if not valid_contours:
+        return None, None, red_pixel_count
+
+    largest_contour = max(valid_contours, key=cv2.contourArea)
+    contour_size = cv2.contourArea(largest_contour)
+
+    x, y, w, h = cv2.boundingRect(largest_contour)
+    aspect_ratio = h / w if w > 0 else 0
+    if aspect_ratio < 0.8:
+        return None, None, red_pixel_count
+
+    M = cv2.moments(largest_contour)
+    if M["m00"] != 0:
+        cx = int(M["m10"] / M["m00"])
+        cy = int(M["m01"] / M["m00"])
+        return (cx, cy), contour_size, red_pixel_count
+
+    return None, None, red_pixel_count
+
+
 def find_bottle_center_with_blue_count(image):
     """
     Find the center coordinates and blue pixel count of a bottle in an image using OpenCV.
