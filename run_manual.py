@@ -42,7 +42,7 @@ import numpy as np
 
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode
 from nnspike.unit import ETRobot
-from nnspike.unit.actions import avoid_obstacle
+from nnspike.unit.actions import avoid_obstacle_step
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y
 from nnspike.utils import find_bottle_center_with_yellow_count, find_bottle_center_with_red_count, find_bottle_center_with_blue_count
 
@@ -88,6 +88,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     #mode = Mode.LEFT_EDGE_FOLLOWING if initial_course == "left" else Mode.RIGHT_EDGE_FOLLOWING
     mode = Mode.PAUSE  # 最初はpause状態で開始
 
+    # 障害物回避用の状態管理
+    obstacle_avoid_state = None  # None:通常, dict:回避中
+    previous_mode = None
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
 
@@ -171,14 +174,26 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 mode = Mode.PAUSE
                 print("Switched to pause mode")
             elif key == "o":  # 'o' key to avoid obstacle
-                previous_mode = mode  # Save current mode
-                mode = Mode.OBSTACLE_AVOIDANCE
-                avoid_obstacle(et)  # Avoid obstacle with a turn
-                print("Avoiding obstacle...")
-                mode = previous_mode  # Restore previous mode after avoiding obstacle
+                if obstacle_avoid_state is None:
+                    previous_mode = mode  # Save current mode
+                    mode = Mode.OBSTACLE_AVOIDANCE
+                    obstacle_avoid_state = None  # avoid_obstacle_stepの初期化
+                    print("Avoiding obstacle...")
                 continue
 
             match mode:
+                case Mode.OBSTACLE_AVOIDANCE:
+                    # 障害物回避モード: 1フレーム分の指示を取得
+                    obstacle_avoid_state, left_speed, right_speed, finished = avoid_obstacle_step(obstacle_avoid_state, et, frame)
+                    if finished:
+                        mode = previous_mode
+                        obstacle_avoid_state = None
+                    target_x = None  # 通常制御は行わない
+                    # 可視化用ダミー値
+                    mx = (x2 - x1) // 2
+                    my = (y2 - y1) // 2
+                    offset_pixels = 0
+                    max_contour = None
                 case Mode.LEFT_EDGE_FOLLOWING:
                     left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     target_x = left_x
@@ -192,11 +207,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     # 画像全体の黄色重心に向かって進む
                     yellow_cx, _, yellow_pixel_count = find_bottle_center_with_yellow_count(frame)
                     if yellow_pixel_count > 14000:
-                        previous_mode = mode
-                        mode = Mode.OBSTACLE_AVOIDANCE
-                        avoid_obstacle(et)
-                        print("Avoiding obstacle (auto FORWARD)...")
-                        mode = previous_mode
+                        if obstacle_avoid_state is None:
+                            previous_mode = mode
+                            mode = Mode.OBSTACLE_AVOIDANCE
+                            obstacle_avoid_state = None
+                            print("Avoiding obstacle (auto FORWARD)...")
                         target_x = (x1 + x2) // 2
                     elif yellow_pixel_count > 4000:
                         if yellow_cx is not None:
@@ -209,39 +224,44 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     # Default to center if invalid edge specified
                     target_x = (x1 + x2) // 2
 
-            if target_x is not None:
-                # Calculate position relative to ROI
-                mx = target_x - x1  # Relative to ROI
-                my = OFFSET_Y - y1  # Relative to ROI
+            # OBSTACLE_AVOIDANCE以外のときは通常の制御値計算
+            if mode != Mode.OBSTACLE_AVOIDANCE:
+                if target_x is not None:
+                    # Calculate position relative to ROI
+                    mx = target_x - x1  # Relative to ROI
+                    my = OFFSET_Y - y1  # Relative to ROI
 
-                # Calculate offset from ROI center
-                roi_center_x = (x2 - x1) // 2
-                offset_pixels = mx - roi_center_x
+                    # Calculate offset from ROI center
+                    roi_center_x = (x2 - x1) // 2
+                    offset_pixels = mx - roi_center_x
 
-                # Create a simple contour for visualization (approximate target point)
-                max_contour = np.array([[[mx, my]]], dtype=np.int32)
-            else:
-                # No line detected, use center values
-                mx = (x2 - x1) // 2
-                my = (y2 - y1) // 2
-                offset_pixels = 0
-                max_contour = None  # Calculate attitude angle using camera geometry
+                    # Create a simple contour for visualization (approximate target point)
+                    max_contour = np.array([[[mx, my]]], dtype=np.int32)
+                else:
+                    # No line detected, use center values
+                    mx = (x2 - x1) // 2
+                    my = (y2 - y1) // 2
+                    offset_pixels = 0
+                    max_contour = None  # Calculate attitude angle using camera geometry
 
-            theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use simplified speed control
-            current_base_speed = BASE_SPEED
+                theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use simplified speed control
+                current_base_speed = BASE_SPEED
 
-            steering_correction = pid.update(theta)
+                steering_correction = pid.update(theta)
 
-            # Apply simple differential steering
-            left_speed = current_base_speed - steering_correction
-            right_speed = current_base_speed + steering_correction
+                # Apply simple differential steering
+                left_speed = current_base_speed - steering_correction
+                right_speed = current_base_speed + steering_correction
 
-            # Clamp speed values to valid range
-            left_speed = int(max(0, min(100, left_speed)))
-            right_speed = int(max(0, min(100, right_speed)))
+                # Clamp speed values to valid range
+                left_speed = int(max(0, min(100, left_speed)))
+                right_speed = int(max(0, min(100, right_speed)))
 
             # モードごとの動作
-            if mode == Mode.FORWARD:
+            if mode == Mode.OBSTACLE_AVOIDANCE:
+                # avoid_obstacle_stepで得たleft_speed, right_speedをそのまま使う
+                et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+            elif mode == Mode.FORWARD:
                 et.set_motor_forward_speed(
                     left_speed=left_speed,
                     right_speed=right_speed,

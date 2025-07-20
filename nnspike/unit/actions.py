@@ -3,55 +3,45 @@ import time
 from nnspike.unit.etrobot import ETRobot
 
 
-def _perform_action_chain(action_chain: tuple[tuple[ETRobot, int, int, float], ...]) -> None:
+
+def _perform_action_chain_step(state, et: ETRobot, frame, action_chain):
     """
-    Execute a sequence of motor control actions on an ETRobot with specified speeds and durations.
-
-    Each action in the chain consists of setting left and right motor speeds for a specified duration.
-    The function continuously monitors the robot's connection status and stops execution if
-    the robot becomes disconnected.
-
-    Args:
-        action_chain (tuple): Tuple of tuples, where each inner tuple contains:
-            - ETRobot: The robot instance to control
-            - int: Left motor speed (-100-100)
-            - int: Right motor speed (-100-100)
-            - float: Duration in seconds to maintain these speeds
-
-    Returns:
-        None: Function returns early if robot disconnects during execution
+    汎用アクションチェーンを1フレームごとに進めるステートマシン。
+    action_chain: [(left_speed, right_speed, duration_sec), ...]
+    state: Noneまたはdict（index, 残り時間）
+    戻り値: (新state, left_speed, right_speed, 完了フラグ)
     """
-    for action in action_chain:
-        et, left_speed, right_speed, duration = action
+    if state is None:
+        if not action_chain:
+            return None, 0, 0, True
+        idx = 0
+        left, right, duration = action_chain[0]
+        return {"idx": 0, "remain": duration}, left, right, False
+    idx = state["idx"]
+    remain = state["remain"]
+    if idx >= len(action_chain):
+        return None, 0, 0, True
+    left, right, duration = action_chain[idx]
+    # 1フレーム分進める（仮に1フレーム=0.05sとする）
+    dt = 0.05
+    remain -= dt
+    if remain > 0:
+        return {"idx": idx, "remain": remain}, left, right, False
+    # 次のアクションへ
+    idx += 1
+    if idx >= len(action_chain):
+        return None, 0, 0, True
+    left, right, duration = action_chain[idx]
+    return {"idx": idx, "remain": duration}, left, right, False
 
-        start_time = time.time()
-        while time.time() - start_time < duration:
-            # Check if the robot is still connected
-            if not et.is_running:
-                print("ETRobot disconnected, stopping action chain.")
-                return
-
-            # Set motor speeds
-            if left_speed >= 0 and right_speed >= 0:
-                et.set_motor_forward_speed(left_speed, right_speed)
-            elif left_speed <= 0 and right_speed <= 0:
-                et.set_motor_backward_speed(abs(left_speed), abs(right_speed))
-            else:
-                raise ValueError("Both speeds must be either positive or negative.")
-
-            time.sleep(0.05)  # Small delay to avoid overwhelming the robot
 
 
-def avoid_obstacle(et: ETRobot) -> None:
+def avoid_obstacle_step(state, et: ETRobot, frame):
     """
-    Perform a sequence of actions to avoid an obstacle.
-
-    Args:
-        et (ETRobot): The ETRobot instance to control.
+    障害物回避アクションを1フレーム進める汎用step関数。
     """
-    action_chain = (
-        (et, 40, 70, 0.8),  # Turn left for 0.8 seconds
-        (et, 80, 50, 1.3),  # Turn right for 1.3 seconds
-    )
-
-    _perform_action_chain(action_chain)
+    action_chain = [
+        (40, 70, 0.8),  # 左旋回
+        (80, 50, 1.3),  # 右旋回
+    ]
+    return _perform_action_chain_step(state, et, frame, action_chain)
