@@ -5,54 +5,42 @@ import sys
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, parent_dir)
 
+
+from typing import Optional
+
 import cv2
-import torch
-import random
 import pandas as pd
+import torch
 import torchvision.transforms as transforms
+
+from nnspike.constants import OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN
+from nnspike.models import NvidiaModel
 from nnspike.utils import draw_driving_info
-from nnspike.constants import ROI_CNN_LEGACY, ROI_CNN, OFFSET_Y_LEGACY, OFFSET_Y
 from scripts.utils import process_image
-from scripts.utils import load_and_prepare_model
 
 transform = transforms.ToTensor()
 
-x1, y1, x2, y2 = ROI_CNN_LEGACY
+x1, y1, x2, y2 = ROI_CNN
 
-FILE_LABEL = "20240905190151_label"
-intervals = [1, 1.2, 2, 2.3, 3, 4]
+FILE_LABEL = "20250705153842_label"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 course = "left"  # "left" or "right"
-model_paths = [
-    f"./storage/models/{course}_interval1_0601.pth",
-    f"./storage/models/{course}_interval2_0601.pth",
-    f"./storage/models/{course}_interval3_0601.pth",
-]
 
 
-models = [load_and_prepare_model(path, device) for path in model_paths]
+model = NvidiaModel()
+model.load_state_dict(torch.load("./storage/models/model_left_0713.pth", map_location=device))
+model.eval()
 
 
-def read_label_data(image_path: str = None):
+def read_label_data(image_path: Optional[str] = None):
     df = pd.read_csv(f"./storage/labels/{FILE_LABEL}.csv")
 
-    filtered_df = df[
-        (df["interval"].isin(intervals))
-        & (df["use"] == True)
-        & (df["course"] == "left")
-    ].copy()
-    filtered_df = filtered_df.reset_index(
-        drop=True
-    )  # Reset index for easier navigation
-    image_path = image_path.replace("./", "../") if image_path is not None else None
-    index = (
-        filtered_df[filtered_df["image_path"] == image_path].index[0]
-        if image_path is not None
-        else 0
-    )
+    filtered_df = df[(df["use"] == True) & (df["course"] == "left")].copy()
+    filtered_df = filtered_df.reset_index(drop=True)  # Reset index for easier navigation
+    index = filtered_df[filtered_df["image_path"] == image_path].index[0] if image_path is not None else 0
 
     return filtered_df, index
 
@@ -66,38 +54,27 @@ def main():
             index = 0
         elif index >= len(df):
             index = len(df) - 1
+
         row = df.iloc[index]
         image_path = row["image_path"].replace("../", "./")
+        relative_position = abs(row["motor_a_relative_position"] / RELATIVE_POSITION_SCALE)
 
         image = cv2.imread(image_path)
         roi_area = process_image(image=image, device=device, roi=(x1, y1, x2, y2))
-
-        interval = row["interval"]
-        if interval == 1.2:
-            interval = random.choice([1.0, 2.0])
-        elif interval == 2.3:
-            interval = random.choice([2.0, 3.0])
+        relative_position = torch.tensor(relative_position, dtype=torch.float32).unsqueeze(0).to(device)
 
         with torch.no_grad():
-            if interval == 1:
-                output = models[0](roi_area)
-            elif interval == 2:
-                output = models[1](roi_area)
-            elif interval == 3:
-                output = models[2](roi_area)
+            outputs = model(roi_area, relative_position)
 
-        offset_x = x1 + (output[0][0] * (x2 - x1)).detach().item()
-        offset_y = OFFSET_Y_LEGACY
+        prob, mode = torch.max(outputs[0], dim=1)
+
+        offset_x = x1 + (outputs[1][0][0] * (x2 - x1)).detach().item()
+        offset_y = OFFSET_Y
 
         dir_path, filename = image_path.rsplit("/", 1)
 
-        if not pd.isna(row["adjusted_x"]):
-            train_x = row["adjusted_x"]
-        elif not pd.isna(row["predicted_x"]):
-            train_x = row["predicted_x"]
-        else:
-            train_x = row["mx"]
-        train_y = OFFSET_Y_LEGACY
+        train_x = row["target_x"]
+        train_y = OFFSET_Y
 
         info = dict()
         info["offset_x"], info["offset_y"] = offset_x, offset_y
@@ -105,14 +82,13 @@ def main():
             "image path": filename,
             "offset x": offset_x,
             "difference": offset_x - train_x,
+            "mode": mode.item(),
+            "probability": round(prob[0].item(), 2),
             "type": row["data_type"],
-            "interval": interval,
         }
         image = draw_driving_info(image.copy(), info, (x1, y1, x2, y2))
 
-        image = cv2.circle(
-            image.copy(), (int(train_x), train_y), 3, (255, 0, 0), -1
-        )  # Training data
+        image = cv2.circle(image.copy(), (int(train_x), train_y), 3, (255, 0, 0), -1)  # Training data
 
         cv2.imshow(f"ETRobot: {dir_path}", image)
 

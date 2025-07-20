@@ -23,9 +23,7 @@ async def receiver():
 
             et_pos = data.find(CMD_FLAG)
             if et_pos >= 0 and len(data) >= et_pos + 6:  # Ensure we have enough bytes
-                raw_bytes = data[
-                    et_pos + 3 : et_pos + 6
-                ]  # Extract the 3 bytes after "CF:"
+                raw_bytes = data[et_pos + 3 : et_pos + 6]  # Extract the 3 bytes after "CF:"
                 command_id = int.from_bytes(raw_bytes[0:1], "big")
                 command_parameter1 = int.from_bytes(raw_bytes[1:2], "big")
                 command_parameter2 = int.from_bytes(raw_bytes[2:3], "big")

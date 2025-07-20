@@ -1,46 +1,48 @@
 import torch
 import torch.nn as nn
 
+from nnspike.constants import NUM_MODES
+
 
 class NvidiaModel(nn.Module):
     """
-    自動運転車のEnd-to-End学習のためのNVIDIAアーキテクチャベースのニューラルネットワークモデル。
+    A neural network model based on the NVIDIA architecture for end-to-end learning of self-driving cars.
 
-    このモデルは5つの畳み込み層の後に4つの全結合層で構成されています。最終出力層を除く各層の後にELU活性化
-    関数が使用されます。さらに、間隔入力が畳み込み層からの平坦化された出力と連結されてから、全結合層に
-    渡されます。
+    This model consists of five convolutional layers followed by four fully connected layers. The ELU activation
+    function is used after each layer except the final output layer. Additionally, an interval input is concatenated
+    with the flattened output from the convolutional layers before being passed through the fully connected layers.
 
-    属性:
-        conv1 (nn.Conv2d): 3入力チャンネル、24出力チャンネルの第1畳み込み層
-        conv2 (nn.Conv2d): 24入力チャンネル、36出力チャンネルの第2畳み込み層
-        conv3 (nn.Conv2d): 36入力チャンネル、48出力チャンネルの第3畳み込み層
-        conv4 (nn.Conv2d): 48入力チャンネル、64出力チャンネルの第4畳み込み層
-        conv5 (nn.Conv2d): 64入力チャンネル、64出力チャンネルの第5畳み込み層
-        flatten (nn.Flatten): 畳み込み層からの出力を平坦化する層
-        fc1 (nn.Linear): センサー入力を含むように入力サイズが調整された第1全結合層
-        fc2 (nn.Linear): 第2全結合層
-        fc3 (nn.Linear): 第3全結合層
-        mode_classifier (nn.Linear): 行動モード分類のための出力層（4モード）
-        self_driving_head (nn.Linear): 自動運転制御のための出力層
-        elu (nn.ELU): 最終出力層を除く各層の後に適用される指数線形ユニット活性化関数
-        softmax (nn.Softmax): モード分類用のSoftmax活性化
+    Attributes:
+        conv1 (nn.Conv2d): First convolutional layer with 3 input channels and 24 output channels.
+        conv2 (nn.Conv2d): Second convolutional layer with 24 input channels and 36 output channels.
+        conv3 (nn.Conv2d): Third convolutional layer with 36 input channels and 48 output channels.
+        conv4 (nn.Conv2d): Fourth convolutional layer with 48 input channels and 64 output channels.
+        conv5 (nn.Conv2d): Fifth convolutional layer with 64 input channels and 64 output channels.
+        flatten (nn.Flatten): Layer to flatten the output from the convolutional layers.
+        fc1 (nn.Linear): First fully connected layer with input size adjusted to include sensor inputs.
+        fc2 (nn.Linear): Second fully connected layer.
+        fc3 (nn.Linear): Third fully connected layer.
+        mode_classifier (nn.Linear): Output layer for behavior mode classification (4 modes).
+        self_driving_head (nn.Linear): Output layer for self-driving control.
+        elu (nn.ELU): Exponential Linear Unit activation function applied after each layer except the final output layer.
+        softmax (nn.Softmax): Softmax activation for mode classification.
 
-    メソッド:
+    Methods:
         forward(x, left_x, right_x, relative_position):
-            モデルの順伝播を定義します。画像テンソル`x`と追加のセンサー入力を受け取り、
-            ネットワークを通して処理し、2つの出力テンソルを返します：モード分類と制御。
+            Defines the forward pass of the model. Takes an image tensor `x` and additional sensor inputs,
+            processes them through the network, and returns two output tensors: mode classification and control.
 
-    引数:
-        x (torch.Tensor): 形状(batch_size, 3, height, width)の入力画像テンソル
-        left_x (torch.Tensor): 形状(batch_size, 1)の左センサー入力テンソル
-        right_x (torch.Tensor): 形状(batch_size, 1)の右センサー入力テンソル
-        relative_position (torch.Tensor): 形状(batch_size, 1)の相対位置テンソル
+    Args:
+        x (torch.Tensor): Input image tensor of shape (batch_size, 3, height, width).
+        left_x (torch.Tensor): Left sensor input tensor of shape (batch_size, 1).
+        right_x (torch.Tensor): Right sensor input tensor of shape (batch_size, 1).
+        relative_position (torch.Tensor): Relative position tensor of shape (batch_size, 1).
 
-    戻り値:
+    Returns:
         tuple[torch.Tensor, torch.Tensor]:
-            - mode_output: ロボット行動モードのSoftmax確率 (batch_size, 4)
-              [左X追従, 右X追従, 障害物回避, 自動運転]
-            - control_output: 自動運転モード用の制御テンソル (batch_size, 1)
+            - mode_output: Softmax probabilities for robot behavior modes (batch_size, 4)
+              [left_x following, right_x following, obstacle avoidance, self driving]
+            - control_output: Control tensor for self-driving mode (batch_size, 1)
     """
 
     def __init__(self):
@@ -50,17 +52,16 @@ class NvidiaModel(nn.Module):
         self.conv3 = nn.Conv2d(36, 48, kernel_size=5, stride=2)
         self.conv4 = nn.Conv2d(48, 64, kernel_size=3)
         self.conv5 = nn.Conv2d(64, 64, kernel_size=3)
+
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(
-            64 * 1 * 18 + 1, 100
-        )  # センサー入力（left_x、right_x、relative_position）を含めるよう入力サイズを調整
+        self.fc1 = nn.Linear(64 * 1 * 18 + 1, 100)  # Adjust input size to include left_x, right_x, and relative_position
         self.fc2 = nn.Linear(100, 50)
         self.fc3 = nn.Linear(50, 10)
 
-        # モード分類ヘッド（4モード：左X追従、右X追従、障害物回避、自動運転）
-        self.mode_classifier = nn.Linear(10, 4)
+        # Mode classification head (4 modes: left_x following, right_x following, obstacle avoidance, self driving)
+        self.mode_classifier = nn.Linear(10, NUM_MODES)
 
-        # 自動運転制御ヘッド
+        # Self-driving control head
         self.self_driving_head = nn.Linear(10, 1)
 
         self.elu = nn.ELU()
@@ -78,20 +79,46 @@ class NvidiaModel(nn.Module):
         x = self.elu(self.conv5(x))
         x = self.flatten(x)
 
-        # 追加入力を準備
+        # Prepare additional inputs
         relative_position = relative_position.view(-1, 1)
 
-        # 平坦化された畳み込み出力と追加センサー入力を連結
+        # Concatenate flattened conv output with additional sensor inputs
         x = torch.cat([x, relative_position], dim=1)
 
         x = self.elu(self.fc1(x))
         x = self.elu(self.fc2(x))
         x = self.elu(self.fc3(x))
 
-        # モード分類出力（行動モード用softmax）
+        # Mode classification output (softmax for behavior mode)
         mode_output = self.softmax(self.mode_classifier(x))
 
-        # 自動運転制御出力
+        # Self-driving control output
         control_output = self.self_driving_head(x)
 
         return mode_output, control_output
+
+
+class MultiTaskLoss(nn.Module):
+
+    def __init__(self, mode_weight=1.0, control_weight=30.0, control_scale=10.0):
+        super(MultiTaskLoss, self).__init__()
+        self.mode_weight = mode_weight
+        self.control_weight = control_weight
+        self.control_scale = control_scale
+        self.classification_loss = nn.CrossEntropyLoss()
+        self.regression_loss = nn.MSELoss()  # or nn.SmoothL1Loss()
+
+    def forward(self, outputs, targets):
+        mode_output, control_output = outputs
+        mode_target, control_target = targets
+
+        mode_loss = self.classification_loss(mode_output, mode_target)
+        # Scale only for loss calculation, keep outputs normalized
+        scaled_control_loss = self.regression_loss(control_output * self.control_scale, control_target * self.control_scale)
+
+        # print(f"Control target range: min={control_target.min():.6f}, max={control_target.max():.6f}")
+        # print(f"Control target std: {control_target.std():.6f}")
+
+        total_loss = self.mode_weight * mode_loss + self.control_weight * scaled_control_loss
+
+        return total_loss, mode_loss, scaled_control_loss

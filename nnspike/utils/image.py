@@ -14,9 +14,10 @@ Functions:
         Extracts frames from a video file and saves them as individual image files in the specified directory.
 """
 
+from pathlib import Path
+
 import cv2
 import numpy as np
-from pathlib import Path
 
 
 def normalize_image(image: np.ndarray) -> np.ndarray:
@@ -44,9 +45,7 @@ def normalize_image(image: np.ndarray) -> np.ndarray:
     return image
 
 
-def draw_driving_info(
-    image: np.ndarray, info: dict, roi: tuple[int, int, int, int]
-) -> np.ndarray:
+def draw_driving_info(image: np.ndarray, info: dict, roi: tuple[int, int, int, int]) -> np.ndarray:
     """Draws driving information on an image.
 
     This function overlays driving-related information onto a given image. It draws a tracing point,
@@ -64,12 +63,10 @@ def draw_driving_info(
     Returns:
         np.ndarray: The image with the overlaid driving information.
     """
-    offset_x, offset_y = int(info["offset_x"]), int(info["offset_y"])
+    target_x, offset_y = int(info["target_x"]), int(info["offset_y"])
     x1, y1, x2, y2 = roi
 
-    image = cv2.circle(
-        image, (offset_x, offset_y), 3, (255, 255, 0), -1
-    )  # Tracing point
+    image = cv2.circle(image, (target_x, offset_y), 3, (255, 255, 0), -1)  # Tracing point
     image = cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)  # ROI
 
     for index, key in enumerate(info["text"]):
@@ -82,7 +79,7 @@ def draw_driving_info(
             (50, 20 + index * 20),
             cv2.FONT_HERSHEY_PLAIN,
             1,
-            (0, 255, 255),
+            (0, 0, 0),  # Font color (black)
             1,
             cv2.LINE_4,
         )
@@ -108,7 +105,7 @@ def extract_video_frames(video_path: str, frame_path: str) -> None:
         with filenames like 'frame_1.png', 'frame_2.png', etc.
     """
 
-    cap = cv2.VideoCapture(video_path)
+    cap = cv2.VideoCapture(video_path)  # type: ignore[call-arg]
 
     path = Path(frame_path)
     if path.is_dir() != True:

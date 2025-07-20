@@ -1,28 +1,18 @@
 #!/usr/bin/env python3
+import argparse
+import os
+
+# Platform-specific imports for keyboard input (Raspberry Pi only)
+import select
 import sys
+import termios
 import time
-import logging
+import tty
+
+import cv2
+
 from nnspike.unit import ETRobot
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-logger = logging.getLogger(__name__)
-
-# Platform-specific imports for keyboard input
-try:
-    import msvcrt  # Windows
-
-    WINDOWS = True
-except ImportError:
-    import select
-    import tty
-    import termios
-
-    WINDOWS = False
+from nnspike.utils.recorder import SensorRecorder
 
 # User defined constants
 BASE_SPEED = 55
@@ -34,46 +24,79 @@ class KeyboardController:
         self.running = True
         self.current_key = None
 
-        if not WINDOWS:
-            # Save terminal settings for Unix-like systems
-            self.old_settings = termios.tcgetattr(sys.stdin)
-            tty.setraw(sys.stdin.fileno())
+        # Save terminal settings for Unix-like systems
+        self.old_settings = termios.tcgetattr(sys.stdin)  # type: ignore
+        tty.setraw(sys.stdin.fileno())  # type: ignore
 
     def get_key(self):
         """Get a single keypress"""
-        if WINDOWS:
-            if msvcrt.kbhit():
-                key = msvcrt.getch().decode("utf-8").lower()
-                return key
-        else:
-            if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-                key = sys.stdin.read(1).lower()
-                return key
+        if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+            key = sys.stdin.read(1).lower()
+            return key
         return None
 
     def cleanup(self):
         """Restore terminal settings"""
-        if not WINDOWS:
-            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)  # type: ignore
 
 
 def main():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Remote Control Car with optional recording features")
+    parser.add_argument("--record-sensor", action="store_true", help="Enable sensor data recording")
+    parser.add_argument("--save-video", action="store_true", help="Enable video recording")
+    args = parser.parse_args()
+
+    # Generate timestamp for consistent naming if recording is enabled
+    TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (args.record_sensor or args.save_video) else None
+
+    # Initialize sensor recorder conditionally
+    sensor_recorder = None
+    if args.record_sensor:
+        sensor_recorder = SensorRecorder(timestamp=TIMESTAMP)
+        sensor_recorder.start_recording()
+
+    # Initialize video writer conditionally
+    video_writer = None
+    video_filename = None
+    cap = None
+    if args.save_video:
+        cap = cv2.VideoCapture(0)
+        cap.set(cv2.CAP_PROP_FPS, 25)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+        fourcc = cv2.VideoWriter_fourcc(*"XVID")  # type: ignore[attr-defined]
+        video_filename = f"storage/videos/{TIMESTAMP}_rc_control.avi"
+
+        # Ensure the directory exists
+        os.makedirs("storage/videos", exist_ok=True)
+
+        video_writer = cv2.VideoWriter(
+            filename=video_filename,
+            fourcc=fourcc,
+            fps=25,
+            frameSize=(640, 480),
+        )
+
     # Initialize robot and keyboard controller
     et = ETRobot()
     keyboard = KeyboardController()
 
-    logger.info("Remote Control Car Initialized!")
-    logger.info("Controls:")
-    logger.info("  w - Move Forward")
-    logger.info("  s - Move Backward")
-    logger.info("  a - Smooth Turn Left")
-    logger.info("  d - Smooth Turn Right")
-    logger.info(
-        "  o - Complete Obstacle Avoidance Maneuver (returns to original heading)"
-    )
-    logger.info("  b - Stop/Brake")
-    logger.info("  q - Quit")
-    logger.info("Press any key to start...")
+    print("Remote Control Car Initialized!")
+    if args.record_sensor and sensor_recorder is not None:
+        print(f"Sensor recording: ENABLED (saving to: {sensor_recorder.get_filename()})")
+    if args.save_video and video_filename is not None:
+        print(f"Video recording: ENABLED (saving to: {video_filename})")
+    print("Controls:")
+    print("  w - Move Forward")
+    print("  s - Move Backward")
+    print("  a - Smooth Turn Left")
+    print("  d - Smooth Turn Right")
+    print("  o - Complete Obstacle Avoidance Maneuver (returns to original heading)")
+    print("  b - Stop/Brake")
+    print("  q - Quit")
+    print("Press any key to start...")
 
     # Wait for initial keypress
     while True:
@@ -82,43 +105,46 @@ def main():
             break
         time.sleep(0.01)
 
-    logger.info("Remote control active!")
+    print("Remote control active!")
 
     try:
         while keyboard.running:
+            # Capture video frame if video recording is enabled
+            frame = None
+            if args.save_video and cap is not None:
+                ret, frame = cap.read()
+                if ret and video_writer is not None:
+                    video_writer.write(frame)
+
+            # Log sensor data if sensor recording is enabled
+            if args.record_sensor and sensor_recorder is not None:
+                sensor_recorder.log_frame_data(et.get_spike_status(), "RC_CONTROL")
+
             # Get keyboard input
             key = keyboard.get_key()
 
             if key:
                 if key == "q":
-                    logger.info("Quitting...")
+                    print("Quitting...")
                     break
                 elif key == "w":
                     # Move forward
-                    logger.info("Moving forward")
-                    et.set_motor_forward_speed(
-                        left_speed=BASE_SPEED, right_speed=BASE_SPEED
-                    )
+                    print("Moving forward")
+                    et.set_motor_forward_speed(left_speed=BASE_SPEED, right_speed=BASE_SPEED)
                 elif key == "s":
                     # Move backward
-                    logger.info("Moving backward")
-                    et.set_motor_backward_speed(
-                        left_speed=BASE_SPEED, right_speed=BASE_SPEED
-                    )
+                    print("Moving backward")
+                    et.set_motor_backward_speed(left_speed=BASE_SPEED, right_speed=BASE_SPEED)
                 elif key == "a":
                     # Smooth turn left
-                    logger.info("Turning left")
-                    et.set_motor_forward_speed(
-                        left_speed=SMOOTH_TURN_SPEED, right_speed=BASE_SPEED
-                    )
+                    print("Turning left")
+                    et.set_motor_forward_speed(left_speed=SMOOTH_TURN_SPEED, right_speed=BASE_SPEED)
                 elif key == "d":  # Smooth turn right
-                    logger.info("Turning right")
-                    et.set_motor_forward_speed(
-                        left_speed=BASE_SPEED, right_speed=SMOOTH_TURN_SPEED
-                    )
+                    print("Turning right")
+                    et.set_motor_forward_speed(left_speed=BASE_SPEED, right_speed=SMOOTH_TURN_SPEED)
                 elif key == "b":
                     # brake
-                    logger.info("Stopping")
+                    print("Stopping")
                     et.brake()
                 else:  # Unknown key - brake for safety
                     et.brake()
@@ -127,14 +153,32 @@ def main():
             time.sleep(0.02)
 
     except KeyboardInterrupt:
-        logger.info("Keyboard interrupt received. Stopping robot...")
+        print("Keyboard interrupt received. Stopping robot...")
 
     finally:
-        logger.info("Cleaning up resources...")  # Stop the robot
-        et.stop()  # Clean up keyboard controller
+        print("Cleaning up resources...")
+
+        # Stop the robot
+        et.stop()
+
+        # Clean up keyboard controller
         keyboard.cleanup()
 
-        logger.info("Cleanup completed.")
+        # Clean up video recording if it was enabled
+        if args.save_video:
+            if cap is not None:
+                cap.release()
+            if video_writer is not None:
+                video_writer.release()
+                print(f"Video saved to: {video_filename}")
+
+        # Clean up sensor recorder if it was enabled
+        if args.record_sensor and sensor_recorder is not None:
+            sensor_recorder.stop_recording()
+            print(f"Sensor data saved to: {sensor_recorder.get_filename()}")
+            print(f"Total frames recorded: {sensor_recorder.get_frame_count()}")
+
+        print("Cleanup completed.")
 
 
 if __name__ == "__main__":

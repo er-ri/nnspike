@@ -1,78 +1,79 @@
 """
-ライントレーサー制御モジュール
+Line Follower Control Module
 
-このモジュールは、カメラベースおよび色センサーベースの手法を使用した
-ライントレーシングアルゴリズムの実装を含んでいます。これらの実装は
-訓練データの収集とリアルタイムロボット制御に使用されます。カメラ画像や
-センサー状態などの入力データを送信することで、必要な調整値を返します。
+This module contains implementations of line-following algorithms using camera-based
+and color sensor-based methods. These implementations are used for training data
+collection and real-time robot control. By sending input data such as a camera image
+or sensor status, the functions return the necessary adjustments.
 
-関数:
+Functions:
 
     calculate_attitude_angle(offset_pixels: float, roi_bottom_y: int,
                            camera_height: float, focal_length_pixels: float) -> float:
-        カメラジオメトリを使用してピクセルオフセットから姿勢角（シータ）を計算し、
-        より正確なステアリング制御を行います。
+        Calculates attitude angle (theta) from pixel offset using camera geometry
+        for more accurate steering control.
 """
 
-import cv2
 import math
+
+import cv2
 import numpy as np
 
 
 def get_line_edges_at_y(image, roi, target_y, threshold_value=50):
     """
-    特定のY座標における黒いラインの左右エッジポイントを取得します。
+    Get the left and right edge points of a black line at a specific Y coordinate.
 
-    パラメータ:
-    - image: 入力画像（BGRまたはグレースケール）
-    - roi_coords: ROIを定義するタプル（x, y, width, height）
-    - target_y: ラインエッジを検出するY座標（元画像座標系）
-    - threshold_value: 二値変換のしきい値（デフォルト: 50）
+    Parameters:
+    - image: Input image (BGR or grayscale)
+    - roi_coords: Tuple (x, y, width, height) defining the ROI
+    - target_y: The Y coordinate where to detect line edges (in original image coordinates)
+    - threshold_value: Threshold for binary conversion (default: 50)
 
-    戻り値:
-    - left_x: 左エッジのX座標（見つからない場合はNone）
-    - right_x: 右エッジのX座標（見つからない場合はNone）
-    - line_width: このY位置でのラインの幅（見つからない場合はNone）
+    Returns:
+    - left_x: X coordinate of left edge (None if not found)
+    - right_x: X coordinate of right edge (None if not found)
+    - line_width: Width of the line at this Y position (None if not found)
     """
 
-    # ROI座標を抽出
+    # Extract ROI coordinates
     x, y, w, h = roi
 
-    # target_yがROI内にあるかチェック
+    # Check if target_y is within ROI
     if target_y < y or target_y >= y + h:
         return None, None, None
 
-    # 必要に応じてグレースケールに変換
+    # Convert to grayscale if needed
     if len(image.shape) == 3:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     else:
         gray = image.copy()
 
-    # ROIを抽出
+    # Extract ROI
     roi = gray[y : y + h, x : x + w]
 
-    # ノイズを減らすためにガウシアンブラーを適用
+    # Apply Gaussian blur to reduce noise
     blurred = cv2.GaussianBlur(roi, (5, 5), 0)
 
-    # 黒いラインを分離するために二値しきい値処理
+    # Binary threshold to isolate black line
     _, binary = cv2.threshold(blurred, threshold_value, 255, cv2.THRESH_BINARY_INV)
 
-    # ROI内の行を計算
+    # Calculate the row within the ROI
     roi_row = target_y - y
 
-    # 目標YでのバイナリRowを取得
+    # Get the binary row at target Y
     if roi_row >= 0 and roi_row < h:
         row_data = binary[roi_row, :]
 
-        # この行内の全ての白ピクセル（ラインピクセル）を検索
+        # Find all white pixels (line pixels) in this row
         white_pixels = np.where(row_data == 255)[0]
 
         if len(white_pixels) > 0:
-            # 最も左と最も右の白ピクセルを検索
+            # Find leftmost and rightmost white pixels
             left_x_roi = white_pixels[0]
             right_x_roi = white_pixels[-1]
 
-            # 元の画像座標に変換して戻す
+            # Convert back to original image coordinates
             left_x = x + left_x_roi
             right_x = x + right_x_roi
             line_width = right_x - left_x + 1
@@ -84,82 +85,82 @@ def get_line_edges_at_y(image, roi, target_y, threshold_value=50):
 
 def get_all_line_edges_at_y(image, roi, target_y, threshold_value=50, max_edges=None):
     """
-    特定のY座標で検出されたすべてのラインエッジを取得します。
+    Get all detected line edges at a specific Y coordinate.
 
-    パラメータ:
-    - image: 入力画像（BGRまたはグレースケール）
-    - roi: ROIを定義するタプル（x, y, width, height）
-    - target_y: ラインエッジを検出するY座標（元画像座標系）
-    - threshold_value: 二値変換のしきい値（デフォルト: 50）
-    - max_edges: 返却する最大エッジ数（デフォルト: すべてのエッジでNone）
+    Parameters:
+    - image: Input image (BGR or grayscale)
+    - roi: Tuple (x, y, width, height) defining the ROI
+    - target_y: The Y coordinate where to detect line edges (in original image coordinates)
+    - threshold_value: Threshold for binary conversion (default: 50)
+    - max_edges: Maximum number of edges to return (default: None for all edges)
 
-    戻り値:
-    - 検出されたエッジのx軸座標のリスト: [int, int, ...]
-      エッジが見つからない場合は空のリストを返します。
+    Returns:
+    - List of x-axis coordinates for detected edges: [int, int, ...]
+      Returns empty list if no edges are found.
     """
 
-    # ROI座標を抽出
+    # Extract ROI coordinates
     x, y, w, h = roi
 
-    # target_yがROI内にあるかチェック
+    # Check if target_y is within ROI
     if target_y < y or target_y >= y + h:
         return []
 
-    # 必要に応じてグレースケールに変換
+    # Convert to grayscale if needed
     if len(image.shape) == 3:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     else:
         gray = image.copy()
 
-    # ROIを抽出
+    # Extract ROI
     roi_img = gray[y : y + h, x : x + w]
 
-    # ノイズを減らすためにガウシアンブラーを適用
+    # Apply Gaussian blur to reduce noise
     blurred = cv2.GaussianBlur(roi_img, (5, 5), 0)
 
-    # 黒いラインを分離するために二値しきい値処理
+    # Binary threshold to isolate black line
     _, binary = cv2.threshold(blurred, threshold_value, 255, cv2.THRESH_BINARY_INV)
 
-    # ROI内の行を計算
+    # Calculate the row within the ROI
     roi_row = target_y - y
 
-    # 目標YでのバイナリRowを取得
+    # Get the binary row at target Y
     if roi_row >= 0 and roi_row < h:
         row_data = binary[roi_row, :]
 
-        # この行内の全ての白ピクセル（ラインピクセル）を検索
+        # Find all white pixels (line pixels) in this row
         white_pixels = np.where(row_data == 255)[0]
 
         if len(white_pixels) > 0:
-            # 白ピクセルの連続セグメントを見つけて、すべてのエッジを収集
+            # Find continuous segments of white pixels and collect all edges
             edges = []
             segment_start = white_pixels[0]
 
             for i in range(1, len(white_pixels)):
-                # 連続する白ピクセル間にギャップがあるかチェック
+                # Check if there's a gap between consecutive white pixels
                 if white_pixels[i] - white_pixels[i - 1] > 1:
-                    # 現在のセグメントの終了
+                    # End of current segment
                     segment_end = white_pixels[i - 1]
 
-                    # 元の画像座標に変換して戻す
+                    # Convert back to original image coordinates
                     left_edge = x + segment_start
                     right_edge = x + segment_end
 
-                    # 左右両方のエッジを追加
+                    # Add both left and right edges
                     edges.extend([left_edge, right_edge])
 
-                    # 新しいセグメントを開始
+                    # Start new segment
                     segment_start = white_pixels[i]
 
-            # 最後のセグメントを忘れずに処理
+            # Don't forget the last segment
             segment_end = white_pixels[-1]
             left_edge = x + segment_start
             right_edge = x + segment_end
 
-            # 左右両方のエッジを追加
+            # Add both left and right edges
             edges.extend([left_edge, right_edge])
 
-            # 指定された場合は制限を適用
+            # Apply limit if specified
             if max_edges is not None and len(edges) > max_edges:
                 edges = edges[:max_edges]
 
@@ -168,183 +169,88 @@ def get_all_line_edges_at_y(image, roi, target_y, threshold_value=50, max_edges=
     return []
 
 
-def find_bottle_center(image):
-    """
-    OpenCVを使用して画像内のボトルの中心座標を検索します。
-
-    この関数は以下の改善により、リアルタイムアプリケーション用に最適化されています:
-    - リアルタイム処理のため、ファイルパスではなくnumpy配列入力を受け入れ
-    - 様々な照明条件下でのより良いエッジ検出のために適応的しきい値を使用
-    - ノイズと誤検出を減らすために輪郭面積フィルタリングを適用
-    - ボトルのような形状を確保するためのアスペクト比検証を含む
-    - より良いパフォーマンスのために小さなモルフォロジカルカーネルを使用
-    - よりクリーンなリアルタイム動作のためにデバッグprint文を削除
-
-    引数:
-        image (numpy.ndarray): numpy配列としての入力画像（BGR形式）
-
-    戻り値:
-        tuple: ((x, y), size) ここで(x, y)は中心座標、sizeは最大輪郭の面積
-               見つからない場合は(None, None)
-    """
-    # 画像が有効かチェック
-    if image is None or image.size == 0:
-        print("エラー: 無効な画像データ")
-        return None, None  # より良い検出のために異なる色空間に変換
-    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # 方法1: 色ベース検出（特徴的な色のボトル用）
-    # ボトルの色範囲を定義（ボトルの色に基づいて調整）
-    # ボトル内の赤い液体用
-    lower_red1 = np.array([0, 50, 50])
-    upper_red1 = np.array([10, 255, 255])
-    lower_red2 = np.array([170, 50, 50])
-    upper_red2 = np.array([180, 255, 255])
-
-    # 赤色用のマスクを作成
-    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
-    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
-    red_mask = mask1 + mask2
-
-    # 方法2: ボトルの輪郭用エッジ検出
-    # 様々な照明下でのより良いエッジ検出のために適応的しきい値を使用
-    edges = cv2.adaptiveThreshold(
-        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-    )
-    edges = cv2.bitwise_not(edges)  # エッジを白にするために反転
-
-    # 色とエッジ情報を結合
-    combined_mask = cv2.bitwise_or(red_mask, edges)
-
-    # マスクをクリーンアップするためにモルフォロジカル演算を適用
-    kernel = np.ones((3, 3), np.uint8)  # リアルタイムパフォーマンス用の小さなカーネル
-    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
-    combined_mask = cv2.morphologyEx(
-        combined_mask, cv2.MORPH_OPEN, kernel
-    )  # 輪郭を検索
-    contours, _ = cv2.findContours(
-        combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-    )
-
-    if not contours:
-        return None, None
-
-    # ノイズを除去するために面積で輪郭をフィルタ（必要に応じて最小面積を調整）
-    min_area = 500  # リアルタイムフィルタリング用の最小面積しきい値
-    valid_contours = [c for c in contours if cv2.contourArea(c) >= min_area]
-
-    if not valid_contours:
-        return None, None
-
-    # 最大の輪郭を検索（ボトルと仮定）
-    largest_contour = max(valid_contours, key=cv2.contourArea)
-
-    # 最大輪郭のサイズ（面積）を計算
-    contour_size = cv2.contourArea(largest_contour)
-
-    # 追加検証: ボトルのような形状を確保するために輪郭のアスペクト比をチェック
-    x, y, w, h = cv2.boundingRect(largest_contour)
-    aspect_ratio = h / w if w > 0 else 0
-
-    # ボトルは通常、幅よりも高い（アスペクト比 > 1）
-    if aspect_ratio < 0.8:  # 必要に応じてしきい値を調整
-        return None, None
-
-    # モーメントを使用して中心を計算
-    M = cv2.moments(largest_contour)
-    if M["m00"] != 0:
-        cx = int(M["m10"] / M["m00"])
-        cy = int(M["m01"] / M["m00"])
-        return (cx, cy), contour_size
-
-    return None, None
-
-
 def find_bottle_center_with_yellow_count(image):
     """
-    OpenCVを使用して画像内のボトルの中心座標と黄色ピクセル数を検索します。
+    Find the center coordinates and yellow pixel count of a bottle in an image using OpenCV.
 
-    この関数は以下の改善により、リアルタイムアプリケーション用に最適化されています:
-    - リアルタイム処理のため、ファイルパスではなくnumpy配列入力を受け入れ
-    - 様々な照明条件下でのより良いエッジ検出のために適応的しきい値を使用
-    - ノイズと誤検出を減らすために輪郭面積フィルタリングを適用
-    - ボトルのような形状を確保するためのアスペクト比検証を含む
-    - より良いパフォーマンスのために小さなモルフォロジカルカーネルを使用
-    - よりクリーンなリアルタイム動作のためにデバッグprint文を削除
+    This function is optimized for real-time applications with the following improvements:
+    - Accepts numpy array input instead of file paths for real-time processing
+    - Uses adaptive thresholding for better edge detection under various lighting conditions
+    - Applies contour area filtering to reduce noise and false detections
+    - Includes aspect ratio validation to ensure bottle-like shapes
+    - Uses smaller morphological kernels for better performance
+    - Removes debug print statements for cleaner real-time operation
 
-    引数:
-        image (numpy.ndarray): numpy配列としての入力画像（BGR形式）
+    Args:
+        image (numpy.ndarray): Input image as numpy array (BGR format)
 
-    戻り値:
-        tuple: ((x, y), size, yellow_pixel_count) ここで(x, y)は中心座標、sizeは最大輪郭の面積、
-               yellow_pixel_countは検出された黄色ピクセル数
-               見つからない場合は(None, None, 0)
+    Returns:
+        tuple: ((x, y), size, yellow_pixel_count) where (x, y) is the center coordinates,
+               size is the area of the largest contour, and yellow_pixel_count is the
+               number of detected yellow pixels. Returns (None, None, 0) if not found.
     """
-    # 画像が有効かチェック
+    # Check if image is valid
     if image is None or image.size == 0:
-        print("エラー: 無効な画像データ")
-        return None, None, 0  # より良い検出のために異なる色空間に変換
+        print("Error: Invalid image data")
+        return None, None, 0
+
+    # Convert to different color spaces for better detection
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    # 方法1: 色ベース検出（特徴的な色のボトル用）
-    # ボトルの色範囲を定義（ボトルの色に基づいて調整）
-    # ボトル内の黄色い液体用（camera.pyのdetect_color_bottleと同じ閾値）
-    lower_yellow = np.array([15, 100, 100])
-    upper_yellow = np.array([35, 255, 255])
+    # Method 1: Color-based detection (for bottles with distinctive colors)
+    # Define bottle color range (adjust based on bottle color)
+    # For yellow liquid inside bottle (same thresholds as detect_color_bottle in camera.py)
+    lower_yellow = np.array([15, 100, 100], dtype=np.uint8)
+    upper_yellow = np.array([35, 255, 255], dtype=np.uint8)
 
-    # 黄色用のマスクを作成
-    yellow_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+    # Create mask for yellow
+    yellow_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)  # type: ignore[arg-type]
 
-    # 黄色ピクセル数を計算
+    # Calculate yellow pixel count
     yellow_pixel_count = cv2.countNonZero(yellow_mask)
 
-    # 方法2: ボトルの輪郭用エッジ検出
-    # 様々な照明下でのより良いエッジ検出のために適応的しきい値を使用
-    edges = cv2.adaptiveThreshold(
-        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-    )
-    edges = cv2.bitwise_not(edges)  # エッジを白にするために反転
+    # Method 2: Edge detection for bottle contours
+    # Use adaptive thresholding for better edge detection under various lighting
+    edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    edges = cv2.bitwise_not(edges)  # Invert to make edges white
 
-    # 色とエッジ情報を結合
+    # Combine color and edge information
     combined_mask = cv2.bitwise_or(yellow_mask, edges)
 
-    # マスクをクリーンアップするためにモルフォロジカル演算を適用
-    kernel = np.ones((3, 3), np.uint8)  # リアルタイムパフォーマンス用の小さなカーネル
+    # Apply morphological operations to clean up the mask
+    kernel = np.ones((3, 3), np.uint8)  # Small kernel for real-time performance
     combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
-    combined_mask = cv2.morphologyEx(
-        combined_mask, cv2.MORPH_OPEN, kernel
-    )  # 輪郭を検索
-    contours, _ = cv2.findContours(
-        combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-    )
+    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
+
+    # Find contours
+    contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if not contours:
         return None, None, yellow_pixel_count
 
-    # ノイズを除去するために面積で輪郭をフィルタ（必要に応じて最小面積を調整）
-    min_area = 500  # リアルタイムフィルタリング用の最小面積しきい値
+    # Filter contours by area to remove noise (adjust minimum area as needed)
+    min_area = 500  # Minimum area threshold for real-time filtering
     valid_contours = [c for c in contours if cv2.contourArea(c) >= min_area]
 
     if not valid_contours:
         return None, None, yellow_pixel_count
 
-    # 最大の輪郭を検索（ボトルと仮定）
+    # Find the largest contour (assume it's the bottle)
     largest_contour = max(valid_contours, key=cv2.contourArea)
 
-    # 最大輪郭のサイズ（面積）を計算
+    # Calculate the size (area) of the largest contour
     contour_size = cv2.contourArea(largest_contour)
 
-    # 追加検証: ボトルのような形状を確保するために輪郭のアスペクト比をチェック
+    # Additional validation: Check aspect ratio of contour to ensure bottle-like shape
     x, y, w, h = cv2.boundingRect(largest_contour)
     aspect_ratio = h / w if w > 0 else 0
 
-    # ボトルは通常、幅よりも高い（アスペクト比 > 1）
-    if aspect_ratio < 0.8:  # 必要に応じてしきい値を調整
+    # Bottles are typically taller than they are wide (aspect ratio > 1)
+    if aspect_ratio < 0.8:  # Adjust threshold as needed
         return None, None, yellow_pixel_count
 
-    # モーメントを使用して中心を計算
+    # Calculate center using moments
     M = cv2.moments(largest_contour)
     if M["m00"] != 0:
         cx = int(M["m10"] / M["m00"])
@@ -356,88 +262,86 @@ def find_bottle_center_with_yellow_count(image):
 
 def find_bottle_center_with_blue_count(image):
     """
-    OpenCVを使用して画像内のボトルの中心座標と青色ピクセル数を検索します。
+    Find the center coordinates and blue pixel count of a bottle in an image using OpenCV.
 
-    この関数は以下の改善により、リアルタイムアプリケーション用に最適化されています:
-    - リアルタイム処理のため、ファイルパスではなくnumpy配列入力を受け入れ
-    - 様々な照明条件下でのより良いエッジ検出のために適応的しきい値を使用
-    - ノイズと誤検出を減らすために輪郭面積フィルタリングを適用
-    - ボトルのような形状を確保するためのアスペクト比検証を含む
-    - より良いパフォーマンスのために小さなモルフォロジカルカーネルを使用
-    - よりクリーンなリアルタイム動作のためにデバッグprint文を削除
+    This function is optimized for real-time applications with the following improvements:
+    - Accepts numpy array input instead of file paths for real-time processing
+    - Uses adaptive thresholding for better edge detection under various lighting conditions
+    - Applies contour area filtering to reduce noise and false detections
+    - Includes aspect ratio validation to ensure bottle-like shapes
+    - Uses smaller morphological kernels for better performance
+    - Removes debug print statements for cleaner real-time operation
 
-    引数:
-        image (numpy.ndarray): numpy配列としての入力画像（BGR形式）
+    Args:
+        image (numpy.ndarray): Input image as numpy array (BGR format)
 
-    戻り値:
-        tuple: ((x, y), size, blue_pixel_count) ここで(x, y)は中心座標、sizeは最大輪郭の面積、
-               blue_pixel_countは検出された青色ピクセル数
-               見つからない場合は(None, None, 0)
+    Returns:
+        tuple: ((x, y), size, blue_pixel_count) where (x, y) is the center coordinates,
+               size is the area of the largest contour, and blue_pixel_count is the
+               number of detected blue pixels. Returns (None, None, 0) if not found.
     """
-    # 画像が有効かチェック
+    # Check if image is valid
     if image is None or image.size == 0:
-        print("エラー: 無効な画像データ")
-        return None, None, 0  # より良い検出のために異なる色空間に変換
+        print("Error: Invalid image data")
+        return None, None, 0
+
+    # Convert to different color spaces for better detection
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    # 方法1: 色ベース検出（特徴的な色のボトル用）
-    # ボトルの色範囲を定義（ボトルの色に基づいて調整）
-    # ボトル内の青い液体用（camera.pyのdetect_color_bottleと同じ閾値）
+    # Method 1: Color-based detection (for bottles with distinctive colors)
+    # Define bottle color range (adjust based on bottle color)
+    # For blue liquid inside bottle (same thresholds as detect_color_bottle in camera.py)
     lower_blue = np.array([100, 80, 50])
     upper_blue = np.array([130, 255, 255])
 
-    # 青色用のマスクを作成
-    blue_mask = cv2.inRange(hsv, lower_blue, upper_blue)
+    # Create mask for blue
+    blue_mask = cv2.inRange(hsv, lower_blue, upper_blue)  # type: ignore[arg-type]
 
-    # 青色ピクセル数を計算
+    # Calculate blue pixel count
     blue_pixel_count = cv2.countNonZero(blue_mask)
 
-    # 方法2: ボトルの輪郭用エッジ検出
-    # 様々な照明下でのより良いエッジ検出のために適応的しきい値を使用
-    edges = cv2.adaptiveThreshold(
-        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-    )
-    edges = cv2.bitwise_not(edges)  # エッジを白にするために反転
+    # Method 2: Edge detection for bottle contours
+    # Use adaptive thresholding for better edge detection under various lighting
+    edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    edges = cv2.bitwise_not(edges)  # Invert to make edges white
 
-    # 色とエッジ情報を結合
+    # Combine color and edge information
     combined_mask = cv2.bitwise_or(blue_mask, edges)
 
-    # マスクをクリーンアップするためにモルフォロジカル演算を適用
-    kernel = np.ones((3, 3), np.uint8)  # リアルタイムパフォーマンス用の小さなカーネル
+    # Apply morphological operations to clean up the mask
+    kernel = np.ones((3, 3), np.uint8)  # Small kernel for real-time performance
     combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
-    combined_mask = cv2.morphologyEx(
-        combined_mask, cv2.MORPH_OPEN, kernel
-    )  # 輪郭を検索
-    contours, _ = cv2.findContours(
-        combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-    )
+    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
+
+    # Find contours
+    contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if not contours:
         return None, None, blue_pixel_count
 
-    # ノイズを除去するために面積で輪郭をフィルタ（必要に応じて最小面積を調整）
-    min_area = 500  # リアルタイムフィルタリング用の最小面積しきい値
+    # Filter contours by area to remove noise (adjust minimum area as needed)
+    min_area = 500  # Minimum area threshold for real-time filtering
     valid_contours = [c for c in contours if cv2.contourArea(c) >= min_area]
 
     if not valid_contours:
         return None, None, blue_pixel_count
 
-    # 最大の輪郭を検索（ボトルと仮定）
+    # Find the largest contour (assume it's the bottle)
     largest_contour = max(valid_contours, key=cv2.contourArea)
 
-    # 最大輪郭のサイズ（面積）を計算
+    # Calculate the size (area) of the largest contour
     contour_size = cv2.contourArea(largest_contour)
 
-    # 追加検証: ボトルのような形状を確保するために輪郭のアスペクト比をチェック
+    # Additional validation: Check aspect ratio of contour to ensure bottle-like shape
     x, y, w, h = cv2.boundingRect(largest_contour)
     aspect_ratio = h / w if w > 0 else 0
 
-    # ボトルは通常、幅よりも高い（アスペクト比 > 1）
-    if aspect_ratio < 0.8:  # 必要に応じてしきい値を調整
+    # Bottles are typically taller than they are wide (aspect ratio > 1)
+    if aspect_ratio < 0.8:  # Adjust threshold as needed
         return None, None, blue_pixel_count
 
-    # モーメントを使用して中心を計算
+    # Calculate center using moments
     M = cv2.moments(largest_contour)
     if M["m00"] != 0:
         cx = int(M["m10"] / M["m00"])
@@ -454,267 +358,37 @@ def calculate_attitude_angle(
     focal_length_pixels: float = 640,
 ) -> float:
     """
-    カメラジオメトリを使用してピクセルオフセットから姿勢角（シータ）を計算します。
+    Calculate attitude angle (theta) from pixel offset using camera geometry.
 
-    この関数は、カメラ画像で検出されたピクセルベースのオフセットを、
-    ロボットの所望パスからの偏差を表す実世界の姿勢角に変換します。
-    これは、単純なピクセルベースの正規化と比較して、より物理的に意味のある
-    制御を提供します。
+    This function converts the pixel-based offset detected in the camera image
+    to a real-world attitude angle that represents the robot's deviation from
+    the desired path. This provides more physically meaningful control compared
+    to simple pixel-based normalization.
 
-    引数:
-        offset_pixels (float): 画像中心からの横方向オフセット（ピクセル）
-        roi_bottom_y (int): ROIの下端y座標（ロボットに近い側）
-        camera_height (float, optional): 地面からのカメラ高さ（メートル）。デフォルト: 0.20
-        focal_length_pixels (float, optional): カメラ焦点距離（ピクセル）。デフォルト: 640
+    Args:
+        offset_pixels (float): Lateral offset in pixels from image center
+        roi_bottom_y (int): Bottom y-coordinate of ROI (closer to robot)
+        camera_height (float, optional): Camera height above ground in meters. Defaults to 0.20.
+        focal_length_pixels (float, optional): Camera focal length in pixels. Defaults to 640.
 
-    戻り値:
-        float: 姿勢角（シータ）（ラジアン）。正の値は右方向への偏差、
-               負の値は左方向への偏差を示します。
+    Returns:
+        float: Attitude angle (theta) in radians. Positive values indicate rightward deviation,
+               negative values indicate leftward deviation.
 
-    注意:
-        正確な角度計算を確保するため、カメラパラメータ（高さと焦点距離）は
-        特定のロボットセットアップに対してキャリブレーションされるべきです。
+    Note:
+        The camera parameters (height and focal length) should be calibrated for your
+        specific robot setup to ensure accurate angle calculations.
     """
-    # カメラからライン検出ポイントまでの地上距離を計算
-    # 相似三角形を使用: ground_distance / camera_height = focal_length / (image_height - roi_bottom_y)
-    image_height = 480  # 標準カメラ解像度を仮定
-    ground_distance = (
-        camera_height * focal_length_pixels / (image_height - roi_bottom_y)
-    )
+    # Calculate ground distance from camera to the line detection point
+    # Using similar triangles: ground_distance / camera_height = focal_length / (image_height - roi_bottom_y)
+    image_height = 480  # Assuming standard camera resolution
+    ground_distance = camera_height * focal_length_pixels / (image_height - roi_bottom_y)
 
-    # 横方向オフセットをメートルで計算
-    # 相似三角形を使用: lateral_offset / ground_distance = offset_pixels / focal_length
+    # Calculate lateral offset in meters
+    # Using similar triangles: lateral_offset / ground_distance = offset_pixels / focal_length
     lateral_offset_meters = offset_pixels * ground_distance / focal_length_pixels
 
-    # アークタンジェントを使用して姿勢角（シータ）を計算
+    # Calculate attitude angle (theta) using arctangent
     theta = math.atan2(lateral_offset_meters, ground_distance)
 
     return theta
-
-
-# グローバル変数でゲート状態を管理
-_gate_target_locked = False
-_gate_target_position = None
-_gate_lock_confidence = 0.0
-_gate_passed = False
-
-def find_gate_center(image, lock_threshold=0.7, reset_lock=False):
-    """
-    Extended ROIを使用してVP13パイプ長方形ゲートの中心座標を検出します。
-    
-    この関数は以下の特徴を持ちます:
-    - 両足検知時の位置ロック機能
-    - 一度確実なゲートを検知したら、その位置を基準に安定追跡
-    - ゲート通過検知機能（足が見えなくなったら停止信号）
-    - Extended ROI: 画面最上部（Y=0）から検索範囲を設定
-    - HSV色空間での黒い物体検出により高精度な支柱認識
-    - 2つの支柱（左右の足）の検出と中心点計算
-    - 面積とアスペクト比による厳密なフィルタリング
-    - ゲート特有の形状パターンマッチング
-    
-    引数:
-        image (numpy.ndarray): numpy配列としての入力画像（BGR形式）
-        lock_threshold (float): ゲート位置をロックする信頼度閾値（デフォルト: 0.7）
-        reset_lock (bool): ロック状態をリセットするかどうか（デフォルト: False）
-    
-    戻り値:
-        tuple: ((x, y), confidence, status) ここで(x, y)は中心座標、confidenceは信頼度、
-               statusは 'detected'（検出中）、'locked'（ロック中）、'passed'（通過）のいずれか
-               見つからない場合は(None, None, 'not_found')
-    """
-    global _gate_target_locked, _gate_target_position, _gate_lock_confidence, _gate_passed
-    
-    # ロック状態のリセット
-    if reset_lock:
-        _gate_target_locked = False
-        _gate_target_position = None
-        _gate_lock_confidence = 0.0
-        _gate_passed = False
-        print("Gate lock reset")
-    
-    # 既にゲートを通過している場合は停止信号を返す
-    if _gate_passed:
-        return (None, None, 'passed')
-    
-    # 既にロックされている場合は、現在のゲート検出をチェックして通過判定
-    if _gate_target_locked and _gate_target_position is not None:
-        # 現在のフレームでゲート検出を行い、通過したかチェック
-        current_detection = _detect_gate_raw(image)
-        
-        if current_detection is None:
-            # ゲートが見えなくなった = 通過した
-            _gate_passed = True
-            print("Gate passed! Robot should stop.")
-            return (None, None, 'passed')
-        else:
-            # まだゲートが見える = ロック位置を維持
-            return _gate_target_position, _gate_lock_confidence, 'locked'
-    
-    # 新しい検出を実行
-    detection_result = _detect_gate_raw(image)
-    
-    if detection_result is None:
-        return (None, None, 'not_found')
-    
-    center, confidence, legs_detected = detection_result
-    
-    # 高信頼度でかつ両足が検出された場合、位置をロック
-    if confidence >= lock_threshold and legs_detected >= 2:
-        _gate_target_locked = True
-        _gate_target_position = center
-        _gate_lock_confidence = confidence
-        print(f"Gate locked at ({center[0]}, {center[1]}) with confidence {confidence:.3f}")
-        return center, confidence, 'locked'
-    
-    return center, confidence, 'detected'
-
-
-def _detect_gate_raw(image):
-    """
-    ゲート検出の実際の処理を行う内部関数
-    
-    戻り値:
-        tuple: (center, confidence, legs_detected) または None
-    """
-    # 画像が有効かチェック
-    if image is None or image.size == 0:
-        return None
-    
-    h, w = image.shape[:2]
-    
-    # Extended ROI設定：最上部まで拡張
-    roi_y_start = 0              # 最上部から開始
-    roi_y_end = int(h * 0.95)    # 下部95%まで
-    roi_x_start = int(w * 0.05)  # 左端5%から
-    roi_x_end = int(w * 0.95)    # 右端95%まで
-    
-    print(f"DEBUG: Image size ({w}, {h}), ROI: ({roi_x_start}, {roi_y_start}) to ({roi_x_end}, {roi_y_end})")
-    
-    # ROI領域を抽出
-    roi = image[roi_y_start:roi_y_end, roi_x_start:roi_x_end]
-    
-    # HSV変換で黒い物体（ゲート支柱）を検出
-    hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-    
-    # 黒い物体の範囲（ゲート支柱用に調整）
-    lower_black = np.array([0, 0, 0])
-    upper_black = np.array([180, 255, 60])  # 暗い範囲
-    black_mask = cv2.inRange(hsv_roi, lower_black, upper_black)
-    
-    # モルフォロジー処理でノイズ除去
-    kernel_close = np.ones((3, 3), np.uint8)
-    kernel_open = np.ones((2, 2), np.uint8)
-    
-    black_mask_processed = cv2.morphologyEx(black_mask, cv2.MORPH_CLOSE, kernel_close)
-    black_mask_processed = cv2.morphologyEx(black_mask_processed, cv2.MORPH_OPEN, kernel_open)
-    
-    # 輪郭検出
-    contours, _ = cv2.findContours(black_mask_processed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    if not contours:
-        return None
-    
-    # ゲート支柱候補をフィルタリング
-    candidates = []
-    for contour in contours:
-        area = cv2.contourArea(contour)
-        if area < 100:  # 最小面積フィルタ
-            continue
-            
-        x, y, w_rect, h_rect = cv2.boundingRect(contour)
-        if w_rect < 10 or h_rect < 20:  # 最小サイズフィルタ
-            continue
-        
-        # アスペクト比計算
-        aspect_ratio = h_rect / w_rect if w_rect > 0 else 0
-        
-        # 元の画像座標に変換（ROI座標からグローバル座標へ）
-        global_center_x = x + w_rect // 2 + roi_x_start
-        global_center_y = y + h_rect // 2 + roi_y_start
-        
-        # デバッグ用座標変換の確認
-        print(f"DEBUG: ROI coord ({x + w_rect // 2}, {y + h_rect // 2}) -> Global coord ({global_center_x}, {global_center_y})")
-        
-        candidates.append({
-            'center': (global_center_x, global_center_y),
-            'area': area,
-            'aspect_ratio': aspect_ratio,
-            'width': w_rect,
-            'height': h_rect,
-            'roi_center': (x + w_rect // 2, y + h_rect // 2)  # デバッグ用
-        })
-    
-    # ゲート特有の特徴を持つ候補を選択
-    target_candidates = []
-    for candidate in candidates:
-        area = candidate['area']
-        aspect = candidate['aspect_ratio']
-        
-        # より柔軟な条件に変更
-        if (500 <= area <= 2000 and 0.8 <= aspect <= 4.0):
-            target_candidates.append(candidate)
-            print(f"DEBUG: Candidate accepted - area={area}, aspect={aspect:.2f}, center={candidate['center']}")
-        else:
-            print(f"DEBUG: Candidate rejected - area={area}, aspect={aspect:.2f}, center={candidate['center']}")
-    
-    print(f"DEBUG: Found {len(target_candidates)} valid gate candidates out of {len(candidates)} total")
-    
-    # 2つの支柱が見つかった場合（高信頼度検出）
-    if len(target_candidates) >= 2:
-        # X座標でソート（左から右へ）
-        target_candidates.sort(key=lambda c: c['center'][0])
-        
-        left_leg = target_candidates[0]
-        right_leg = target_candidates[1]
-        
-        # 詳細なデバッグ出力
-        print(f"DEBUG: Left leg at x={left_leg['center'][0]}, area={left_leg['area']}, aspect={left_leg['aspect_ratio']:.2f}")
-        print(f"DEBUG: Right leg at x={right_leg['center'][0]}, area={right_leg['area']}, aspect={right_leg['aspect_ratio']:.2f}")
-        
-        # 中心点計算
-        center_x = (left_leg['center'][0] + right_leg['center'][0]) // 2
-        center_y = (left_leg['center'][1] + right_leg['center'][1]) // 2
-        
-        # ゲート幅の計算
-        gate_width = abs(right_leg['center'][0] - left_leg['center'][0])
-        print(f"DEBUG: Gate center calculated at ({center_x}, {center_y}), gate width={gate_width}")
-        
-        # 信頼度計算（面積とアスペクト比の一致度）
-        area_score = min(left_leg['area'] / 1000, right_leg['area'] / 1000, 1.0)
-        aspect_score = min(left_leg['aspect_ratio'], right_leg['aspect_ratio']) / 3.0
-        confidence = (area_score + aspect_score) / 2
-        
-        return (center_x, center_y), confidence, 2
-    
-    # フォールバック: 面積が最大の2つの候補を使用
-    elif len(candidates) >= 2:
-        # 面積でソートして最大2つ選択
-        candidates.sort(key=lambda c: c['area'], reverse=True)
-        top_candidates = candidates[:2]
-        
-        # X座標でソート（左から右へ）
-        top_candidates.sort(key=lambda c: c['center'][0])
-        
-        left_leg = top_candidates[0]
-        right_leg = top_candidates[1]
-        
-        print(f"DEBUG: Fallback - Left leg at x={left_leg['center'][0]}, Right leg at x={right_leg['center'][0]}")
-        
-        center_x = (left_leg['center'][0] + right_leg['center'][0]) // 2
-        center_y = (left_leg['center'][1] + right_leg['center'][1]) // 2
-        
-        print(f"DEBUG: Fallback gate center at ({center_x}, {center_y})")
-        
-        return (center_x, center_y), 0.5, 2  # 低い信頼度、2本足検出
-    
-    return None
-
-
-def reset_gate_lock():
-    """ゲートロック状態をリセットする関数"""
-    global _gate_target_locked, _gate_target_position, _gate_lock_confidence, _gate_passed
-    _gate_target_locked = False
-    _gate_target_position = None
-    _gate_lock_confidence = 0.0
-    _gate_passed = False
-    print("Gate lock manually reset")

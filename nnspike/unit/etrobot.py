@@ -1,6 +1,8 @@
-import time
-import serial
 import threading
+import time
+
+import serial
+
 from .spike_status import SpikeStatus
 
 
@@ -131,9 +133,7 @@ class ETRobot(object):
             if current.motors[motor_id].position is not None:
                 last.motors[motor_id].position = current.motors[motor_id].position
             if current.motors[motor_id].relative_position is not None:
-                last.motors[motor_id].relative_position = current.motors[
-                    motor_id
-                ].relative_position
+                last.motors[motor_id].relative_position = current.motors[motor_id].relative_position
             if current.motors[motor_id].speed is not None:
                 last.motors[motor_id].speed = current.motors[motor_id].speed
             if current.motors[motor_id].power is not None:
@@ -148,9 +148,7 @@ class ETRobot(object):
         """
         return self.last_spike_status
 
-    def set_motor_relative_position(
-        self, left_positon: int, right_position: int
-    ) -> None:
+    def set_motor_relative_position(self, left_positon: int, right_position: int) -> None:
         id_byte = self.COMMAND_SET_MOTOR_RELATIVE_POSITION_ID.to_bytes(1, "big")
         parameter1_byte = left_positon.to_bytes(1, "big")
         parameter2_byte = right_position.to_bytes(1, "big")
@@ -220,6 +218,7 @@ class ETRobot(object):
 
         command = id_byte + parameter1_byte + parameter2_byte
 
+        # Continuously send stop commands for 0.5 seconds to ensure reliability
         start_time = time.time()
         while time.time() - start_time < duration:
             self.__send_command(command)

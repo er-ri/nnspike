@@ -25,21 +25,23 @@ Camera Geometry Parameters:
 - ROI_CNN: Region of Interest for processing
 - OFFSET_Y: Y-offset for line detection
 """
-import cv2
-import socket
-import pickle
-import struct
+import os
+import sys
 
-from nnspike.utils import (
-    get_line_edges_at_y,
-    calculate_attitude_angle,
-)
-from nnspike.constants import (
-    ROI_CNN,
-    OFFSET_Y,
-    CAMERA_HEIGHT,
-    CAMERA_FOCAL_LENGTH_PIXELS,
-)
+# Add parent directory to path to import nnspike modules
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, parent_dir)
+
+
+import pickle
+import socket
+import struct
+from typing import Optional
+
+import cv2
+
+from nnspike.constants import OFFSET_Y, ROI_CNN
+from nnspike.utils import get_line_edges_at_y
 
 # User defined constants
 x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
@@ -48,9 +50,7 @@ x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
 BASE_SPEED = 45  # Base speed for straight lines (adjust this first)
 
 # Socket connection settings
-HOST_IP_ADDRESS = (
-    "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
-)
+HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
 
 # Camera setup
 cap = cv2.VideoCapture(0)
@@ -61,12 +61,16 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
 def main():
     # Socket connection for sending camera capture (always enabled)
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket: Optional[socket.socket] = None
+
     try:
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect((HOST_IP_ADDRESS, 8485))
         print(f"Connected to host PC at {HOST_IP_ADDRESS}:8485 for video streaming")
     except Exception as e:
         print(f"Warning: Could not connect to host PC for video streaming: {e}")
+        if client_socket:
+            client_socket.close()
         client_socket = None
 
     try:
@@ -84,18 +88,10 @@ def main():
                 mx = target_x - x1  # Relative to ROI
                 my = OFFSET_Y - y1  # Relative to ROI
 
-                # Calculate offset from ROI center
-                roi_center_x = (x2 - x1) // 2
-                offset_pixels = mx - roi_center_x
             else:
                 # No line detected, use center values
                 mx = (x2 - x1) // 2
                 my = (y2 - y1) // 2
-                offset_pixels = 0  # Calculate attitude angle using camera geometry
-
-            theta = calculate_attitude_angle(
-                offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS
-            )  # Use simplified speed control
 
             gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
 

@@ -24,44 +24,26 @@ PID Tuning Parameters:
     - Too low: May overshoot on turns
     - Start with: 2-10
 """
-import cv2
-import math
-import time
-import socket
-import pickle
-import struct
 import argparse
-import numpy as np
+import math
+import pickle
+
+# Platform-specific imports for keyboard input (Raspberry Pi only)
+import select
+import socket
+import struct
 import sys
+import termios
+import time
+import tty
+
+import cv2
+import numpy as np
+
+from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode
 from nnspike.unit import ETRobot
-from nnspike.unit.actions import avoid_obstacle, catch_bottle_blue
-from nnspike.utils.control import find_bottle_center, find_bottle_center_with_yellow_count, find_bottle_center_with_blue_count, find_gate_center
-
-# Platform-specific imports for keyboard input
-try:
-    import msvcrt  # Windows
-
-    WINDOWS = True
-except ImportError:
-    import select
-    import tty
-    import termios
-
-    WINDOWS = False
-from nnspike.utils import (
-    get_line_edges_at_y,
-    draw_driving_info,
-    PIDController,
-    SensorRecorder,
-    calculate_attitude_angle,
-)
-from nnspike.constants import (
-    ROI_CNN,
-    OFFSET_Y,
-    Mode,
-    CAMERA_HEIGHT,
-    CAMERA_FOCAL_LENGTH_PIXELS,
-)
+from nnspike.unit.actions import avoid_obstacle
+from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y
 
 # User defined constants
 x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
@@ -70,9 +52,7 @@ x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
 BASE_SPEED = 45  # Base speed for straight lines (adjust this first)
 
 # Socket connection settings
-HOST_IP_ADDRESS = (
-    "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
-)
+HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
 
 # Camera setup
 cap = cv2.VideoCapture(0)
@@ -86,42 +66,28 @@ class KeyboardController:
         self.running = True
         self.current_key = None
 
-        if not WINDOWS:
-            # Save terminal settings for Unix-like systems
-            self.old_settings = termios.tcgetattr(sys.stdin)
-            tty.setraw(sys.stdin.fileno())
+        # Save terminal settings for Unix-like systems
+        self.old_settings = termios.tcgetattr(sys.stdin)  # type: ignore
+        tty.setraw(sys.stdin.fileno())  # type: ignore
 
     def get_key(self):
         """Get a single keypress"""
-        if WINDOWS:
-            if msvcrt.kbhit():
-                key = msvcrt.getch().decode("utf-8").lower()
-                return key
-        else:
-            if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-                key = sys.stdin.read(1).lower()
-                return key
+        if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+            key = sys.stdin.read(1).lower()
+            return key
         return None
 
     def cleanup(self):
         """Restore terminal settings"""
-        if not WINDOWS:
-            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)  # type: ignore
 
 
-def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False):
-    # Initialize edge following preference
-    mode = Mode.LEFT_EDGE_FOLLOWING  # 0 for left edge, 1 for right edge
-    previous_mode = Mode.LEFT_EDGE_FOLLOWING  # Initialize previous_mode
-    obstacle_avoided = False  # Flag to track if obstacle avoidance has been executed
-    bottle_caught = False  # Flag to track if blue bottle has been caught
+def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, initial_course="left"):
+    # Initialize edge following preference based on the initial_course parameter
+    mode = Mode.LEFT_EDGE_FOLLOWING if initial_course == "left" else Mode.RIGHT_EDGE_FOLLOWING
 
     # Generate timestamp for consistent naming if recording is enabled
-    TIMESTAMP = (
-        time.strftime("%Y%m%d%H%M%S", time.localtime())
-        if (record_sensor_data or save_camera_video)
-        else None
-    )
+    TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
 
     # Initialize sensor recorder conditionally
     sensor_recorder = None
@@ -129,8 +95,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         sensor_recorder = SensorRecorder(timestamp=TIMESTAMP)
         sensor_recorder.start_recording()  # Initialize video writer conditionally
     video_writer = None
+
     if save_camera_video:
-        fourcc = cv2.VideoWriter_fourcc(*"XVID")
+        fourcc = cv2.VideoWriter_fourcc(*"XVID")  # type: ignore[attr-defined]
         video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
         video_writer = cv2.VideoWriter(
             filename=video_filename,
@@ -139,6 +106,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             frameSize=(640, 480),
         )  # Socket connection for sending camera capture (only if enabled)
     client_socket = None
+
     if send_video_stream:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -166,16 +134,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     et.move_arm(2, 0.5)
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
-    frame_count = 0  # Initialize frame counter
-
     try:
         while et.is_running and keyboard.running:
             ret, frame = cap.read()
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
-
-            frame_count += 1  # Increment frame counter
 
             # Save video frame if enabled
             if save_camera_video and video_writer is not None:
@@ -193,30 +157,22 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "d":  # 'd' key for right
                 mode = Mode.RIGHT_EDGE_FOLLOWING
                 print("Switched to following: right edge")
-            elif key == "c":  # 'c' key for bottle carrying
+            elif key == "c":  # 'c' key for moving forward
                 mode = Mode.BOTTLE_CARRYING
                 print("Switched to bottle carrying mode")
-            elif key == "b":  # 'b' key for blue bottle catching
-                mode = Mode.BOTTLE_CATCH_BLUE
-                bottle_caught = False  # Reset the flag when entering blue bottle catching mode
-                print("Switched to blue bottle catching mode")
-            elif key == "g":  # 'g' key for blue bottle to gate carrying
-                mode = Mode.BLUE_BOTTLE_TO_GATE
-                # ゲートモードに入る時にロックをリセット
-                from nnspike.utils.control import reset_gate_lock
-                reset_gate_lock()
-                print("Switched to blue bottle to gate carrying mode")
+            elif key == "b":  # 'c' key for moving backward
+                mode = Mode.HEADING_GATE
+                print("Switched to bottle carrying mode")
+            elif key == "p":  # 'c' key for pause
+                mode = Mode.TURN_LEFT
+                print("Switched to bottle carrying mode")
             elif key == "o":  # 'o' key to avoid obstacle
-                if mode == Mode.OBSTACLE_AVOIDANCE and obstacle_avoided:
-                    # If already in obstacle avoidance mode and completed, switch back to default mode
-                    mode = Mode.LEFT_EDGE_FOLLOWING
-                    print("Switched back to LEFT_EDGE_FOLLOWING")
-                else:
-                    # Enter obstacle avoidance mode
-                    previous_mode = mode  # Save current mode
-                    mode = Mode.OBSTACLE_AVOIDANCE
-                    obstacle_avoided = False  # Reset the flag when entering obstacle avoidance mode
-                    print("Switched to obstacle avoidance mode")
+                previous_mode = mode  # Save current mode
+                mode = Mode.OBSTACLE_AVOIDANCE
+                avoid_obstacle(et)  # Avoid obstacle with a turn
+                print("Avoiding obstacle...")
+                mode = previous_mode  # Restore previous mode after avoiding obstacle
+                continue
 
             match mode:
                 case Mode.LEFT_EDGE_FOLLOWING:
@@ -226,101 +182,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     target_x = right_x
                 case Mode.BOTTLE_CARRYING:
-                    (cx, _), _ = find_bottle_center(frame)
-                    target_x = cx
-                case Mode.OBSTACLE_AVOIDANCE:
-                    # In obstacle avoidance mode, execute obstacle avoidance action only once
-                    if not obstacle_avoided:
-                        yellow_result = find_bottle_center_with_yellow_count(frame)
-                        
-                        if yellow_result[0] is not None:
-                            (cx, _), _, yellow_pixel_count = yellow_result
-                            target_x = cx
-                            
-                            # Execute obstacle avoidance only if yellow pixel count exceeds threshold
-                            if yellow_pixel_count > 14000:
-                                avoid_obstacle(et)
-                                print("Obstacle avoided!")
-                                obstacle_avoided = True  # Mark as completed
-                                
-                                # Automatically switch back to LEFT_EDGE_FOLLOWING after obstacle avoidance
-                                mode = Mode.LEFT_EDGE_FOLLOWING
-                                print("Automatically switched back to LEFT_EDGE_FOLLOWING")
-                            else:
-                                # Yellow detected but not enough pixels, continue in obstacle avoidance mode
-                                target_x = cx
-                        else:
-                            target_x = None
-                    else:
-                        # Obstacle avoidance already completed, should not reach here due to automatic mode switch
-                        target_x = None
-                case Mode.BOTTLE_CATCH_BLUE:
-                    # In blue bottle catching mode, use blue bottle detection
-                    if not bottle_caught:
-                        blue_result = find_bottle_center_with_blue_count(frame)
-                        
-                        if blue_result[0] is not None:
-                            (cx, _), _, blue_pixel_count = blue_result
-                            target_x = cx
-                            
-                            # If blue pixel count exceeds threshold, execute blue bottle catching
-                            # if blue_pixel_count > 14000:
-                            catch_bottle_blue(et)
-                            print("Blue bottle caught!")
-                            bottle_caught = True  # Mark as completed
-                            
-                            # Stop the robot after blue bottle catching by setting speeds to 0
-                            et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                            print("Robot stopped after blue bottle catching.")
-                        else:
-                            target_x = None
-                    else:
-                        # Blue bottle already caught, keep robot stopped
-                        target_x = None
-                case Mode.BLUE_BOTTLE_TO_GATE:
-                    # In blue bottle to gate carrying mode, use gate detection
-                    gate_result = find_gate_center(frame)
-                    roi_center = (x1 + x2) // 2  # Calculate ROI center
-                    
-                    if len(gate_result) == 3:  # 新しい形式の戻り値
-                        gate_pos, confidence, status = gate_result
-                        
-                        if status == 'passed':
-                            # ゲート通過検知 - ロボット停止
-                            print("GATE PASSED! Stopping robot.")
-                            et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                            target_x = None
-                        elif gate_pos is not None:
-                            (cx, _) = gate_pos
-                            target_x = cx
-                            deviation = cx - roi_center
-                            direction = "RIGHT" if deviation > 0 else "LEFT" if deviation < 0 else "CENTER"
-                            print(f"Gate [{status}] at x={cx}, ROI center={roi_center}, deviation={deviation:+d}, direction={direction}, confidence={confidence:.3f}")
-                            
-                            # 制御の詳細情報も表示
-                            if target_x is not None:
-                                mx_debug = target_x - x1
-                                roi_center_x_debug = (x2 - x1) // 2
-                                offset_pixels_debug = mx_debug - roi_center_x_debug
-                                print(f"Control calc: mx={mx_debug}, roi_center_x={roi_center_x_debug}, offset_pixels={offset_pixels_debug}")
-                        else:
-                            # If no gate detected, head to center
-                            target_x = roi_center
-                            print(f"Gate not detected, heading to ROI center (x={roi_center})")
-                    else:
-                        # 古い形式の戻り値（互換性維持）
-                        if gate_result[0] is not None:
-                            (cx, _), confidence = gate_result
-                            target_x = cx
-                            deviation = cx - roi_center
-                            direction = "RIGHT" if deviation > 0 else "LEFT" if deviation < 0 else "CENTER"
-                            print(f"Gate at x={cx}, ROI center={roi_center}, deviation={deviation:+d}, direction={direction}, confidence={confidence:.3f}")
-                        else:
-                            target_x = roi_center
-                            print(f"Gate not detected, heading to ROI center (x={roi_center})")
+                    print("Not implemented: Bottle carrying mode")
+                    target_x = (x1 + x2) // 2
                 case _:
                     # Default to center if invalid edge specified
-                    target_x = (left_x + right_x) // 2
+                    target_x = (x1 + x2) // 2
 
             if target_x is not None:
                 # Calculate position relative to ROI
@@ -333,52 +199,44 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
                 # Create a simple contour for visualization (approximate target point)
                 max_contour = np.array([[[mx, my]]], dtype=np.int32)
-                
-                # Calculate attitude angle using camera geometry
-                theta = calculate_attitude_angle(
-                    offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS
-                )
-                
-                # Use simplified speed control
-                current_base_speed = BASE_SPEED
-                steering_correction = pid.update(theta)
+            else:
+                # No line detected, use center values
+                mx = (x2 - x1) // 2
+                my = (y2 - y1) // 2
+                offset_pixels = 0
+                max_contour = None  # Calculate attitude angle using camera geometry
 
-                # Apply simple differential steering
-                left_speed = current_base_speed - steering_correction
-                right_speed = current_base_speed + steering_correction
+            theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use simplified speed control
+            current_base_speed = BASE_SPEED
 
-                # Clamp speed values to valid range
-                left_speed = int(max(0, min(100, left_speed)))
-                right_speed = int(max(0, min(100, right_speed)))
-                
-                # Set motor speeds
+            steering_correction = pid.update(theta)
+
+            # Apply simple differential steering
+            left_speed = current_base_speed - steering_correction
+            right_speed = current_base_speed + steering_correction
+
+            # Clamp speed values to valid range
+            left_speed = int(max(0, min(100, left_speed)))
+            right_speed = int(max(0, min(100, right_speed)))
+
+            # Temporarily set Heading Gate mode 
+            if mode == Mode.BOTTLE_CARRYING:
                 et.set_motor_forward_speed(
                     left_speed=left_speed,
                     right_speed=right_speed,
                 )
+            elif mode == Mode.HEADING_GATE:
+                et.set_motor_backward_speed(
+                    left_speed=left_speed,
+                    right_speed=right_speed,
+                )
+            elif mode == Mode.TURN_LEFT:
+                et.brake()
             else:
-                # No line detected or gate passed, use center values for visualization
-                mx = (x2 - x1) // 2
-                my = (y2 - y1) // 2
-                offset_pixels = 0
-                max_contour = None
-                theta = 0
-                steering_correction = 0
-                left_speed = 0
-                right_speed = 0
-
-            # DEBUG: Print motor speeds only when mode changes or occasionally
-            if frame_count % 30 == 0:  # Print every 30 frames (~1 second at 30fps)
-                print(f"DEBUG: Motor speeds - Left: {left_speed}, Right: {right_speed}, Mode: {mode.name}")
-            
-            # Additional debug for gate mode
-            if mode == Mode.BLUE_BOTTLE_TO_GATE and target_x is not None:
-                print(f"Control: theta={theta:.3f}, correction={steering_correction:.2f}, left_speed={left_speed}, right_speed={right_speed}")
-
-            et.set_motor_forward_speed(
-                left_speed=left_speed,
-                right_speed=right_speed,
-            )
+                et.set_motor_forward_speed(
+                    left_speed=left_speed,
+                    right_speed=right_speed,
+                )
 
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
@@ -389,7 +247,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             right_pos = status.motors["B"].relative_position
 
             info = dict()
-            info["offset_x"], info["offset_y"] = x1 + mx, y1 + my
+            info["target_x"], info["offset_y"] = x1 + mx, y1 + my
             info["text"] = {
                 "mode": mode.name,
                 "left_relative_position": left_pos,
@@ -408,9 +266,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if max_contour is not None:
                 # Adjust contour coordinates to full frame
                 adjusted_contour = max_contour + np.array([x1, y1])
-                cv2.drawContours(
-                    gray, [adjusted_contour], -1, (255, 255, 255), 2
-                )  # Draw centroid
+                cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)  # Draw centroid
                 cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
             if send_video_stream and client_socket is not None:
                 try:
@@ -448,17 +304,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Run the OpenCV-based line following robot with optional sensor recording and video saving"
-    )
+    parser = argparse.ArgumentParser(description="Run the OpenCV-based line following robot with optional sensor recording and video saving")
+    parser.add_argument("--record-sensor", action="store_true", help="Record sensor data to file")
+    parser.add_argument("--save-video", action="store_true", help="Save camera video to file")
+    parser.add_argument("--send-video", action="store_true", help="Send video stream to host PC")
     parser.add_argument(
-        "--record-sensor", action="store_true", help="Record sensor data to file"
-    )
-    parser.add_argument(
-        "--save-video", action="store_true", help="Save camera video to file"
-    )
-    parser.add_argument(
-        "--send-video", action="store_true", help="Send video stream to host PC"
+        "--initial-course", choices=["left", "right"], default="left", help="Initial course to follow: 'left' for left edge, 'right' for right edge (default: left)"
     )
 
     args = parser.parse_args()
@@ -466,15 +317,11 @@ if __name__ == "__main__":
     print("Starting OpenCV-based line following robot...")
     print(f"Using ROI: {ROI_CNN}")
     print(f"Base speed: {BASE_SPEED}")
-    print("Default: Following left edge")
+    print(f"Initial course: Following {args.initial_course} edge")
     print(f"Video streaming to host PC: {'Enabled' if args.send_video else 'Disabled'}")
     print("Controls:")
     print("  'a' - Follow left edge")
     print("  'd' - Follow right edge")
-    print("  'c' - Bottle carrying mode")
-    print("  'b' - Blue bottle catching mode")
-    print("  'g' - Blue bottle to gate carrying mode")
-    print("  'o' - Obstacle avoidance")
     print("  'q' - Quit")
     print("Press Ctrl+C to stop")
 
@@ -482,4 +329,5 @@ if __name__ == "__main__":
         record_sensor_data=args.record_sensor,
         save_camera_video=args.save_video,
         send_video_stream=args.send_video,
+        initial_course=args.initial_course,
     )

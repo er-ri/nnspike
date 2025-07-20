@@ -1,30 +1,29 @@
 #!/usr/bin/env python3
+import argparse
 import os
 import sys
-import argparse
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, parent_dir)
 
 import cv2
 import pandas as pd
-from nnspike.utils import draw_driving_info
-from nnspike.constants import ROI_CNN, OFFSET_Y
+
+from nnspike.constants import OFFSET_Y, ROI_CNN, Mode
+from nnspike.utils import draw_driving_info, find_bottle_center_with_blue_count, find_bottle_center_with_yellow_count
 
 
-def read_label_data(label_path: str, image_path: str = None):
+def read_label_data(label_path: str, image_path: str | None = None):
     df = pd.read_csv(label_path)
 
     filtered_df = df[df["use"] == True]
-    filtered_df = filtered_df.reset_index(
-        drop=True
-    )  # Reset index for easier navigation
+    filtered_df = filtered_df.reset_index(drop=True)  # Reset index for easier navigation
     image_path = image_path.replace("./", "../") if image_path is not None else None
-    index = (
-        filtered_df[filtered_df["image_path"] == image_path].index[0]
-        if image_path is not None
-        else 0
-    )
+    # Check whether image_path exists
+    if image_path is not None and not os.path.exists(image_path):
+        print(f"Warning: Image path '{image_path}' does not exist. Using first available image instead.")
+        image_path = filtered_df["image_path"].iloc[0] if not filtered_df.empty else None
+    index = filtered_df[filtered_df["image_path"] == image_path].index[0] if image_path is not None else 0
 
     return filtered_df, index
 
@@ -53,14 +52,7 @@ def main():
 
         row = df.iloc[index]
         mode = row["mode"]
-        if mode == 0:
-            offset_x = row["left_x"] if not pd.isna(row["left_x"]) else 0
-        elif mode == 1:
-            offset_x = row["right_x"] if not pd.isna(row["right_x"]) else 0
-        elif mode == 2:
-            offset_x = 0
-        elif mode == 3:
-            offset_x = row["target_x"] if not pd.isna(row["target_x"]) else 0
+        target_x = row["target_x"] if not pd.isna(row["target_x"]) else 0
 
         # interval = row["interval"]
         image_path = row["image_path"].replace("../", "./")
@@ -68,15 +60,21 @@ def main():
 
         offset_y = OFFSET_Y  # Constant value for y-offset in ROI_CNN (new: 350)
 
+        _, _, yellow_pixel_count = find_bottle_center_with_yellow_count(image=image)
+        _, _, blue_pixel_count = find_bottle_center_with_blue_count(image=image)
+
         info = dict()
-        info["offset_x"], info["offset_y"] = offset_x, offset_y
+        info["target_x"], info["offset_y"] = target_x, offset_y
 
         dir_path, filename = image_path.rsplit("/", 1)
 
         info["text"] = {
             "image path": filename,
-            "offset x": offset_x,
-            "frame": index,
+            "mode": mode,
+            "target_x": target_x,
+            "yellow_pixel_count": yellow_pixel_count,
+            "blue_pixel_count": blue_pixel_count,
+            "frame": row["frame_number"],
             "data type": row["data_type"],
         }
         image = draw_driving_info(image.copy(), info, ROI_CNN)
