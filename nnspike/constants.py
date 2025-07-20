@@ -18,6 +18,9 @@ class Mode(Enum):
     TURN_LEFT = 8
     TURN_RIGHT = 9
     BACKWARD_AND_HEADING_GOAL = 10
+    PAUSE = 11
+    FORWARD = 12        # 前進専用
+    BACKWARD = 13       # 後退専用
 
 
 # One-Hot Encoding for Modes
