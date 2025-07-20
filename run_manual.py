@@ -136,6 +136,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
     try:
+        keyboard.running = False  # 最初は待機状態
         while et.is_running and keyboard.running:
             ret, frame = cap.read()
             if not ret:
