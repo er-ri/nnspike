@@ -42,7 +42,7 @@ import numpy as np
 
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode
 from nnspike.unit import ETRobot
-from nnspike.unit.actions import avoid_obstacle_step
+from nnspike.unit.actions import avoid_obstacle
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y
 from nnspike.utils import find_bottle_center_with_yellow_count, find_bottle_center_with_red_count, find_bottle_center_with_blue_count
 
@@ -184,7 +184,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             match mode:
                 case Mode.OBSTACLE_AVOIDANCE:
                     # 障害物回避モード: 1フレーム分の指示を取得
-                    obstacle_avoid_state, left_speed, right_speed, finished = avoid_obstacle_step(obstacle_avoid_state, et, frame)
+                    obstacle_avoid_state, left_speed, right_speed, finished = avoid_obstacle(obstacle_avoid_state, et, frame)
                     if finished:
                         mode = previous_mode
                         obstacle_avoid_state = None

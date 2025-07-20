@@ -36,7 +36,7 @@ def _perform_action_chain_step(state, et: ETRobot, frame, action_chain):
 
 
 
-def avoid_obstacle_step(state, et: ETRobot, frame):
+def avoid_obstacle(state, et: ETRobot, frame):
     """
     障害物回避アクションを1フレーム進める汎用step関数。
     """
