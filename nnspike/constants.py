@@ -21,7 +21,7 @@ class Mode(Enum):
 # One-Hot Encoding for Modes
 NUM_MODES = len(Mode)
 # Scale for relative position in motor control
-RELATIVE_POSITION_SCALE = 40000
+RELATIVE_POSITION_SCALE = 80000
 # Threshold for obstacle avoidance based on yellow pixel count
 OBSTACLE_AVOIDANCE_THRESHOLD = 14000
 

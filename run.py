@@ -23,7 +23,7 @@ import torch
 
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode
 from nnspike.models import NvidiaModel
-from nnspike.unit import ETRobot
+from nnspike.unit import ETRobot, avoid_obstacle
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info
 from scripts.utils import process_image
 
@@ -104,7 +104,11 @@ def main(model_path, record_sensor_data=False, save_camera_video=False, send_vid
             roi_area = process_image(image=frame.copy(), device=device, roi=(x1, y1, x2, y2))
 
             status = et.get_spike_status()
-            relative_pos_value = status.motors["A"].relative_position
+            rel_pos_a = status.motors["A"].relative_position
+            rel_pos_b = status.motors["B"].relative_position
+            rel_pos_a = rel_pos_a if rel_pos_a is not None else 0
+            rel_pos_b = rel_pos_b if rel_pos_b is not None else 0
+            relative_pos_value = abs(rel_pos_a) + abs(rel_pos_b)
             relative_position = abs(relative_pos_value / RELATIVE_POSITION_SCALE) if relative_pos_value is not None else 0.0
             relative_position = torch.tensor(relative_position, dtype=torch.float32).unsqueeze(0).to(device)
 
@@ -117,6 +121,7 @@ def main(model_path, record_sensor_data=False, save_camera_video=False, send_vid
             mode_value = mode.item()  # Convert to Python integer
             if mode_value == Mode.OBSTACLE_AVOIDANCE:
                 # Invoke obstacle avoidance behavior
+                avoid_obstacle(et)
                 continue
 
             roi_center_x = (x1 + x2) / 2
