@@ -4,7 +4,7 @@ from nnspike.unit.etrobot import ETRobot
 
 
 
-def _perform_action_chain_step(state, et: ETRobot, frame, action_chain):
+def _perform_action_chain(state, et: ETRobot, frame, action_chain):
     """
     汎用アクションチェーンを1フレームごとに進めるステートマシン。
     action_chain: [(left_speed, right_speed, duration_sec), ...]
@@ -44,4 +44,4 @@ def avoid_obstacle(state, et: ETRobot, frame):
         (40, 70, 0.8),  # 左旋回
         (80, 50, 1.3),  # 右旋回
     ]
-    return _perform_action_chain_step(state, et, frame, action_chain)
+    return _perform_action_chain(state, et, frame, action_chain)
