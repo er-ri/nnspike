@@ -164,7 +164,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "d":  # 'd' key for right
                 mode = Mode.RIGHT_EDGE_FOLLOWING
                 print("Switched to following: right edge")
-            elif key == "c":  # 'c' key for moving forward
+            elif key == "f":  # 'f' key for moving forward
                 mode = Mode.FORWARD
                 print("Switched to forward mode")
             elif key == "b":  # 'b' key for moving backward
