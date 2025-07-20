@@ -177,10 +177,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     target_x = right_x
                 case Mode.BOTTLE_CARRYING:
                     print("Not implemented: Bottle carrying mode")
-                    target_x = (left_x + right_x) // 2
+                    target_x = (x1 + x2) // 2
                 case _:
                     # Default to center if invalid edge specified
-                    target_x = (left_x + right_x) // 2
+                    target_x = (x1 + x2) // 2
 
             if target_x is not None:
                 # Calculate position relative to ROI
