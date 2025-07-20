@@ -160,6 +160,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "c":  # 'c' key for bottle carrying
                 mode = Mode.BOTTLE_CARRYING
                 print("Switched to bottle carrying mode")
+            elif key == "b":  # 'c' key for bottle carrying
+                mode = Mode.HEADING_GATE
+                print("Switched to bottle carrying mode")
             elif key == "o":  # 'o' key to avoid obstacle
                 previous_mode = mode  # Save current mode
                 mode = Mode.OBSTACLE_AVOIDANCE
@@ -213,10 +216,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             left_speed = int(max(0, min(100, left_speed)))
             right_speed = int(max(0, min(100, right_speed)))
 
-            et.set_motor_forward_speed(
-                left_speed=left_speed,
-                right_speed=right_speed,
-            )
+            # Temporarily set Heading Gate mode 
+            if mode != Mode.HEADING_GATE:
+                et.set_motor_forward_speed(
+                    left_speed=left_speed,
+                    right_speed=right_speed,
+                )
 
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
