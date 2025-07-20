@@ -1,3 +1,10 @@
+
+
+import math
+import cv2
+import numpy as np
+from nnspike.utils.control import find_bottle_center_with_yellow_count
+
 """
 Line Follower Control Module
 
@@ -13,11 +20,6 @@ Functions:
         Calculates attitude angle (theta) from pixel offset using camera geometry
         for more accurate steering control.
 """
-
-import math
-
-import cv2
-import numpy as np
 
 
 def get_line_edges_at_y(image, roi, target_y, threshold_value=50):
@@ -105,7 +107,6 @@ def get_all_line_edges_at_y(image, roi, target_y, threshold_value=50, max_edges=
     # Check if target_y is within ROI
     if target_y < y or target_y >= y + h:
         return []
-
     # Convert to grayscale if needed
     if len(image.shape) == 3:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -123,12 +124,11 @@ def get_all_line_edges_at_y(image, roi, target_y, threshold_value=50, max_edges=
 
     # Calculate the row within the ROI
     roi_row = target_y - y
-
-    # Get the binary row at target Y
-    if roi_row >= 0 and roi_row < h:
-        row_data = binary[roi_row, :]
-
-        # Find all white pixels (line pixels) in this row
+        yellow_row = roi_frame[y_offset:y_offset+1, :, :]
+        yellow_cx, _, yellow_pixel_count = find_bottle_center_with_yellow_count(yellow_row)
+        return yellow_cx, yellow_pixel_count
+    else:
+        return None, 0
         white_pixels = np.where(row_data == 255)[0]
 
         if len(white_pixels) > 0:
@@ -280,10 +280,10 @@ def find_bottle_center_with_red_count(image):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    # 赤色はHSVで2つの範囲に分かれる
-    lower_red1 = np.array([0, 100, 100], dtype=np.uint8)
-    upper_red1 = np.array([10, 255, 255], dtype=np.uint8)
-    lower_red2 = np.array([160, 100, 100], dtype=np.uint8)
+    # ノートブックでの解析結果を反映した赤色範囲（例: H:0-12, 170-180, S:90-, V:60-）
+    lower_red1 = np.array([0, 90, 60], dtype=np.uint8)
+    upper_red1 = np.array([12, 255, 255], dtype=np.uint8)
+    lower_red2 = np.array([170, 90, 60], dtype=np.uint8)
     upper_red2 = np.array([180, 255, 255], dtype=np.uint8)
 
     mask1 = cv2.inRange(hsv, lower_red1, upper_red1)

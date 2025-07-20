@@ -44,6 +44,7 @@ from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_
 from nnspike.unit import ETRobot
 from nnspike.unit.actions import avoid_obstacle
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y
+from nnspike.utils import find_bottle_center_with_yellow_count, find_bottle_center_with_red_count, find_bottle_center_with_blue_count
 
 # User defined constants
 x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
@@ -103,28 +104,33 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         video_writer = cv2.VideoWriter(
             filename=video_filename,
             fourcc=fourcc,
-            fps=30,
-            frameSize=(640, 480),
-        )  # Socket connection for sending camera capture (only if enabled)
-    client_socket = None
+"""
+OpenCV-Based Line Following Robot Control
+"""
 
-    if send_video_stream:
-        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            client_socket.connect((HOST_IP_ADDRESS, 8485))
-            print(f"Connected to host PC at {HOST_IP_ADDRESS}:8485 for video streaming")
-        except Exception as e:
-            print(f"Warning: Could not connect to host PC for video streaming: {e}")
-            client_socket = None
 
-    # Initialize robot, PID controller, and keyboard controller
-    et = ETRobot()
-    keyboard = KeyboardController()
-    pid = PIDController(
-        Kp=50,  # Reduced from 50 to minimize zigzag behavior
-        Ki=0,  # Small integral term to eliminate steady-state error
-        Kd=5,  # Derivative term to smooth out rapid changes
+
         setpoint=0,
+    """
+    ROI内の指定y座標（グローバル座標）で黄色領域の重心xを返す。
+    Args:
+        frame: 入力画像（BGR）
+        roi: (x1, y1, x2, y2)
+        y: グローバル座標でのy位置
+    Returns:
+        yellow_cx: ROI内x座標（ROI左端基準）
+        yellow_pixel_count: 黄色ピクセル数
+    """
+    x1, y1, x2, y2 = roi
+    roi_frame = frame[y1:y2, x1:x2]
+    y_offset = y - y1
+    if 0 <= y_offset < roi_frame.shape[0]:
+        yellow_row = roi_frame[y_offset:y_offset+1, :, :]
+        from nnspike.utils.control import find_bottle_center_with_yellow_count
+        yellow_cx, _, yellow_pixel_count = find_bottle_center_with_yellow_count(yellow_row)
+        return yellow_cx, yellow_pixel_count
+    else:
+        return None, 0
         output_limits=(
             -BASE_SPEED,
             BASE_SPEED,
@@ -186,6 +192,23 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.BOTTLE_CARRYING:
                     print("Not implemented: Bottle carrying mode")
                     target_x = (x1 + x2) // 2
+                case Mode.FORWARD:
+                    # 画像全体の黄色重心に向かって進む
+                    yellow_cx, _, yellow_pixel_count = find_bottle_center_with_yellow_count(frame)
+                    if yellow_pixel_count > 14000:
+                        previous_mode = mode
+                        mode = Mode.OBSTACLE_AVOIDANCE
+                        avoid_obstacle(et)
+                        print("Avoiding obstacle (auto FORWARD)...")
+                        mode = previous_mode
+                        target_x = (x1 + x2) // 2
+                    elif yellow_pixel_count > 4000:
+                        if yellow_cx is not None:
+                            target_x = yellow_cx
+                        else:
+                            target_x = (x1 + x2) // 2
+                    else:
+                        target_x = (x1 + x2) // 2
                 case _:
                     # Default to center if invalid edge specified
                     target_x = (x1 + x2) // 2
