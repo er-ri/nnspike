@@ -519,15 +519,23 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
     bin_final = cv2.morphologyEx(bin_dilated, cv2.MORPH_CLOSE, kernel_close)
     contours, _ = cv2.findContours(bin_final, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
-    # 要件: 輪郭位置情報フィルタリング（有効領域抽出）
+    # 要件: 輪郭位置情報フィルタリング（有効領域抽出）+ 暗さ優先度計算
     detected_regions = []
     for cnt in contours:
         area = cv2.contourArea(cnt)
         x, y, w, h = cv2.boundingRect(cnt)
         if (50 < area < 20000 and w >= 10 and h >= 10 and y <= 450 and not (y >= 350 and 120 <= x <= 520)):
+            # 輪郭内の平均暗さを計算（暗いほど高優先度）
+            mask = np.zeros(gray.shape, dtype=np.uint8)
+            cv2.fillPoly(mask, [cnt], 255)
+            region_pixels = gray[mask == 255]
+            avg_darkness = 255 - np.mean(region_pixels) if len(region_pixels) > 0 else 0  # 暗いほど大きい値
+            
             detected_regions.append({
                 'x': x, 'y': y, 'w': w, 'h': h, 'area': area,
-                'center': (x + w//2, y + h//2)
+                'center': (x + w//2, y + h//2),
+                'darkness': avg_darkness,
+                'priority': avg_darkness * (area / 1000)  # 暗さ×面積による優先度
             })
     
     # 要件: 近接輪郭統合処理
@@ -544,7 +552,7 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             dx = region['center'][0] - other['center'][0]
             dy = region['center'][1] - other['center'][1]
             distance = (dx*dx + dy*dy) ** 0.5
-            if distance < 50 and (region['area'] < 500 or other['area'] < 500):
+            if distance < 100 and (region['area'] < 1000 or other['area'] < 1000):
                 current_group.append(other)
                 processed.add(j)
         
@@ -555,10 +563,15 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             min_y = min(r['y'] for r in current_group)
             max_x = max(r['x'] + r['w'] for r in current_group)
             max_y = max(r['y'] + r['h'] for r in current_group)
+            # 統合時は最も暗い（高優先度）領域の暗さを継承
+            max_darkness = max(r['darkness'] for r in current_group)
+            total_area = sum(r['area'] for r in current_group)
             merged.append({
                 'x': min_x, 'y': min_y, 'w': max_x - min_x, 'h': max_y - min_y,
-                'area': sum(r['area'] for r in current_group),
-                'center': ((min_x + max_x) // 2, (min_y + max_y) // 2)
+                'area': total_area,
+                'center': ((min_x + max_x) // 2, (min_y + max_y) // 2),
+                'darkness': max_darkness,
+                'priority': max_darkness * (total_area / 1000)
             })
     detected_regions = merged
     
@@ -570,44 +583,75 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
     if not detected_regions:
         trajectory_center_x = previous_center_x if previous_center_x is not None else fallback_center_x
     else:
+        # 暗さ優先度による領域ソート（暗いほど優先して避ける）
         regions_sorted = sorted(detected_regions, key=lambda x: x['x'])
+        regions_by_priority = sorted(detected_regions, key=lambda x: x['priority'], reverse=True)
         back_regions = [r for r in detected_regions if r['y'] <= target_y - 50]
         
-        # 奥輪郭2個以上: 間隙通過
+        # 高優先度（暗い）輪郭の回避距離を拡大
+        high_priority_threshold = 150  # 暗さ閾値
+        high_priority_regions = [r for r in detected_regions if r['darkness'] > high_priority_threshold]
+        
+        # 奥輪郭2個以上: 間隙通過（高優先度輪郭は回避距離拡大）
         if len(back_regions) >= 2:
             back_sorted = sorted(back_regions, key=lambda x: x['x'])
             left_edge = back_sorted[0]['x'] + back_sorted[0]['w']
             right_edge = back_sorted[1]['x']
-            gap_width = right_edge - left_edge
+            
+            # 高優先度輪郭には追加の安全マージンを適用
+            safety_margin = 0
+            if back_sorted[0]['darkness'] > high_priority_threshold:
+                safety_margin += 15
+            if back_sorted[1]['darkness'] > high_priority_threshold:
+                safety_margin += 15
+            
+            gap_width = right_edge - left_edge - safety_margin
             if gap_width >= min_safe_gap:
                 candidate_x = (left_edge + right_edge) // 2
                 # 軌道安定化: 有効範囲内かチェック
                 if valid_center_min <= candidate_x <= valid_center_max:
                     trajectory_center_x = candidate_x
         
-        # 全輪郭最適経路選択
+        # 全輪郭最適経路選択（暗さ優先度考慮）
         if trajectory_center_x is None and len(regions_sorted) >= 2:
             best_gap = None
             for i in range(len(regions_sorted) - 1):
-                left_edge = regions_sorted[i]['x'] + regions_sorted[i]['w']
-                right_edge = regions_sorted[i + 1]['x']
-                gap_width = right_edge - left_edge
+                left_region = regions_sorted[i]
+                right_region = regions_sorted[i + 1]
+                left_edge = left_region['x'] + left_region['w']
+                right_edge = right_region['x']
+                
+                # 高優先度輪郭には追加の安全マージンを適用
+                safety_margin = 0
+                if left_region['darkness'] > high_priority_threshold:
+                    safety_margin += 15
+                if right_region['darkness'] > high_priority_threshold:
+                    safety_margin += 15
+                
+                gap_width = right_edge - left_edge - safety_margin
                 if gap_width >= min_safe_gap:
                     candidate_x = (left_edge + right_edge) // 2
                     # 軌道安定化: 有効範囲内かチェック
                     if valid_center_min <= candidate_x <= valid_center_max:
-                        if best_gap is None or gap_width > best_gap['width']:
-                            best_gap = {'width': gap_width, 'center': candidate_x}
+                        # 暗い輪郭間の隙間はより優先（gap_widthにボーナス）
+                        priority_bonus = (left_region['darkness'] + right_region['darkness']) / 10
+                        effective_width = gap_width + priority_bonus
+                        if best_gap is None or effective_width > best_gap['width']:
+                            best_gap = {'width': effective_width, 'center': candidate_x}
             
             if best_gap:
                 trajectory_center_x = best_gap['center']
         
-        # 単一輪郭回避
+        # 単一輪郭回避（暗さに応じた回避距離調整）
         if trajectory_center_x is None and len(detected_regions) == 1:
             region = detected_regions[0]
             contour_center = region['center'][0]
             image_center = image_width // 2
-            safety_distance = 20
+            
+            # 暗い輪郭ほど大きな安全距離を確保
+            base_safety_distance = 20
+            darkness_bonus = min(region['darkness'] / 10, 30)  # 最大30px追加
+            safety_distance = base_safety_distance + darkness_bonus
             
             # 反対方向回避
             if contour_center < image_center:

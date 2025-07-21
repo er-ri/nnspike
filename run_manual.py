@@ -43,7 +43,7 @@ import numpy as np
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode
 from nnspike.unit import ETRobot
 from nnspike.unit.actions import avoid_obstacle
-from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y
+from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, get_virtual_line_edges_at_y
 from nnspike.utils import find_bottle_center_with_yellow_count, find_bottle_center_with_red_count, find_bottle_center_with_blue_count
 
 # User defined constants
@@ -91,6 +91,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     # 障害物回避用の状態管理
     obstacle_avoid_state = None  # None:通常, dict:回避中
     previous_mode = None
+    pre_target_x = None  # 前回のtarget_xを保持（軌道安定性のため）
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
 
@@ -180,6 +181,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     obstacle_avoid_state = None  # avoid_obstacle_stepの初期化
                     print("Avoiding obstacle...")
                 continue
+            elif key == "g":  # 'g' key for red bottle to gate mode
+                mode = Mode.RED_BOTTLE_TO_GATE
+                print("Switched to red bottle to gate mode")
+                continue
 
             match mode:
                 case Mode.OBSTACLE_AVOIDANCE:
@@ -203,6 +208,15 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.BOTTLE_CARRYING:
                     print("Not implemented: Bottle carrying mode")
                     target_x = (x1 + x2) // 2
+                case Mode.RED_BOTTLE_TO_GATE:
+                    # 仮想ラインエッジを使用して赤ボトルからゲートへ走行
+                    # OFFSET_Yを使用
+                    target_x = get_virtual_line_edges_at_y(frame, OFFSET_Y, previous_center_x=pre_target_x)
+                    # このモード内で前回のtarget_xを更新（軌道安定性のため）
+                    if target_x is not None:
+                        pre_target_x = target_x
+                    elif pre_target_x is None:
+                        pre_target_x = (x1 + x2) // 2  # 初期値設定
                 case Mode.FORWARD:
                     # 画像全体の黄色重心に向かって進む
                     yellow_cx, _, yellow_pixel_count = find_bottle_center_with_yellow_count(frame)

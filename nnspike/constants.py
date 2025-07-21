@@ -13,14 +13,15 @@ class Mode(Enum):
     BOTTLE_CARRYING = 3
     BOTTLE_CATCH_BLUE = 4
     BLUE_BOTTLE_TO_GATE = 5
-    HEADING_GATE = 6
-    BACKWARD_AND_TURN_AROUND = 7
-    TURN_LEFT = 8
-    TURN_RIGHT = 9
-    BACKWARD_AND_HEADING_GOAL = 10
-    PAUSE = 11
-    FORWARD = 12        # 前進専用
-    BACKWARD = 13       # 後退専用
+    RED_BOTTLE_TO_GATE = 6
+    HEADING_GATE = 7
+    BACKWARD_AND_TURN_AROUND = 8
+    TURN_LEFT = 9
+    TURN_RIGHT = 10
+    BACKWARD_AND_HEADING_GOAL = 11
+    PAUSE = 12
+    FORWARD = 13        # 前進専用
+    BACKWARD = 14       # 後退専用
 
 
 # One-Hot Encoding for Modes
