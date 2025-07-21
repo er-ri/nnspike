@@ -463,3 +463,169 @@ def calculate_attitude_angle(
     theta = math.atan2(lateral_offset_meters, ground_distance)
 
     return theta
+
+
+def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, fallback_center_x=None, previous_center_x=None):
+    """
+    輪郭位置情報基準進路決定システム
+    
+    輪郭検出と軌道安定化に基づく仮想ライン中心座標取得関数。
+    画像内の輪郭を解析し、検出された障害物を通過する最適経路を計算し、
+    軌道の安定性を維持します。
+    
+    【実装要件】
+    1. 輪郭検出：適応的二値化による高精度輪郭抽出
+    2. 領域フィルタリング：面積・サイズ・位置による有効領域選別
+    3. 除外範囲：Y≥350 AND 120≤X≤520 エリアの輪郭を除外
+    4. 近接統合：距離50px以内の小輪郭を統合処理
+    5. 軌道安定化：前回中心座標から±50px範囲内での軌道制限
+    6. 経路選択：奥輪郭間隙→全輪郭最適間隙→単一輪郭回避の優先順位
+    7. フォールバック：軌道計算失敗時の前回軌道維持または中央復帰
+    
+    パラメータ:
+    - img: 入力画像 (BGR形式)
+    - target_y: ライン中心を検出するY座標
+    - line_width: 境界チェック用の幅 (デフォルト: 10)
+               ※画像端からline_width//2以上離れた位置に軌道を制限
+    - image_width: 画像の幅 (デフォルト: 640)
+    - fallback_center_x: フォールバック中心X位置 (デフォルト: image_width // 2)
+    - previous_center_x: 軌道安定化用の前回中心X座標 (デフォルト: None)
+                        ※軌道安定化を有効にする場合は前回の結果を設定
+    
+    戻り値:
+    - target_x: 最適軌道の中心X座標
+    """
+    
+    if fallback_center_x is None:
+        fallback_center_x = image_width // 2
+    
+    # 軌道安定化: previous_center_xが有効な場合は優先維持
+    if previous_center_x is not None:
+        # 前回軌道から大きく変化しない範囲で制限
+        valid_center_min = max(50, previous_center_x - 50)
+        valid_center_max = min(image_width - 50, previous_center_x + 50)
+    else:
+        valid_center_min = 50
+        valid_center_max = image_width - 50
+    
+    # 要件: 輪郭の位置情報を取得
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    bin_img = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+    kernel_noise = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+    bin_cleaned = cv2.morphologyEx(bin_img, cv2.MORPH_OPEN, kernel_noise)
+    kernel_dilate = cv2.getStructuringElement(cv2.MORPH_RECT, (4,4))
+    bin_dilated = cv2.dilate(bin_cleaned, kernel_dilate, iterations=1)
+    kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (8,8))
+    bin_final = cv2.morphologyEx(bin_dilated, cv2.MORPH_CLOSE, kernel_close)
+    contours, _ = cv2.findContours(bin_final, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # 要件: 輪郭位置情報フィルタリング（有効領域抽出）
+    detected_regions = []
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        x, y, w, h = cv2.boundingRect(cnt)
+        if (50 < area < 20000 and w >= 10 and h >= 10 and y <= 450 and not (y >= 350 and 120 <= x <= 520)):
+            detected_regions.append({
+                'x': x, 'y': y, 'w': w, 'h': h, 'area': area,
+                'center': (x + w//2, y + h//2)
+            })
+    
+    # 要件: 近接輪郭統合処理
+    merged = []
+    processed = set()
+    for i, region in enumerate(detected_regions):
+        if i in processed:
+            continue
+        current_group = [region]
+        processed.add(i)
+        for j, other in enumerate(detected_regions):
+            if j in processed or j <= i:
+                continue
+            dx = region['center'][0] - other['center'][0]
+            dy = region['center'][1] - other['center'][1]
+            distance = (dx*dx + dy*dy) ** 0.5
+            if distance < 50 and (region['area'] < 500 or other['area'] < 500):
+                current_group.append(other)
+                processed.add(j)
+        
+        if len(current_group) == 1:
+            merged.append(current_group[0])
+        else:
+            min_x = min(r['x'] for r in current_group)
+            min_y = min(r['y'] for r in current_group)
+            max_x = max(r['x'] + r['w'] for r in current_group)
+            max_y = max(r['y'] + r['h'] for r in current_group)
+            merged.append({
+                'x': min_x, 'y': min_y, 'w': max_x - min_x, 'h': max_y - min_y,
+                'area': sum(r['area'] for r in current_group),
+                'center': ((min_x + max_x) // 2, (min_y + max_y) // 2)
+            })
+    detected_regions = merged
+    
+    # 軌道計算: 安定化優先版
+    trajectory_center_x = None
+    min_safe_gap = 40
+    
+    # 輪郭無し: 前回軌道維持または中央
+    if not detected_regions:
+        trajectory_center_x = previous_center_x if previous_center_x is not None else fallback_center_x
+    else:
+        regions_sorted = sorted(detected_regions, key=lambda x: x['x'])
+        back_regions = [r for r in detected_regions if r['y'] <= target_y - 50]
+        
+        # 奥輪郭2個以上: 間隙通過
+        if len(back_regions) >= 2:
+            back_sorted = sorted(back_regions, key=lambda x: x['x'])
+            left_edge = back_sorted[0]['x'] + back_sorted[0]['w']
+            right_edge = back_sorted[1]['x']
+            gap_width = right_edge - left_edge
+            if gap_width >= min_safe_gap:
+                candidate_x = (left_edge + right_edge) // 2
+                # 軌道安定化: 有効範囲内かチェック
+                if valid_center_min <= candidate_x <= valid_center_max:
+                    trajectory_center_x = candidate_x
+        
+        # 全輪郭最適経路選択
+        if trajectory_center_x is None and len(regions_sorted) >= 2:
+            best_gap = None
+            for i in range(len(regions_sorted) - 1):
+                left_edge = regions_sorted[i]['x'] + regions_sorted[i]['w']
+                right_edge = regions_sorted[i + 1]['x']
+                gap_width = right_edge - left_edge
+                if gap_width >= min_safe_gap:
+                    candidate_x = (left_edge + right_edge) // 2
+                    # 軌道安定化: 有効範囲内かチェック
+                    if valid_center_min <= candidate_x <= valid_center_max:
+                        if best_gap is None or gap_width > best_gap['width']:
+                            best_gap = {'width': gap_width, 'center': candidate_x}
+            
+            if best_gap:
+                trajectory_center_x = best_gap['center']
+        
+        # 単一輪郭回避
+        if trajectory_center_x is None and len(detected_regions) == 1:
+            region = detected_regions[0]
+            contour_center = region['center'][0]
+            image_center = image_width // 2
+            safety_distance = 20
+            
+            # 反対方向回避
+            if contour_center < image_center:
+                candidate_x = contour_center + region['w']//2 + safety_distance
+            else:
+                candidate_x = contour_center - region['w']//2 - safety_distance
+            
+            # 軌道安定化: 有効範囲内かチェック
+            if valid_center_min <= candidate_x <= valid_center_max:
+                trajectory_center_x = candidate_x
+        
+        # フォールバック: 前回軌道維持または中央
+        if trajectory_center_x is None:
+            trajectory_center_x = previous_center_x if previous_center_x is not None else fallback_center_x
+    
+    # 最終調整：画像境界チェック
+    # line_width//2 以上かつ image_width - line_width//2 - 1 以下に制限
+    # これにより軌道が画像端から一定距離を保ち、ロボットの安全な制御範囲内に収める
+    trajectory_center_x = max(line_width//2, min(image_width - line_width//2 - 1, trajectory_center_x))
+    
+    return trajectory_center_x
