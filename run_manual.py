@@ -206,6 +206,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.FORWARD:
                     # 画像全体の黄色重心に向かって進む
                     yellow_cx, _, yellow_pixel_count = find_bottle_center_with_yellow_count(frame)
+                    red_cx, _, red_pixel_count = find_bottle_center_with_red_count(frame)
                     if yellow_pixel_count > 14000:
                         if obstacle_avoid_state is None:
                             previous_mode = mode
@@ -216,6 +217,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     elif yellow_pixel_count > 4000:
                         if yellow_cx is not None:
                             target_x = yellow_cx
+                        else:
+                            target_x = (x1 + x2) // 2
+                    elif red_pixel_count > 4000:
+                        if red_cx is not None:
+                            target_x = red_cx
                         else:
                             target_x = (x1 + x2) // 2
                     else:
