@@ -199,6 +199,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     my = (y2 - y1) // 2
                     offset_pixels = 0
                     max_contour = None
+                    # 障害物回避モード用のダミー値
+                    theta = 0.0
+                    steering_correction = 0.0
                 case Mode.LEFT_EDGE_FOLLOWING:
                     left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     target_x = left_x
