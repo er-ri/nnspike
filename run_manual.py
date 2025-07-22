@@ -297,7 +297,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             right_pos = status.motors["B"].relative_position
 
             info = dict()
-            info["target_x"], info["offset_y"] = x1 + mx, y1 + my
+            info["target_x"], info["offset_y"] = x1 + int(mx), y1 + int(my)
             info["text"] = {
                 "mode": mode.name,
                 "left_relative_position": left_pos,
