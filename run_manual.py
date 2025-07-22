@@ -233,12 +233,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         target_x = (x1 + x2) // 2
                     elif yellow_pixel_count > 4000:
                         if yellow_cx is not None:
-                            target_x = yellow_cx
+                            target_x = yellow_cx[0]  # X座標のみを取得
                         else:
                             target_x = (x1 + x2) // 2
                     elif red_pixel_count > 4000:
                         if red_cx is not None:
-                            target_x = red_cx
+                            target_x = red_cx[0]  # X座標のみを取得
                         else:
                             target_x = (x1 + x2) // 2
                     else:
@@ -317,7 +317,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 # Adjust contour coordinates to full frame
                 adjusted_contour = max_contour + np.array([x1, y1])
                 cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)  # Draw centroid
-                cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
+                cv2.circle(gray, (int(x1 + int(mx)), int(y1 + int(my))), 5, (255, 255, 255), -1)
             if send_video_stream and client_socket is not None:
                 try:
                     ret, buffer = cv2.imencode(".jpg", gray)
