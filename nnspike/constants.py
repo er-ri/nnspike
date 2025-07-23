@@ -22,6 +22,7 @@ class Mode(Enum):
     PAUSE = 12
     FORWARD = 13        # 前進専用
     BACKWARD = 14       # 後退専用
+    BLUE_BOTTLE = 15   # 新しいモードを追加
 
 
 # One-Hot Encoding for Modes
