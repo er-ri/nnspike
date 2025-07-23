@@ -65,3 +65,13 @@ def turn_left(state, et: ETRobot, frame):
         (0, 60, 0.8),  # 左旋回（左モーター停止、右モーター前進）
     ]
     return _perform_action_chain(state, et, frame, action_chain)
+
+
+def small_turn_left(state, et: ETRobot, frame):
+    """
+    小さい左旋回アクションを1フレーム進める汎用step関数。
+    """
+    action_chain = [
+        (0, 60, 0.4),  # 小さく左旋回（左モーター停止、右モーター中速）
+    ]
+    return _perform_action_chain(state, et, frame, action_chain)

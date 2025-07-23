@@ -42,7 +42,7 @@ import numpy as np
 
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode
 from nnspike.unit import ETRobot
-from nnspike.unit.actions import avoid_obstacle, turn_right, turn_left
+from nnspike.unit.actions import avoid_obstacle, turn_right, turn_left, small_turn_left
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, get_virtual_line_edges_at_y
 from nnspike.utils import find_bottle_center_with_yellow_count, find_bottle_center_with_red_count, find_bottle_center_with_blue_count
 
@@ -220,6 +220,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     action_state = None  # turn_left_stepの初期化
                     print("Turning left...")
                 continue
+            elif key == "j":  # 'j' key for small turn left
+                if action_state is None:
+                    previous_mode = mode  # Save current mode
+                    mode = Mode.SMALL_TURN_LEFT
+                    action_state = None  # small_turn_left_stepの初期化
+                    print("Small turning left...")
+                continue
 
             match mode:
                 case Mode.OBSTACLE_AVOIDANCE:
@@ -239,6 +246,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.TURN_LEFT:
                     # 左旋回モード: 1フレーム分の指示を取得
                     action_state, left_speed, right_speed, finished = turn_left(action_state, et, frame)
+                    if finished:
+                        mode = previous_mode
+                        action_state = None
+                    target_x, mx, my, offset_pixels, max_contour, theta, steering_correction = set_action_mode_defaults(x1, x2, y1, y2)
+                case Mode.SMALL_TURN_LEFT:
+                    # 小さく左旋回モード: 1フレーム分の指示を取得
+                    action_state, left_speed, right_speed, finished = small_turn_left(action_state, et, frame)
                     if finished:
                         mode = previous_mode
                         action_state = None
@@ -299,7 +313,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     target_x = (x1 + x2) // 2
 
             # BLUE_BOTTLEモード専用制御（既存ロジックに影響なし）
-            if mode == Mode.BLUE_BOTTLE and mode not in [Mode.OBSTACLE_AVOIDANCE, Mode.TURN_RIGHT, Mode.TURN_LEFT]:
+            if mode == Mode.BLUE_BOTTLE and mode not in [Mode.OBSTACLE_AVOIDANCE, Mode.TURN_RIGHT, Mode.TURN_LEFT, Mode.SMALL_TURN_LEFT]:
                 if target_x is not None:
                     # 画像全体基準で制御（640x480、中心=320）
                     image_center_x = 320
@@ -329,7 +343,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 right_speed = int(max(0, min(100, right_speed)))
 
             # 既存の制御ロジック（BLUE_BOTTLE以外の全モード用）
-            elif mode not in [Mode.OBSTACLE_AVOIDANCE, Mode.TURN_RIGHT, Mode.TURN_LEFT]:
+            elif mode not in [Mode.OBSTACLE_AVOIDANCE, Mode.TURN_RIGHT, Mode.TURN_LEFT, Mode.SMALL_TURN_LEFT]:
                 if target_x is not None:
                     # Calculate position relative to ROI
                     mx = target_x - x1  # Relative to ROI
@@ -453,6 +467,7 @@ if __name__ == "__main__":
     print("Controls:")
     print("  'a' - Follow left edge")
     print("  'd' - Follow right edge")
+    print("  'j' - Small turn left")
     print("  'q' - Quit")
     print("Press Ctrl+C to stop")
 

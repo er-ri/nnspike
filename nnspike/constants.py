@@ -23,6 +23,7 @@ class Mode(Enum):
     FORWARD = 13        # 前進専用
     BACKWARD = 14       # 後退専用
     BLUE_BOTTLE = 15   # 新しいモードを追加
+    SMALL_TURN_LEFT = 16  # 小さいターンレフト
 
 
 # One-Hot Encoding for Modes
