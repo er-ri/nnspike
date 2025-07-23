@@ -298,8 +298,42 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     # Default to center if invalid edge specified
                     target_x = (x1 + x2) // 2
 
-            # OBSTACLE_AVOIDANCE、TURN_RIGHT、TURN_LEFT以外のときは通常の制御値計算
-            if mode not in [Mode.OBSTACLE_AVOIDANCE, Mode.TURN_RIGHT, Mode.TURN_LEFT]:
+            # BLUE_BOTTLEモード専用制御（既存ロジックに影響なし）
+            if mode == Mode.BLUE_BOTTLE and mode not in [Mode.OBSTACLE_AVOIDANCE, Mode.TURN_RIGHT, Mode.TURN_LEFT]:
+                if target_x is not None:
+                    # 画像全体基準で制御（640x480、中心=320）
+                    image_center_x = 320
+                    offset_pixels = target_x - image_center_x
+                    
+                    # 端の場合は最大曲がりに設定
+                    if target_x < 50 or target_x > 590:  # 画像端付近
+                        steering_correction = np.sign(offset_pixels) * BASE_SPEED
+                    else:
+                        # 通常時はPID制御
+                        theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)
+                        steering_correction = pid.update(theta)
+                    
+                    # 可視化用の値（ROI基準に変換）
+                    mx = target_x - x1
+                    my = OFFSET_Y - y1
+                    max_contour = np.array([[[mx, my]]], dtype=np.int32) if mx >= 0 and mx < (x2-x1) else None
+                else:
+                    # 検出できない場合は中央へ
+                    mx = (x2 - x1) // 2
+                    my = (y2 - y1) // 2
+                    offset_pixels = 0
+                    max_contour = None
+                    steering_correction = 0
+
+                # BLUE_BOTTLE専用の速度制御
+                current_base_speed = BASE_SPEED
+                left_speed = current_base_speed - steering_correction
+                right_speed = current_base_speed + steering_correction
+                left_speed = int(max(0, min(100, left_speed)))
+                right_speed = int(max(0, min(100, right_speed)))
+
+            # 既存の制御ロジック（BLUE_BOTTLE以外の全モード用）
+            elif mode not in [Mode.OBSTACLE_AVOIDANCE, Mode.TURN_RIGHT, Mode.TURN_LEFT]:
                 if target_x is not None:
                     # Calculate position relative to ROI
                     mx = target_x - x1  # Relative to ROI
