@@ -287,7 +287,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.BLUE_BOTTLE:
                     # 画像全体の青色重心に向かって進む
                     blue_cx, _, blue_pixel_count = find_bottle_center_with_blue_count(frame)
-                    if blue_pixel_count > 500:
+                    if blue_pixel_count > 1000:
                         if blue_cx is not None:
                             target_x = blue_cx[0]  # X座標のみを取得
                         else:
