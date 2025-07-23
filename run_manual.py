@@ -42,7 +42,7 @@ import numpy as np
 
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode
 from nnspike.unit import ETRobot
-from nnspike.unit.actions import avoid_obstacle
+from nnspike.unit.actions import avoid_obstacle, turn_right, turn_left
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, get_virtual_line_edges_at_y
 from nnspike.utils import find_bottle_center_with_yellow_count, find_bottle_center_with_red_count, find_bottle_center_with_blue_count
 
@@ -83,13 +83,30 @@ class KeyboardController:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)  # type: ignore
 
 
+def set_action_mode_defaults(x1, x2, y1, y2):
+    """
+    アクションモード用のダミー値を設定する共通関数
+    """
+    target_x = None  # 通常制御は行わない
+    # 可視化用ダミー値
+    mx = (x2 - x1) // 2
+    my = (y2 - y1) // 2
+    offset_pixels = 0
+    max_contour = None
+    # アクションモード用のダミー値
+    theta = 0.0
+    steering_correction = 0.0
+    
+    return target_x, mx, my, offset_pixels, max_contour, theta, steering_correction
+
+
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, initial_course="left"):
     # Initialize edge following preference based on the initial_course parameter
     #mode = Mode.LEFT_EDGE_FOLLOWING if initial_course == "left" else Mode.RIGHT_EDGE_FOLLOWING
     mode = Mode.PAUSE  # 最初はpause状態で開始
 
     # 障害物回避用の状態管理
-    obstacle_avoid_state = None  # None:通常, dict:回避中
+    action_state = None  # None:通常, dict:アクション実行中
     previous_mode = None
     pre_target_x = None  # 前回のtarget_xを保持（軌道安定性のため）
     # Generate timestamp for consistent naming if recording is enabled
@@ -175,33 +192,53 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 mode = Mode.PAUSE
                 print("Switched to pause mode")
             elif key == "o":  # 'o' key to avoid obstacle
-                if obstacle_avoid_state is None:
+                if action_state is None:
                     previous_mode = mode  # Save current mode
                     mode = Mode.OBSTACLE_AVOIDANCE
-                    obstacle_avoid_state = None  # avoid_obstacle_stepの初期化
+                    action_state = None  # avoid_obstacle_stepの初期化
                     print("Avoiding obstacle...")
                 continue
             elif key == "g":  # 'g' key for red bottle to gate mode
                 mode = Mode.RED_BOTTLE_TO_GATE
                 print("Switched to red bottle to gate mode")
                 continue
+            elif key == "r":  # 'r' key to turn right
+                if action_state is None:
+                    previous_mode = mode  # Save current mode
+                    mode = Mode.TURN_RIGHT
+                    action_state = None  # turn_right_stepの初期化
+                    print("Turning right...")
+                continue
+            elif key == "l":  # 'l' key to turn left
+                if action_state is None:
+                    previous_mode = mode  # Save current mode
+                    mode = Mode.TURN_LEFT
+                    action_state = None  # turn_left_stepの初期化
+                    print("Turning left...")
+                continue
 
             match mode:
                 case Mode.OBSTACLE_AVOIDANCE:
                     # 障害物回避モード: 1フレーム分の指示を取得
-                    obstacle_avoid_state, left_speed, right_speed, finished = avoid_obstacle(obstacle_avoid_state, et, frame)
+                    action_state, left_speed, right_speed, finished = avoid_obstacle(action_state, et, frame)
                     if finished:
                         mode = previous_mode
-                        obstacle_avoid_state = None
-                    target_x = None  # 通常制御は行わない
-                    # 可視化用ダミー値
-                    mx = (x2 - x1) // 2
-                    my = (y2 - y1) // 2
-                    offset_pixels = 0
-                    max_contour = None
-                    # 障害物回避モード用のダミー値
-                    theta = 0.0
-                    steering_correction = 0.0
+                        action_state = None
+                    target_x, mx, my, offset_pixels, max_contour, theta, steering_correction = set_action_mode_defaults(x1, x2, y1, y2)
+                case Mode.TURN_RIGHT:
+                    # 右旋回モード: 1フレーム分の指示を取得
+                    action_state, left_speed, right_speed, finished = turn_right(action_state, et, frame)
+                    if finished:
+                        mode = previous_mode
+                        action_state = None
+                    target_x, mx, my, offset_pixels, max_contour, theta, steering_correction = set_action_mode_defaults(x1, x2, y1, y2)
+                case Mode.TURN_LEFT:
+                    # 左旋回モード: 1フレーム分の指示を取得
+                    action_state, left_speed, right_speed, finished = turn_left(action_state, et, frame)
+                    if finished:
+                        mode = previous_mode
+                        action_state = None
+                    target_x, mx, my, offset_pixels, max_contour, theta, steering_correction = set_action_mode_defaults(x1, x2, y1, y2)
                 case Mode.LEFT_EDGE_FOLLOWING:
                     left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     target_x = left_x
@@ -225,10 +262,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     yellow_cx, _, yellow_pixel_count = find_bottle_center_with_yellow_count(frame)
                     red_cx, _, red_pixel_count = find_bottle_center_with_red_count(frame)
                     if yellow_pixel_count > 14000:
-                        if obstacle_avoid_state is None:
+                        if action_state is None:
                             previous_mode = mode
                             mode = Mode.OBSTACLE_AVOIDANCE
-                            obstacle_avoid_state = None
+                            action_state = None
                             print("Avoiding obstacle (auto FORWARD)...")
                         target_x = (x1 + x2) // 2
                     elif yellow_pixel_count > 4000:
@@ -247,8 +284,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     # Default to center if invalid edge specified
                     target_x = (x1 + x2) // 2
 
-            # OBSTACLE_AVOIDANCE以外のときは通常の制御値計算
-            if mode != Mode.OBSTACLE_AVOIDANCE:
+            # OBSTACLE_AVOIDANCE、TURN_RIGHT、TURN_LEFT以外のときは通常の制御値計算
+            if mode not in [Mode.OBSTACLE_AVOIDANCE, Mode.TURN_RIGHT, Mode.TURN_LEFT]:
                 if target_x is not None:
                     # Calculate position relative to ROI
                     mx = target_x - x1  # Relative to ROI
