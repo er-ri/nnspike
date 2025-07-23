@@ -279,7 +279,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                             target_x = red_cx[0]  # X座標のみを取得
                         else:
                             target_x = (x1 + x2) // 2
-                    elif blue_pixel_count > 4000:
+                    elif blue_pixel_count > 1000:
                         if blue_cx is not None:
                             target_x = blue_cx[0]  # X座標のみを取得
                         else:
