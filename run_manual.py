@@ -305,13 +305,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     image_center_x = 320
                     offset_pixels = target_x - image_center_x
                     
-                    # 端の場合は最大曲がりに設定
-                    if target_x < 50 or target_x > 590:  # 画像端付近
-                        steering_correction = np.sign(offset_pixels) * BASE_SPEED
-                    else:
-                        # 通常時はPID制御
-                        theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)
-                        steering_correction = pid.update(theta)
+                    # PID制御
+                    theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)
+                    steering_correction = pid.update(theta)
                     
                     # 可視化用の値（ROI基準に変換）
                     mx = target_x - x1
