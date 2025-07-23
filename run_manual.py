@@ -202,6 +202,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 mode = Mode.RED_BOTTLE_TO_GATE
                 print("Switched to red bottle to gate mode")
                 continue
+            elif key == "u":  # 'u' key for blue bottle mode
+                mode = Mode.BLUE_BOTTLE
+                print("Switched to blue bottle mode")
+                continue
             elif key == "r":  # 'r' key to turn right
                 if action_state is None:
                     previous_mode = mode  # Save current mode
@@ -261,7 +265,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     # 画像全体の黄色重心に向かって進む
                     yellow_cx, _, yellow_pixel_count = find_bottle_center_with_yellow_count(frame)
                     red_cx, _, red_pixel_count = find_bottle_center_with_red_count(frame)
-                    blue_cx, _, blue_pixel_count = find_bottle_center_with_blue_count(frame)
                     if yellow_pixel_count > 14000:
                         if action_state is None:
                             previous_mode = mode
@@ -279,7 +282,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                             target_x = red_cx[0]  # X座標のみを取得
                         else:
                             target_x = (x1 + x2) // 2
-                    elif blue_pixel_count > 500:
+                    else:
+                        target_x = (x1 + x2) // 2
+                case Mode.BLUE_BOTTLE:
+                    # 画像全体の青色重心に向かって進む
+                    blue_cx, _, blue_pixel_count = find_bottle_center_with_blue_count(frame)
+                    if blue_pixel_count > 500:
                         if blue_cx is not None:
                             target_x = blue_cx[0]  # X座標のみを取得
                         else:
