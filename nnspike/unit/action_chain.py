@@ -24,25 +24,37 @@ class ActionChain(object):
 
     def avoid_obstacle(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
-        Perform a sequence of actions to avoid an obstacle.
-
-        Args:
-            et (ETRobot): The ETRobot instance to control.
+        backup/20250724/actions.pyと同じ障害物回避アクションチェーンを実行する。
+        左旋回(40,70,0.8s)→右旋回(80,50,1.3s)→通常復帰
         """
-        self.start_time = time.time() if self.start_time == 0.0 else self.start_time
-        self.current_time = time.time()
-
-        elapsed_time = self.current_time - self.start_time
-
-        if elapsed_time < 0.8:
-            left_speed, right_speed = (80, 50) if self.course == "left" else (50, 80)
-            return None, (left_speed, right_speed), Mode.AVOID_OBSTACLE
-
-        elif elapsed_time > 0.8 and elapsed_time < 2.1:
-            left_speed, right_speed = (80, 50) if self.course == "left" else (50, 80)
-            return None, (left_speed, right_speed), Mode.AVOID_OBSTACLE
-
-        return None, None, Mode.FOLLOW_LEFT_EDGE if self.course == "left" else Mode.FOLLOW_RIGHT_EDGE
+        if not hasattr(self, '_obstacle_state'):
+            self._obstacle_state = None
+        action_chain = [
+            (40, 70, 0.8),  # 左旋回
+            (80, 50, 1.3),  # 右旋回
+        ]
+        state = self._obstacle_state
+        if state is None:
+            idx = 0
+            left, right, duration = action_chain[0]
+            self._obstacle_state = {'idx': 0, 'remain': duration}
+            return None, (left, right), Mode.AVOID_OBSTACLE
+        idx = state['idx']
+        remain = state['remain']
+        dt = 0.05  # 1フレーム分進める
+        remain -= dt
+        if remain > 0:
+            self._obstacle_state = {'idx': idx, 'remain': remain}
+            left, right, duration = action_chain[idx]
+            return None, (left, right), Mode.AVOID_OBSTACLE
+        # 次のアクションへ
+        idx += 1
+        if idx >= len(action_chain):
+            self._obstacle_state = None
+            return None, None, Mode.FOLLOW_LEFT_EDGE if self.course == "left" else Mode.FOLLOW_RIGHT_EDGE
+        left, right, duration = action_chain[idx]
+        self._obstacle_state = {'idx': idx, 'remain': duration}
+        return None, (left, right), Mode.AVOID_OBSTACLE
 
     def heading_bottle1(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
@@ -130,7 +142,7 @@ class ActionChain(object):
         """
         raise NotImplementedError("This method should be implemented based on the specific behavior for heading towards the goal.")
 
-    def left_turn(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    def trun_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         左旋回アクションを実行する（backup/actions.pyのturn_left相当）。
         """
@@ -143,7 +155,7 @@ class ActionChain(object):
             return None, (left_speed, right_speed), Mode.LEFT_TURN if hasattr(Mode, 'LEFT_TURN') else Mode.AVOID_OBSTACLE
         return None, None, Mode.FOLLOW_LEFT_EDGE if hasattr(Mode, 'FOLLOW_LEFT_EDGE') else Mode.AVOID_OBSTACLE
 
-    def right_turn(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    def trun_right(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         右旋回アクションを実行する（backup/actions.pyのturn_right相当）。
         """
