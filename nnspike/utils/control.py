@@ -601,7 +601,6 @@ def find_blue_target_center(
     blue_hsv_upper=(140, 255, 255),
     gray_hsv_lower=(0, 0, 60),
     gray_hsv_upper=(180, 60, 140),
-    # ellipse_area_thresh, ellipse_ratio_min, ellipse_ratio_maxは不要なので削除
     blur_kernel=5
 ):
     """
