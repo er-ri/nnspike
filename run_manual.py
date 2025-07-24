@@ -196,28 +196,61 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 mode = Mode.FOLLOW_RIGHT_EDGE
                 print("Switched to following: right edge")
             elif key == "c":  # 'c' key for bottle carrying
-                mode = Mode.BOTTLE_CARRYING
-                print("Switched to bottle carrying mode")
+                mode = Mode.CARRY_BOTTLE1
+                print("Switched to bottle carrying mode 1")
+            elif key == "v":  # 'v' key for bottle carrying 2
+                mode = Mode.CARRY_BOTTLE2
+                print("Switched to bottle carrying mode 2")
+            elif key == "b":  # 'b' key for heading bottle 1
+                mode = Mode.HEAD_BOTTLE1
+                print("Switched to heading bottle 1")
+            elif key == "n":  # 'n' key for heading bottle 2
+                mode = Mode.HEAD_BOTTLE2
+                print("Switched to heading bottle 2")
+            elif key == "g":  # 'g' key for heading goal
+                mode = Mode.HEAD_GOAL
+                print("Switched to heading goal")
             elif key == "o":  # 'o' key to avoid obstacle
                 previous_mode = mode  # Save current mode
-                mode = Mode.OBSTACLE_AVOIDANCE
+                mode = Mode.AVOID_OBSTACLE
                 avoid_obstacle(et, 1.5, 1.5)  # Avoid obstacle with a turn
                 print("Avoiding obstacle...")
                 mode = previous_mode  # Restore previous mode after avoiding obstacle
+            elif key == "p":
+                mode = Mode.PAUSE
+                print("Paused")
 
             match mode:
-                case Mode.LEFT_EDGE_FOLLOWING:
+                case Mode.FOLLOW_LEFT_EDGE:
                     left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     target_x = left_x
-                case Mode.RIGHT_EDGE_FOLLOWING:
+                case Mode.FOLLOW_RIGHT_EDGE:
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     target_x = right_x
-                case Mode.BOTTLE_CARRYING:
+                case Mode.CARRY_BOTTLE1:
                     (cx, _), _ = find_bottle_center(frame)
                     target_x = cx
+                case Mode.CARRY_BOTTLE2:
+                    (cx, _), _ = find_bottle_center(frame)
+                    target_x = cx
+                case Mode.HEAD_BOTTLE1:
+                    # ここにHEAD_BOTTLE1の処理を記述
+                    target_x = (x2 + x1) // 2
+                case Mode.HEAD_BOTTLE2:
+                    # ここにHEAD_BOTTLE2の処理を記述
+                    target_x = (x2 + x1) // 2
+                case Mode.HEAD_GOAL:
+                    # ここにHEAD_GOALの処理を記述
+                    target_x = (x2 + x1) // 2
+                case Mode.AVOID_OBSTACLE:
+                    # 障害物回避中は何もしない
+                    target_x = None
+                case Mode.PAUSE:
+                    # 一時停止中は何もしない
+                    target_x = None
                 case _:
                     # Default to center if invalid edge specified
-                    target_x = (left_x + right_x) // 2
+                    target_x = (x2 + x1) // 2
 
             if target_x is not None:
                 # Calculate position relative to ROI
@@ -343,14 +376,14 @@ if __name__ == "__main__":
 
     # Convert string mode to Mode enum
     mode_mapping = {
-        "left_edge": Mode.LEFT_EDGE_FOLLOWING,
-        "right_edge": Mode.RIGHT_EDGE_FOLLOWING,
-        "obstacle_avoidance": Mode.OBSTACLE_AVOIDANCE,
-        "heading_bottle1": Mode.HEADING_BOTTLE1,
-        "bottle_carrying1": Mode.BOTTLE_CARRYING1,
-        "heading_bottle2": Mode.HEADING_BOTTLE2,
-        "bottle_carrying2": Mode.BOTTLE_CARRYING2,
-        "heading_goal": Mode.HEADING_GOAL,
+        "left_edge": Mode.FOLLOW_LEFT_EDGE,
+        "right_edge": Mode.FOLLOW_RIGHT_EDGE,
+        "obstacle_avoidance": Mode.AVOID_OBSTACLE,
+        "heading_bottle1": Mode.HEAD_BOTTLE1,
+        "bottle_carrying1": Mode.CARRY_BOTTLE1,
+        "heading_bottle2": Mode.HEAD_BOTTLE2,
+        "bottle_carrying2": Mode.CARRY_BOTTLE2,
+        "heading_goal": Mode.HEAD_GOAL,
         "pause": Mode.PAUSE,
     }
 

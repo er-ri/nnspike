@@ -129,3 +129,29 @@ class ActionChain(object):
             et (ETRobot): The ETRobot instance to control.
         """
         raise NotImplementedError("This method should be implemented based on the specific behavior for heading towards the goal.")
+
+    def left_turn(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+        """
+        左旋回アクションを実行する（backup/actions.pyのturn_left相当）。
+        """
+        self.start_time = time.time() if self.start_time == 0.0 else self.start_time
+        self.current_time = time.time()
+
+        elapsed_time = self.current_time - self.start_time
+        if elapsed_time < 0.8:
+            left_speed, right_speed = 0, 60
+            return None, (left_speed, right_speed), Mode.LEFT_TURN if hasattr(Mode, 'LEFT_TURN') else Mode.AVOID_OBSTACLE
+        return None, None, Mode.FOLLOW_LEFT_EDGE if hasattr(Mode, 'FOLLOW_LEFT_EDGE') else Mode.AVOID_OBSTACLE
+
+    def right_turn(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+        """
+        右旋回アクションを実行する（backup/actions.pyのturn_right相当）。
+        """
+        self.start_time = time.time() if self.start_time == 0.0 else self.start_time
+        self.current_time = time.time()
+
+        elapsed_time = self.current_time - self.start_time
+        if elapsed_time < 0.8:
+            left_speed, right_speed = 60, 0
+            return None, (left_speed, right_speed), Mode.RIGHT_TURN if hasattr(Mode, 'RIGHT_TURN') else Mode.AVOID_OBSTACLE
+        return None, None, Mode.FOLLOW_RIGHT_EDGE if hasattr(Mode, 'FOLLOW_RIGHT_EDGE') else Mode.AVOID_OBSTACLE

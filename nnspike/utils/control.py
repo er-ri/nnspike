@@ -1,11 +1,3 @@
-
-
-
-import math
-
-import cv2
-import numpy as np
-
 """
 Line Follower Control Module
 
@@ -22,15 +14,12 @@ Functions:
         for more accurate steering control.
 """
 
-<<<<<<< HEAD
-=======
 import math
 from typing import Optional, Tuple
 
 import cv2
 import numpy as np
 
->>>>>>> wip/teamwork-li
 
 def get_line_edges_at_y(image, roi, target_y, threshold_value=50) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """
@@ -38,7 +27,6 @@ def get_line_edges_at_y(image, roi, target_y, threshold_value=50) -> Tuple[Optio
 
     Parameters:
     - image: Input image (BGR or grayscale)
-
     - roi_coords: Tuple (x, y, width, height) defining the ROI
     - target_y: The Y coordinate where to detect line edges (in original image coordinates)
     - threshold_value: Threshold for binary conversion (default: 50)
@@ -73,7 +61,6 @@ def get_line_edges_at_y(image, roi, target_y, threshold_value=50) -> Tuple[Optio
 
     # Calculate the row within the ROI
     roi_row = target_y - y
-
 
     # Get the binary row at target Y
     if roi_row >= 0 and roi_row < h:
@@ -183,13 +170,6 @@ def get_all_line_edges_at_y(image, roi, target_y, threshold_value=50, max_edges=
     return []
 
 
-<<<<<<< HEAD
-def find_bottle_center_with_yellow_count(image):
-    # backupの内容と同じなので変更不要
-    """
-    Find the center coordinates and yellow pixel count of a bottle in an image using OpenCV.
-
-=======
 def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
     """
     Find the center coordinates and color pixel count of a colored object in an image using OpenCV.
@@ -198,7 +178,6 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
     the largest detected object. It supports both yellow and blue color detection and can be used
     for various applications including object tracking, color-based navigation, and visual recognition.
 
->>>>>>> wip/teamwork-li
     This function is optimized for real-time applications with the following improvements:
     - Accepts numpy array input instead of file paths for real-time processing
     - Uses adaptive thresholding for better edge detection under various lighting conditions
@@ -213,18 +192,12 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
         min_area (int, optional): Minimum contour area threshold for filtering noise. Defaults to 500.
 
     Returns:
-<<<<<<< HEAD
-        tuple: ((x, y), size, yellow_pixel_count) where (x, y) is the center coordinates,
-               size is the area of the largest contour, and yellow_pixel_count is the
-               number of detected yellow pixels. Returns (None, None, 0) if not found.
-=======
         tuple: ((x, y), size, color_pixel_count) where (x, y) is the center coordinates,
                size is the area of the largest contour, and color_pixel_count is the
                number of detected color pixels. Returns (None, None, 0) if not found.
 
     Raises:
         ValueError: If color parameter is not 'yellow' or 'blue'
->>>>>>> wip/teamwork-li
     """
     # Validate color parameter
     if color not in ["yellow", "blue"]:
@@ -239,19 +212,6 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-<<<<<<< HEAD
-    # Method 1: Color-based detection (for bottles with distinctive colors)
-    # Define bottle color range (adjust based on bottle color)
-    # For yellow liquid inside bottle (same thresholds as detect_color_bottle in camera.py)
-    lower_yellow = np.array([15, 100, 100], dtype=np.uint8)
-    upper_yellow = np.array([35, 255, 255], dtype=np.uint8)
-
-    # Create mask for yellow
-    yellow_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)  # type: ignore[arg-type]
-
-    # Calculate yellow pixel count
-    yellow_pixel_count = cv2.countNonZero(yellow_mask)
-=======
     # Method 1: Color-based detection (for objects with distinctive colors)
     # Define color range based on the specified color
     if color == "yellow":
@@ -268,7 +228,6 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
 
     # Calculate color pixel count
     color_pixel_count = cv2.countNonZero(color_mask)
->>>>>>> wip/teamwork-li
 
     # Method 2: Edge detection for bottle contours
     # Use adaptive thresholding for better edge detection under various lighting
@@ -276,11 +235,7 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
     edges = cv2.bitwise_not(edges)  # Invert to make edges white
 
     # Combine color and edge information
-<<<<<<< HEAD
-    combined_mask = cv2.bitwise_or(yellow_mask, edges)
-=======
     combined_mask = cv2.bitwise_or(color_mask, edges)
->>>>>>> wip/teamwork-li
 
     # Apply morphological operations to clean up the mask
     kernel = np.ones((3, 3), np.uint8)  # Small kernel for real-time performance
@@ -291,21 +246,13 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
     contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if not contours:
-<<<<<<< HEAD
-        return None, None, yellow_pixel_count
-=======
         return None, None, color_pixel_count
->>>>>>> wip/teamwork-li
 
     # Filter contours by area to remove noise (adjustable minimum area)
     valid_contours = [c for c in contours if cv2.contourArea(c) >= min_area]
 
     if not valid_contours:
-<<<<<<< HEAD
-        return None, None, yellow_pixel_count
-=======
         return None, None, color_pixel_count
->>>>>>> wip/teamwork-li
 
     # Find the largest contour (assume it's the bottle)
     largest_contour = max(valid_contours, key=cv2.contourArea)
@@ -319,215 +266,13 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
 
     # Bottles are typically taller than they are wide (aspect ratio > 1)
     if aspect_ratio < 0.8:  # Adjust threshold as needed
-<<<<<<< HEAD
-        return None, None, yellow_pixel_count
-=======
         return None, None, color_pixel_count
->>>>>>> wip/teamwork-li
 
     # Calculate center using moments
     M = cv2.moments(largest_contour)
     if M["m00"] != 0:
         cx = int(M["m10"] / M["m00"])
         cy = int(M["m01"] / M["m00"])
-<<<<<<< HEAD
-        return (cx, cy), contour_size, yellow_pixel_count
-
-    return None, None, yellow_pixel_count
-
-
-def find_bottle_center_with_red_count(image):
-    """
-    Find the center coordinates and red pixel count of a bottle in an image using OpenCV.
-
-    この関数はfind_bottle_center_with_yellow_countの赤色版です。
-    赤色領域の検出・面積・中心座標・赤ピクセル数を返します。
-
-    Args:
-        image (numpy.ndarray): 入力画像 (BGR形式)
-
-    Returns:
-        tuple: ((x, y), size, red_pixel_count)  (中心座標, 輪郭面積, 赤ピクセル数)。見つからなければ (None, None, 0)
-    """
-    if image is None or image.size == 0:
-        print("Error: Invalid image data")
-        return None, None, 0
-
-    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # ノートブックでの解析結果を反映した赤色範囲（例: H:0-12, 170-180, S:90-, V:60-）
-    lower_red1 = np.array([0, 90, 60], dtype=np.uint8)
-    upper_red1 = np.array([12, 255, 255], dtype=np.uint8)
-    lower_red2 = np.array([170, 90, 60], dtype=np.uint8)
-    upper_red2 = np.array([180, 255, 255], dtype=np.uint8)
-
-    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
-    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
-    red_mask = cv2.bitwise_or(mask1, mask2)
-
-    red_pixel_count = cv2.countNonZero(red_mask)
-
-    edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-    edges = cv2.bitwise_not(edges)
-    combined_mask = cv2.bitwise_or(red_mask, edges)
-
-    kernel = np.ones((3, 3), np.uint8)
-    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
-    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
-
-    contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if not contours:
-        return None, None, red_pixel_count
-
-    min_area = 500
-    valid_contours = [c for c in contours if cv2.contourArea(c) >= min_area]
-    if not valid_contours:
-        return None, None, red_pixel_count
-
-    largest_contour = max(valid_contours, key=cv2.contourArea)
-    contour_size = cv2.contourArea(largest_contour)
-
-    x, y, w, h = cv2.boundingRect(largest_contour)
-    aspect_ratio = h / w if w > 0 else 0
-    if aspect_ratio < 0.8:
-        return None, None, red_pixel_count
-
-    M = cv2.moments(largest_contour)
-    if M["m00"] != 0:
-        cx = int(M["m10"] / M["m00"])
-        cy = int(M["m01"] / M["m00"])
-        return (cx, cy), contour_size, red_pixel_count
-
-    return None, None, red_pixel_count
-
-
-def find_blue_target_center(
-    img,
-    blue_hsv_lower=(100, 80, 80),
-    blue_hsv_upper=(140, 255, 255),
-    gray_hsv_lower=(0, 0, 60),
-    gray_hsv_upper=(180, 60, 140),
-    ellipse_area_thresh=20,
-    ellipse_ratio_min=0.4,
-    ellipse_ratio_max=1.7,
-    blur_kernel=5,
-    gray_blur_kernel=5,
-    gray_dilate_kernel=5,
-    gray_dilate_iter=2,
-    gray_close_kernel=7
-):
-    """
-    青い的（楕円）またはグレー線の中心座標・形状情報を返す統合検出関数（グレーライン補完含む）。
-    部分的なグレー線からの楕円推定機能を含む。
-    
-    Args:
-        img: BGR画像 (numpy.ndarray)
-        blue_hsv_lower, blue_hsv_upper: 青色範囲 (HSV)
-        gray_hsv_lower, gray_hsv_upper: グレー色範囲 (HSV)
-        ellipse_area_thresh: 楕円面積の最小値
-        ellipse_ratio_min, ellipse_ratio_max: 楕円比の範囲
-        blur_kernel: 青マスクのメディアンブラーサイズ
-        gray_blur_kernel: グレーマスクのガウシアンブラーサイズ
-        gray_dilate_kernel: グレー膨張カーネルサイズ
-        gray_dilate_iter: グレー膨張回数
-        gray_close_kernel: グレー閉操作カーネルサイズ
-    Returns:
-        center: (x, y) or None
-        axes: (長半径, 短半径) or None
-        angle: 楕円の回転角度 or None
-        shape_type: 'blue' or 'gray' or 'none'
-        shape_info: dict（検出形状の詳細情報）
-    """
-    if img is None or img.size == 0:
-        return None, None, None, 'none', {}
-    
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-
-    # --- 青い的検出（楕円フィット） ---
-    mask_blue = cv2.inRange(hsv, np.array(blue_hsv_lower), np.array(blue_hsv_upper))
-    mask_blue = cv2.medianBlur(mask_blue, blur_kernel)
-    
-    # Apply morphological operations for blue
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    mask_blue = cv2.morphologyEx(mask_blue, cv2.MORPH_CLOSE, kernel)
-    
-    contours_blue, _ = cv2.findContours(mask_blue, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    best_blue_ellipse = None
-    max_blue_area = 0
-    
-    for cnt in contours_blue:
-        if len(cnt) >= 5:
-            area = cv2.contourArea(cnt)
-            if area > ellipse_area_thresh:
-                try:
-                    ellipse = cv2.fitEllipse(cnt)
-                    (cx, cy), (major, minor), angle = ellipse
-                    ratio = major/minor if minor > 0 else 0
-                    if ellipse_ratio_min < ratio < ellipse_ratio_max and major > 10 and minor > 8:
-                        if area > max_blue_area:
-                            best_blue_ellipse = ellipse
-                            max_blue_area = area
-                except:
-                    continue
-    
-    if best_blue_ellipse is not None:
-        (cx, cy), (major, minor), angle = best_blue_ellipse
-        center = (int(cx), int(cy))
-        axes = (int(major/2), int(minor/2))
-        shape_type = 'blue'
-        shape_info = {'ellipse': best_blue_ellipse, 'area': max_blue_area}
-        return center, axes, angle, shape_type, shape_info
-
-    # --- 青的が見つからない場合はグレー楕円（最大面積・面積4万以上） ---
-    mask_gray = cv2.inRange(hsv, np.array(gray_hsv_lower), np.array(gray_hsv_upper))
-    mask_gray = cv2.morphologyEx(mask_gray, cv2.MORPH_CLOSE, np.ones((7,7), np.uint8))
-    mask_gray = cv2.dilate(mask_gray, np.ones((5,5), np.uint8), iterations=1)
-    contours_gray, _ = cv2.findContours(mask_gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    ellipses = []
-    for c in contours_gray:
-        if len(c) < 10 or c.shape[0] < 5:
-            continue
-        ellipse_cv = cv2.fitEllipse(c)
-        center = (int(np.round(ellipse_cv[0][0])), int(np.round(ellipse_cv[0][1])))
-        axes_ = (int(ellipse_cv[1][0]//2), int(ellipse_cv[1][1]//2))
-        area = np.pi * axes_[0] * axes_[1]
-        if area >= 40000:
-            ellipses.append({'center': center, 'area': area})
-    if ellipses:
-        gray_center = max(ellipses, key=lambda e: e['area'])['center']
-        axes = None
-        angle = None
-        shape_type = 'gray'
-        shape_info = {'ellipses': ellipses}
-        return gray_center, axes, angle, shape_type, shape_info
-    # --- どちらも見つからない場合 ---
-    shape_type = 'none'
-    shape_info = {}
-    return None, None, None, shape_type, shape_info
-
-
-def find_bottle_center_with_blue_count(image):
-    # backupの内容で完全修復
-    """
-    Find the center coordinates and blue pixel count of a bottle in an image using OpenCV.
-
-    This function is optimized for real-time applications with the following improvements:
-    - Accepts numpy array input instead of file paths for real-time processing
-    - Uses adaptive thresholding for better edge detection under various lighting conditions
-    - Applies contour area filtering to reduce noise and false detections
-    - Includes aspect ratio validation to ensure bottle-like shapes
-    - Uses smaller morphological kernels for better performance
-    - Removes debug print statements for cleaner real-time operation
-
-    Args:
-        image (numpy.ndarray): Input image as numpy array (BGR format)
-
-    Returns:
-        tuple: ((x, y), size, blue_pixel_count) where (x, y) is the center coordinates,
-               size is the area of the largest contour, and blue_pixel_count is the
-               number of detected blue pixels. Returns (None, None, 0) if not found.
-=======
         return (cx, cy), contour_size, color_pixel_count
 
     return None, None, color_pixel_count
@@ -556,79 +301,12 @@ def find_bullseye(image, min_area: int = 500, min_circularity: float = 0.7) -> T
         tuple: ((x, y), size, pixel_count) where (x, y) is the center coordinates,
                size is the area of the detected bullseye, and pixel_count is the
                number of detected blue pixels in the center. Returns (None, None, 0) if not found.
->>>>>>> wip/teamwork-li
     """
     # Check if image is valid
     if image is None or image.size == 0:
         print("Error: Invalid image data")
         return None, None, 0
 
-<<<<<<< HEAD
-    # Convert to different color spaces for better detection
-    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # Method 1: Color-based detection (for bottles with distinctive colors)
-    # Define bottle color range (adjust based on bottle color)
-    # For blue liquid inside bottle (same thresholds as detect_color_bottle in camera.py)
-    lower_blue = np.array([100, 80, 50])
-    upper_blue = np.array([130, 255, 255])
-
-    # Create mask for blue
-    blue_mask = cv2.inRange(hsv, lower_blue, upper_blue)  # type: ignore[arg-type]
-
-    # Calculate blue pixel count
-    blue_pixel_count = cv2.countNonZero(blue_mask)
-
-    # Method 2: Edge detection for bottle contours
-    # Use adaptive thresholding for better edge detection under various lighting
-    edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-    edges = cv2.bitwise_not(edges)  # Invert to make edges white
-
-    # Combine color and edge information
-    combined_mask = cv2.bitwise_or(blue_mask, edges)
-
-    # Apply morphological operations to clean up the mask
-    kernel = np.ones((3, 3), np.uint8)  # Small kernel for real-time performance
-    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
-    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
-
-    # Find contours
-    contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    if not contours:
-        return None, None, blue_pixel_count
-
-    # Filter contours by area to remove noise (adjust minimum area as needed)
-    min_area = 500  # Minimum area threshold for real-time filtering
-    valid_contours = [c for c in contours if cv2.contourArea(c) >= min_area]
-
-    if not valid_contours:
-        return None, None, blue_pixel_count
-
-    # Find the largest contour (assume it's the bottle)
-    largest_contour = max(valid_contours, key=cv2.contourArea)
-
-    # Calculate the size (area) of the largest contour
-    contour_size = cv2.contourArea(largest_contour)
-
-    # Additional validation: Check aspect ratio of contour to ensure bottle-like shape
-    x, y, w, h = cv2.boundingRect(largest_contour)
-    aspect_ratio = h / w if w > 0 else 0
-
-    # Bottles are typically taller than they are wide (aspect ratio > 1)
-    if aspect_ratio < 0.8:  # Adjust threshold as needed
-        return None, None, blue_pixel_count
-
-    # Calculate center using moments
-    M = cv2.moments(largest_contour)
-    if M["m00"] != 0:
-        cx = int(M["m10"] / M["m00"])
-        cy = int(M["m01"] / M["m00"])
-        return (cx, cy), contour_size, blue_pixel_count
-
-    return None, None, blue_pixel_count
-=======
     # Convert to different color spaces
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -871,7 +549,6 @@ def find_bullseye(image, min_area: int = 500, min_circularity: float = 0.7) -> T
     best_center, best_size, best_score, method = candidates[0]
 
     return best_center, best_size, blue_pixel_count
->>>>>>> wip/teamwork-li
 
 
 def calculate_attitude_angle(
@@ -917,50 +594,112 @@ def calculate_attitude_angle(
     return theta
 
 
+# --- backup/20250724/control.pyより ---
+def find_blue_target_center(
+    img,
+    blue_hsv_lower=(100, 80, 80),
+    blue_hsv_upper=(140, 255, 255),
+    gray_hsv_lower=(0, 0, 60),
+    gray_hsv_upper=(180, 60, 140),
+    ellipse_area_thresh=20,
+    ellipse_ratio_min=0.4,
+    ellipse_ratio_max=1.7,
+    blur_kernel=5,
+    gray_blur_kernel=5,
+    gray_dilate_kernel=5,
+    gray_dilate_iter=2,
+    gray_close_kernel=7
+):
+    """
+    青い的（楕円）またはグレー線の中心座標・形状情報を返す統合検出関数（グレーライン補完含む）。
+    部分的なグレー線からの楕円推定機能を含む。
+    Args:
+        img: BGR画像 (numpy.ndarray)
+        blue_hsv_lower, blue_hsv_upper: 青色範囲 (HSV)
+        gray_hsv_lower, gray_hsv_upper: グレー色範囲 (HSV)
+        ellipse_area_thresh: 楕円面積の最小値
+        ellipse_ratio_min, ellipse_ratio_max: 楕円比の範囲
+        blur_kernel: 青マスクのメディアンブラーサイズ
+        gray_blur_kernel: グレーマスクのガウシアンブラーサイズ
+        gray_dilate_kernel: グレー膨張カーネルサイズ
+        gray_dilate_iter: グレー膨張回数
+        gray_close_kernel: グレー閉操作カーネルサイズ
+    Returns:
+        center: (x, y) or None
+        axes: (長半径, 短半径) or None
+        angle: 楕円の回転角度 or None
+        shape_type: 'blue' or 'gray' or 'none'
+        shape_info: dict（検出形状の詳細情報）
+    """
+    if img is None or img.size == 0:
+        return None, None, None, 'none', {}
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    mask_blue = cv2.inRange(hsv, np.array(blue_hsv_lower), np.array(blue_hsv_upper))
+    mask_blue = cv2.medianBlur(mask_blue, blur_kernel)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    mask_blue = cv2.morphologyEx(mask_blue, cv2.MORPH_CLOSE, kernel)
+    contours_blue, _ = cv2.findContours(mask_blue, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    best_blue_ellipse = None
+    max_blue_area = 0
+    for cnt in contours_blue:
+        if len(cnt) >= 5:
+            area = cv2.contourArea(cnt)
+            if area > ellipse_area_thresh:
+                try:
+                    ellipse = cv2.fitEllipse(cnt)
+                    (cx, cy), (major, minor), angle = ellipse
+                    ratio = major/minor if minor > 0 else 0
+                    if ellipse_ratio_min < ratio < ellipse_ratio_max and major > 10 and minor > 8:
+                        if area > max_blue_area:
+                            best_blue_ellipse = ellipse
+                            max_blue_area = area
+                except:
+                    continue
+    if best_blue_ellipse is not None:
+        (cx, cy), (major, minor), angle = best_blue_ellipse
+        center = (int(cx), int(cy))
+        axes = (int(major/2), int(minor/2))
+        shape_type = 'blue'
+        shape_info = {'ellipse': best_blue_ellipse, 'area': max_blue_area}
+        return center, axes, angle, shape_type, shape_info
+    mask_gray = cv2.inRange(hsv, np.array(gray_hsv_lower), np.array(gray_hsv_upper))
+    mask_gray = cv2.morphologyEx(mask_gray, cv2.MORPH_CLOSE, np.ones((7,7), np.uint8))
+    mask_gray = cv2.dilate(mask_gray, np.ones((5,5), np.uint8), iterations=1)
+    contours_gray, _ = cv2.findContours(mask_gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    ellipses = []
+    for c in contours_gray:
+        if len(c) < 10 or c.shape[0] < 5:
+            continue
+        ellipse_cv = cv2.fitEllipse(c)
+        center = (int(np.round(ellipse_cv[0][0])), int(np.round(ellipse_cv[0][1])))
+        axes_ = (int(ellipse_cv[1][0]//2), int(ellipse_cv[1][1]//2))
+        area = np.pi * axes_[0] * axes_[1]
+        if area >= 40000:
+            ellipses.append({'center': center, 'area': area})
+    if ellipses:
+        gray_center = max(ellipses, key=lambda e: e['area'])['center']
+        axes = None
+        angle = None
+        shape_type = 'gray'
+        shape_info = {'ellipses': ellipses}
+        return gray_center, axes, angle, shape_type, shape_info
+    shape_type = 'none'
+    shape_info = {}
+    return None, None, None, shape_type, shape_info
+
 def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, fallback_center_x=None, previous_center_x=None):
     """
     輪郭位置情報基準進路決定システム
-    
-    輪郭検出と軌道安定化に基づく仮想ライン中心座標取得関数。
-    画像内の輪郭を解析し、検出された障害物を通過する最適経路を計算し、
-    軌道の安定性を維持します。
-    
-    【実装要件】
-    1. 輪郭検出：適応的二値化による高精度輪郭抽出
-    2. 領域フィルタリング：面積・サイズ・位置による有効領域選別
-    3. 除外範囲：Y≥350 AND 120≤X≤520 エリアの輪郭を除外
-    4. 近接統合：距離50px以内の小輪郭を統合処理
-    5. 軌道安定化：前回中心座標から±50px範囲内での軌道制限
-    6. 経路選択：奥輪郭間隙→全輪郭最適間隙→単一輪郭回避の優先順位
-    7. フォールバック：軌道計算失敗時の前回軌道維持または中央復帰
-    
-    パラメータ:
-    - img: 入力画像 (BGR形式)
-    - target_y: ライン中心を検出するY座標
-    - line_width: 境界チェック用の幅 (デフォルト: 10)
-               ※画像端からline_width//2以上離れた位置に軌道を制限
-    - image_width: 画像の幅 (デフォルト: 640)
-    - fallback_center_x: フォールバック中心X位置 (デフォルト: image_width // 2)
-    - previous_center_x: 軌道安定化用の前回中心X座標 (デフォルト: None)
-                        ※軌道安定化を有効にする場合は前回の結果を設定
-    
-    戻り値:
-    - target_x: 最適軌道の中心X座標
+    backup/20250724/control.pyの内容をそのまま追加
     """
-    
     if fallback_center_x is None:
         fallback_center_x = image_width // 2
-    
-    # 軌道安定化: previous_center_xが有効な場合は優先維持
     if previous_center_x is not None:
-        # 前回軌道から大きく変化しない範囲で制限
         valid_center_min = max(50, previous_center_x - 50)
         valid_center_max = min(image_width - 50, previous_center_x + 50)
     else:
         valid_center_min = 50
         valid_center_max = image_width - 50
-    
-    # 要件: 輪郭の位置情報を取得
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     bin_img = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
     kernel_noise = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
@@ -970,27 +709,21 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
     kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (8,8))
     bin_final = cv2.morphologyEx(bin_dilated, cv2.MORPH_CLOSE, kernel_close)
     contours, _ = cv2.findContours(bin_final, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    # 要件: 輪郭位置情報フィルタリング（有効領域抽出）+ 暗さ優先度計算
     detected_regions = []
     for cnt in contours:
         area = cv2.contourArea(cnt)
         x, y, w, h = cv2.boundingRect(cnt)
         if (50 < area < 20000 and w >= 10 and h >= 10 and y <= 450 and not (y >= 350 and 120 <= x <= 520)):
-            # 輪郭内の平均暗さを計算（暗いほど高優先度）
             mask = np.zeros(gray.shape, dtype=np.uint8)
             cv2.fillPoly(mask, [cnt], 255)
             region_pixels = gray[mask == 255]
-            avg_darkness = 255 - np.mean(region_pixels) if len(region_pixels) > 0 else 0  # 暗いほど大きい値
-            
+            avg_darkness = 255 - np.mean(region_pixels) if len(region_pixels) > 0 else 0
             detected_regions.append({
                 'x': x, 'y': y, 'w': w, 'h': h, 'area': area,
                 'center': (x + w//2, y + h//2),
                 'darkness': avg_darkness,
-                'priority': avg_darkness * (area / 1000)  # 暗さ×面積による優先度
+                'priority': avg_darkness * (area / 1000)
             })
-    
-    # 要件: 近接輪郭統合処理
     merged = []
     processed = set()
     for i, region in enumerate(detected_regions):
@@ -1007,7 +740,6 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             if distance < 100 and (region['area'] < 1000 or other['area'] < 1000):
                 current_group.append(other)
                 processed.add(j)
-        
         if len(current_group) == 1:
             merged.append(current_group[0])
         else:
@@ -1015,7 +747,6 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             min_y = min(r['y'] for r in current_group)
             max_x = max(r['x'] + r['w'] for r in current_group)
             max_y = max(r['y'] + r['h'] for r in current_group)
-            # 統合時は最も暗い（高優先度）領域の暗さを継承
             max_darkness = max(r['darkness'] for r in current_group)
             total_area = sum(r['area'] for r in current_group)
             merged.append({
@@ -1026,45 +757,30 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                 'priority': max_darkness * (total_area / 1000)
             })
     detected_regions = merged
-    
-    # 軌道計算: 安定化優先版
     trajectory_center_x = None
     min_safe_gap = 40
-    
-    # 輪郭無し: 前回軌道維持または中央
     if not detected_regions:
         trajectory_center_x = previous_center_x if previous_center_x is not None else fallback_center_x
     else:
-        # 暗さ優先度による領域ソート（暗いほど優先して避ける）
         regions_sorted = sorted(detected_regions, key=lambda x: x['x'])
         regions_by_priority = sorted(detected_regions, key=lambda x: x['priority'], reverse=True)
         back_regions = [r for r in detected_regions if r['y'] <= target_y - 50]
-        
-        # 高優先度（暗い）輪郭の回避距離を拡大
-        high_priority_threshold = 150  # 暗さ閾値
+        high_priority_threshold = 150
         high_priority_regions = [r for r in detected_regions if r['darkness'] > high_priority_threshold]
-        
-        # 奥輪郭2個以上: 間隙通過（高優先度輪郭は回避距離拡大）
         if len(back_regions) >= 2:
             back_sorted = sorted(back_regions, key=lambda x: x['x'])
             left_edge = back_sorted[0]['x'] + back_sorted[0]['w']
             right_edge = back_sorted[1]['x']
-            
-            # 高優先度輪郭には追加の安全マージンを適用
             safety_margin = 0
             if back_sorted[0]['darkness'] > high_priority_threshold:
                 safety_margin += 15
             if back_sorted[1]['darkness'] > high_priority_threshold:
                 safety_margin += 15
-            
             gap_width = right_edge - left_edge - safety_margin
             if gap_width >= min_safe_gap:
                 candidate_x = (left_edge + right_edge) // 2
-                # 軌道安定化: 有効範囲内かチェック
                 if valid_center_min <= candidate_x <= valid_center_max:
                     trajectory_center_x = candidate_x
-        
-        # 全輪郭最適経路選択（暗さ優先度考慮）
         if trajectory_center_x is None and len(regions_sorted) >= 2:
             best_gap = None
             for i in range(len(regions_sorted) - 1):
@@ -1072,59 +788,35 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                 right_region = regions_sorted[i + 1]
                 left_edge = left_region['x'] + left_region['w']
                 right_edge = right_region['x']
-                
-                # 高優先度輪郭には追加の安全マージンを適用
                 safety_margin = 0
                 if left_region['darkness'] > high_priority_threshold:
                     safety_margin += 15
                 if right_region['darkness'] > high_priority_threshold:
                     safety_margin += 15
-                
                 gap_width = right_edge - left_edge - safety_margin
                 if gap_width >= min_safe_gap:
                     candidate_x = (left_edge + right_edge) // 2
-                    # 軌道安定化: 有効範囲内かチェック
                     if valid_center_min <= candidate_x <= valid_center_max:
-                        # 暗い輪郭間の隙間はより優先（gap_widthにボーナス）
                         priority_bonus = (left_region['darkness'] + right_region['darkness']) / 10
                         effective_width = gap_width + priority_bonus
                         if best_gap is None or effective_width > best_gap['width']:
                             best_gap = {'width': effective_width, 'center': candidate_x}
-            
             if best_gap:
                 trajectory_center_x = best_gap['center']
-        
-        # 単一輪郭回避（暗さに応じた回避距離調整）
         if trajectory_center_x is None and len(detected_regions) == 1:
             region = detected_regions[0]
             contour_center = region['center'][0]
             image_center = image_width // 2
-            
-            # 暗い輪郭ほど大きな安全距離を確保
             base_safety_distance = 20
-            darkness_bonus = min(region['darkness'] / 10, 30)  # 最大30px追加
+            darkness_bonus = min(region['darkness'] / 10, 30)
             safety_distance = base_safety_distance + darkness_bonus
-            
-            # 反対方向回避
             if contour_center < image_center:
                 candidate_x = contour_center + region['w']//2 + safety_distance
             else:
                 candidate_x = contour_center - region['w']//2 - safety_distance
-            
-            # 軌道安定化: 有効範囲内かチェック
             if valid_center_min <= candidate_x <= valid_center_max:
                 trajectory_center_x = candidate_x
-        
-        # フォールバック: 前回軌道維持または中央
         if trajectory_center_x is None:
             trajectory_center_x = previous_center_x if previous_center_x is not None else fallback_center_x
-    
-    # 最終調整：画像境界チェック
-    # line_width//2 以上かつ image_width - line_width//2 - 1 以下に制限
-    # これにより軌道が画像端から一定距離を保ち、ロボットの安全な制御範囲内に収める
     trajectory_center_x = max(line_width//2, min(image_width - line_width//2 - 1, trajectory_center_x))
-    
     return trajectory_center_x
-
-
-

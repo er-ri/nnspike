@@ -7,25 +7,6 @@ OFFSET_Y = 470  # 0.20 meters to the ground
 
 # Behavior Mode
 class Mode(Enum):
-<<<<<<< HEAD
-    LEFT_EDGE_FOLLOWING = 0
-    RIGHT_EDGE_FOLLOWING = 1
-    OBSTACLE_AVOIDANCE = 2
-    BOTTLE_CARRYING = 3
-    BOTTLE_CATCH_BLUE = 4
-    BLUE_BOTTLE_TO_GATE = 5
-    RED_BOTTLE_TO_GATE = 6
-    HEADING_GATE = 7
-    BACKWARD_AND_TURN_AROUND = 8
-    TURN_LEFT = 9
-    TURN_RIGHT = 10
-    BACKWARD_AND_HEADING_GOAL = 11
-    PAUSE = 12
-    FORWARD = 13        # 前進専用
-    BACKWARD = 14       # 後退専用
-    BLUE_BOTTLE = 15   # 新しいモードを追加
-    SMALL_TURN_LEFT = 16  # 小さいターンレフト
-=======
     FOLLOW_LEFT_EDGE = 0
     FOLLOW_RIGHT_EDGE = 1
     AVOID_OBSTACLE = 2
@@ -35,7 +16,11 @@ class Mode(Enum):
     CARRY_BOTTLE2 = 6
     HEAD_GOAL = 7
     PAUSE = 8
->>>>>>> wip/teamwork-li
+    TURN_LEFT = 9
+    TURN_RIGHT = 10
+    FORWARD = 11
+    BACKWARD = 12
+
 
 
 # One-Hot Encoding for Modes
