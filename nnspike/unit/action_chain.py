@@ -29,7 +29,7 @@ class ActionChain(object):
         Args:
             et (ETRobot): The ETRobot instance to control.
         """
-        self.start_time = time.time() if self.start_time is None else self.start_time
+        self.start_time = time.time() if self.start_time == 0.0 else self.start_time
         self.current_time = time.time()
 
         elapsed_time = self.current_time - self.start_time
@@ -51,12 +51,17 @@ class ActionChain(object):
         Args:
             et (ETRobot): The ETRobot instance to control.
         """
-        (cx, _), _, blue_pixel_count = find_bottle_center(image=image, color="blue")
+        self.start_time = time.time() if self.start_time == 0.0 else self.start_time
+        self.current_time = time.time()
+
+        center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
 
         if blue_pixel_count < 1000:
             left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
-            if right_x - left_x < 100:
-                return (left_x + right_x) / 2, None, Mode.HEAD_BOTTLE1
+
+            if left_x is not None and right_x is not None:
+                if right_x - left_x < 100:
+                    return (left_x + right_x) / 2, None, Mode.HEAD_BOTTLE1
             else:
                 return left_x, None, Mode.HEAD_BOTTLE1
 
@@ -64,6 +69,11 @@ class ActionChain(object):
         # If the distance to the bottle is less than 1cm, pause
         if status.sensors.distance is not None and status.sensors.distance < 0.01:
             return None, None, Mode.PAUSE
+
+        if center is not None:
+            cx, _ = center
+        else:
+            cx = None
 
         return cx, None, Mode.HEAD_BOTTLE1
 
@@ -86,7 +96,7 @@ class ActionChain(object):
             left_speed, right_speed = (70, 0) if self.course == "left" else (0, 70)
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
         elif elapsed_time > 3.0 and elapsed_time < 4.0:
-            (cx, _), _, blue_pixel_count = find_bottle_center(image=image, color="blue")
+            _, _, _ = find_bottle_center(image=image, color="blue")
             left_speed, right_speed = 70, 70
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 

@@ -357,7 +357,7 @@ def find_bullseye(image, min_area: int = 500, min_circularity: float = 0.7) -> T
             all_circles.extend(circles_array)
 
     # Remove duplicate circles (circles that are very close to each other)
-    unique_circles = []
+    unique_circles: list[tuple[int, int, int]] = []
     for circle in all_circles:
         x, y, r = circle
         is_duplicate = False
