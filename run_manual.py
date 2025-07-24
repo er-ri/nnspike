@@ -211,6 +211,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             target_x = None  # Default target x position
             left_speed, right_speed = None, None  # Initialize speeds
 
+
+
             match mode:
                 case Mode.FOLLOW_LEFT_EDGE:
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
@@ -239,6 +241,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, color="yellow")
                     red_cx, _, red_pixel_count = find_bottle_center(frame, color="red")
                     if yellow_pixel_count > 14000:
+                        mode = Mode.AVOID_OBSTACLE
+                        print("Avoiding obstacle (auto FORWARD)...")
                         target_x = (x1 + x2) // 2
                     elif yellow_pixel_count > 4000:
                         if yellow_cx is not None:
