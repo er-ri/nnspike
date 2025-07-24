@@ -321,8 +321,8 @@ def find_bullseye(image, min_area: int = 500, min_circularity: float = 0.7) -> T
 
     # Clean up blue mask
     kernel = np.ones((3, 3), np.uint8)
-    blue_mask = cv2.morphologyEx(blue_mask, cv2.MORPH_OPEN, kernel)
-    blue_mask = cv2.morphologyEx(blue_mask, cv2.MORPH_CLOSE, kernel)
+    blue_mask = cv2.morphologyEx(blue_mask, cv2.MORPH_OPEN, kernel)  # type: ignore[assignment]
+    blue_mask = cv2.morphologyEx(blue_mask, cv2.MORPH_CLOSE, kernel)  # type: ignore[assignment]
 
     # Calculate blue pixel count
     blue_pixel_count = cv2.countNonZero(blue_mask)

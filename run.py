@@ -23,7 +23,7 @@ import torch
 
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode
 from nnspike.models import NvidiaModel
-from nnspike.unit import ETRobot, avoid_obstacle
+from nnspike.unit import ETRobot
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info
 from scripts.utils import process_image
 
@@ -104,6 +104,7 @@ def main(model_path, record_sensor_data=False, save_camera_video=False, send_vid
 
             roi_area = process_image(image=frame.copy(), device=device, roi=(x1, y1, x2, y2))
 
+            status = et.get_spike_status()
             rel_pos_a = status.motors["A"].relative_position
             rel_pos_b = status.motors["B"].relative_position
             rel_pos_a = rel_pos_a if rel_pos_a is not None else 0
@@ -122,9 +123,8 @@ def main(model_path, record_sensor_data=False, save_camera_video=False, send_vid
             roi_center_x = (x1 + x2) / 2
             predicted_x = x1 + (outputs[1][0][0] * (x2 - x1)).detach().item()
 
-            if mode_value == Mode.OBSTACLE_AVOIDANCE:
+            if mode_value == Mode.AVOID_OBSTACLE.value:
                 # Invoke obstacle avoidance behavior
-                avoid_obstacle(et)
                 continue
 
             target_x = predicted_x  # Default to predicted x if no edge following mode is set
