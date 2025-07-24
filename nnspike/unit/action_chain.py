@@ -27,33 +27,19 @@ class ActionChain(object):
         backup/20250724/actions.pyと同じ障害物回避アクションチェーンを実行する。
         左旋回(40,70,0.8s)→右旋回(80,50,1.3s)→通常復帰
         """
-        if not hasattr(self, '_obstacle_state'):
-            self._obstacle_state = None
-        action_chain = [
-            (40, 70, 0.8),  # 左旋回
-            (80, 50, 1.3),  # 右旋回
-        ]
-        state = self._obstacle_state
-        now = time.time()
-        if state is None:
-            idx = 0
-            left, right, duration = action_chain[0]
-            self._obstacle_state = {'idx': 0, 'start_time': now, 'duration': duration}
-            return None, (left, right), Mode.AVOID_OBSTACLE
-        idx = state['idx']
-        start_time = state['start_time']
-        duration = state['duration']
-        if now - start_time < duration:
-            left, right, _ = action_chain[idx]
-            return None, (left, right), Mode.AVOID_OBSTACLE
-        # 次のアクションへ
-        idx += 1
-        if idx >= len(action_chain):
-            self._obstacle_state = None
+        # self.start_timeで経過時間を管理
+        self.start_time = time.time() if self.start_time == 0.0 else self.start_time
+        elapsed_time = time.time() - self.start_time
+
+        if elapsed_time < 0.8:
+            left_speed, right_speed = 40, 70  # 左旋回
+            return None, (left_speed, right_speed), Mode.AVOID_OBSTACLE
+        elif elapsed_time < 2.1:  # 0.8 + 1.3
+            left_speed, right_speed = 80, 50  # 右旋回
+            return None, (left_speed, right_speed), Mode.AVOID_OBSTACLE
+        else:
+            self.start_time = 0.0  # チェーン終了でリセット
             return None, None, Mode.FOLLOW_LEFT_EDGE if self.course == "left" else Mode.FOLLOW_RIGHT_EDGE
-        left, right, duration = action_chain[idx]
-        self._obstacle_state = {'idx': idx, 'start_time': now, 'duration': duration}
-        return None, (left, right), Mode.AVOID_OBSTACLE
 
     def heading_bottle1(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
@@ -152,7 +138,8 @@ class ActionChain(object):
         if elapsed_time < 0.8:
             left_speed, right_speed = 0, 60
             return None, (left_speed, right_speed), Mode.TURN_LEFT
-        return None, None, Mode.FOLLOW_LEFT_EDGE
+        self.start_time = 0.0
+        return None, None, Mode.PAUSE
 
     def trun_right(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
@@ -165,4 +152,5 @@ class ActionChain(object):
         if elapsed_time < 0.8:
             left_speed, right_speed = 60, 0
             return None, (left_speed, right_speed), Mode.TURN_RIGHT
-        return None, None, Mode.FOLLOW_RIGHT_EDGE
+        self.start_time = 0.0
+        return None, None, Mode.PAUSE
