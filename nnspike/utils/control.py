@@ -601,14 +601,8 @@ def find_blue_target_center(
     blue_hsv_upper=(140, 255, 255),
     gray_hsv_lower=(0, 0, 60),
     gray_hsv_upper=(180, 60, 140),
-    ellipse_area_thresh=20,
-    ellipse_ratio_min=0.4,
-    ellipse_ratio_max=1.7,
-    blur_kernel=5,
-    gray_blur_kernel=5,
-    gray_dilate_kernel=5,
-    gray_dilate_iter=2,
-    gray_close_kernel=7
+    # ellipse_area_thresh, ellipse_ratio_min, ellipse_ratio_maxは不要なので削除
+    blur_kernel=5
 ):
     """
     青い的（楕円）またはグレー線の中心座標・形状情報を返す統合検出関数（グレーライン補完含む）。
@@ -617,13 +611,7 @@ def find_blue_target_center(
         img: BGR画像 (numpy.ndarray)
         blue_hsv_lower, blue_hsv_upper: 青色範囲 (HSV)
         gray_hsv_lower, gray_hsv_upper: グレー色範囲 (HSV)
-        ellipse_area_thresh: 楕円面積の最小値
-        ellipse_ratio_min, ellipse_ratio_max: 楕円比の範囲
         blur_kernel: 青マスクのメディアンブラーサイズ
-        gray_blur_kernel: グレーマスクのガウシアンブラーサイズ
-        gray_dilate_kernel: グレー膨張カーネルサイズ
-        gray_dilate_iter: グレー膨張回数
-        gray_close_kernel: グレー閉操作カーネルサイズ
     Returns:
         center: (x, y) or None
         area: float or None
@@ -643,12 +631,12 @@ def find_blue_target_center(
     for cnt in contours_blue:
         if len(cnt) >= 5:
             area = cv2.contourArea(cnt)
-            if area > ellipse_area_thresh:
+            if area > 5:
                 try:
                     ellipse = cv2.fitEllipse(cnt)
                     (cx, cy), (major, minor), angle = ellipse
                     ratio = major/minor if minor > 0 else 0
-                    if ellipse_ratio_min < ratio < ellipse_ratio_max and major > 10 and minor > 8:
+                    if 0.2 < ratio < 5.0 and major > 5 and minor > 3:
                         if area > max_blue_area:
                             best_blue_ellipse = ellipse
                             max_blue_area = area
