@@ -7,15 +7,15 @@ OFFSET_Y = 470  # 0.20 meters to the ground
 
 # Behavior Mode
 class Mode(Enum):
-    LEFT_EDGE_FOLLOWING = 0
-    RIGHT_EDGE_FOLLOWING = 1
-    OBSTACLE_AVOIDANCE = 2
-    BOTTLE_CARRYING = 3
-    HEADING_GATE = 4
-    BACKWARD_AND_TURN_AROUND = 5
-    TURN_LEFT = 6
-    TURN_RIGHT = 7
-    BACKWARD_AND_HEADING_GOAL = 8
+    FOLLOW_LEFT_EDGE = 0
+    FOLLOW_RIGHT_EDGE = 1
+    AVOID_OBSTACLE = 2
+    HEAD_BOTTLE1 = 3
+    CARRY_BOTTLE1 = 4
+    HEAD_BOTTLE2 = 5
+    CARRY_BOTTLE2 = 6
+    HEAD_GOAL = 7
+    PAUSE = 8
 
 
 # One-Hot Encoding for Modes

@@ -5,10 +5,11 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, parent_dir)
 
 import cv2
-import torch
+import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-import matplotlib.pyplot as plt
+import torch
+
 from .utils import process_image
 
 
@@ -49,14 +50,14 @@ def view_data_distribution(df: pd.DataFrame) -> None:
 
     # Plot the 'offset_x' distribution
     plt.subplot(1, 2, 1)
-    sns.histplot(df["offset_x"], bins=30, color="steelblue", edgecolor=None)
+    sns.histplot(df["target_x"], bins=30, color="steelblue", edgecolor=None)
     plt.xlabel("Values")
     plt.ylabel("Frequency")
     plt.title("Distribution of 'offset_x'")
 
     # Plot the 'data_type' distribution
     plt.subplot(1, 2, 2)
-    sns.histplot(df["data_type"], bins=20, color="forestgreen", edgecolor=None)
+    sns.histplot(df["mode"], bins=20, color="forestgreen", edgecolor=None)
     plt.xlabel("Values")
     plt.ylabel("Frequency")
     plt.title("Distribution of 'line_type'")

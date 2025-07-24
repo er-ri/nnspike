@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import torchvision.transforms as transforms
 
 from nnspike.models import NvidiaModel
@@ -25,3 +26,20 @@ def process_image(image, device, roi):
     roi_area = roi_area.to(device)
 
     return roi_area
+
+
+def create_optimized_model(trained_model):
+    # First quantize
+    trained_model.eval()
+    quantized_model = torch.quantization.quantize_dynamic(trained_model, {nn.Linear, nn.Conv2d}, dtype=torch.qint8)
+
+    # Then script for JIT optimization
+    scripted_model = torch.jit.script(quantized_model)
+
+    return scripted_model
+
+
+def load_optimized_model(path, device):
+    model = torch.jit.load(path, map_location=device)
+    model.eval()
+    return model

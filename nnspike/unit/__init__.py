@@ -1,4 +1,4 @@
-from .actions import avoid_obstacle
+from .action_chain import ActionChain
 from .etrobot import ETRobot
 
-__all__ = ["avoid_obstacle", "ETRobot"]
+__all__ = ["ActionChain", "ETRobot"]

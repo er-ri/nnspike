@@ -42,7 +42,7 @@ import numpy as np
 
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode
 from nnspike.unit import ETRobot
-from nnspike.unit.actions import avoid_obstacle
+from nnspike.unit.action_chain import ActionChain
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y
 
 # User defined constants
@@ -82,10 +82,7 @@ class KeyboardController:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)  # type: ignore
 
 
-def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, initial_course="left"):
-    # Initialize edge following preference based on the initial_course parameter
-    mode = Mode.LEFT_EDGE_FOLLOWING if initial_course == "left" else Mode.RIGHT_EDGE_FOLLOWING
-
+def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="left", initial_mode=None):
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
 
@@ -116,8 +113,17 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             print(f"Warning: Could not connect to host PC for video streaming: {e}")
             client_socket = None
 
-    # Initialize robot, PID controller, and keyboard controller
+    # Initialize edge following preference based on the course parameter
     et = ETRobot()
+    action_chain = ActionChain(et, course)
+
+    # Set initial mode based on parameter or default to course-based mode
+    if initial_mode:
+        mode = initial_mode
+    else:
+        mode = Mode.LEFT_EDGE_FOLLOWING if course == "left" else Mode.RIGHT_EDGE_FOLLOWING
+
+    # Initialize robot, PID controller, and keyboard controller
     keyboard = KeyboardController()
     pid = PIDController(
         Kp=50,  # Reduced from 50 to minimize zigzag behavior
@@ -151,39 +157,58 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 print("Quitting...")
                 keyboard.running = False
                 break
-            elif key == "a":  # 'a' key for left
-                mode = Mode.LEFT_EDGE_FOLLOWING
+            elif key == "a":
+                mode = Mode.FOLLOW_LEFT_EDGE
                 print("Switched to following: left edge")
-            elif key == "d":  # 'd' key for right
-                mode = Mode.RIGHT_EDGE_FOLLOWING
+            elif key == "d":
+                mode = Mode.FOLLOW_RIGHT_EDGE
                 print("Switched to following: right edge")
-            elif key == "c":  # 'c' key for moving forward
-                mode = Mode.BOTTLE_CARRYING
-                print("Switched to bottle carrying mode")
-            elif key == "b":  # 'c' key for moving backward
-                mode = Mode.HEADING_GATE
-                print("Switched to bottle carrying mode")
-            elif key == "p":  # 'c' key for pause
-                mode = Mode.TURN_LEFT
-                print("Switched to bottle carrying mode")
-            elif key == "o":  # 'o' key to avoid obstacle
-                previous_mode = mode  # Save current mode
-                mode = Mode.OBSTACLE_AVOIDANCE
-                avoid_obstacle(et)  # Avoid obstacle with a turn
-                print("Avoiding obstacle...")
-                mode = previous_mode  # Restore previous mode after avoiding obstacle
-                continue
+            elif key == "2":
+                mode = Mode.AVOID_OBSTACLE
+                print("Switched to obstacle avoidance mode")
+            elif key == "3":
+                mode = Mode.HEAD_BOTTLE1
+                print("Switched to heading bottle 1 mode")
+            elif key == "4":
+                mode = Mode.CARRY_BOTTLE1
+                print("Switched to bottle carrying 1 mode")
+            elif key == "5":
+                mode = Mode.HEAD_BOTTLE2
+                print("Switched to heading bottle 2 mode")
+            elif key == "6":
+                mode = Mode.CARRY_BOTTLE2
+                print("Switched to bottle carrying 2 mode")
+            elif key == "7":
+                mode = Mode.HEAD_GOAL
+                print("Switched to heading goal mode")
+            elif key == "8":
+                mode = Mode.PAUSE
+                print("Pausing robot")
+
+            target_x = None  # Default target x position
+            left_speed, right_speed = None, None  # Initialize speeds
 
             match mode:
-                case Mode.LEFT_EDGE_FOLLOWING:
-                    left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                    target_x = left_x
-                case Mode.RIGHT_EDGE_FOLLOWING:
+                case Mode.FOLLOW_LEFT_EDGE:
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     target_x = right_x
-                case Mode.BOTTLE_CARRYING:
-                    print("Not implemented: Bottle carrying mode")
-                    target_x = (x1 + x2) // 2
+                case Mode.FOLLOW_RIGHT_EDGE:
+                    left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+                    target_x = left_x
+                case Mode.AVOID_OBSTACLE:
+                    _, (left_speed, right_speed), mode = action_chain.avoid_obstacle()
+                case Mode.HEAD_BOTTLE1:
+                    target_x, mode = action_chain.heading_bottle1(frame)
+                case Mode.CARRY_BOTTLE1:
+                    target_x, mode = action_chain.carry_bottle1(frame)
+                case Mode.HEAD_BOTTLE2:
+                    target_x, mode = action_chain.heading_bottle2(frame)
+                case Mode.CARRY_BOTTLE2:
+                    target_x, mode = action_chain.carry_bottle2(frame)
+                case Mode.HEAD_GOAL:
+                    target_x, mode = action_chain.heading_goal(frame)
+                case Mode.PAUSE:
+                    left_speed, right_speed = 0, 0
                 case _:
                     # Default to center if invalid edge specified
                     target_x = (x1 + x2) // 2
@@ -199,41 +224,25 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
                 # Create a simple contour for visualization (approximate target point)
                 max_contour = np.array([[[mx, my]]], dtype=np.int32)
-            else:
-                # No line detected, use center values
-                mx = (x2 - x1) // 2
-                my = (y2 - y1) // 2
-                offset_pixels = 0
-                max_contour = None  # Calculate attitude angle using camera geometry
 
-            theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use simplified speed control
-            current_base_speed = BASE_SPEED
+                theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use simplified speed control
+                current_base_speed = BASE_SPEED
 
-            steering_correction = pid.update(theta)
+                steering_correction = pid.update(theta)
 
-            # Apply simple differential steering
-            left_speed = current_base_speed - steering_correction
-            right_speed = current_base_speed + steering_correction
+                # Apply simple differential steering
+                left_speed = current_base_speed - steering_correction
+                right_speed = current_base_speed + steering_correction
 
-            # Clamp speed values to valid range
-            left_speed = int(max(0, min(100, left_speed)))
-            right_speed = int(max(0, min(100, right_speed)))
+                # Clamp speed values to valid range
+                left_speed = int(max(0, min(100, left_speed)))
+                right_speed = int(max(0, min(100, right_speed)))
 
-            # Temporarily set Heading Gate mode 
-            if mode == Mode.BOTTLE_CARRYING:
-                et.set_motor_forward_speed(
-                    left_speed=left_speed,
-                    right_speed=right_speed,
-                )
-            elif mode == Mode.HEADING_GATE:
-                et.set_motor_backward_speed(
-                    left_speed=left_speed,
-                    right_speed=right_speed,
-                )
-            elif mode == Mode.TURN_LEFT:
+            # Temporarily set Heading Gate mode
+            if mode == Mode.PAUSE:
                 et.brake()
             else:
-                et.set_motor_forward_speed(
+                et.set_motor_speed(
                     left_speed=left_speed,
                     right_speed=right_speed,
                 )
@@ -242,33 +251,33 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if record_sensor_data and sensor_recorder is not None:
                 sensor_recorder.log_frame_data(et.get_spike_status(), mode)
 
-            status = et.get_spike_status()
-            left_pos = status.motors["A"].relative_position
-            right_pos = status.motors["B"].relative_position
-
-            info = dict()
-            info["target_x"], info["offset_y"] = x1 + mx, y1 + my
-            info["text"] = {
-                "mode": mode.name,
-                "left_relative_position": left_pos,
-                "right_relative_position": right_pos,
-                "theta_deg": round(math.degrees(theta), 2),
-                "steering_correction": round(steering_correction, 2),
-                "left_speed": left_speed,
-                "right_speed": right_speed,
-            }
-
-            # Create visualization frame
-            gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
-            gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
-
-            # Draw contour on the visualization if found
-            if max_contour is not None:
-                # Adjust contour coordinates to full frame
-                adjusted_contour = max_contour + np.array([x1, y1])
-                cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)  # Draw centroid
-                cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
             if send_video_stream and client_socket is not None:
+                status = et.get_spike_status()
+                left_pos = status.motors["A"].relative_position
+                right_pos = status.motors["B"].relative_position
+
+                info = dict()
+                info["target_x"], info["offset_y"] = x1 + mx, y1 + my
+                info["text"] = {
+                    "mode": mode.name,
+                    "left_relative_position": left_pos,
+                    "right_relative_position": right_pos,
+                    "theta_deg": round(math.degrees(theta), 2),
+                    "steering_correction": round(steering_correction, 2),
+                    "left_speed": left_speed,
+                    "right_speed": right_speed,
+                }
+
+                # Create visualization frame
+                gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
+                gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
+                # Draw contour on the visualization if found
+                if max_contour is not None:
+                    # Adjust contour coordinates to full frame
+                    adjusted_contour = max_contour + np.array([x1, y1])
+                    cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)  # Draw centroid
+                    cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
+
                 try:
                     ret, buffer = cv2.imencode(".jpg", gray)
                     img_encoded = buffer.tobytes()
@@ -308,16 +317,35 @@ if __name__ == "__main__":
     parser.add_argument("--record-sensor", action="store_true", help="Record sensor data to file")
     parser.add_argument("--save-video", action="store_true", help="Save camera video to file")
     parser.add_argument("--send-video", action="store_true", help="Send video stream to host PC")
+    parser.add_argument("--course", choices=["left", "right"], default="left", help="Initial course to follow: 'left' for left edge, 'right' for right edge (default: left)")
     parser.add_argument(
-        "--initial-course", choices=["left", "right"], default="left", help="Initial course to follow: 'left' for left edge, 'right' for right edge (default: left)"
+        "--initial-mode",
+        choices=["left_edge", "right_edge", "obstacle_avoidance", "heading_bottle1", "bottle_carrying1", "heading_bottle2", "bottle_carrying2", "heading_goal", "pause"],
+        help="Initial mode to start with (overrides initial-course if specified)",
     )
 
     args = parser.parse_args()
 
+    # Convert string mode to Mode enum
+    mode_mapping = {
+        "left_edge": Mode.LEFT_EDGE_FOLLOWING,
+        "right_edge": Mode.RIGHT_EDGE_FOLLOWING,
+        "obstacle_avoidance": Mode.OBSTACLE_AVOIDANCE,
+        "heading_bottle1": Mode.HEADING_BOTTLE1,
+        "bottle_carrying1": Mode.BOTTLE_CARRYING1,
+        "heading_bottle2": Mode.HEADING_BOTTLE2,
+        "bottle_carrying2": Mode.BOTTLE_CARRYING2,
+        "heading_goal": Mode.HEADING_GOAL,
+        "pause": Mode.PAUSE,
+    }
+
+    initial_mode = mode_mapping.get(args.initial_mode) if args.initial_mode else None
+
     print("Starting OpenCV-based line following robot...")
     print(f"Using ROI: {ROI_CNN}")
     print(f"Base speed: {BASE_SPEED}")
-    print(f"Initial course: Following {args.initial_course} edge")
+    print(f"course: {args.course}")
+    print(f"Initial mode: {args.initial_mode if args.initial_mode else 'Default (based on course)'}")
     print(f"Video streaming to host PC: {'Enabled' if args.send_video else 'Disabled'}")
     print("Controls:")
     print("  'a' - Follow left edge")
@@ -329,5 +357,6 @@ if __name__ == "__main__":
         record_sensor_data=args.record_sensor,
         save_camera_video=args.save_video,
         send_video_stream=args.send_video,
-        initial_course=args.initial_course,
+        course=args.course,
+        initial_mode=initial_mode,
     )

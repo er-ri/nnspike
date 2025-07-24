@@ -32,7 +32,7 @@ import torchvision.transforms as transforms
 from tqdm import tqdm
 
 from nnspike.constants import OBSTACLE_AVOIDANCE_THRESHOLD, OFFSET_Y, Mode
-from nnspike.utils import find_bottle_center_with_yellow_count, get_line_edges_at_y, normalize_image
+from nnspike.utils import find_bottle_center, get_line_edges_at_y, normalize_image
 
 
 def label_dataset_by_opencv(df, roi: tuple[int, int, int, int], threshold_value: int) -> pd.DataFrame:
@@ -57,10 +57,10 @@ def label_dataset_by_opencv(df, roi: tuple[int, int, int, int], threshold_value:
         df.at[row.name, "left_x"] = left_x
         df.at[row.name, "right_x"] = right_x
 
-        _, _, yellow_pixel_count = find_bottle_center_with_yellow_count(image=image)
+        _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow")
 
         if yellow_pixel_count > OBSTACLE_AVOIDANCE_THRESHOLD:
-            df.at[row.name, "mode"] = Mode.OBSTACLE_AVOIDANCE.value
+            df.at[row.name, "mode"] = Mode.AVOID_OBSTACLE.value
 
     return df
 
