@@ -409,82 +409,28 @@ def find_blue_target_center(
         shape_info = {'ellipse': best_blue_ellipse, 'area': max_blue_area}
         return center, axes, angle, shape_type, shape_info
 
-    # --- 青的が見つからない場合はグレー楕円検出（推定処理含む） ---
+    # --- 青的が見つからない場合はグレー楕円（最大面積・面積4万以上） ---
     mask_gray = cv2.inRange(hsv, np.array(gray_hsv_lower), np.array(gray_hsv_upper))
-    
-    # Enhanced morphological processing with elliptical kernels
-    kernel_small = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    kernel_large = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
-    
-    # Apply morphological closing and dilation
-    mask_gray_closed = cv2.morphologyEx(mask_gray, cv2.MORPH_CLOSE, kernel_large, iterations=3)
-    mask_gray_final = cv2.dilate(mask_gray_closed, kernel_small, iterations=3)
-    
-    contours_gray, _ = cv2.findContours(mask_gray_final, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    if contours_gray:
-        # First attempt: Try to find complete ellipse
-        min_area = 200
-        valid_contours = [c for c in contours_gray if cv2.contourArea(c) >= min_area]
-        
-        # Try ellipse fitting on larger contours first
-        for contour in valid_contours:
-            if len(contour) >= 5:
-                try:
-                    ellipse = cv2.fitEllipse(contour)
-                    (cx, cy), (major, minor), angle = ellipse
-                    area = cv2.contourArea(contour)
-                    aspect_ratio = max(major, minor) / min(major, minor) if min(major, minor) > 0 else float('inf')
-                    
-                    if aspect_ratio <= 5.0:  # Reasonable ellipse shape
-                        gray_center = (int(cx), int(cy))
-                        axes = (int(major/2), int(minor/2))
-                        shape_type = 'gray'
-                        shape_info = {'ellipse': ellipse, 'contour': contour, 'area': area, 'aspect_ratio': aspect_ratio}
-                        return gray_center, axes, angle, shape_type, shape_info
-                except:
-                    continue
-        
-        # Second attempt: Ellipse estimation from partial gray lines (when complete ellipse fails)
-        # This handles cases where gray ellipse is incomplete (like frames 34-36)
-        
-        # Collect all gray points from contours (even small ones)
-        all_gray_points = []
-        for contour in contours_gray:
-            if cv2.contourArea(contour) >= 50:  # Lower threshold for partial lines
-                for point in contour:
-                    all_gray_points.append(point[0])
-        
-        if len(all_gray_points) >= 10:  # Need minimum points for estimation
-            all_gray_points = np.array(all_gray_points)
-            
-            # Find the centroid of gray points as estimated center
-            gray_cx = int(np.mean(all_gray_points[:, 0]))
-            gray_cy = int(np.mean(all_gray_points[:, 1]))
-            
-            # Calculate distances from centroid to estimate ellipse size
-            distances = np.sqrt((all_gray_points[:, 0] - gray_cx)**2 + (all_gray_points[:, 1] - gray_cy)**2)
-            
-            # Use median distance to estimate radius
-            median_distance = np.median(distances)
-            
-            if median_distance > 10:  # Reasonable size threshold
-                # Estimate ellipse parameters (assume roughly circular)
-                estimated_radius = int(median_distance * 1.2)  # Scale factor for ellipse estimation
-                
-                gray_center = (gray_cx, gray_cy)
-                axes = (estimated_radius, estimated_radius)
-                angle = 0
-                shape_type = 'gray'
-                shape_info = {
-                    'estimated': True,
-                    'center': gray_center,
-                    'radius': estimated_radius,
-                    'points_count': len(all_gray_points),
-                    'median_distance': median_distance
-                }
-                return gray_center, axes, angle, shape_type, shape_info
-
+    mask_gray = cv2.morphologyEx(mask_gray, cv2.MORPH_CLOSE, np.ones((7,7), np.uint8))
+    mask_gray = cv2.dilate(mask_gray, np.ones((5,5), np.uint8), iterations=1)
+    contours_gray, _ = cv2.findContours(mask_gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    ellipses = []
+    for c in contours_gray:
+        if len(c) < 10 or c.shape[0] < 5:
+            continue
+        ellipse_cv = cv2.fitEllipse(c)
+        center = (int(np.round(ellipse_cv[0][0])), int(np.round(ellipse_cv[0][1])))
+        axes_ = (int(ellipse_cv[1][0]//2), int(ellipse_cv[1][1]//2))
+        area = np.pi * axes_[0] * axes_[1]
+        if area >= 40000:
+            ellipses.append({'center': center, 'area': area})
+    if ellipses:
+        gray_center = max(ellipses, key=lambda e: e['area'])['center']
+        axes = None
+        angle = None
+        shape_type = 'gray'
+        shape_info = {'ellipses': ellipses}
+        return gray_center, axes, angle, shape_type, shape_info
     # --- どちらも見つからない場合 ---
     shape_type = 'none'
     shape_info = {}
