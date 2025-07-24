@@ -29,6 +29,7 @@ def get_line_edges_at_y(image, roi, target_y, threshold_value=50):
 
     Parameters:
     - image: Input image (BGR or grayscale)
+
     - roi_coords: Tuple (x, y, width, height) defining the ROI
     - target_y: The Y coordinate where to detect line edges (in original image coordinates)
     - threshold_value: Threshold for binary conversion (default: 50)
@@ -63,6 +64,7 @@ def get_line_edges_at_y(image, roi, target_y, threshold_value=50):
 
     # Calculate the row within the ROI
     roi_row = target_y - y
+
 
     # Get the binary row at target Y
     if roi_row >= 0 and roi_row < h:
@@ -328,6 +330,165 @@ def find_bottle_center_with_red_count(image):
         return (cx, cy), contour_size, red_pixel_count
 
     return None, None, red_pixel_count
+
+
+def find_blue_target_center(
+    img,
+    blue_hsv_lower=(100, 80, 80),
+    blue_hsv_upper=(140, 255, 255),
+    gray_hsv_lower=(0, 0, 60),
+    gray_hsv_upper=(180, 60, 140),
+    ellipse_area_thresh=20,
+    ellipse_ratio_min=0.4,
+    ellipse_ratio_max=1.7,
+    blur_kernel=5,
+    gray_blur_kernel=5,
+    gray_dilate_kernel=5,
+    gray_dilate_iter=2,
+    gray_close_kernel=7
+):
+    """
+    青い的（楕円）またはグレー線の中心座標・形状情報を返す統合検出関数（グレーライン補完含む）。
+    部分的なグレー線からの楕円推定機能を含む。
+    
+    Args:
+        img: BGR画像 (numpy.ndarray)
+        blue_hsv_lower, blue_hsv_upper: 青色範囲 (HSV)
+        gray_hsv_lower, gray_hsv_upper: グレー色範囲 (HSV)
+        ellipse_area_thresh: 楕円面積の最小値
+        ellipse_ratio_min, ellipse_ratio_max: 楕円比の範囲
+        blur_kernel: 青マスクのメディアンブラーサイズ
+        gray_blur_kernel: グレーマスクのガウシアンブラーサイズ
+        gray_dilate_kernel: グレー膨張カーネルサイズ
+        gray_dilate_iter: グレー膨張回数
+        gray_close_kernel: グレー閉操作カーネルサイズ
+    Returns:
+        center: (x, y) or None
+        axes: (長半径, 短半径) or None
+        angle: 楕円の回転角度 or None
+        shape_type: 'blue' or 'gray' or 'none'
+        shape_info: dict（検出形状の詳細情報）
+    """
+    if img is None or img.size == 0:
+        return None, None, None, 'none', {}
+    
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    # --- 青い的検出（楕円フィット） ---
+    mask_blue = cv2.inRange(hsv, np.array(blue_hsv_lower), np.array(blue_hsv_upper))
+    mask_blue = cv2.medianBlur(mask_blue, blur_kernel)
+    
+    # Apply morphological operations for blue
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    mask_blue = cv2.morphologyEx(mask_blue, cv2.MORPH_CLOSE, kernel)
+    
+    contours_blue, _ = cv2.findContours(mask_blue, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    best_blue_ellipse = None
+    max_blue_area = 0
+    
+    for cnt in contours_blue:
+        if len(cnt) >= 5:
+            area = cv2.contourArea(cnt)
+            if area > ellipse_area_thresh:
+                try:
+                    ellipse = cv2.fitEllipse(cnt)
+                    (cx, cy), (major, minor), angle = ellipse
+                    ratio = major/minor if minor > 0 else 0
+                    if ellipse_ratio_min < ratio < ellipse_ratio_max and major > 10 and minor > 8:
+                        if area > max_blue_area:
+                            best_blue_ellipse = ellipse
+                            max_blue_area = area
+                except:
+                    continue
+    
+    if best_blue_ellipse is not None:
+        (cx, cy), (major, minor), angle = best_blue_ellipse
+        center = (int(cx), int(cy))
+        axes = (int(major/2), int(minor/2))
+        shape_type = 'blue'
+        shape_info = {'ellipse': best_blue_ellipse, 'area': max_blue_area}
+        return center, axes, angle, shape_type, shape_info
+
+    # --- 青的が見つからない場合はグレー楕円検出（推定処理含む） ---
+    mask_gray = cv2.inRange(hsv, np.array(gray_hsv_lower), np.array(gray_hsv_upper))
+    
+    # Enhanced morphological processing with elliptical kernels
+    kernel_small = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    kernel_large = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
+    
+    # Apply morphological closing and dilation
+    mask_gray_closed = cv2.morphologyEx(mask_gray, cv2.MORPH_CLOSE, kernel_large, iterations=3)
+    mask_gray_final = cv2.dilate(mask_gray_closed, kernel_small, iterations=3)
+    
+    contours_gray, _ = cv2.findContours(mask_gray_final, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    if contours_gray:
+        # First attempt: Try to find complete ellipse
+        min_area = 200
+        valid_contours = [c for c in contours_gray if cv2.contourArea(c) >= min_area]
+        
+        # Try ellipse fitting on larger contours first
+        for contour in valid_contours:
+            if len(contour) >= 5:
+                try:
+                    ellipse = cv2.fitEllipse(contour)
+                    (cx, cy), (major, minor), angle = ellipse
+                    area = cv2.contourArea(contour)
+                    aspect_ratio = max(major, minor) / min(major, minor) if min(major, minor) > 0 else float('inf')
+                    
+                    if aspect_ratio <= 5.0:  # Reasonable ellipse shape
+                        gray_center = (int(cx), int(cy))
+                        axes = (int(major/2), int(minor/2))
+                        shape_type = 'gray'
+                        shape_info = {'ellipse': ellipse, 'contour': contour, 'area': area, 'aspect_ratio': aspect_ratio}
+                        return gray_center, axes, angle, shape_type, shape_info
+                except:
+                    continue
+        
+        # Second attempt: Ellipse estimation from partial gray lines (when complete ellipse fails)
+        # This handles cases where gray ellipse is incomplete (like frames 34-36)
+        
+        # Collect all gray points from contours (even small ones)
+        all_gray_points = []
+        for contour in contours_gray:
+            if cv2.contourArea(contour) >= 50:  # Lower threshold for partial lines
+                for point in contour:
+                    all_gray_points.append(point[0])
+        
+        if len(all_gray_points) >= 10:  # Need minimum points for estimation
+            all_gray_points = np.array(all_gray_points)
+            
+            # Find the centroid of gray points as estimated center
+            gray_cx = int(np.mean(all_gray_points[:, 0]))
+            gray_cy = int(np.mean(all_gray_points[:, 1]))
+            
+            # Calculate distances from centroid to estimate ellipse size
+            distances = np.sqrt((all_gray_points[:, 0] - gray_cx)**2 + (all_gray_points[:, 1] - gray_cy)**2)
+            
+            # Use median distance to estimate radius
+            median_distance = np.median(distances)
+            
+            if median_distance > 10:  # Reasonable size threshold
+                # Estimate ellipse parameters (assume roughly circular)
+                estimated_radius = int(median_distance * 1.2)  # Scale factor for ellipse estimation
+                
+                gray_center = (gray_cx, gray_cy)
+                axes = (estimated_radius, estimated_radius)
+                angle = 0
+                shape_type = 'gray'
+                shape_info = {
+                    'estimated': True,
+                    'center': gray_center,
+                    'radius': estimated_radius,
+                    'points_count': len(all_gray_points),
+                    'median_distance': median_distance
+                }
+                return gray_center, axes, angle, shape_type, shape_info
+
+    # --- どちらも見つからない場合 ---
+    shape_type = 'none'
+    shape_info = {}
+    return None, None, None, shape_type, shape_info
 
 
 def find_bottle_center_with_blue_count(image):
@@ -673,3 +834,6 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
     trajectory_center_x = max(line_width//2, min(image_width - line_width//2 - 1, trajectory_center_x))
     
     return trajectory_center_x
+
+
+
