@@ -397,7 +397,6 @@ if __name__ == "__main__":
     print("Controls:")
     print("  'a' - Follow left edge")
     print("  'd' - Follow right edge")
-    print("  'j' - Small turn left")
     print("  'q' - Quit")
     print("Press Ctrl+C to stop")
 
