@@ -261,7 +261,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         pre_target_x = (x1 + x2) // 2  # 初期値
                 case Mode.EYE_BLUE:
                     # ブルーアイズ（青重心）に向かう: find_blue_target_centerを使用
-                    center, *_ = find_blue_target_center(frame)
+                    center, area, blue_pixel_count = find_blue_target_center(frame)
                     if center is not None:
                         target_x = center[0]
                     else:

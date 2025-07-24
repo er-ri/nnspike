@@ -626,13 +626,11 @@ def find_blue_target_center(
         gray_close_kernel: グレー閉操作カーネルサイズ
     Returns:
         center: (x, y) or None
-        axes: (長半径, 短半径) or None
-        angle: 楕円の回転角度 or None
-        shape_type: 'blue' or 'gray' or 'none'
-        shape_info: dict（検出形状の詳細情報）
+        area: float or None
+        blue_pixel_count: int
     """
     if img is None or img.size == 0:
-        return None, None, None, 'none', {}
+        return None, None, 0
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     mask_blue = cv2.inRange(hsv, np.array(blue_hsv_lower), np.array(blue_hsv_upper))
     mask_blue = cv2.medianBlur(mask_blue, blur_kernel)
@@ -641,6 +639,7 @@ def find_blue_target_center(
     contours_blue, _ = cv2.findContours(mask_blue, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     best_blue_ellipse = None
     max_blue_area = 0
+    best_center = None
     for cnt in contours_blue:
         if len(cnt) >= 5:
             area = cv2.contourArea(cnt)
@@ -653,15 +652,13 @@ def find_blue_target_center(
                         if area > max_blue_area:
                             best_blue_ellipse = ellipse
                             max_blue_area = area
+                            best_center = (int(cx), int(cy))
                 except:
                     continue
+    blue_pixel_count = cv2.countNonZero(mask_blue)
     if best_blue_ellipse is not None:
-        (cx, cy), (major, minor), angle = best_blue_ellipse
-        center = (int(cx), int(cy))
-        axes = (int(major/2), int(minor/2))
-        shape_type = 'blue'
-        shape_info = {'ellipse': best_blue_ellipse, 'area': max_blue_area}
-        return center, axes, angle, shape_type, shape_info
+        return best_center, max_blue_area, blue_pixel_count
+    # グレー楕円もblue_pixel_count=0で返す
     mask_gray = cv2.inRange(hsv, np.array(gray_hsv_lower), np.array(gray_hsv_upper))
     mask_gray = cv2.morphologyEx(mask_gray, cv2.MORPH_CLOSE, np.ones((7,7), np.uint8))
     mask_gray = cv2.dilate(mask_gray, np.ones((5,5), np.uint8), iterations=1)
@@ -678,14 +675,9 @@ def find_blue_target_center(
             ellipses.append({'center': center, 'area': area})
     if ellipses:
         gray_center = max(ellipses, key=lambda e: e['area'])['center']
-        axes = None
-        angle = None
-        shape_type = 'gray'
-        shape_info = {'ellipses': ellipses}
-        return gray_center, axes, angle, shape_type, shape_info
-    shape_type = 'none'
-    shape_info = {}
-    return None, None, None, shape_type, shape_info
+        gray_area = max(ellipses, key=lambda e: e['area'])['area']
+        return gray_center, gray_area, 0
+    return None, None, 0
 
 def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, fallback_center_x=None, previous_center_x=None):
     """
