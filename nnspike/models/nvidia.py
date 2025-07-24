@@ -116,12 +116,6 @@ class MultiTaskLoss(nn.Module):
         # Scale only for loss calculation, keep outputs normalized
         scaled_control_loss = self.regression_loss(control_output * self.control_scale, control_target * self.control_scale)
 
-<<<<<<< HEAD
-        # print(f"Control target range: min={control_target.min():.6f}, max={control_target.max():.6f}")
-        # print(f"Control target std: {control_target.std():.6f}")
-
-=======
->>>>>>> wip/teamwork-li
         total_loss = self.mode_weight * mode_loss + self.control_weight * scaled_control_loss
 
         return total_loss, mode_loss, scaled_control_loss
