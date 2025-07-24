@@ -22,8 +22,17 @@ Functions:
         for more accurate steering control.
 """
 
+<<<<<<< HEAD
+=======
+import math
+from typing import Optional, Tuple
 
-def get_line_edges_at_y(image, roi, target_y, threshold_value=50):
+import cv2
+import numpy as np
+
+>>>>>>> wip/teamwork-li
+
+def get_line_edges_at_y(image, roi, target_y, threshold_value=50) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """
     Get the left and right edge points of a black line at a specific Y coordinate.
 
@@ -174,27 +183,53 @@ def get_all_line_edges_at_y(image, roi, target_y, threshold_value=50, max_edges=
     return []
 
 
+<<<<<<< HEAD
 def find_bottle_center_with_yellow_count(image):
     # backupの内容と同じなので変更不要
     """
     Find the center coordinates and yellow pixel count of a bottle in an image using OpenCV.
 
+=======
+def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
+    """
+    Find the center coordinates and color pixel count of a colored object in an image using OpenCV.
+
+    This function detects objects of a specified color in an image and returns information about
+    the largest detected object. It supports both yellow and blue color detection and can be used
+    for various applications including object tracking, color-based navigation, and visual recognition.
+
+>>>>>>> wip/teamwork-li
     This function is optimized for real-time applications with the following improvements:
     - Accepts numpy array input instead of file paths for real-time processing
     - Uses adaptive thresholding for better edge detection under various lighting conditions
     - Applies contour area filtering to reduce noise and false detections
-    - Includes aspect ratio validation to ensure bottle-like shapes
+    - Includes aspect ratio validation to filter out non-object-like shapes
     - Uses smaller morphological kernels for better performance
     - Removes debug print statements for cleaner real-time operation
 
     Args:
         image (numpy.ndarray): Input image as numpy array (BGR format)
+        color (str): Color to detect ('yellow' or 'blue')
+        min_area (int, optional): Minimum contour area threshold for filtering noise. Defaults to 500.
 
     Returns:
+<<<<<<< HEAD
         tuple: ((x, y), size, yellow_pixel_count) where (x, y) is the center coordinates,
                size is the area of the largest contour, and yellow_pixel_count is the
                number of detected yellow pixels. Returns (None, None, 0) if not found.
+=======
+        tuple: ((x, y), size, color_pixel_count) where (x, y) is the center coordinates,
+               size is the area of the largest contour, and color_pixel_count is the
+               number of detected color pixels. Returns (None, None, 0) if not found.
+
+    Raises:
+        ValueError: If color parameter is not 'yellow' or 'blue'
+>>>>>>> wip/teamwork-li
     """
+    # Validate color parameter
+    if color not in ["yellow", "blue"]:
+        raise ValueError("Color must be 'yellow' or 'blue'")
+
     # Check if image is valid
     if image is None or image.size == 0:
         print("Error: Invalid image data")
@@ -204,6 +239,7 @@ def find_bottle_center_with_yellow_count(image):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
+<<<<<<< HEAD
     # Method 1: Color-based detection (for bottles with distinctive colors)
     # Define bottle color range (adjust based on bottle color)
     # For yellow liquid inside bottle (same thresholds as detect_color_bottle in camera.py)
@@ -215,6 +251,24 @@ def find_bottle_center_with_yellow_count(image):
 
     # Calculate yellow pixel count
     yellow_pixel_count = cv2.countNonZero(yellow_mask)
+=======
+    # Method 1: Color-based detection (for objects with distinctive colors)
+    # Define color range based on the specified color
+    if color == "yellow":
+        # For yellow objects (same thresholds as detect_color_bottle in camera.py)
+        lower_color = np.array([15, 100, 100], dtype=np.uint8)
+        upper_color = np.array([35, 255, 255], dtype=np.uint8)
+    else:  # color == 'blue'
+        # For blue objects (same thresholds as detect_color_bottle in camera.py)
+        lower_color = np.array([100, 80, 50])
+        upper_color = np.array([130, 255, 255])
+
+    # Create mask for the specified color
+    color_mask = cv2.inRange(hsv, lower_color, upper_color)  # type: ignore[arg-type]
+
+    # Calculate color pixel count
+    color_pixel_count = cv2.countNonZero(color_mask)
+>>>>>>> wip/teamwork-li
 
     # Method 2: Edge detection for bottle contours
     # Use adaptive thresholding for better edge detection under various lighting
@@ -222,7 +276,11 @@ def find_bottle_center_with_yellow_count(image):
     edges = cv2.bitwise_not(edges)  # Invert to make edges white
 
     # Combine color and edge information
+<<<<<<< HEAD
     combined_mask = cv2.bitwise_or(yellow_mask, edges)
+=======
+    combined_mask = cv2.bitwise_or(color_mask, edges)
+>>>>>>> wip/teamwork-li
 
     # Apply morphological operations to clean up the mask
     kernel = np.ones((3, 3), np.uint8)  # Small kernel for real-time performance
@@ -233,14 +291,21 @@ def find_bottle_center_with_yellow_count(image):
     contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if not contours:
+<<<<<<< HEAD
         return None, None, yellow_pixel_count
+=======
+        return None, None, color_pixel_count
+>>>>>>> wip/teamwork-li
 
-    # Filter contours by area to remove noise (adjust minimum area as needed)
-    min_area = 500  # Minimum area threshold for real-time filtering
+    # Filter contours by area to remove noise (adjustable minimum area)
     valid_contours = [c for c in contours if cv2.contourArea(c) >= min_area]
 
     if not valid_contours:
+<<<<<<< HEAD
         return None, None, yellow_pixel_count
+=======
+        return None, None, color_pixel_count
+>>>>>>> wip/teamwork-li
 
     # Find the largest contour (assume it's the bottle)
     largest_contour = max(valid_contours, key=cv2.contourArea)
@@ -254,13 +319,18 @@ def find_bottle_center_with_yellow_count(image):
 
     # Bottles are typically taller than they are wide (aspect ratio > 1)
     if aspect_ratio < 0.8:  # Adjust threshold as needed
+<<<<<<< HEAD
         return None, None, yellow_pixel_count
+=======
+        return None, None, color_pixel_count
+>>>>>>> wip/teamwork-li
 
     # Calculate center using moments
     M = cv2.moments(largest_contour)
     if M["m00"] != 0:
         cx = int(M["m10"] / M["m00"])
         cy = int(M["m01"] / M["m00"])
+<<<<<<< HEAD
         return (cx, cy), contour_size, yellow_pixel_count
 
     return None, None, yellow_pixel_count
@@ -457,12 +527,43 @@ def find_bottle_center_with_blue_count(image):
         tuple: ((x, y), size, blue_pixel_count) where (x, y) is the center coordinates,
                size is the area of the largest contour, and blue_pixel_count is the
                number of detected blue pixels. Returns (None, None, 0) if not found.
+=======
+        return (cx, cy), contour_size, color_pixel_count
+
+    return None, None, color_pixel_count
+
+
+def find_bullseye(image, min_area: int = 500, min_circularity: float = 0.7) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
+    """
+    Find the center coordinates, size and pixel count of a bullseye target in an image using OpenCV.
+
+    This function detects bullseye targets (concentric circles) in an image and returns information about
+    the detected target. It looks for circular patterns with a blue center circle and outer ring structure,
+    which is typical for bullseye targets used in robotics applications.
+
+    The function uses multiple detection methods:
+    - Blue color detection for the center circle
+    - Circle detection using HoughCircles
+    - Contour analysis for shape validation
+    - Concentric circle pattern matching
+
+    Args:
+        image (numpy.ndarray): Input image as numpy array (BGR format)
+        min_area (int, optional): Minimum contour area threshold for filtering noise. Defaults to 500.
+        min_circularity (float, optional): Minimum circularity threshold (0-1) for circle validation. Defaults to 0.7.
+
+    Returns:
+        tuple: ((x, y), size, pixel_count) where (x, y) is the center coordinates,
+               size is the area of the detected bullseye, and pixel_count is the
+               number of detected blue pixels in the center. Returns (None, None, 0) if not found.
+>>>>>>> wip/teamwork-li
     """
     # Check if image is valid
     if image is None or image.size == 0:
         print("Error: Invalid image data")
         return None, None, 0
 
+<<<<<<< HEAD
     # Convert to different color spaces for better detection
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -527,6 +628,250 @@ def find_bottle_center_with_blue_count(image):
         return (cx, cy), contour_size, blue_pixel_count
 
     return None, None, blue_pixel_count
+=======
+    # Convert to different color spaces
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Method 1: Detect blue center circle with broader range
+    # Expand blue color range to be more inclusive
+    lower_blue = np.array([80, 30, 30])  # Even more inclusive blue range
+    upper_blue = np.array([150, 255, 255])
+
+    # Create mask for blue color
+    blue_mask = cv2.inRange(hsv, lower_blue, upper_blue)  # type: ignore[arg-type]
+
+    # Clean up blue mask
+    kernel = np.ones((3, 3), np.uint8)
+    blue_mask = cv2.morphologyEx(blue_mask, cv2.MORPH_OPEN, kernel)  # type: ignore[assignment]
+    blue_mask = cv2.morphologyEx(blue_mask, cv2.MORPH_CLOSE, kernel)  # type: ignore[assignment]
+
+    # Calculate blue pixel count
+    blue_pixel_count = cv2.countNonZero(blue_mask)
+
+    # Method 2: Circle detection using HoughCircles with multiple parameter sets
+    blurred = cv2.GaussianBlur(gray, (9, 9), 2)
+
+    # Try multiple HoughCircles parameter sets for better detection
+    circle_param_sets = [
+        # More sensitive parameters
+        {"dp": 1, "minDist": 20, "param1": 20, "param2": 15, "minRadius": 3, "maxRadius": 400},
+        # Original parameters
+        {"dp": 1, "minDist": 30, "param1": 30, "param2": 20, "minRadius": 5, "maxRadius": 300},
+        # Less sensitive parameters for larger features
+        {"dp": 2, "minDist": 50, "param1": 50, "param2": 30, "minRadius": 10, "maxRadius": 200},
+    ]
+
+    all_circles = []
+    for params in circle_param_sets:
+        circles = cv2.HoughCircles(
+            blurred,
+            cv2.HOUGH_GRADIENT,
+            dp=params["dp"],
+            minDist=params["minDist"],
+            param1=params["param1"],
+            param2=params["param2"],
+            minRadius=params["minRadius"],
+            maxRadius=params["maxRadius"],
+        )
+        if circles is not None:
+            circles_array = np.round(circles[0, :]).astype("int")
+            all_circles.extend(circles_array)
+
+    # Remove duplicate circles (circles that are very close to each other)
+    unique_circles: list[tuple[int, int, int]] = []
+    for circle in all_circles:
+        x, y, r = circle
+        is_duplicate = False
+        for existing in unique_circles:
+            ex, ey, er = existing
+            distance = math.sqrt((x - ex) ** 2 + (y - ey) ** 2)
+            if distance < min(r, er) * 0.5:  # If centers are very close
+                is_duplicate = True
+                break
+        if not is_duplicate:
+            unique_circles.append(circle)
+
+    # Method 3: Enhanced contour-based detection with multiple approaches
+    thresh_methods = []
+
+    # Adaptive thresholding variants
+    thresh1 = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    thresh_methods.append(thresh1)
+
+    thresh1_inv = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+    thresh_methods.append(thresh1_inv)
+
+    # Otsu's thresholding
+    _, thresh2 = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    thresh_methods.append(thresh2)
+
+    _, thresh2_inv = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    thresh_methods.append(thresh2_inv)
+
+    # Simple binary thresholds at different levels
+    for thresh_val in [100, 127, 150, 180]:
+        _, thresh_bin = cv2.threshold(gray, thresh_val, 255, cv2.THRESH_BINARY)
+        thresh_methods.append(thresh_bin)
+        _, thresh_bin_inv = cv2.threshold(gray, thresh_val, 255, cv2.THRESH_BINARY_INV)
+        thresh_methods.append(thresh_bin_inv)
+
+    # Detection scoring and selection with Y-position awareness
+    candidates = []
+    image_height = image.shape[0]
+
+    def calculate_y_position_score(y_coord, image_height):
+        """Calculate Y position score that favors upper regions and penalizes lower regions"""
+        y_ratio = y_coord / image_height
+
+        # Bullseye targets are typically in upper 30% of image
+        if y_ratio <= 0.3:  # Upper 30% - ideal range
+            return 2.0
+        elif y_ratio <= 0.5:  # 30-50% - acceptable range
+            return 1.5
+        elif y_ratio <= 0.7:  # 50-70% - lower acceptable range
+            return 1.0
+        else:  # Below 70% - heavily penalize
+            return 0.1
+
+    def calculate_area_penalty(area, image_area):
+        """Penalize excessively large areas that might be false positives"""
+        area_ratio = area / image_area
+        if area_ratio > 0.15:  # If area is more than 15% of image, heavily penalize
+            return 0.2
+        elif area_ratio > 0.08:  # If area is more than 8% of image, moderately penalize
+            return 0.5
+        else:
+            return 1.0
+
+    image_area = image_height * image.shape[1]
+
+    # Method A: Blue contours + Circle validation
+    if blue_pixel_count > 0:
+        blue_contours, _ = cv2.findContours(blue_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for blue_contour in blue_contours:
+            blue_area = cv2.contourArea(blue_contour)
+            if blue_area < 5:  # Very small threshold
+                continue
+
+            # Get center of blue region
+            M = cv2.moments(blue_contour)
+            if M["m00"] != 0:
+                blue_cx = int(M["m10"] / M["m00"])
+                blue_cy = int(M["m01"] / M["m00"])
+
+                # Calculate position and area penalties
+                y_score = calculate_y_position_score(blue_cy, image_height)
+                area_penalty = calculate_area_penalty(blue_area, image_area)
+
+                # Check if this blue center is near any detected circle
+                best_circle_match = None
+                min_distance = float("inf")
+
+                for x, y, r in unique_circles:
+                    distance = math.sqrt((blue_cx - x) ** 2 + (blue_cy - y) ** 2)
+                    if distance < r and distance < min_distance:  # Blue center within circle
+                        min_distance = distance
+                        best_circle_match = (x, y, r)
+
+                if best_circle_match is not None:
+                    x, y, r = best_circle_match
+                    circle_area = math.pi * r * r
+                    # Score based on blue area, circle size, position, and area penalty
+                    base_score = blue_area * circle_area / (min_distance + 1)
+                    score = base_score * y_score * area_penalty
+                    # Use the more accurate blue center instead of circle center for position
+                    candidates.append(((blue_cx, blue_cy), circle_area, score, "blue+circle"))
+                else:
+                    # Use blue center even without circle match
+                    base_score = blue_area * 10  # Lower score for blue-only detection
+                    score = base_score * y_score * area_penalty
+                    candidates.append(((blue_cx, blue_cy), blue_area, score, "blue-only"))
+
+    # Method B: Circle-only detection
+    for x, y, r in unique_circles:
+        circle_area = math.pi * r * r
+        if circle_area >= min_area:
+            # Calculate position and area penalties
+            y_score = calculate_y_position_score(y, image_height)
+            area_penalty = calculate_area_penalty(circle_area, image_area)
+
+            # Check if there are blue pixels near this circle center
+            blue_bonus = 0
+            if blue_pixel_count > 0:
+                center_region_size = max(5, r // 4)
+                y1 = max(0, y - center_region_size)
+                y2 = min(blue_mask.shape[0], y + center_region_size)
+                x1 = max(0, x - center_region_size)
+                x2 = min(blue_mask.shape[1], x + center_region_size)
+                center_region = blue_mask[y1:y2, x1:x2]
+                blue_in_center = cv2.countNonZero(center_region)
+                blue_bonus = blue_in_center * 100
+
+            base_score = circle_area + blue_bonus
+            score = base_score * y_score * area_penalty
+            candidates.append(((x, y), circle_area, score, "circle-only"))
+
+    # Method C: Contour-based detection (relaxed)
+    for thresh in thresh_methods:
+        # Apply morphological operations to clean up
+        kernel = np.ones((3, 3), np.uint8)
+        cleaned = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+        cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_OPEN, kernel)
+
+        # Find contours
+        contours, _ = cv2.findContours(cleaned, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area < min_area * 0.1:  # Very relaxed area threshold
+                continue
+
+            # Very relaxed circularity check
+            perimeter = cv2.arcLength(contour, True)
+            if perimeter == 0:
+                continue
+
+            circularity = 4 * math.pi * area / (perimeter * perimeter)
+            if circularity < min_circularity * 0.2:  # Very lenient
+                continue
+
+            # Get contour center
+            M = cv2.moments(contour)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+
+                # Calculate position and area penalties
+                y_score = calculate_y_position_score(cy, image_height)
+                area_penalty = calculate_area_penalty(area, image_area)
+
+                # Check for blue pixels in this contour
+                blue_bonus = 0
+                if blue_pixel_count > 0:
+                    mask = np.zeros(gray.shape, np.uint8)
+                    cv2.drawContours(mask, [contour], -1, 255, -1)
+                    overlap = cv2.bitwise_and(blue_mask, mask)
+                    blue_in_contour = cv2.countNonZero(overlap)
+                    blue_bonus = blue_in_contour * 50
+
+                base_score = area * circularity + blue_bonus
+                score = base_score * y_score * area_penalty
+                candidates.append(((cx, cy), area, score, "contour"))
+
+    # Select the best candidate
+    if not candidates:
+        return None, None, blue_pixel_count
+
+    # Sort by score (highest first)
+    candidates.sort(key=lambda x: x[2], reverse=True)
+
+    # Return the best candidate
+    best_center, best_size, best_score, method = candidates[0]
+
+    return best_center, best_size, blue_pixel_count
+>>>>>>> wip/teamwork-li
 
 
 def calculate_attitude_angle(

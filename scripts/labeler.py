@@ -19,10 +19,13 @@ def read_label_data(label_path: str, image_path: str | None = None):
     filtered_df = df[df["use"] == True]
     filtered_df = filtered_df.reset_index(drop=True)  # Reset index for easier navigation
     image_path = image_path.replace("./", "../") if image_path is not None else None
+<<<<<<< HEAD
     # Check whether image_path exists
     if image_path is not None and not os.path.exists(image_path):
         print(f"Warning: Image path '{image_path}' does not exist. Using first available image instead.")
         image_path = filtered_df["image_path"].iloc[0] if not filtered_df.empty else None
+=======
+>>>>>>> wip/teamwork-li
     index = filtered_df[filtered_df["image_path"] == image_path].index[0] if image_path is not None else 0
 
     return filtered_df, index
@@ -84,6 +87,18 @@ def main():
         key = cv2.waitKey(0) & 0xFF
         if key == ord("q"):
             break
+        elif key == ord("1"):  # Update dataframe
+            df, index = read_label_data(label_path, image_path=image_path)
+            index = 578
+        elif key == ord("2"):  # Update dataframe
+            df, index = read_label_data(label_path, image_path=image_path)
+            index = 734
+        elif key == ord("3"):  # Update dataframe
+            df, index = read_label_data(label_path, image_path=image_path)
+            index = 904
+        elif key == ord("4"):  # Update dataframe
+            df, index = read_label_data(label_path, image_path=image_path)
+            index = 1009
         elif key == ord("u"):  # Update dataframe
             df, index = read_label_data(label_path, image_path=image_path)
         elif key == ord("n"):  # Move to next frame

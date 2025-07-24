@@ -54,7 +54,11 @@ dev = [
 
 [tool.flake8]
 max-line-length = 180
+<<<<<<< HEAD
 extend-ignore = ["E201", "E203","E402", "E712"]
+=======
+extend-ignore = ["E201", "E203","E402", "E711", "E712", "F401"]
+>>>>>>> wip/teamwork-li
 exclude = [
     ".git",
     "__pycache__",

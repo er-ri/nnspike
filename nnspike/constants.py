@@ -7,6 +7,7 @@ OFFSET_Y = 470  # 0.20 meters to the ground
 
 # Behavior Mode
 class Mode(Enum):
+<<<<<<< HEAD
     LEFT_EDGE_FOLLOWING = 0
     RIGHT_EDGE_FOLLOWING = 1
     OBSTACLE_AVOIDANCE = 2
@@ -24,6 +25,17 @@ class Mode(Enum):
     BACKWARD = 14       # 後退専用
     BLUE_BOTTLE = 15   # 新しいモードを追加
     SMALL_TURN_LEFT = 16  # 小さいターンレフト
+=======
+    FOLLOW_LEFT_EDGE = 0
+    FOLLOW_RIGHT_EDGE = 1
+    AVOID_OBSTACLE = 2
+    HEAD_BOTTLE1 = 3
+    CARRY_BOTTLE1 = 4
+    HEAD_BOTTLE2 = 5
+    CARRY_BOTTLE2 = 6
+    HEAD_GOAL = 7
+    PAUSE = 8
+>>>>>>> wip/teamwork-li
 
 
 # One-Hot Encoding for Modes

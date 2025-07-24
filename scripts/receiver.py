@@ -1,8 +1,9 @@
-import cv2
-import socket
 import pickle
+import socket
 import struct
 import time
+
+import cv2
 import numpy as np
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

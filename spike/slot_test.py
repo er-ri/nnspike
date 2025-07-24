@@ -1,6 +1,7 @@
 import gc
-import hub  # type: ignore
 import time
+
+import hub  # type: ignore
 import uasyncio  # type: ignore
 
 CMD_FLAG = b"CF:"
@@ -68,7 +69,7 @@ async def main_task():
 gc.collect()
 
 print("Starting LEGO Prime Hub..")
-command_counter = time.ticks_ms()
+command_counter = time.ticks_ms()  # type: ignore
 
 try:
     uasyncio.run(main_task())
