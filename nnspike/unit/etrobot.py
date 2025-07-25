@@ -160,21 +160,21 @@ class ETRobot(object):
             self.__send_command(command)
             time.sleep(0.05)
 
-    def set_motor_speed(self, left_speed: int, right_speed: int) -> None:
-        """
-        Set the ETRobot motor's speed.
-
-        Args:
-            left_speed (int): Left motor speed (-100-100).
-            right_speed (int): Right motor speed (-100-100).
-        """
-        if left_speed < -100 or left_speed > 100 or right_speed < -100 or right_speed > 100:
-            raise ValueError("Motor speeds must be between -100 and 100.")
-
-        if left_speed < 0 or right_speed < 0:
-            self._set_motor_backward_speed(left_speed, right_speed)
-        else:
-            self._set_motor_forward_speed(left_speed, right_speed)
+    # def set_motor_speed(self, left_speed: int, right_speed: int) -> None:
+    #     """
+    #     Set the ETRobot motor's speed.
+    #
+    #     Args:
+    #         left_speed (int): Left motor speed (-100-100).
+    #         right_speed (int): Right motor speed (-100-100).
+    #     """
+    #     if left_speed < -100 or left_speed > 100 or right_speed < -100 or right_speed > 100:
+    #         raise ValueError("Motor speeds must be between -100 and 100.")
+    #
+    #     if left_speed < 0 or right_speed < 0:
+    #         self._set_motor_backward_speed(left_speed, right_speed)
+    #     else:
+    #         self._set_motor_forward_speed(left_speed, right_speed)
 
     def set_motor_forward_speed(self, left_speed: int, right_speed: int) -> None:
         """

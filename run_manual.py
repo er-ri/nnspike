@@ -323,7 +323,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if mode == Mode.PAUSE:
                 et.brake()
             else:
-                et.set_motor_speed(
+                et.set_motor_forward_speed(
                     left_speed=left_speed,
                     right_speed=right_speed,
                 )
