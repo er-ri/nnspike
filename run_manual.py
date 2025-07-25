@@ -299,17 +299,17 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         mode = Mode.AVOID_OBSTACLE
                         print("Avoiding obstacle (auto FORWARD)...")
                         target_x = (x1 + x2) // 2
-                    elif yellow_pixel_count > 4000:
+                    elif yellow_pixel_count > 3000:
                         if yellow_cx is not None:
                             target_x = yellow_cx[0]  # X座標のみを取得
                         else:
                             target_x = (x1 + x2) // 2
-                    elif red_pixel_count > 4000:
+                    elif red_pixel_count > 3000:
                         if red_cx is not None:
                             target_x = red_cx[0]  # X座標のみを取得
                         else:
                             target_x = (x1 + x2) // 2
-                    elif blue_pixel_count > 4000:
+                    elif blue_pixel_count > 3000:
                         if blue_cx is not None:
                             target_x = blue_cx[0]  # X座標のみを取得
                         else:
