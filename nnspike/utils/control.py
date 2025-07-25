@@ -199,9 +199,10 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
     Raises:
         ValueError: If color parameter is not 'yellow' or 'blue'
     """
+
     # Validate color parameter
-    if color not in ["yellow", "blue"]:
-        raise ValueError("Color must be 'yellow' or 'blue'")
+    if color not in ["yellow", "blue", "red"]:
+        raise ValueError("Color must be 'yellow', 'blue' or 'red'")
 
     # Check if image is valid
     if image is None or image.size == 0:
@@ -218,13 +219,23 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
         # For yellow objects (same thresholds as detect_color_bottle in camera.py)
         lower_color = np.array([15, 100, 100], dtype=np.uint8)
         upper_color = np.array([35, 255, 255], dtype=np.uint8)
-    else:  # color == 'blue'
+        color_mask = cv2.inRange(hsv, lower_color, upper_color)
+    elif color == "blue":
         # For blue objects (same thresholds as detect_color_bottle in camera.py)
         lower_color = np.array([100, 80, 50])
         upper_color = np.array([130, 255, 255])
-
-    # Create mask for the specified color
-    color_mask = cv2.inRange(hsv, lower_color, upper_color)  # type: ignore[arg-type]
+        color_mask = cv2.inRange(hsv, lower_color, upper_color)
+    elif color == "red":
+        # backup/20250724/control.pyのfind_bottle_center_with_red_countの閾値を反映
+        lower_red1 = np.array([0, 90, 60], dtype=np.uint8)
+        upper_red1 = np.array([12, 255, 255], dtype=np.uint8)
+        lower_red2 = np.array([170, 90, 60], dtype=np.uint8)
+        upper_red2 = np.array([180, 255, 255], dtype=np.uint8)
+        mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+        mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+        color_mask = cv2.bitwise_or(mask1, mask2)
+    else:
+        color_mask = np.zeros_like(gray)
 
     # Calculate color pixel count
     color_pixel_count = cv2.countNonZero(color_mask)

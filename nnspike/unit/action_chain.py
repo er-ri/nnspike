@@ -51,9 +51,9 @@ class ActionChain(object):
         self.start_time = time.time() if self.start_time == 0.0 else self.start_time
         self.current_time = time.time()
 
-        center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
+        center, _, red_pixel_count = find_bottle_center(image=image, color="red")
 
-        if blue_pixel_count < 1000:
+        if red_pixel_count < 1000:
             left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
 
             if left_x is not None and right_x is not None:
