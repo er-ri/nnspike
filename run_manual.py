@@ -421,8 +421,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     info["target_x"], info["offset_y"] = None, None
                 info["text"] = {
                     "mode": mode.name,
-                    "left_relative_position": left_pos,
-                    "right_relative_position": right_pos,
+                    "left_relative_position": int(left_pos) if left_pos is not None else 0,
+                    "right_relative_position": int(right_pos) if right_pos is not None else 0,
                     "theta_deg": round(math.degrees(theta), 2) if theta is not None else None,
                     "steering_correction": round(steering_correction, 2) if steering_correction is not None else None,
                     "left_speed": left_speed,
