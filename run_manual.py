@@ -407,9 +407,16 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 right_pos = status.motors["B"].relative_position
 
                 info = dict()
-                # target_x, mx, my, theta, steering_correctionがNoneでない場合のみ送信・描画
+                # target_x, offset_yがNoneでない場合のみint変換し、例外もガード
                 if target_x is not None and offset_y is not None:
-                    info["target_x"], info["offset_y"] = int(target_x), int(offset_y)
+                    try:
+                        info["target_x"] = int(target_x)
+                    except Exception:
+                        info["target_x"] = None
+                    try:
+                        info["offset_y"] = int(offset_y)
+                    except Exception:
+                        info["offset_y"] = None
                 else:
                     info["target_x"], info["offset_y"] = None, None
                 info["text"] = {
