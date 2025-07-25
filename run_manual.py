@@ -433,13 +433,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
                 gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
                 # Draw contour on the visualization if found
-                if max_contour is not None:
+                if max_contour is not None and mx is not None and my is not None:
                     # Adjust contour coordinates to full frame
                     adjusted_contour = max_contour + np.array([x1, y1])
                     cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)  # Draw centroid
-                    safe_mx = mx if mx is not None else 0
-                    safe_my = my if my is not None else 0
-                    cv2.circle(gray, (int(x1 + safe_mx), int(y1 + safe_my)), 5, (255, 255, 255), -1)
+                    cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
 
                 try:
                     ret, buffer = cv2.imencode(".jpg", gray)
