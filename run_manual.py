@@ -216,10 +216,20 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             match mode:
                 case Mode.FOLLOW_LEFT_EDGE:
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                    target_x = right_x
+                    if right_x is not None:
+                        target_x = right_x
+                    else:
+                        left_speed, right_speed = 0, 0
+                        et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                        continue
                 case Mode.FOLLOW_RIGHT_EDGE:
                     left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                    target_x = left_x
+                    if left_x is not None:
+                        target_x = left_x
+                    else:
+                        left_speed, right_speed = 0, 0
+                        et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                        continue
                 case Mode.AVOID_OBSTACLE:
                     _, (left_speed, right_speed), mode = action_chain.avoid_obstacle()
                 case Mode.TURN_LEFT:
