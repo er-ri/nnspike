@@ -220,6 +220,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             # EYE_BLUE: ブルーアイズを目標に動作（仮実装: 青重心に向かう）
 
             target_x = None  # Default target x position
+            offset_y = None  # target_y相当も初期化
             left_speed, right_speed = None, None  # Initialize speeds
 
 
@@ -354,6 +355,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 # Calculate position relative to ROI
                 mx = target_x - x1  # Relative to ROI
                 my = OFFSET_Y - y1  # Relative to ROI
+                offset_y = y1 + my  # offset_yを明示的にセット
 
                 # Calculate offset from ROI center
                 roi_center_x = (x2 - x1) // 2
@@ -406,8 +408,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
                 info = dict()
                 # target_x, mx, my, theta, steering_correctionがNoneでない場合のみ送信・描画
-                if mx is not None and my is not None:
-                    info["target_x"], info["offset_y"] = x1 + mx, y1 + my
+                if target_x is not None and offset_y is not None:
+                    info["target_x"], info["offset_y"] = int(target_x), int(offset_y)
                 else:
                     info["target_x"], info["offset_y"] = None, None
                 info["text"] = {
