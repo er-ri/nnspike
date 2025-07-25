@@ -202,7 +202,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "7":
                 mode = Mode.HEAD_GOAL
                 print("Switched to heading goal mode")
-            elif key == "8":
+            elif key == "8" or key == "p":
                 mode = Mode.PAUSE
                 print("Pausing robot")
             # GATE_PASS: ゲートを潜る（仮実装: 直進）
