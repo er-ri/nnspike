@@ -175,6 +175,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "f":
                 mode = Mode.FORWARD
                 print("Switched to forward mode")
+            elif key == "j":
+                mode = Mode.SMALL_TURN_RIGHT
+                print("Switched to small turn right mode")
+            elif key == "k":
+                mode = Mode.SMALL_TURN_LEFT
+                print("Switched to small turn left mode")
             elif key == "b":
                 mode = Mode.BACKWARD
                 print("Switched to backward mode")
@@ -238,8 +244,28 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                             left_speed, right_speed = 0, 0
                     else:
                         left_speed, right_speed, mode = 0, 0, Mode.PAUSE
+                case Mode.SMALL_TURN_LEFT:
+                    result = action_chain.small_turn_left()
+                    if result is not None:
+                        _, speeds, mode = result
+                        if speeds is not None:
+                            left_speed, right_speed = speeds
+                        else:
+                            left_speed, right_speed = 0, 0
+                    else:
+                        left_speed, right_speed, mode = 0, 0, Mode.PAUSE
                 case Mode.TURN_RIGHT:
                     result = action_chain.trun_right()
+                    if result is not None:
+                        _, speeds, mode = result
+                        if speeds is not None:
+                            left_speed, right_speed = speeds
+                        else:
+                            left_speed, right_speed = 0, 0
+                    else:
+                        left_speed, right_speed, mode = 0, 0, Mode.PAUSE
+                case Mode.SMALL_TURN_RIGHT:
+                    result = action_chain.small_turn_right()
                     if result is not None:
                         _, speeds, mode = result
                         if speeds is not None:
@@ -459,6 +485,11 @@ if __name__ == "__main__":
     print("Controls:")
     print("  'a' - Follow left edge")
     print("  'd' - Follow right edge")
+    print("  'l' - Turn left")
+    print("  'r' - Turn right")
+    print("  'k' - Small turn left")
+    print("  'j' - Small turn right")
+    print("  'f' - Forward")
     print("  'q' - Quit")
     print("Press Ctrl+C to stop")
 

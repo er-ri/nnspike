@@ -22,6 +22,8 @@ class Mode(Enum):
     BACKWARD = 12
     GATE_PASS = 13
     EYE_BLUE = 14
+    SMALL_TURN_LEFT = 15
+    SMALL_TURN_RIGHT = 16
 
 
 

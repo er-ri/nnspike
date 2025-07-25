@@ -154,3 +154,31 @@ class ActionChain(object):
             return None, (left_speed, right_speed), Mode.TURN_RIGHT
         self.start_time = 0.0
         return None, None, Mode.PAUSE
+
+    def small_turn_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+        """
+        スモールターンレフト（短時間左旋回）アクション。
+        """
+        self.start_time = time.time() if self.start_time == 0.0 else self.start_time
+        self.current_time = time.time()
+
+        elapsed_time = self.current_time - self.start_time
+        if elapsed_time < 0.3:
+            left_speed, right_speed = 0, 50
+            return None, (left_speed, right_speed), Mode.SMALL_TURN_LEFT
+        self.start_time = 0.0
+        return None, None, Mode.PAUSE
+
+    def small_turn_right(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+        """
+        スモールターンライト（短時間右旋回）アクション。
+        """
+        self.start_time = time.time() if self.start_time == 0.0 else self.start_time
+        self.current_time = time.time()
+
+        elapsed_time = self.current_time - self.start_time
+        if elapsed_time < 0.3:
+            left_speed, right_speed = 50, 0
+            return None, (left_speed, right_speed), Mode.SMALL_TURN_RIGHT
+        self.start_time = 0.0
+        return None, None, Mode.PAUSE
