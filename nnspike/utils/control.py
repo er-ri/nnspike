@@ -221,9 +221,9 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
         upper_color = np.array([35, 255, 255], dtype=np.uint8)
         color_mask = cv2.inRange(hsv, lower_color, upper_color)
     elif color == "blue":
-        # For blue objects (same thresholds as detect_color_bottle in camera.py)
-        lower_color = np.array([100, 80, 50])
-        upper_color = np.array([130, 255, 255])
+        # ノートブックで検証した最適な青色抽出範囲
+        lower_color = np.array([90, 60, 40])
+        upper_color = np.array([140, 255, 255])
         color_mask = cv2.inRange(hsv, lower_color, upper_color)
     elif color == "red":
         # backup/20250724/control.pyのfind_bottle_center_with_red_countの閾値を反映
