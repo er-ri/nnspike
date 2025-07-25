@@ -223,9 +223,25 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.AVOID_OBSTACLE:
                     _, (left_speed, right_speed), mode = action_chain.avoid_obstacle()
                 case Mode.TURN_LEFT:
-                    _, (left_speed, right_speed), mode = action_chain.trun_left()
+                    result = action_chain.trun_left()
+                    if result is not None:
+                        _, speeds, mode = result
+                        if speeds is not None:
+                            left_speed, right_speed = speeds
+                        else:
+                            left_speed, right_speed = 0, 0
+                    else:
+                        left_speed, right_speed, mode = 0, 0, Mode.PAUSE
                 case Mode.TURN_RIGHT:
-                    _, (left_speed, right_speed), mode = action_chain.trun_right()
+                    result = action_chain.trun_right()
+                    if result is not None:
+                        _, speeds, mode = result
+                        if speeds is not None:
+                            left_speed, right_speed = speeds
+                        else:
+                            left_speed, right_speed = 0, 0
+                    else:
+                        left_speed, right_speed, mode = 0, 0, Mode.PAUSE
                 case Mode.HEAD_BOTTLE1:
                     target_x, mode = action_chain.heading_bottle1(frame)
                 case Mode.CARRY_BOTTLE1:
