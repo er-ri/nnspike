@@ -41,7 +41,7 @@ class ActionChain(object):
             self.start_time = 0.0  # チェーン終了でリセット
             return None, None, Mode.FOLLOW_LEFT_EDGE if self.course == "left" else Mode.FOLLOW_RIGHT_EDGE
 
-    def heading_bottle1(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    def heading_bottle1(self, image: np.ndarray) -> Tuple[Optional[float], Mode]:
         """
         Perform a sequence of actions to head towards bottle 1.
 
@@ -58,21 +58,21 @@ class ActionChain(object):
 
             if left_x is not None and right_x is not None:
                 if right_x - left_x < 100:
-                    return (left_x + right_x) / 2, None, Mode.HEAD_BOTTLE1
+                    return (left_x + right_x) / 2, Mode.HEAD_BOTTLE1
             else:
-                return left_x, None, Mode.HEAD_BOTTLE1
+                return left_x, Mode.HEAD_BOTTLE1
 
         status = self.et.get_spike_status()
         # If the distance to the bottle is less than 1cm, pause
         if status.sensors.distance is not None and status.sensors.distance < 0.01:
-            return None, None, Mode.PAUSE
+            return None, Mode.PAUSE
 
         if center is not None:
             cx, _ = center
         else:
             cx = None
 
-        return cx, None, Mode.HEAD_BOTTLE1
+        return cx, Mode.HEAD_BOTTLE1
 
     def carry_bottle1(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         self.start_time = time.time() if self.start_time is None else self.start_time
