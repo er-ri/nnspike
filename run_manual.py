@@ -41,6 +41,7 @@ import cv2
 import numpy as np
 
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode
+
 from nnspike.unit import ETRobot
 from nnspike.unit.action_chain import ActionChain
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, get_virtual_line_edges_at_y, find_bottle_center, find_blue_target_center
@@ -195,6 +196,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "e":
                 mode = Mode.EYE_BLUE
                 print("Switched to blue eyes mode")
+            elif key == "u":
+                mode = Mode.BLUE_BOTTLE_CATCH
+                print("Switched to blue bottle catch mode")
             elif key == "2":
                 mode = Mode.AVOID_OBSTACLE
                 print("Switched to obstacle avoidance mode")
@@ -226,6 +230,16 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
 
             match mode:
+                case Mode.BLUE_BOTTLE_CATCH:
+                    # ブルーボトルキャッチモード: 青重心に向かう
+                    blue_cx, _, blue_pixel_count = find_bottle_center(frame, color="blue")
+                    if blue_pixel_count > 3000:
+                        if blue_cx is not None:
+                            target_x = blue_cx[0]  # X座標のみを取得
+                        else:
+                            target_x = (x1 + x2) // 2
+                    else:
+                        target_x = (x1 + x2) // 2
                 case Mode.FOLLOW_LEFT_EDGE:
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     if right_x is not None:
@@ -309,11 +323,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                             target_x = red_cx[0]  # X座標のみを取得
                         else:
                             target_x = (x1 + x2) // 2
-                    elif blue_pixel_count > 3000:
-                        if blue_cx is not None:
-                            target_x = blue_cx[0]  # X座標のみを取得
-                        else:
-                            target_x = (x1 + x2) // 2
+                    # 青ボトルキャッチは分離
                     else:
                         target_x = (x1 + x2) // 2
                 case Mode.GATE_PASS:

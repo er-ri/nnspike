@@ -24,6 +24,7 @@ class Mode(Enum):
     EYE_BLUE = 14
     SMALL_TURN_LEFT = 15
     SMALL_TURN_RIGHT = 16
+    BLUE_BOTTLE_CATCH = 17
 
 
 
