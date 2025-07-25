@@ -264,11 +264,15 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         target_x = (x1 + x2) // 2
                 case Mode.GATE_PASS:
                     # ゲートを潜る: 仮想ラインエッジを使う
-                    target_x = get_virtual_line_edges_at_y(frame, OFFSET_Y, previous_center_x=pre_target_x)
-                    if target_x is not None:
+                    temp_x = get_virtual_line_edges_at_y(frame, OFFSET_Y, previous_center_x=pre_target_x)
+                    if temp_x is not None:
+                        target_x = temp_x
+                        pre_target_x = temp_x
+                    elif pre_target_x is not None:
+                        target_x = pre_target_x
+                    else:
+                        target_x = (x1 + x2) // 2
                         pre_target_x = target_x
-                    elif pre_target_x is None:
-                        pre_target_x = (x1 + x2) // 2  # 初期値
                 case Mode.EYE_BLUE:
                     # ブルーアイズ（青重心）に向かう: find_blue_target_centerを使用
                     center, area, blue_pixel_count = find_blue_target_center(frame)
