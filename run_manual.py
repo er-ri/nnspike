@@ -281,8 +281,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     else:
                         target_x = (x1 + x2) // 2
                 case Mode.BACKWARD:
-                    left_speed = -BASE_SPEED
-                    right_speed = -BASE_SPEED
+                    # set_motor_backward_speedで後退（左右は入れ替えない）
+                    left_speed = BASE_SPEED
+                    right_speed = BASE_SPEED
+                    et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
+                    continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
                 case _:

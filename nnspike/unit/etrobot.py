@@ -176,13 +176,14 @@ class ETRobot(object):
         else:
             self._set_motor_forward_speed(left_speed, right_speed)
 
-    def _set_motor_forward_speed(self, left_speed: int, right_speed: int) -> None:
+    def set_motor_forward_speed(self, left_speed: int, right_speed: int) -> None:
         """
-        Set the ETRobot motor's speed.
+        Set the ETRobot motor's speed (forward direction).
 
         Args:
             left_speed (int): Left motor speed (0-100).
-            right_speed (int): Right motor speed (0-100)."""
+            right_speed (int): Right motor speed (0-100).
+        """
         id_byte = self.COMMAND_SET_MOTOR_FORWARD_SPEED_ID.to_bytes(1, "big")
         parameter1_byte = left_speed.to_bytes(1, "big")
         parameter2_byte = right_speed.to_bytes(1, "big")
@@ -191,7 +192,7 @@ class ETRobot(object):
 
         self.__send_command(command)
 
-    def _set_motor_backward_speed(self, left_speed: int, right_speed: int) -> None:
+    def set_motor_backward_speed(self, left_speed: int, right_speed: int) -> None:
         """
         Set the ETRobot motor's speed in reverse direction.
 
