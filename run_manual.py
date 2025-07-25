@@ -97,11 +97,16 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     if save_camera_video:
         fourcc = cv2.VideoWriter_fourcc(*"XVID")  # type: ignore[attr-defined]
         video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
+        # フレームサイズがNoneや不正な場合はデフォルト(640,480)を使う
+        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        if not frame_width or not frame_height:
+            frame_width, frame_height = 640, 480
         video_writer = cv2.VideoWriter(
             filename=video_filename,
             fourcc=fourcc,
             fps=30,
-            frameSize=(640, 480),
+            frameSize=(frame_width, frame_height),
         )  # Socket connection for sending camera capture (only if enabled)
     client_socket = None
 
