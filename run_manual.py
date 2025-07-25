@@ -340,6 +340,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     # Default to center if invalid edge specified
                     target_x = (x1 + x2) // 2
 
+
+            # 可視化・送信用変数の初期化
+            mx = my = theta = steering_correction = None
+            max_contour = None
+
             if target_x is not None:
                 # Calculate position relative to ROI
                 mx = target_x - x1  # Relative to ROI
@@ -386,13 +391,17 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 right_pos = status.motors["B"].relative_position
 
                 info = dict()
-                info["target_x"], info["offset_y"] = x1 + mx, y1 + my
+                # target_x, mx, my, theta, steering_correctionがNoneでない場合のみ送信・描画
+                if mx is not None and my is not None:
+                    info["target_x"], info["offset_y"] = x1 + mx, y1 + my
+                else:
+                    info["target_x"], info["offset_y"] = None, None
                 info["text"] = {
                     "mode": mode.name,
                     "left_relative_position": left_pos,
                     "right_relative_position": right_pos,
-                    "theta_deg": round(math.degrees(theta), 2),
-                    "steering_correction": round(steering_correction, 2),
+                    "theta_deg": round(math.degrees(theta), 2) if theta is not None else None,
+                    "steering_correction": round(steering_correction, 2) if steering_correction is not None else None,
                     "left_speed": left_speed,
                     "right_speed": right_speed,
                 }
