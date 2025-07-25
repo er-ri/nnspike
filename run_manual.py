@@ -310,8 +310,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 left_speed = current_base_speed - steering_correction
                 right_speed = current_base_speed + steering_correction
 
-                # Clamp speed values to valid range
+            # Clamp speed values to valid range (必ずset_motor_speed前に実施)
+            if left_speed is not None:
                 left_speed = int(max(0, min(100, left_speed)))
+            if right_speed is not None:
                 right_speed = int(max(0, min(100, right_speed)))
 
             # Temporarily set Heading Gate mode
