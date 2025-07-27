@@ -717,6 +717,9 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             cv2.fillPoly(mask, [cnt], 255)
             region_pixels = gray[mask == 255]
             avg_darkness = 255 - np.mean(region_pixels) if len(region_pixels) > 0 else 0
+            # --- 極端に横長かつ暗い領域を除外 ---
+            if w / h > 10 and avg_darkness > 100:
+                continue
             detected_regions.append({
                 'x': x, 'y': y, 'w': w, 'h': h, 'area': area,
                 'center': (x + w//2, y + h//2),
