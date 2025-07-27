@@ -46,6 +46,7 @@ from nnspike.unit import ETRobot
 from nnspike.unit.action_chain import ActionChain
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, get_virtual_line_edges_at_y, find_bottle_center, find_blue_target_center
 
+
 # User defined constants
 x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
 
@@ -149,6 +150,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     #et.move_arm(2, 0.5)  # アームを止める
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
+    # TURN_AT_END用の状態管理は不要
     try:
         while et.is_running and keyboard.running:
             ret, frame = cap.read()
@@ -220,6 +222,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "8" or key == "p":
                 mode = Mode.PAUSE
                 print("Pausing robot")
+            elif key == "t":
+                mode = Mode.TURN_AT_END
+                print("Switched to Turn at the end mode")
             # GATE_PASS: ゲートを潜る（仮実装: 直進）
             # EYE_BLUE: ブルーアイズを目標に動作（仮実装: 青重心に向かう）
 
@@ -230,6 +235,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
 
             match mode:
+                case Mode.TURN_AT_END:
+                    # TURN_AT_END: ロジックをaction_chain.turn_at_endに委譲（状態管理はaction_chain側に任せる）
+                    target_x, speeds, ret_mode = action_chain.turn_at_end(frame)
+                    if speeds is not None:
+                        left_speed, right_speed = speeds
+                    if ret_mode == Mode.FOLLOW_RIGHT_EDGE:
+                        mode = Mode.FOLLOW_RIGHT_EDGE
                 case Mode.BLUE_BOTTLE_CATCH:
                     # ブルーボトルキャッチモード: 青重心に向かう
                     blue_cx, _, blue_pixel_count = find_bottle_center(frame, color="blue")

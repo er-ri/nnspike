@@ -5,7 +5,7 @@ import numpy as np
 
 from nnspike.constants import OFFSET_Y, ROI_CNN, Mode
 from nnspike.unit.etrobot import ETRobot
-from nnspike.utils import find_bottle_center, get_line_edges_at_y
+from nnspike.utils.control import find_bottle_center, get_line_edges_at_y, get_line_trace_edges_at_x320
 
 
 class ActionChain(object):
@@ -21,6 +21,8 @@ class ActionChain(object):
         self.course = course
         self.start_time = 0.0
         self.current_time = 0.0
+        # 汎用的な状態管理用dict
+        self._state = {}
 
     def avoid_obstacle(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
@@ -182,3 +184,43 @@ class ActionChain(object):
             return None, (left_speed, right_speed), Mode.SMALL_TURN_RIGHT
         self.start_time = 0.0
         return None, None, Mode.PAUSE
+
+    def turn_at_end(self, frame, offset_y_for_turn=400):
+        """
+        TURN_AT_END: ライン到達前は中央、到達時に一度だけ左旋回、その後は右端追従
+        汎用状態dict(self._state)で管理する。
+        offset_y_for_turn: この動作専用のライン到達判定Y座標（デフォルト400）
+        Returns: (target_x, (left_speed, right_speed), ret_mode)
+        """
+        state = self._state.setdefault("turn_at_end", {"reached": False, "turned": False})
+        x1, y1, x2, y2 = ROI_CNN
+        # get_line_trace_edges_at_x320でラインがoffset_y_for_turnに到達しているか判定
+        y_hit = get_line_trace_edges_at_x320(frame)
+        reached = y_hit is not None and y_hit >= offset_y_for_turn
+        left_speed = right_speed = None
+        target_x = None
+        if not state["reached"] and reached:
+            state["reached"] = True
+            state["turned"] = False
+        if not state["reached"]:
+            # ライン到達前は中央
+            target_x = (x1 + x2) // 2
+            return target_x, (left_speed, right_speed), None
+        elif not state["turned"]:
+            # 到達した瞬間に一度だけ左旋回
+            result = self.trun_left()
+            if result is not None:
+                _, speeds, _ = result
+                if speeds is not None:
+                    left_speed, right_speed = speeds
+                else:
+                    left_speed, right_speed = 0, 0
+            else:
+                left_speed, right_speed = 0, 0
+            state["turned"] = True
+            return target_x, (left_speed, right_speed), None
+        else:
+            # 以降は右端追従はrun_manual.py側の通常ロジックに任せる
+            # 状態リセットもここで行う
+            self._state["turn_at_end"] = {"reached": False, "turned": False}
+            return None, None, Mode.FOLLOW_RIGHT_EDGE

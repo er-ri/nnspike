@@ -851,3 +851,35 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
     # --- 最終的な中心値を画像範囲内にクリップ ---
     trajectory_center_x = max(line_width//2, min(image_width - line_width//2 - 1, trajectory_center_x))
     return trajectory_center_x
+
+# ヒットしたy座標（下端）とその左右端x座標を返す関数
+
+def get_line_trace_edges_at_x320(img):
+    """
+    x=320の縦線上で下から上に黒色または青色ラインを探索し、
+    一番下でヒットしたy座標のみを返す。
+    黒: RGBすべてblack_thresh未満, 青: HSVでinRange（lower_blue=[100,80,80], upper_blue=[140,255,255]でノートブックと完全一致）
+    Returns: target_y or None
+    """
+    import cv2
+    import numpy as np
+    center_x = 320
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    h, w = img.shape[:2]
+    # 黒色マスク（固定値50）
+    black_mask = np.all(img_rgb < 50, axis=2).astype(np.uint8) * 255
+    # 青色マスク（引数でなく固定値）
+    blue_hsv_lower = (100, 80, 80)
+    blue_hsv_upper = (140, 255, 255)
+    blue_mask = cv2.inRange(img_hsv, np.array(blue_hsv_lower), np.array(blue_hsv_upper))
+    # 論理和
+    target_mask = cv2.bitwise_or(black_mask, blue_mask)
+    # x=320の縦ライン上でヒットしたy座標（下から上）
+    col_target = target_mask[:, center_x]
+    hit_ys = np.where(col_target == 255)[0]
+    if len(hit_ys) == 0:
+        return None
+    target_y = int(hit_ys[-1])  # 一番下のヒット点
+    return target_y
+
