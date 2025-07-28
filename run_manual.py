@@ -244,14 +244,27 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         mode = Mode.FOLLOW_RIGHT_EDGE
                 case Mode.BLUE_BOTTLE_CATCH:
                     # ブルーボトルキャッチモード: 青重心に向かう
+                    if not hasattr(main, "_blue_bottle_catch_state"):
+                        main._blue_bottle_catch_state = {"detected": False}
                     blue_cx, _, blue_pixel_count = find_bottle_center(frame, color="blue")
-                    if blue_pixel_count > 3000:
+                    state = main._blue_bottle_catch_state
+                    if not state["detected"]:
+                        if blue_pixel_count > 3000:
+                            state["detected"] = True
                         if blue_cx is not None:
-                            target_x = blue_cx[0]  # X座標のみを取得
+                            target_x = blue_cx[0]
                         else:
                             target_x = (x1 + x2) // 2
                     else:
-                        target_x = (x1 + x2) // 2
+                        # 一度3000以上になった後
+                        if blue_pixel_count == 0:
+                            mode = Mode.PAUSE
+                            state["detected"] = False
+                            target_x = (x1 + x2) // 2
+                        elif blue_cx is not None:
+                            target_x = blue_cx[0]
+                        else:
+                            target_x = (x1 + x2) // 2
                 case Mode.FOLLOW_LEFT_EDGE:
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     if right_x is not None:
