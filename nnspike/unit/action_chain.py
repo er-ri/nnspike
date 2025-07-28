@@ -3,9 +3,15 @@ from typing import Optional, Tuple
 
 import numpy as np
 
-from nnspike.constants import OFFSET_Y, ROI_CNN, Mode
+from nnspike.constants import OFFSET_Y, ROI_CNN, Mode, BASE_SPEED
 from nnspike.unit.etrobot import ETRobot
-from nnspike.utils.control import find_bottle_center, get_line_edges_at_y, get_line_trace_edges_at_x320
+from nnspike.utils.control import (
+    find_bottle_center,
+    get_line_edges_at_y,
+    get_line_trace_edges_at_x320,
+    get_virtual_line_edges_at_y,
+    find_blue_target_center,
+)
 
 
 class ActionChain(object):
@@ -76,30 +82,77 @@ class ActionChain(object):
 
         return cx, Mode.HEAD_BOTTLE1
 
+
     def carry_bottle1(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+        """
+        指定された6つの動作内容を順次実行する。
+        1. FOLLOW_RIGHT_EDGE + find_bottle_center(red)（red_pixel_countが一度3000以上となってから3秒後に2へ移行）
+        2. FORWARD
+        3. TURN_LEFT
+        4. GATE_PASS
+        5. TURN_LEFT
+        6. EYE_BLUE
+        """
+        # 状態管理dictを利用
+        state = self._state.setdefault("carry_bottle1", {"red_detected_time": None})
         self.start_time = time.time() if self.start_time is None else self.start_time
         self.current_time = time.time()
-
         elapsed_time = self.current_time - self.start_time
 
-        if elapsed_time < 0.8:
-            left_speed, right_speed = 70, 70
-            return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
-        elif elapsed_time > 0.8 and elapsed_time < 1.2:
-            left_speed, right_speed = (70, 0) if self.course == "left" else (0, 70)
-            return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
-        elif elapsed_time > 1.2 and elapsed_time < 2.0:
-            left_speed, right_speed = 70, 70
-            return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
-        elif elapsed_time > 2.0 and elapsed_time < 3.0:
-            left_speed, right_speed = (70, 0) if self.course == "left" else (0, 70)
-            return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
-        elif elapsed_time > 3.0 and elapsed_time < 4.0:
-            _, _, _ = find_bottle_center(image=image, color="blue")
-            left_speed, right_speed = 70, 70
+
+        # base_powerを定義（必要に応じて調整可能）
+        left_speed = right_speed = BASE_SPEED
+
+        # 1. FOLLOW_RIGHT_EDGE + find_bottle_center(red)
+        center, _, red_pixel_count = find_bottle_center(image=image, color="red")
+        if state["red_detected_time"] is None:
+            if red_pixel_count > 3000:
+                state["red_detected_time"] = self.current_time
+        # red_pixel_countが一度3000以上になってから3秒経過で次段階へ
+        if state["red_detected_time"] is None or (self.current_time - state["red_detected_time"] < 3.0):
+            if red_pixel_count > 3000 and center is not None:
+                target_x = center[0]
+            else:
+                left_x, _, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
+                x1, _, x2, _ = ROI_CNN
+                target_x = left_x if left_x is not None else (x1 + x2) // 2
+            left_speed = right_speed = BASE_SPEED
+            return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE1
+
+        # 2. TURN_LEFT (3.0-3.8s after red_detected_time)
+        elif self.current_time - state["red_detected_time"] < 3.8:
+            left_speed, right_speed = (0, 60)
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # Ensure a return value for all code paths
+        # 3. GATE_PASS (3.8-6.8s after red_detected_time)
+        elif self.current_time - state["red_detected_time"] < 6.8:
+            temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, preference='right')
+            x1, _, x2, _ = ROI_CNN
+            target_x = temp_x if temp_x is not None else (x1 + x2) // 2
+            left_speed = right_speed = BASE_SPEED
+            return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE1
+
+        # 4. TURN_LEFT (6.8-7.6s after red_detected_time)
+        elif self.current_time - state["red_detected_time"] < 7.6:
+            left_speed, right_speed = (0, 60)
+            return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
+
+        # 5. EYE_BLUE (7.6-8.8s after red_detected_time)
+        elif self.current_time - state["red_detected_time"] < 8.8:
+            # カラーセンサーが青(3)を検知したら停止
+            status = self.et.get_spike_status()
+            if status.sensors.color and status.sensors.color.color == 3:
+                return None, None, Mode.PAUSE
+            center, _, blue_pixel_count = find_blue_target_center(image)
+            x1, _, x2, _ = ROI_CNN
+            if center is not None:
+                target_x = center[0]
+            else:
+                target_x = (x1 + x2) // 2
+            left_speed = right_speed = BASE_SPEED
+            return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE1
+
+        # 以降は停止または次のモードへ
         return None, None, Mode.CARRY_BOTTLE1
 
     def heading_bottle2(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
