@@ -59,10 +59,11 @@ class ActionChain(object):
            - red_pixel_countが一度3000以上となった時刻をred_detected_timeとする
            - red_detected_timeから5.5秒後に次段階へ遷移
         2. TURN_LEFT（red_detected_time+5.5〜6.3秒, 0.8秒左旋回）
-        3. GATE_PASS（red_detected_time+6.3〜9.3秒, 3.0秒間get_virtual_line_edges_at_yで直進）
-        4. FORWARD（red_detected_time+9.3〜13.8秒, 4.5秒直進）
-        5. TURN_LEFT（red_detected_time+13.8〜14.6秒, 0.8秒左旋回）
-        6. EYE_BLUE（red_detected_time+14.6〜15.6秒, カラーセンサー値が指定範囲内になったら即停止。範囲外なら継続）
+        3. FORWARD1（red_detected_time+6.3〜8.3秒, 2.0秒直進）
+        4. GATE_PASS（red_detected_time+8.3〜10.3秒, 2.0秒get_virtual_line_edges_at_yで直進）
+        5. FORWARD2（red_detected_time+10.3〜13.8秒, 3.5秒直進）
+        6. TURN_LEFT（red_detected_time+13.8〜14.6秒, 0.8秒左旋回）
+        7. EYE_BLUE（red_detected_time+14.6〜15.6秒, カラーセンサー値が指定範囲内になったら即停止。範囲外なら継続）
         """
         # 状態管理dictを利用
         state = self._state.setdefault("carry_bottle1", {"red_detected_time": None, "pre_target_x": None, "blue_lost_time": None})
@@ -93,13 +94,19 @@ class ActionChain(object):
             left_speed = right_speed = BASE_SPEED
             return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
+
         # 2. TURN_LEFT (red_detected_time+5.5〜6.3秒, 0.8秒左旋回)
         elif self.current_time - state["red_detected_time"] < 6.3:
             left_speed, right_speed = 0, 60
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 3. GATE_PASS (red_detected_time+6.3〜9.3秒, 3.0秒直進)
-        elif self.current_time - state["red_detected_time"] < 9.3:
+        # 3. FORWARD1 (red_detected_time+6.3〜8.3秒, 2.0秒直進)
+        elif self.current_time - state["red_detected_time"] < 8.3:
+            left_speed = right_speed = BASE_SPEED
+            return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
+
+        # 4. GATE_PASS (red_detected_time+8.3〜10.3秒, 2.0秒get_virtual_line_edges_at_yで直進)
+        elif self.current_time - state["red_detected_time"] < 10.3:
             pre_target_x = state.get("pre_target_x")
             temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x, preference='right')
             x1, _, x2, _ = ROI_CNN
@@ -114,8 +121,7 @@ class ActionChain(object):
             left_speed = right_speed = BASE_SPEED
             return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-
-        # 4. FORWARD (red_detected_time+9.3〜13.8秒, 4.5秒直進)
+        # 5. FORWARD2 (red_detected_time+10.3〜13.8秒, 3.5秒直進)
         elif self.current_time - state["red_detected_time"] < 13.8:
             left_speed = right_speed = BASE_SPEED
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
