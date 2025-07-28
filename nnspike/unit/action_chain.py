@@ -56,7 +56,7 @@ class ActionChain(object):
         """
         carry_bottle1の動作シーケンス:
         1. FOLLOW_RIGHT_EDGE + find_bottle_center(red)
-           （red_pixel_countが一度3000以上となってから7秒後に次段階へ移行）
+           （red_pixel_countが一度3000以上となってから5秒後に次段階へ移行）
         2. TURN_LEFT（0.8秒左旋回）
         3. GATE_PASS（5秒間get_virtual_line_edges_at_yで直進）
         4. TURN_LEFT（0.8秒左旋回）
@@ -76,8 +76,8 @@ class ActionChain(object):
         if state["red_detected_time"] is None:
             if red_pixel_count > 3000:
                 state["red_detected_time"] = self.current_time
-        # red_pixel_countが一度3000以上になってから7秒経過で次段階へ
-        if state["red_detected_time"] is None or (self.current_time - state["red_detected_time"] < 7.0):
+        # red_pixel_countが一度3000以上になってから5秒経過で次段階へ
+        if state["red_detected_time"] is None or (self.current_time - state["red_detected_time"] < 5.0):
             if red_pixel_count > 3000 and center is not None:
                 target_x = center[0]
             else:
