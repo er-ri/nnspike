@@ -151,7 +151,7 @@ class ActionChain(object):
         else:
             state["pre_target_x"] = None
             state['eye_blue_start'] = None
-            return None, None, Mode.PAUSE
+            return None, None, Mode.BACK_AND_TURN1
 
         # 以降は停止または次のモードへ
         state["pre_target_x"] = None

@@ -314,6 +314,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     target_x, speeds, mode = action_chain.back_and_turn1(frame)
                     if speeds is not None:
                         left_speed, right_speed = speeds
+                        # 後退フェーズ（両輪とも正方向速度）の場合はset_motor_backward_speedを使う
+                        if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
+                            et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
+                            continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.CARRY_BOTTLE2:
                     target_x, speeds, mode = action_chain.carry_bottle2(frame)
                     if speeds is not None:
@@ -322,6 +326,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     target_x, speeds, mode = action_chain.back_and_turn2(frame)
                     if speeds is not None:
                         left_speed, right_speed = speeds
+                        # 後退フェーズ（両輪とも正方向速度）の場合はset_motor_backward_speedを使う
+                        if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
+                            et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
+                            continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.HEAD_GOAL:
                     target_x, speeds, mode = action_chain.heading_goal(frame)
                     if speeds is not None:
