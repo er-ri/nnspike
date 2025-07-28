@@ -146,8 +146,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     )
 
     #et.move_arm(1, 1.0)  # アームを上げる（1: up）
-    #et.move_arm(0, 1.0)  # アームを下げる（0: down）
-    #et.move_arm(2, 0.5)  # アームを止める
+    et.move_arm(0, 1.0)  # アームを下げる（0: down）
+    et.move_arm(2, 0.5)  # アームを止める
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
     # TURN_AT_END用の状態管理は不要
