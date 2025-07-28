@@ -60,8 +60,9 @@ class ActionChain(object):
            - red_detected_timeから5.0秒後に次段階へ遷移
         2. TURN_LEFT（red_detected_time+5.0〜5.8秒, 0.8秒左旋回）
         3. GATE_PASS（red_detected_time+5.8〜10.8秒, 5.0秒間get_virtual_line_edges_at_yで直進）
-        4. TURN_LEFT（red_detected_time+10.8〜11.6秒, 0.8秒左旋回）
-        5. EYE_BLUE（red_detected_time+11.6〜12.6秒, 青が消えてから1秒で停止。青を一度も検知していない場合はロスト判定しない）
+        4. FORWARD（red_detected_time+10.8〜13.8秒, 3.0秒直進）
+        5. TURN_LEFT（red_detected_time+13.8〜14.6秒, 0.8秒左旋回）
+        6. EYE_BLUE（red_detected_time+14.6〜15.6秒, 青が消えてから1秒で停止。青を一度も検知していない場合はロスト判定しない）
         """
         # 状態管理dictを利用
         state = self._state.setdefault("carry_bottle1", {"red_detected_time": None, "pre_target_x": None, "blue_lost_time": None})
@@ -110,13 +111,19 @@ class ActionChain(object):
             left_speed = right_speed = BASE_SPEED
             return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 4. TURN_LEFT (red_detected_time+10.8〜11.6秒, 0.8秒左旋回)
-        elif self.current_time - state["red_detected_time"] < 11.6:
+
+        # 4. FORWARD (red_detected_time+10.8〜13.8秒, 3.0秒直進)
+        elif self.current_time - state["red_detected_time"] < 13.8:
+            left_speed = right_speed = BASE_SPEED
+            return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
+
+        # 5. TURN_LEFT (red_detected_time+13.8〜14.6秒, 0.8秒左旋回)
+        elif self.current_time - state["red_detected_time"] < 14.6:
             left_speed, right_speed = 0, 60
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 5. EYE_BLUE (red_detected_time+11.6〜12.6秒, 青が消えてから1秒で停止)
-        elif self.current_time - state["red_detected_time"] < 12.6:
+        # 6. EYE_BLUE (red_detected_time+14.6〜15.6秒, 青が消えてから1秒で停止)
+        elif self.current_time - state["red_detected_time"] < 15.6:
             center, _, blue_pixel_count = find_blue_target_center(image)
             x1, _, x2, _ = ROI_CNN
             # 青を一度も検知していない場合はロスト判定しない
