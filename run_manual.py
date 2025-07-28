@@ -307,15 +307,25 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     else:
                         left_speed, right_speed, mode = 0, 0, Mode.PAUSE
                 case Mode.CARRY_BOTTLE1:
-                    target_x, mode = action_chain.carry_bottle1(frame)
+                    target_x, speeds, mode = action_chain.carry_bottle1(frame)
+                    if speeds is not None:
+                        left_speed, right_speed = speeds
                 case Mode.BACK_AND_TURN1:
-                    target_x, mode = action_chain.back_and_turn1(frame)
+                    target_x, speeds, mode = action_chain.back_and_turn1(frame)
+                    if speeds is not None:
+                        left_speed, right_speed = speeds
                 case Mode.CARRY_BOTTLE2:
-                    target_x, mode = action_chain.carry_bottle2(frame)
+                    target_x, speeds, mode = action_chain.carry_bottle2(frame)
+                    if speeds is not None:
+                        left_speed, right_speed = speeds
                 case Mode.BACK_AND_TURN2:
-                    target_x, mode = action_chain.back_and_turn2(frame)
+                    target_x, speeds, mode = action_chain.back_and_turn2(frame)
+                    if speeds is not None:
+                        left_speed, right_speed = speeds
                 case Mode.HEAD_GOAL:
-                    target_x, mode = action_chain.heading_goal(frame)
+                    target_x, speeds, mode = action_chain.heading_goal(frame)
+                    if speeds is not None:
+                        left_speed, right_speed = speeds
                 case Mode.FORWARD:
                     # 画像全体の黄色重心・赤色重心に向かって進む（find_bottle_center使用）
                     yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, color="yellow")
