@@ -182,8 +182,8 @@ class ActionChain(object):
                 state["start_time"] = now
                 elapsed = 0.0
         if state["phase"] == 1:
-            # 1.9秒左旋回
-            if elapsed < 1.9:
+            # 2.2秒左旋回
+            if elapsed < 2.2:
                 left_speed, right_speed = 0, BASE_SPEED
                 return None, (left_speed, right_speed), Mode.BACK_AND_TURN1
             else:
