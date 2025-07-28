@@ -139,7 +139,7 @@ class ActionChain(object):
         if eye_blue_start is None:
             state['eye_blue_start'] = self.current_time
             eye_blue_start = self.current_time
-        if self.current_time - eye_blue_start < 3.0:
+        if self.current_time - eye_blue_start < 2.7:
             center, _, blue_pixel_count = find_blue_target_center(image)
             x1, _, x2, _ = ROI_CNN
             if center is not None:
