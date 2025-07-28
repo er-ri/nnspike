@@ -134,12 +134,12 @@ class ActionChain(object):
             left_speed, right_speed = 0, 60
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 6. EYE_BLUE: 3秒で停止（color_valueは参照しない）
+        # 6. EYE_BLUE: 2.5秒で停止（color_valueは参照しない）
         eye_blue_start = state.get('eye_blue_start')
         if eye_blue_start is None:
             state['eye_blue_start'] = self.current_time
             eye_blue_start = self.current_time
-        if self.current_time - eye_blue_start < 2.7:
+        if self.current_time - eye_blue_start < 2.5:
             center, _, blue_pixel_count = find_blue_target_center(image)
             x1, _, x2, _ = ROI_CNN
             if center is not None:
@@ -182,14 +182,14 @@ class ActionChain(object):
                 state["start_time"] = now
                 elapsed = 0.0
         if state["phase"] == 1:
-            # 1.6秒左旋回
-            if elapsed < 1.6:
+            # 1.9秒左旋回
+            if elapsed < 1.9:
                 left_speed, right_speed = 0, BASE_SPEED
                 return None, (left_speed, right_speed), Mode.BACK_AND_TURN1
             else:
                 # 終了: 状態リセット
                 self._state["back_and_turn1"] = {"start_time": None, "phase": 0}
-                return None, None, Mode.PAUSE
+                return None, None, Mode.CARRY_BOTTLE2
 
     def carry_bottle2(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
@@ -287,7 +287,7 @@ class ActionChain(object):
         else:
             state["pre_target_x"] = None
             state['eye_blue_start'] = None
-            return None, None, Mode.PAUSE
+            return None, None, Mode.BACK_AND_TURN2
     def back_and_turn2(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         以下の順で動作する:
@@ -320,7 +320,7 @@ class ActionChain(object):
             else:
                 # 終了: 状態リセット
                 self._state["back_and_turn2"] = {"start_time": None, "phase": 0}
-                return None, None, Mode.PAUSE
+                return None, None, Mode.HEAD_GOAL
 
     def heading_goal(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
