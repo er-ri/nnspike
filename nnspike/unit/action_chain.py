@@ -250,7 +250,7 @@ class ActionChain(object):
         # 5. GATE_PASS (blue_detected_time+8.0〜10.0秒, 2.0秒get_virtual_line_edges_at_yで直進)
         elif self.current_time - state["blue_detected_time"] < 10.0:
             pre_target_x = state.get("pre_target_x")
-            temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x, preference='left')
+            temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x, preference='right')
             x1, _, x2, _ = ROI_CNN
             if temp_x is not None:
                 target_x = temp_x
