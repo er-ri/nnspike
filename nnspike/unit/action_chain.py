@@ -197,12 +197,12 @@ class ActionChain(object):
         1. FOLLOW_RIGHT_EDGE + find_bottle_center(blue)
            - blue_pixel_countが一度3000以上となった時刻をblue_detected_timeとする
            - blue_detected_timeから3.5秒後に次段階へ遷移
-        2. TURN_RIGHT（blue_detected_time+3.5〜4.7秒, 1.2秒右旋回）
+        # 8. EYE_BLUE: 2.2秒で停止（color_valueは参照しない）
         3. FORWARD（blue_detected_time+4.7〜7.2秒, 2.5秒直進）
         4. TURN_LEFT（blue_detected_time+7.2〜8.0秒, 0.8秒左旋回）
         5. GATE_PASS（blue_detected_time+8.0〜10.0秒, 2.0秒get_virtual_line_edges_at_yで直進）
         6. FORWARD2（blue_detected_time+10.0〜12.0秒, 2.0秒直進）
-        7. TURN_LEFT（blue_detected_time+12.0〜12.8秒, 0.8秒左旋回）
+        if self.current_time - eye_blue_start < 2.2:
         8. EYE_BLUE（blue_detected_time+12.8秒以降, 2.5秒で停止）
         """
         state = self._state.setdefault("carry_bottle2", {"blue_detected_time": None, "pre_target_x": None, "blue_lost_time": None})
@@ -333,12 +333,22 @@ class ActionChain(object):
         2. 到達時に一度だけ左旋回（0, 60, 0.8秒）
         3. 以降は右端追従（ライン消失時はPAUSE）
         """
-        state = self._state.setdefault("heading_goal", {"reached": False, "turned": False})
+        state = self._state.setdefault("heading_goal", {"reached": False, "turned": False, "start_time": None, "min_trace_done": False})
         x1, y1, x2, y2 = ROI_CNN
         y_hit = get_line_trace_edges_at_x320(image)
         reached = y_hit is not None and y_hit >= 450
         left_speed = right_speed = None
         target_x = None
+        now = time.time()
+        # 最低2秒は中央追従
+        if state["start_time"] is None:
+            state["start_time"] = now
+        if not state["min_trace_done"]:
+            if now - state["start_time"] < 2.0:
+                target_x = (x1 + x2) // 2
+                return target_x, (BASE_SPEED, BASE_SPEED), Mode.HEAD_GOAL
+            else:
+                state["min_trace_done"] = True
         if not state["reached"] and reached:
             state["reached"] = True
             state["turned"] = False
@@ -350,9 +360,9 @@ class ActionChain(object):
             # 到達した瞬間に一度だけ左旋回
             elapsed_time = getattr(self, '_heading_goal_turn_start', None)
             if elapsed_time is None:
-                self._heading_goal_turn_start = time.time()
+                self._heading_goal_turn_start = now
                 elapsed_time = self._heading_goal_turn_start
-            if time.time() - elapsed_time < 0.8:
+            if now - elapsed_time < 0.8:
                 left_speed, right_speed = 0, 60
                 return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
             else:
@@ -362,11 +372,10 @@ class ActionChain(object):
         else:
             # 右端追従の動作をここで実装し、ライン完全消失時にPAUSEで停止する
             x1, _, x2, _ = ROI_CNN
-            # mask: ライン検出用の2値化画像（ライン部分が白=255, それ以外は黒=0 のnumpy配列）
             left_x, right_x, mask = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
             if left_x is None and right_x is None and np.count_nonzero(mask) == 0:
                 # ライン完全消失で停止
-                self._state["heading_goal"] = {"reached": False, "turned": False, "paused": False}
+                self._state["heading_goal"] = {"reached": False, "turned": False, "start_time": None, "min_trace_done": False}
                 return None, None, Mode.PAUSE
             if not state.get("paused", False):
                 # 右端追従
@@ -379,7 +388,7 @@ class ActionChain(object):
                 return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
             else:
                 # 2回目以降は完全停止
-                self._state["heading_goal"] = {"reached": False, "turned": False, "paused": False}
+                self._state["heading_goal"] = {"reached": False, "turned": False, "start_time": None, "min_trace_done": False}
                 return None, None, Mode.PAUSE
 
     def trun_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
