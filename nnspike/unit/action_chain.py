@@ -57,12 +57,12 @@ class ActionChain(object):
         carry_bottle1の動作シーケンス:
         1. FOLLOW_RIGHT_EDGE + find_bottle_center(red)
            - red_pixel_countが一度3000以上となった時刻をred_detected_timeとする
-           - red_detected_timeから5.0秒後に次段階へ遷移
-        2. TURN_LEFT（red_detected_time+5.0〜5.8秒, 0.8秒左旋回）
-        3. GATE_PASS（red_detected_time+5.8〜8.8秒, 3.0秒間get_virtual_line_edges_at_yで直進）
-        4. FORWARD（red_detected_time+8.8〜13.3秒, 4.5秒直進）
-        5. TURN_LEFT（red_detected_time+13.3〜14.1秒, 0.8秒左旋回）
-        6. EYE_BLUE（red_detected_time+14.1〜15.1秒, カラーセンサー値が指定範囲内になったら即停止。範囲外なら継続）
+           - red_detected_timeから5.5秒後に次段階へ遷移
+        2. TURN_LEFT（red_detected_time+5.5〜6.3秒, 0.8秒左旋回）
+        3. GATE_PASS（red_detected_time+6.3〜9.3秒, 3.0秒間get_virtual_line_edges_at_yで直進）
+        4. FORWARD（red_detected_time+9.3〜13.8秒, 4.5秒直進）
+        5. TURN_LEFT（red_detected_time+13.8〜14.6秒, 0.8秒左旋回）
+        6. EYE_BLUE（red_detected_time+14.6〜15.6秒, カラーセンサー値が指定範囲内になったら即停止。範囲外なら継続）
         """
         # 状態管理dictを利用
         state = self._state.setdefault("carry_bottle1", {"red_detected_time": None, "pre_target_x": None, "blue_lost_time": None})
@@ -82,8 +82,8 @@ class ActionChain(object):
         if state["red_detected_time"] is None:
             if red_pixel_count > 3000:
                 state["red_detected_time"] = self.current_time
-        # red_pixel_countが一度3000以上になってから5.0秒経過で次段階へ
-        if state["red_detected_time"] is None or (self.current_time - state["red_detected_time"] < 5.0):
+        # red_pixel_countが一度3000以上になってから5.5秒経過で次段階へ
+        if state["red_detected_time"] is None or (self.current_time - state["red_detected_time"] < 5.5):
             if red_pixel_count > 3000 and center is not None:
                 target_x = center[0]
             else:
@@ -93,13 +93,13 @@ class ActionChain(object):
             left_speed = right_speed = BASE_SPEED
             return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 2. TURN_LEFT (red_detected_time+5.0〜5.8秒, 0.8秒左旋回)
-        elif self.current_time - state["red_detected_time"] < 5.8:
+        # 2. TURN_LEFT (red_detected_time+5.5〜6.3秒, 0.8秒左旋回)
+        elif self.current_time - state["red_detected_time"] < 6.3:
             left_speed, right_speed = 0, 60
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 3. GATE_PASS (red_detected_time+5.8〜10.8秒, 5.0秒直進)
-        elif self.current_time - state["red_detected_time"] < 10.8:
+        # 3. GATE_PASS (red_detected_time+6.3〜9.3秒, 3.0秒直進)
+        elif self.current_time - state["red_detected_time"] < 9.3:
             pre_target_x = state.get("pre_target_x")
             temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x, preference='right')
             x1, _, x2, _ = ROI_CNN
@@ -115,7 +115,7 @@ class ActionChain(object):
             return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
 
-        # 4. FORWARD (red_detected_time+10.8〜13.8秒, 3.0秒直進)
+        # 4. FORWARD (red_detected_time+9.3〜13.8秒, 4.5秒直進)
         elif self.current_time - state["red_detected_time"] < 13.8:
             left_speed = right_speed = BASE_SPEED
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
@@ -126,8 +126,8 @@ class ActionChain(object):
             left_speed, right_speed = 0, 60
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 6. EYE_BLUE (red_detected_time+14.6〜15.6秒, 青が消えてから1秒で停止)
-        elif self.current_time - state["red_detected_time"] < 15.1:
+        # 6. EYE_BLUE (red_detected_time+14.6〜15.6秒, カラーセンサー値で即停止)
+        elif self.current_time - state["red_detected_time"] < 15.6:
             # color_valueをここで取得
             if hasattr(self.et, 'color_value'):
                 if callable(self.et.color_value):
@@ -140,16 +140,7 @@ class ActionChain(object):
             if color_value is not None and 400 <= color_value <= 600:
                 state["pre_target_x"] = None
                 return None, None, Mode.PAUSE
-            if state.get("blue_detected_time") is not None and blue_pixel_count < 300:
-                if state["blue_lost_time"] is None:
-                    state["blue_lost_time"] = self.current_time
-                elif self.current_time - state["blue_lost_time"] > 1.0:
-                    # 青が消えてから1秒経過で次段階（停止）
-                    state["pre_target_x"] = None
-                    state["blue_lost_time"] = None
-                    return None, None, Mode.PAUSE
-            elif blue_pixel_count >= 300:
-                state["blue_lost_time"] = None
+            # 青ロストによる1秒待ち停止処理は削除（color_value判定のみで即停止）
             if center is not None:
                 target_x = center[0]
             else:
