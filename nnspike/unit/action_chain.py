@@ -202,7 +202,7 @@ class ActionChain(object):
         4. TURN_LEFT（blue_detected_time+7.7〜8.5秒, 0.8秒左旋回）
         5. GATE_PASS（blue_detected_time+8.5〜12.5秒, 4.0秒get_virtual_line_edges_at_yで直進）
         6. TURN_LEFT（blue_detected_time+12.5〜13.3秒, 0.8秒左旋回）
-        7. EYE_BLUE（blue_detected_time+13.3秒以降, 2.2秒で停止）
+        7. EYE_BLUE（blue_detected_time+13.3秒以降, 2.5秒で停止）
         """
         state = self._state.setdefault("carry_bottle2", {"blue_detected_time": None, "pre_target_x": None, "blue_lost_time": None})
         self.start_time = time.time() if self.start_time is None else self.start_time
@@ -264,12 +264,12 @@ class ActionChain(object):
             left_speed, right_speed = 0, 60
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
-        # 7. EYE_BLUE: 2.2秒で停止（color_valueは参照しない）
+        # 7. EYE_BLUE: 2.5秒で停止（color_valueは参照しない）
         eye_blue_start = state.get('eye_blue_start')
         if eye_blue_start is None:
             state['eye_blue_start'] = self.current_time
             eye_blue_start = self.current_time
-        if self.current_time - eye_blue_start < 2.2:
+        if self.current_time - eye_blue_start < 2.5:
             center, _, blue_pixel_count = find_blue_target_center(image)
             x1, _, x2, _ = ROI_CNN
             if center is not None:
@@ -327,7 +327,7 @@ class ActionChain(object):
         state = self._state.setdefault("heading_goal", {"reached": False, "turned": False})
         x1, y1, x2, y2 = ROI_CNN
         y_hit = get_line_trace_edges_at_x320(image)
-        reached = y_hit is not None and y_hit >= 400
+        reached = y_hit is not None and y_hit >= 450
         left_speed = right_speed = None
         target_x = None
         if not state["reached"] and reached:
