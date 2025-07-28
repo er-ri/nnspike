@@ -340,15 +340,9 @@ class ActionChain(object):
         left_speed = right_speed = None
         target_x = None
         now = time.time()
-        # 最低2秒は中央追従
+        # ライン到達前は中央追従
         if state["start_time"] is None:
             state["start_time"] = now
-        if not state["min_trace_done"]:
-            if now - state["start_time"] < 2.0:
-                target_x = (x1 + x2) // 2
-                return target_x, (BASE_SPEED, BASE_SPEED), Mode.HEAD_GOAL
-            else:
-                state["min_trace_done"] = True
         if not state["reached"] and reached:
             state["reached"] = True
             state["turned"] = False
@@ -370,12 +364,23 @@ class ActionChain(object):
                 state["turned"] = True
                 return target_x, (0, 0), Mode.HEAD_GOAL
         else:
-            # 右端追従の動作をここで実装し、ライン完全消失時にPAUSEで停止する
+            # 右端追従の動作をここで実装し、最低2秒は右端追従を継続、その後ライン消失時にPAUSE
+            if "right_trace_start" not in state or state["right_trace_start"] is None:
+                state["right_trace_start"] = now
             x1, _, x2, _ = ROI_CNN
             left_x, right_x, mask = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
+            # 右端追従2秒未満は必ず追従
+            if now - state["right_trace_start"] < 2.0:
+                if right_x is not None:
+                    target_x = right_x
+                else:
+                    target_x = (x1 + x2) // 2
+                left_speed = right_speed = BASE_SPEED
+                return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
+            # 2秒経過後のみライン消失判定
             if left_x is None and right_x is None and np.count_nonzero(mask) == 0:
                 # ライン完全消失で停止
-                self._state["heading_goal"] = {"reached": False, "turned": False, "start_time": None, "min_trace_done": False}
+                self._state["heading_goal"] = {"reached": False, "turned": False, "start_time": None, "min_trace_done": False, "right_trace_start": None}
                 return None, None, Mode.PAUSE
             if not state.get("paused", False):
                 # 右端追従
@@ -388,7 +393,7 @@ class ActionChain(object):
                 return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
             else:
                 # 2回目以降は完全停止
-                self._state["heading_goal"] = {"reached": False, "turned": False, "start_time": None, "min_trace_done": False}
+                self._state["heading_goal"] = {"reached": False, "turned": False, "start_time": None, "min_trace_done": False, "right_trace_start": None}
                 return None, None, Mode.PAUSE
 
     def trun_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
