@@ -134,12 +134,12 @@ class ActionChain(object):
             left_speed, right_speed = 0, 60
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 6. EYE_BLUE: 2.5秒で停止（color_valueは参照しない）
+        # 6. EYE_BLUE: 2.2秒で停止（color_valueは参照しない）
         eye_blue_start = state.get('eye_blue_start')
         if eye_blue_start is None:
             state['eye_blue_start'] = self.current_time
             eye_blue_start = self.current_time
-        if self.current_time - eye_blue_start < 2.5:
+        if self.current_time - eye_blue_start < 2.2:
             center, _, blue_pixel_count = find_blue_target_center(image)
             x1, _, x2, _ = ROI_CNN
             if center is not None:
@@ -196,13 +196,13 @@ class ActionChain(object):
         carry_bottle2の動作シーケンス:
         1. FOLLOW_RIGHT_EDGE + find_bottle_center(blue)
            - blue_pixel_countが一度3000以上となった時刻をblue_detected_timeとする
-           - blue_detected_timeから5.0秒後に次段階へ遷移
-        2. TURN_RIGHT（blue_detected_time+5.0〜6.6秒, 1.6秒右旋回）
-        3. FORWARD（blue_detected_time+6.6〜9.6秒, 3.0秒直進）
-        4. TURN_LEFT（blue_detected_time+9.6〜10.4秒, 0.8秒左旋回）
-        5. GATE_PASS（blue_detected_time+10.4〜14.4秒, 4.0秒get_virtual_line_edges_at_yで直進）
-        6. TURN_LEFT（blue_detected_time+14.4〜15.2秒, 0.8秒左旋回）
-        7. EYE_BLUE（blue_detected_time+15.2秒以降, 3.0秒で停止）
+           - blue_detected_timeから4.5秒後に次段階へ遷移
+        2. TURN_RIGHT（blue_detected_time+4.5〜6.5秒, 2.0秒右旋回）
+        3. FORWARD（blue_detected_time+6.5〜9.5秒, 3.0秒直進）
+        4. TURN_LEFT（blue_detected_time+9.5〜10.3秒, 0.8秒左旋回）
+        5. GATE_PASS（blue_detected_time+10.3〜14.3秒, 4.0秒get_virtual_line_edges_at_yで直進）
+        6. TURN_LEFT（blue_detected_time+14.3〜15.1秒, 0.8秒左旋回）
+        7. EYE_BLUE（blue_detected_time+15.1秒以降, 2.2秒で停止）
         """
         state = self._state.setdefault("carry_bottle2", {"blue_detected_time": None, "pre_target_x": None, "blue_lost_time": None})
         self.start_time = time.time() if self.start_time is None else self.start_time
@@ -217,8 +217,8 @@ class ActionChain(object):
         if state["blue_detected_time"] is None:
             if blue_pixel_count > 3000:
                 state["blue_detected_time"] = self.current_time
-        # blue_pixel_countが一度3000以上になってから5.0秒経過で次段階へ
-        if state["blue_detected_time"] is None or (self.current_time - state["blue_detected_time"] < 5.0):
+        # blue_pixel_countが一度3000以上になってから4.5秒経過で次段階へ
+        if state["blue_detected_time"] is None or (self.current_time - state["blue_detected_time"] < 4.5):
             if blue_pixel_count > 3000 and center is not None:
                 target_x = center[0]
             else:
@@ -228,23 +228,23 @@ class ActionChain(object):
             left_speed = right_speed = BASE_SPEED
             return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
-        # 2. TURN_RIGHT (blue_detected_time+5.0〜6.6秒, 1.6秒右旋回)
-        elif self.current_time - state["blue_detected_time"] < 6.6:
+        # 2. TURN_RIGHT (blue_detected_time+4.5〜6.5秒, 2.0秒右旋回)
+        elif self.current_time - state["blue_detected_time"] < 6.5:
             left_speed, right_speed = 60, 0  # 右旋回
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
-        # 3. FORWARD (blue_detected_time+6.6〜9.6秒, 3.0秒直進)
-        elif self.current_time - state["blue_detected_time"] < 9.6:
+        # 3. FORWARD (blue_detected_time+6.5〜9.5秒, 3.0秒直進)
+        elif self.current_time - state["blue_detected_time"] < 9.5:
             left_speed = right_speed = BASE_SPEED
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
-        # 4. TURN_LEFT (blue_detected_time+9.6〜10.4秒, 0.8秒左旋回)
-        elif self.current_time - state["blue_detected_time"] < 10.4:
+        # 4. TURN_LEFT (blue_detected_time+9.5〜10.3秒, 0.8秒左旋回)
+        elif self.current_time - state["blue_detected_time"] < 10.3:
             left_speed, right_speed = 0, 60  # 左旋回
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
-        # 5. GATE_PASS (blue_detected_time+10.4〜14.4秒, 4.0秒get_virtual_line_edges_at_yで直進)
-        elif self.current_time - state["blue_detected_time"] < 14.4:
+        # 5. GATE_PASS (blue_detected_time+10.3〜14.3秒, 4.0秒get_virtual_line_edges_at_yで直進)
+        elif self.current_time - state["blue_detected_time"] < 14.3:
             pre_target_x = state.get("pre_target_x")
             temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x, preference='right')
             x1, _, x2, _ = ROI_CNN
@@ -259,17 +259,17 @@ class ActionChain(object):
             left_speed = right_speed = BASE_SPEED
             return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
-        # 6. TURN_LEFT (blue_detected_time+14.4〜15.2秒, 0.8秒左旋回)
-        elif self.current_time - state["blue_detected_time"] < 15.2:
+        # 6. TURN_LEFT (blue_detected_time+14.3〜15.1秒, 0.8秒左旋回)
+        elif self.current_time - state["blue_detected_time"] < 15.1:
             left_speed, right_speed = 0, 60
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
-        # 7. EYE_BLUE: 3.0秒で停止（color_valueは参照しない）
+        # 7. EYE_BLUE: 2.2秒で停止（color_valueは参照しない）
         eye_blue_start = state.get('eye_blue_start')
         if eye_blue_start is None:
             state['eye_blue_start'] = self.current_time
             eye_blue_start = self.current_time
-        if self.current_time - eye_blue_start < 3.0:
+        if self.current_time - eye_blue_start < 2.2:
             center, _, blue_pixel_count = find_blue_target_center(image)
             x1, _, x2, _ = ROI_CNN
             if center is not None:
