@@ -205,17 +205,17 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 mode = Mode.AVOID_OBSTACLE
                 print("Switched to obstacle avoidance mode")
             elif key == "3":
-                mode = Mode.HEAD_BOTTLE1
-                print("Switched to heading bottle 1 mode")
-            elif key == "4":
                 mode = Mode.CARRY_BOTTLE1
                 print("Switched to bottle carrying 1 mode")
+            elif key == "4":
+                mode = Mode.BACK_AND_TURN1
+                print("Switched to back and turn 1 mode")
             elif key == "5":
-                mode = Mode.HEAD_BOTTLE2
-                print("Switched to heading bottle 2 mode")
-            elif key == "6":
                 mode = Mode.CARRY_BOTTLE2
                 print("Switched to bottle carrying 2 mode")
+            elif key == "6":
+                mode = Mode.BACK_AND_TURN2
+                print("Switched to back and turn 2 mode")
             elif key == "7":
                 mode = Mode.HEAD_GOAL
                 print("Switched to heading goal mode")
@@ -306,14 +306,14 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                             left_speed, right_speed = 0, 0
                     else:
                         left_speed, right_speed, mode = 0, 0, Mode.PAUSE
-                case Mode.HEAD_BOTTLE1:
-                    target_x, mode = action_chain.heading_bottle1(frame)
                 case Mode.CARRY_BOTTLE1:
                     target_x, mode = action_chain.carry_bottle1(frame)
-                case Mode.HEAD_BOTTLE2:
-                    target_x, mode = action_chain.heading_bottle2(frame)
+                case Mode.BACK_AND_TURN1:
+                    target_x, mode = action_chain.back_and_turn1(frame)
                 case Mode.CARRY_BOTTLE2:
                     target_x, mode = action_chain.carry_bottle2(frame)
+                case Mode.BACK_AND_TURN2:
+                    target_x, mode = action_chain.back_and_turn2(frame)
                 case Mode.HEAD_GOAL:
                     target_x, mode = action_chain.heading_goal(frame)
                 case Mode.FORWARD:
@@ -506,7 +506,7 @@ if __name__ == "__main__":
     parser.add_argument("--course", choices=["left", "right"], default="left", help="Initial course to follow: 'left' for left edge, 'right' for right edge (default: left)")
     parser.add_argument(
         "--initial-mode",
-        choices=["left_edge", "right_edge", "obstacle_avoidance", "heading_bottle1", "bottle_carrying1", "heading_bottle2", "bottle_carrying2", "heading_goal", "pause"],
+        choices=["left_edge", "right_edge", "obstacle_avoidance", "back_and_turn1", "bottle_carrying1", "back_and_turn2", "bottle_carrying2", "heading_goal", "pause"],
         help="Initial mode to start with (overrides initial-course if specified)",
     )
 
@@ -517,9 +517,9 @@ if __name__ == "__main__":
         "left_edge": Mode.FOLLOW_LEFT_EDGE,
         "right_edge": Mode.FOLLOW_RIGHT_EDGE,
         "obstacle_avoidance": Mode.AVOID_OBSTACLE,
-        "heading_bottle1": Mode.HEAD_BOTTLE1,
+        "back_and_turn1": Mode.BACK_AND_TURN1,
         "bottle_carrying1": Mode.CARRY_BOTTLE1,
-        "heading_bottle2": Mode.HEAD_BOTTLE2,
+        "back_and_turn2": Mode.BACK_AND_TURN2,
         "bottle_carrying2": Mode.CARRY_BOTTLE2,
         "heading_goal": Mode.HEAD_GOAL,
         "pause": Mode.PAUSE,

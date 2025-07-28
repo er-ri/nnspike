@@ -33,7 +33,10 @@ class ActionChain(object):
     def avoid_obstacle(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         backup/20250724/actions.pyと同じ障害物回避アクションチェーンを実行する。
-        左旋回(40,70,0.8s)→右旋回(80,50,1.3s)→通常復帰
+        以下の順で動作する:
+        1. 左旋回 (左:40, 右:70, 0.8秒)
+        2. 右旋回 (左:80, 右:50, 1.3秒)
+        3. コースに応じて左端または右端追従モードへ復帰
         """
         # self.start_timeで経過時間を管理
         self.start_time = time.time() if self.start_time == 0.0 else self.start_time
@@ -49,56 +52,21 @@ class ActionChain(object):
             self.start_time = 0.0  # チェーン終了でリセット
             return None, None, Mode.FOLLOW_LEFT_EDGE if self.course == "left" else Mode.FOLLOW_RIGHT_EDGE
 
-    def heading_bottle1(self, image: np.ndarray) -> Tuple[Optional[float], Mode]:
-        """
-        Perform a sequence of actions to head towards bottle 1.
-
-        Args:
-            et (ETRobot): The ETRobot instance to control.
-        """
-        self.start_time = time.time() if self.start_time == 0.0 else self.start_time
-        self.current_time = time.time()
-
-        center, _, red_pixel_count = find_bottle_center(image=image, color="red")
-
-        if red_pixel_count < 1000:
-            left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
-
-            if left_x is not None and right_x is not None:
-                if right_x - left_x < 100:
-                    return (left_x + right_x) / 2, Mode.HEAD_BOTTLE1
-            else:
-                return left_x, Mode.HEAD_BOTTLE1
-
-        status = self.et.get_spike_status()
-        # If the distance to the bottle is less than 1cm, pause
-        if status.sensors.distance is not None and status.sensors.distance < 0.01:
-            return None, Mode.PAUSE
-
-        if center is not None:
-            cx, _ = center
-        else:
-            cx = None
-
-        return cx, Mode.HEAD_BOTTLE1
-
-
     def carry_bottle1(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
-        指定された6つの動作内容を順次実行する。
-        1. FOLLOW_RIGHT_EDGE + find_bottle_center(red)（red_pixel_countが一度3000以上となってから3秒後に2へ移行）
-        2. FORWARD
-        3. TURN_LEFT
-        4. GATE_PASS
-        5. TURN_LEFT
-        6. EYE_BLUE
+        carry_bottle1の動作シーケンス:
+        1. FOLLOW_RIGHT_EDGE + find_bottle_center(red)
+           （red_pixel_countが一度3000以上となってから3秒後に次段階へ移行）
+        2. TURN_LEFT（0.8秒左旋回）
+        3. GATE_PASS（5秒間get_virtual_line_edges_at_yで直進）
+        4. TURN_LEFT（0.8秒左旋回）
+        5. EYE_BLUE（青が消えてから1秒で停止。青を一度も検知していない場合はロスト判定しない）
         """
         # 状態管理dictを利用
-        state = self._state.setdefault("carry_bottle1", {"red_detected_time": None})
+        state = self._state.setdefault("carry_bottle1", {"red_detected_time": None, "pre_target_x": None, "blue_lost_time": None})
         self.start_time = time.time() if self.start_time is None else self.start_time
         self.current_time = time.time()
         elapsed_time = self.current_time - self.start_time
-
 
         # base_powerを定義（必要に応じて調整可能）
         left_speed = right_speed = BASE_SPEED
@@ -124,27 +92,45 @@ class ActionChain(object):
             left_speed, right_speed = (0, 60)
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 3. GATE_PASS (3.8-6.8s after red_detected_time)
-        elif self.current_time - state["red_detected_time"] < 6.8:
-            temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, preference='right')
+
+        # 3. GATE_PASS (3.8-8.8s after red_detected_time) 5秒間
+        elif self.current_time - state["red_detected_time"] < 8.8:
+            pre_target_x = state.get("pre_target_x")
+            temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x, preference='right')
             x1, _, x2, _ = ROI_CNN
-            target_x = temp_x if temp_x is not None else (x1 + x2) // 2
+            if temp_x is not None:
+                target_x = temp_x
+                state["pre_target_x"] = temp_x
+            elif pre_target_x is not None:
+                target_x = pre_target_x
+            else:
+                target_x = (x1 + x2) // 2
+                state["pre_target_x"] = target_x
             left_speed = right_speed = BASE_SPEED
             return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 4. TURN_LEFT (6.8-7.6s after red_detected_time)
-        elif self.current_time - state["red_detected_time"] < 7.6:
-            left_speed, right_speed = (0, 60)
+        # 4. TURN_LEFT (8.8-9.6s after red_detected_time) 0.8秒左旋回
+        elif self.current_time - state["red_detected_time"] < 9.6:
+            left_speed, right_speed = 0, 60
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 5. EYE_BLUE (7.6-8.8s after red_detected_time)
-        elif self.current_time - state["red_detected_time"] < 8.8:
-            # カラーセンサーが青(3)を検知したら停止
-            status = self.et.get_spike_status()
-            if status.sensors.color and status.sensors.color.color == 3:
-                return None, None, Mode.PAUSE
+        # 5. EYE_BLUE (9.6-10.6s after red_detected_time)
+        elif self.current_time - state["red_detected_time"] < 10.6:
             center, _, blue_pixel_count = find_blue_target_center(image)
             x1, _, x2, _ = ROI_CNN
+            # 青を一度も検知していない場合はロスト判定しない
+            if state["blue_lost_time"] is not None and state["blue_detected_time"] is None:
+                state["blue_lost_time"] = None
+            if state.get("blue_detected_time") is not None and blue_pixel_count < 300:
+                if state["blue_lost_time"] is None:
+                    state["blue_lost_time"] = self.current_time
+                elif self.current_time - state["blue_lost_time"] > 1.0:
+                    # 青が消えてから1秒経過で次段階（停止）
+                    state["pre_target_x"] = None
+                    state["blue_lost_time"] = None
+                    return None, None, Mode.PAUSE
+            elif blue_pixel_count >= 300:
+                state["blue_lost_time"] = None
             if center is not None:
                 target_x = center[0]
             else:
@@ -153,34 +139,233 @@ class ActionChain(object):
             return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
         # 以降は停止または次のモードへ
+        # pre_target_xはリセット
+        state["pre_target_x"] = None
         return None, None, Mode.CARRY_BOTTLE1
 
-    def heading_bottle2(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    def back_and_turn1(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
-        Perform a sequence of actions to head towards bottle 2.
+        以下の順で動作する:
+        1. 2秒間後退（両輪BASE_SPEED）
+        2. 1.6秒左旋回（左:0, 右:BASE_SPEED）
+        3. 終了後PAUSE
+        状態管理dictを利用。
+        """
+        state = self._state.setdefault("back_and_turn1", {"start_time": None, "phase": 0})
+        now = time.time()
+        if state["start_time"] is None:
+            state["start_time"] = now
+            state["phase"] = 0
+        elapsed = now - state["start_time"]
 
-        Args:
-            et (ETRobot): The ETRobot instance to control.
-        """
-        raise NotImplementedError("This method should be implemented based on the specific behavior for heading towards bottle 2.")
+        if state["phase"] == 0:
+            # 2秒間後退
+            if elapsed < 2.0:
+                left_speed = right_speed = BASE_SPEED
+                return None, (left_speed, right_speed), Mode.BACK_AND_TURN1
+            else:
+                state["phase"] = 1
+                state["start_time"] = now
+                elapsed = 0.0
+        if state["phase"] == 1:
+            # 1.6秒左旋回
+            if elapsed < 1.6:
+                left_speed, right_speed = 0, BASE_SPEED
+                return None, (left_speed, right_speed), Mode.BACK_AND_TURN1
+            else:
+                # 終了: 状態リセット
+                self._state["back_and_turn1"] = {"start_time": None, "phase": 0}
+                return None, None, Mode.PAUSE
 
     def carry_bottle2(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
-        Perform a sequence of actions to carry bottle 2.
-
-        Args:
-            et (ETRobot): The ETRobot instance to control.
+        carry_bottle1と同様の動作を青ボトル用に順次実行する。
+        以下の順で動作する:
+        1. FOLLOW_RIGHT_EDGE + find_bottle_center(blue)（blue_pixel_countが一度3000以上となってから2秒後に2へ移行）
+        2. TURN_RIGHT（1.6秒間 右旋回）
+        3. FORWARD（3秒間直進）
+        4. TURN_LEFT（0.8秒左旋回）
+        5. GATE_PASS（4秒間get_virtual_line_edges_at_yで直進）
+        6. TURN_LEFT（0.8秒左旋回）
+        7. EYE_BLUE（青が消えてから1秒で停止。青を一度も検知していない場合はロスト判定しない）
         """
-        raise NotImplementedError("This method should be implemented based on the specific behavior for carrying bottle 2.")
+        state = self._state.setdefault("carry_bottle2", {"blue_detected_time": None, "pre_target_x": None, "blue_lost_time": None})
+        self.start_time = time.time() if self.start_time is None else self.start_time
+        self.current_time = time.time()
+        elapsed_time = self.current_time - self.start_time
+
+        left_speed = right_speed = BASE_SPEED
+
+        # 1. FOLLOW_RIGHT_EDGE + find_bottle_center(blue)
+        center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
+        if state["blue_detected_time"] is None:
+            if blue_pixel_count > 3000:
+                state["blue_detected_time"] = self.current_time
+        # blue_pixel_countが一度3000以上になってから2秒経過で次段階へ
+        if state["blue_detected_time"] is None or (self.current_time - state["blue_detected_time"] < 2.0):
+            if blue_pixel_count > 3000 and center is not None:
+                target_x = center[0]
+            else:
+                left_x, _, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
+                x1, _, x2, _ = ROI_CNN
+                target_x = left_x if left_x is not None else (x1 + x2) // 2
+            left_speed = right_speed = BASE_SPEED
+            return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE2
+
+        # 2. TURN_RIGHT (2.0-3.6s after blue_detected_time) 1.6秒間 右旋回
+        elif self.current_time - state["blue_detected_time"] < 3.6:
+            left_speed, right_speed = 60, 0  # 右旋回
+            return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
+
+        # 3. FORWARD (3.6-6.6s after blue_detected_time) 3秒間直進
+        elif self.current_time - state["blue_detected_time"] < 6.6:
+            left_speed = right_speed = BASE_SPEED
+            return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
+
+        # 4. TURN_LEFT (6.6-7.4s after blue_detected_time) 0.8秒左旋回
+        elif self.current_time - state["blue_detected_time"] < 7.4:
+            left_speed, right_speed = 0, 60  # 左旋回
+            return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
+
+        # 5. GATE_PASS (7.4-11.4s after blue_detected_time) 4秒間get_virtual_line_edges_at_y
+        elif self.current_time - state["blue_detected_time"] < 11.4:
+            pre_target_x = state.get("pre_target_x")
+            temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x, preference='left')
+            x1, _, x2, _ = ROI_CNN
+            if temp_x is not None:
+                target_x = temp_x
+                state["pre_target_x"] = temp_x
+            elif pre_target_x is not None:
+                target_x = pre_target_x
+            else:
+                target_x = (x1 + x2) // 2
+                state["pre_target_x"] = target_x
+            left_speed = right_speed = BASE_SPEED
+            return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE2
+
+        # 6. TURN_LEFT (11.4-12.2s after blue_detected_time) 0.8秒左旋回
+        elif self.current_time - state["blue_detected_time"] < 12.2:
+            left_speed, right_speed = 0, 60  # 左旋回
+            return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
+
+        # 4. EYE_BLUE (8.8-9.8s after blue_detected_time)
+        elif self.current_time - state["blue_detected_time"] < 9.8:
+            center, _, blue_pixel_count = find_blue_target_center(image)
+            x1, _, x2, _ = ROI_CNN
+            # 青を一度も検知していない場合はロスト判定しない
+            if state["blue_lost_time"] is not None and state.get("blue_detected_time") is None:
+                state["blue_lost_time"] = None
+            if state.get("blue_detected_time") is not None and blue_pixel_count < 300:
+                if state["blue_lost_time"] is None:
+                    state["blue_lost_time"] = self.current_time
+                elif self.current_time - state["blue_lost_time"] > 1.0:
+                    # 青が消えてから1秒経過で次段階（停止）
+                    state["pre_target_x"] = None
+                    state["blue_lost_time"] = None
+                    return None, None, Mode.PAUSE
+            elif blue_pixel_count >= 300:
+                state["blue_lost_time"] = None
+            if center is not None:
+                target_x = center[0]
+            else:
+                target_x = (x1 + x2) // 2
+            left_speed = right_speed = BASE_SPEED
+            return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE2
+
+        # 以降は停止または次のモードへ
+        state["pre_target_x"] = None
+        return None, None, Mode.CARRY_BOTTLE2
+
+    def back_and_turn2(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+        """
+        以下の順で動作する:
+        1. 2秒間後退（両輪BASE_SPEED）
+        2. 0.8秒右旋回（左:BASE_SPEED, 右:0）
+        3. 終了後PAUSE
+        状態管理dictを利用。
+        """
+        state = self._state.setdefault("back_and_turn2", {"start_time": None, "phase": 0})
+        now = time.time()
+        if state["start_time"] is None:
+            state["start_time"] = now
+            state["phase"] = 0
+        elapsed = now - state["start_time"]
+
+        if state["phase"] == 0:
+            # 2秒間後退
+            if elapsed < 2.0:
+                left_speed = right_speed = BASE_SPEED
+                return None, (left_speed, right_speed), Mode.BACK_AND_TURN2
+            else:
+                state["phase"] = 1
+                state["start_time"] = now
+                elapsed = 0.0
+        if state["phase"] == 1:
+            # 0.8秒右旋回
+            if elapsed < 0.8:
+                left_speed, right_speed = BASE_SPEED, 0
+                return None, (left_speed, right_speed), Mode.BACK_AND_TURN2
+            else:
+                # 終了: 状態リセット
+                self._state["back_and_turn2"] = {"start_time": None, "phase": 0}
+                return None, None, Mode.PAUSE
 
     def heading_goal(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
-        Perform a sequence of actions to head towards the goal.
-
-        Args:
-            et (ETRobot): The ETRobot instance to control.
+        ゴールに向かう際、turn_at_endと同じ動作を順次実行する。
+        以下の順で動作する:
+        1. ライン到達前は中央追従
+        2. 到達時に一度だけ左旋回（0, 60, 0.8秒）
+        3. 以降は右端追従（ライン消失時はPAUSE）
         """
-        raise NotImplementedError("This method should be implemented based on the specific behavior for heading towards the goal.")
+        state = self._state.setdefault("heading_goal", {"reached": False, "turned": False})
+        x1, y1, x2, y2 = ROI_CNN
+        y_hit = get_line_trace_edges_at_x320(image)
+        reached = y_hit is not None and y_hit >= 400
+        left_speed = right_speed = None
+        target_x = None
+        if not state["reached"] and reached:
+            state["reached"] = True
+            state["turned"] = False
+        if not state["reached"]:
+            # ライン到達前は中央
+            target_x = (x1 + x2) // 2
+            return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
+        elif not state["turned"]:
+            # 到達した瞬間に一度だけ左旋回
+            elapsed_time = getattr(self, '_heading_goal_turn_start', None)
+            if elapsed_time is None:
+                self._heading_goal_turn_start = time.time()
+                elapsed_time = self._heading_goal_turn_start
+            if time.time() - elapsed_time < 0.8:
+                left_speed, right_speed = 0, 60
+                return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
+            else:
+                del self._heading_goal_turn_start
+                state["turned"] = True
+                return target_x, (0, 0), Mode.HEAD_GOAL
+        else:
+            # 右端追従の動作をここで実装し、ライン完全消失時にPAUSEで停止する
+            x1, _, x2, _ = ROI_CNN
+            # mask: ライン検出用の2値化画像（ライン部分が白=255, それ以外は黒=0 のnumpy配列）
+            left_x, right_x, mask = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
+            if left_x is None and right_x is None and np.count_nonzero(mask) == 0:
+                # ライン完全消失で停止
+                self._state["heading_goal"] = {"reached": False, "turned": False, "paused": False}
+                return None, None, Mode.PAUSE
+            if not state.get("paused", False):
+                # 右端追従
+                if right_x is not None:
+                    target_x = right_x
+                else:
+                    target_x = (x1 + x2) // 2
+                left_speed = right_speed = BASE_SPEED
+                state["paused"] = True
+                return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
+            else:
+                # 2回目以降は完全停止
+                self._state["heading_goal"] = {"reached": False, "turned": False, "paused": False}
+                return None, None, Mode.PAUSE
 
     def trun_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
