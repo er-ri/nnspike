@@ -256,8 +256,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         else:
                             target_x = (x1 + x2) // 2
                     else:
-                        # 一度3000以上になった後
-                        if blue_pixel_count == 0:
+                        # 一度3000以上になった後、次に3000未満になったらPAUSE
+                        if blue_pixel_count < 3000:
                             mode = Mode.PAUSE
                             state["detected"] = False
                             target_x = (x1 + x2) // 2
