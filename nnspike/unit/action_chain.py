@@ -126,27 +126,26 @@ class ActionChain(object):
             left_speed, right_speed = 0, 60
             return None, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 6. EYE_BLUE (red_detected_time+14.6〜15.6秒, カラーセンサー値で即停止)
-        elif self.current_time - state["red_detected_time"] < 15.6:
-            # color_valueをここで取得
-            if hasattr(self.et, 'color_value'):
-                if callable(self.et.color_value):
-                    color_value = self.et.color_value()
-                else:
-                    color_value = self.et.color_value
-            center, _, blue_pixel_count = find_blue_target_center(image)
-            x1, _, x2, _ = ROI_CNN
-            color_value = color_value  # ダミー代入でスコープ明示
-            if color_value is not None and 400 <= color_value <= 600:
-                state["pre_target_x"] = None
-                return None, None, Mode.PAUSE
-            # 青ロストによる1秒待ち停止処理は削除（color_value判定のみで即停止）
-            if center is not None:
-                target_x = center[0]
+        # 6. EYE_BLUE: カラーセンサー値で即停止（時間条件なし）
+        # color_valueをここで取得
+        if hasattr(self.et, 'color_value'):
+            if callable(self.et.color_value):
+                color_value = self.et.color_value()
             else:
-                target_x = (x1 + x2) // 2
-            left_speed = right_speed = BASE_SPEED
-            return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE1
+                color_value = self.et.color_value
+        center, _, blue_pixel_count = find_blue_target_center(image)
+        x1, _, x2, _ = ROI_CNN
+        color_value = color_value  # ダミー代入でスコープ明示
+        if color_value is not None and 400 <= color_value <= 600:
+            state["pre_target_x"] = None
+            return None, None, Mode.PAUSE
+        # 青ロストによる1秒待ち停止処理は削除（color_value判定のみで即停止）
+        if center is not None:
+            target_x = center[0]
+        else:
+            target_x = (x1 + x2) // 2
+        left_speed = right_speed = BASE_SPEED
+        return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
         # 以降は停止または次のモードへ
         state["pre_target_x"] = None
