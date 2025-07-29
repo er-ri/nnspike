@@ -184,11 +184,17 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 mode = Mode.FORWARD
                 print("Switched to forward mode")
             elif key == "j":
-                mode = Mode.SMALL_TURN_RIGHT
-                print("Switched to small turn right mode")
-            elif key == "k":
                 mode = Mode.SMALL_TURN_LEFT
                 print("Switched to small turn left mode")
+            elif key == "k":
+                mode = Mode.SMALL_TURN_RIGHT
+                print("Switched to small turn right mode")
+            elif key == "i":
+                mode = Mode.TURN_LEFT_GYRO
+                print("Switched to turn left (gyro) mode")
+            elif key == "o":
+                mode = Mode.TURN_RIGHT_GYRO
+                print("Switched to turn right (gyro) mode")
             elif key == "b":
                 mode = Mode.BACKWARD
                 print("Switched to backward mode")
@@ -235,6 +241,28 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
 
             match mode:
+                case Mode.TURN_LEFT_GYRO:
+                    # ジャイロを使った左回転: action_chain.trun_left_gyroを呼ぶ
+                    result = action_chain.trun_left_gyro()
+                    if result is not None:
+                        _, speeds, mode = result
+                        if speeds is not None:
+                            left_speed, right_speed = speeds
+                        else:
+                            left_speed, right_speed = 0, 0
+                    else:
+                        left_speed, right_speed, mode = 0, 0, Mode.PAUSE
+                case Mode.TURN_RIGHT_GYRO:
+                    # ジャイロを使った右回転: action_chain.trun_right_gyroを呼ぶ
+                    result = action_chain.trun_right_gyro()
+                    if result is not None:
+                        _, speeds, mode = result
+                        if speeds is not None:
+                            left_speed, right_speed = speeds
+                        else:
+                            left_speed, right_speed = 0, 0
+                    else:
+                        left_speed, right_speed, mode = 0, 0, Mode.PAUSE
                 case Mode.TURN_AT_END:
                     # TURN_AT_END: ロジックをaction_chain.turn_at_endに委譲（状態管理はaction_chain側に任せる）
                     target_x, speeds, ret_mode = action_chain.turn_at_end(frame)

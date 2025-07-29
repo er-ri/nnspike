@@ -30,6 +30,8 @@ class Mode(Enum):
     SMALL_TURN_RIGHT = 16
     BLUE_BOTTLE_CATCH = 17
     TURN_AT_END = 18
+    TURN_LEFT_GYRO = 19
+    TURN_RIGHT_GYRO = 20
 
 
 
