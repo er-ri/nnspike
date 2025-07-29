@@ -234,7 +234,7 @@ class ActionChain(object):
 
         # 1. 左旋回（1.5秒, 左:0, 右:30）
         if state["phase"] == 1:
-            if now - state["phase_start_time"] < 2.7:
+            if now - state["phase_start_time"] < 3:
                 left_speed, right_speed = 0, 30
                 return None, (left_speed, right_speed), Mode.BACK_AND_TURN1
             else:
