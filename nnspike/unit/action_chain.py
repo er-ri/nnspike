@@ -650,7 +650,7 @@ class ActionChain(object):
         state["last_gyro_z"] = current_gyro_z
         # 左回転はzがプラス方向に進む（累積+90で終了）
         if state["integrated_delta"] < 90:
-            left_speed, right_speed = 0, 60
+            left_speed, right_speed = 0, 30
             return None, (left_speed, right_speed), Mode.TURN_LEFT_GYRO
         # 終了条件を満たしたら状態リセット
         state["last_gyro_z"] = None
@@ -672,7 +672,7 @@ class ActionChain(object):
         state["last_gyro_z"] = current_gyro_z
         # 右回転はzがマイナス方向に進む（累積-90で終了）
         if state["integrated_delta"] > -90:
-            left_speed, right_speed = 60, 0
+            left_speed, right_speed = 30, 0
             return None, (left_speed, right_speed), Mode.TURN_RIGHT_GYRO
         # 終了条件を満たしたら状態リセット
         state["last_gyro_z"] = None
