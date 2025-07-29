@@ -455,6 +455,8 @@ class ActionChain(object):
         state = self._state.setdefault("heading_goal", {
             "phase": 0,
             "phase_start_time": None,
+            "reached_time": None,
+            "turned": False,
             "blue_line_detected_time": None,
         })
         x1, y1, x2, y2 = ROI_CNN
@@ -468,17 +470,30 @@ class ActionChain(object):
         if state["phase"] == 0:
             if reached:
                 state["phase"] = 1
-                state["phase_start_time"] = now
+                state["reached_time"] = now
+                state["turned"] = False
             else:
                 target_x = (x1 + x2) // 2
                 return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
 
-        # 1. 到達時に0.8秒左旋回
+        # 1. 到達直後0.5秒は直進
         if state["phase"] == 1:
-            if state["phase_start_time"] is None:
-                state["phase_start_time"] = now
-            if now - state["phase_start_time"] < 0.8:
-                left_speed, right_speed = 0, 60
+            if state["reached_time"] is not None and (now - state["reached_time"] < 0.5):
+                target_x = (x1 + x2) // 2
+                left_speed = right_speed = BASE_SPEED
+                return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
+            elif not state["turned"]:
+                # 0.5秒経過後に一度だけ左旋回
+                result = self.trun_left()
+                if result is not None:
+                    _, speeds, _ = result
+                    if speeds is not None:
+                        left_speed, right_speed = speeds
+                    else:
+                        left_speed, right_speed = 0, 0
+                else:
+                    left_speed, right_speed = 0, 0
+                state["turned"] = True
                 return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
             else:
                 state["phase"] = 2
@@ -578,22 +593,29 @@ class ActionChain(object):
         offset_y_for_turn: この動作専用のライン到達判定Y座標（デフォルト400）
         Returns: (target_x, (left_speed, right_speed), ret_mode)
         """
-        state = self._state.setdefault("turn_at_end", {"reached": False, "turned": False})
+        state = self._state.setdefault("turn_at_end", {"reached": False, "turned": False, "reached_time": None})
         x1, y1, x2, y2 = ROI_CNN
         # get_line_trace_edges_at_x320でラインがoffset_y_for_turnに到達しているか判定
         y_hit = get_line_trace_edges_at_x320(frame)
         reached = y_hit is not None and y_hit >= offset_y_for_turn
         left_speed = right_speed = None
         target_x = None
+        now = time.time()
         if not state["reached"] and reached:
             state["reached"] = True
+            state["reached_time"] = now
             state["turned"] = False
         if not state["reached"]:
             # ライン到達前は中央
             target_x = (x1 + x2) // 2
             return target_x, (left_speed, right_speed), None
+        # reachedになってから0.5秒間は直進
+        elif state["reached"] and state["reached_time"] is not None and (now - state["reached_time"] < 0.5):
+            target_x = (x1 + x2) // 2
+            left_speed = right_speed = BASE_SPEED
+            return target_x, (left_speed, right_speed), None
+        # 0.5秒経過後に一度だけ左旋回
         elif not state["turned"]:
-            # 到達した瞬間に一度だけ左旋回
             result = self.trun_left()
             if result is not None:
                 _, speeds, _ = result
