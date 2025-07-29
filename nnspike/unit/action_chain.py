@@ -640,7 +640,12 @@ class ActionChain(object):
         ジャイロz角度の累積変化量（積分値）が-90度に達したらPAUSEに遷移する左旋回アクション。
         """
         state = self._state.setdefault("trun_left_gyro", {"start_accel_x": None})
-        current_accel_x = self.et.last_spike_status.sensors.accelerometer.x
+        accelerometer = self.et.last_spike_status.sensors.accelerometer
+        if accelerometer is None:
+            # センサー値が取得できない場合は安全のため即PAUSE
+            state["start_accel_x"] = None
+            return None, None, Mode.PAUSE
+        current_accel_x = accelerometer.x
         if state["start_accel_x"] is None:
             state["start_accel_x"] = current_accel_x
         delta = current_accel_x - state["start_accel_x"]
@@ -657,7 +662,12 @@ class ActionChain(object):
         ジャイロz角度の累積変化量（積分値）が+90度に達したらPAUSEに遷移する右旋回アクション。
         """
         state = self._state.setdefault("trun_right_gyro", {"start_accel_x": None})
-        current_accel_x = self.et.last_spike_status.sensors.accelerometer.x
+        accelerometer = self.et.last_spike_status.sensors.accelerometer
+        if accelerometer is None:
+            # センサー値が取得できない場合は安全のため即PAUSE
+            state["start_accel_x"] = None
+            return None, None, Mode.PAUSE
+        current_accel_x = accelerometer.x
         if state["start_accel_x"] is None:
             state["start_accel_x"] = current_accel_x
         delta = current_accel_x - state["start_accel_x"]
