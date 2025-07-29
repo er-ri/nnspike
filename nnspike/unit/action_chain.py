@@ -181,9 +181,9 @@ class ActionChain(object):
 
             to_back_and_turn1 = False
             if state['blue_under500_time'] is not None:
-                if now - state['blue_under500_time'] >= 1.0:
+                if now - state['blue_under500_time'] >= 1.5:
                     to_back_and_turn1 = True
-            if now - state['eye_blue_start'] >= 4.0:
+            if now - state['eye_blue_start'] >= 8.0:
                 to_back_and_turn1 = True
 
             if not to_back_and_turn1:
