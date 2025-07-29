@@ -312,7 +312,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     else:
                         target_x = (x1 + x2) // 2
                 case Mode.FOLLOW_RIGHT_EDGE:
-                    yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, color="yellow")
+                    yellow_result = find_bottle_center(frame, color="yellow")
+                    if yellow_result is not None:
+                        yellow_cx, _, yellow_pixel_count = yellow_result
+                    else:
+                        yellow_cx, yellow_pixel_count = None, 0
                     status = et.get_spike_status()
                     # record_sensor_dataと同じ取得方法で右モーターの相対位置を取得
                     et_right_position = None
