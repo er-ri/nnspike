@@ -290,7 +290,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                             if state.get("below3000_time") is None:
                                 state["below3000_time"] = now
                             # 1秒間直進
-                            if now - state["below3000_time"] < 1.0:
+                            if now - state["below3000_time"] < 0.8:
                                 target_x = (x1 + x2) // 2
                                 # 直進速度
                                 left_speed = right_speed = BASE_SPEED
