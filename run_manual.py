@@ -303,8 +303,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, color="yellow")
                     et_right_position = None
                     status = et.get_spike_status()
-                    if hasattr(status, 'motors') and 'B' in status.motors:
-                        et_right_position = status.motors['B'].relative_position
+                    if hasattr(status, 'motors'):
+                        if 'B' in status.motors:
+                            et_right_position = status.motors['B'].relative_position
+                        else:
+                            print("[DEBUG] status.motors に 'B' が存在しません")
+                    else:
+                        print("[DEBUG] status に 'motors' 属性がありません")
                     print(f"[DEBUG] yellow_pixel_count={yellow_pixel_count}, et_right_position={et_right_position}")
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     if yellow_pixel_count > 14000 and yellow_cx is not None and et_right_position is not None and abs(et_right_position) <= 7000:
