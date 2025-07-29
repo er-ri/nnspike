@@ -640,12 +640,25 @@ class ActionChain(object):
         ジャイロz角度の累積変化量（積分値）が-90度に達したらPAUSEに遷移する左旋回アクション。
         """
         state = self._state.setdefault("trun_left_gyro", {"start_accel_x": None})
-        accelerometer = self.et.last_spike_status.sensors.accelerometer
-        if accelerometer is None:
-            # センサー値が取得できない場合は安全のため即PAUSE
-            state["start_accel_x"] = None
-            return None, None, Mode.PAUSE
-        current_accel_x = accelerometer.x
+        # まず生データから直接取得を試みる
+        raw_data = getattr(self.et.last_spike_status, 'raw_data', None)
+        current_accel_x = None
+        if raw_data and isinstance(raw_data, dict):
+            # recorder.pyと同じような形式で探す
+            if "accelerometer_x" in raw_data:
+                current_accel_x = raw_data["accelerometer_x"]
+            elif "sensors" in raw_data and "accelerometer" in raw_data["sensors"] and "x" in raw_data["sensors"]["accelerometer"]:
+                current_accel_x = raw_data["sensors"]["accelerometer"]["x"]
+        # 取れなければ従来通りの参照
+        if current_accel_x is None:
+            accelerometer = self.et.last_spike_status.sensors.accelerometer
+            if accelerometer is None:
+                print("[DEBUG] accelerometer is None. last_spike_status=", self.et.last_spike_status)
+                print("[DEBUG] spike_status=", self.et.spike_status)
+                print("[DEBUG] raw_data=", raw_data)
+                state["start_accel_x"] = None
+                return None, None, Mode.PAUSE
+            current_accel_x = accelerometer.x
         if state["start_accel_x"] is None:
             state["start_accel_x"] = current_accel_x
         delta = current_accel_x - state["start_accel_x"]
