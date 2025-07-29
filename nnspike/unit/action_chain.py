@@ -232,9 +232,9 @@ class ActionChain(object):
                 state["phase"] = 1
                 state["phase_start_time"] = now
 
-        # 1. 左旋回（1.5秒, 左:0, 右:30）
+        # 1. 左旋回（3.0秒, 左:0, 右:30）
         if state["phase"] == 1:
-            if now - state["phase_start_time"] < 3:
+            if now - state["phase_start_time"] < 3.0:
                 left_speed, right_speed = 0, 30
                 return None, (left_speed, right_speed), Mode.BACK_AND_TURN1
             else:
@@ -245,6 +245,9 @@ class ActionChain(object):
         if state["phase"] == 2:
             self._state["back_and_turn1"] = {"phase": 0, "phase_start_time": None}
             return None, None, Mode.CARRY_BOTTLE2
+
+        # どの分岐にも入らなかった場合のフェールセーフ
+        return None, None, Mode.BACK_AND_TURN1
 
     def carry_bottle2(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
@@ -403,6 +406,9 @@ class ActionChain(object):
                 state["blue_lost_time"] = None
                 state["blue_detected_time"] = None
                 return None, None, Mode.BACK_AND_TURN2
+
+        # どの分岐にも入らなかった場合のフェールセーフ
+        return None, None, Mode.CARRY_BOTTLE2
 
     def back_and_turn2(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
