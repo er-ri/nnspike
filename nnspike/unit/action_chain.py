@@ -521,7 +521,7 @@ class ActionChain(object):
 
             if state["blue_line_detected_time"] is not None:
                 elapsed = now - state["blue_line_detected_time"]
-                if elapsed >= 1.0:
+                if elapsed >= 2.0:
                     # 0.5秒経過したら必ずPAUSE
                     state["phase"] = 0
                     state["phase_start_time"] = None
