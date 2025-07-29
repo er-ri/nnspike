@@ -301,6 +301,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         target_x = (x1 + x2) // 2
                 case Mode.FOLLOW_RIGHT_EDGE:
                     yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, color="yellow")
+                    print(f"[DEBUG] yellow_pixel_count={yellow_pixel_count}")
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     # spike_status.pyで取得したright_position値を利用
                     et_right_position = None
@@ -390,6 +391,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.FORWARD:
                     # 画像全体の黄色重心・赤色重心に向かって進む（find_bottle_center使用）
                     yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, color="yellow")
+                    print(f"[DEBUG] yellow_pixel_count={yellow_pixel_count}")
                     red_cx, _, red_pixel_count = find_bottle_center(frame, color="red")
                     blue_cx, _, blue_pixel_count = find_bottle_center(frame, color="blue")
                     if yellow_pixel_count > 14000:
