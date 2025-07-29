@@ -515,19 +515,18 @@ class ActionChain(object):
 
             # 青ライン検出ロジック
             blue_line = get_is_blue_line_at_y(image, target_y=OFFSET_Y)
-            if blue_line:
-                if state["blue_line_detected_time"] is None:
-                    state["blue_line_detected_time"] = now
+            if state["blue_line_detected_time"] is not None:
                 elapsed = now - state["blue_line_detected_time"]
-                if elapsed < 2.0:
-                    # 2.0秒間は直進
-                    return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
-                else:
-                    # 状態リセットしてPAUSEへ
+                if elapsed >= 2.0:
+                    # 2秒経過したら必ずPAUSE
                     state["phase"] = 0
                     state["phase_start_time"] = None
                     state["blue_line_detected_time"] = None
                     return None, None, Mode.PAUSE
+            if blue_line:
+                if state["blue_line_detected_time"] is None:
+                    state["blue_line_detected_time"] = now
+                return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
             else:
                 state["blue_line_detected_time"] = None
 
