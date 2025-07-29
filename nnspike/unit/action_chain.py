@@ -49,8 +49,7 @@ class ActionChain(object):
             if state["phase_start_time"] is None:
                 state["phase_start_time"] = now
             if now - state["phase_start_time"] < 0.8:
-                left_speed, right_speed = 40, 70  # 左旋回
-                return None, (left_speed, right_speed), Mode.AVOID_OBSTACLE
+                return None, (40, 70), Mode.AVOID_OBSTACLE
             else:
                 state["phase"] = 1
                 state["phase_start_time"] = now
@@ -58,8 +57,7 @@ class ActionChain(object):
         # 1. 右旋回（1.3秒）
         if state["phase"] == 1:
             if now - state["phase_start_time"] < 1.3:
-                left_speed, right_speed = 80, 50  # 右旋回
-                return None, (left_speed, right_speed), Mode.AVOID_OBSTACLE
+                return None, (80, 50), Mode.AVOID_OBSTACLE
             else:
                 state["phase"] = 2
                 state["phase_start_time"] = now
@@ -130,6 +128,7 @@ class ActionChain(object):
                 state["phase_start_time"] = now
 
         
+        # 3. 仮想ライン直進（2.0秒, get_virtual_line_edges_at_y, previous_center_x=pre_target_x, preference='left'）
         if state["phase"] == 3:
             if now - state["phase_start_time"] < 2.0:
                 pre_target_x = state.get("pre_target_x")
@@ -143,12 +142,12 @@ class ActionChain(object):
                 else:
                     target_x = (x1 + x2) // 2
                     state["pre_target_x"] = target_x
-                return target_x, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE1
+                return target_x, None, Mode.CARRY_BOTTLE1
             else:
                 state["phase"] = 4
                 state["phase_start_time"] = now
 
-        # 4. 直進（3.5秒）
+        # 4. 直進（4.8秒）
         if state["phase"] == 4:
             if now - state["phase_start_time"] < 4.8:
                 return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE1
@@ -226,8 +225,7 @@ class ActionChain(object):
             if state["phase_start_time"] is None:
                 state["phase_start_time"] = now
             if now - state["phase_start_time"] < 1.8:
-                left_speed = right_speed = BASE_SPEED
-                return None, (left_speed, right_speed), Mode.BACK_AND_TURN1
+                return None, (BASE_SPEED, BASE_SPEED), Mode.BACK_AND_TURN1
             else:
                 state["phase"] = 1
                 state["phase_start_time"] = now
@@ -235,8 +233,7 @@ class ActionChain(object):
         # 1. 左旋回（3.0秒, 左:0, 右:30）
         if state["phase"] == 1:
             if now - state["phase_start_time"] < 3.0:
-                left_speed, right_speed = 0, 30
-                return None, (left_speed, right_speed), Mode.BACK_AND_TURN1
+                return None, (0, 30), Mode.BACK_AND_TURN1
             else:
                 state["phase"] = 2
                 state["phase_start_time"] = now
@@ -273,10 +270,9 @@ class ActionChain(object):
             "blue_under500_time": None,
         })
         now = time.time()
-        center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
-
         # 0. 右エッジトレースで青ピクセル数が3000を超えたらphase1へ
         if state["phase"] == 0:
+            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             # 右エッジトレース（右端追従）しながら、青ピクセル数が3000を超えたらphase1へ遷移
             _, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
             x1, _, x2, _ = ROI_CNN
@@ -286,12 +282,13 @@ class ActionChain(object):
                 state["phase_start_time"] = now
                 # phase遷移時はreturnしない（次のphase分岐で即座に動作）
             else:
-                return target_x, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
+                return target_x, None, Mode.CARRY_BOTTLE2
 
         # 1. 3000以上の間はcenter追従。3000以下になったらphase2へ
         if state["phase"] == 1:
+            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if blue_pixel_count > 3000 and center is not None:
-                return center[0], (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
+                return center[0], None, Mode.CARRY_BOTTLE2
             else:
                 state["phase"] = 2
                 state["phase_start_time"] = now
@@ -299,8 +296,9 @@ class ActionChain(object):
 
         # 2. 3000以下になってから0.5秒間center追従。その後phase3（左旋回2.8秒, speed=30）
         if state["phase"] == 2:
+            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if now - state["phase_start_time"] < 0.5 and center is not None:
-                return center[0], (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
+                return center[0], None, Mode.CARRY_BOTTLE2
             else:
                 state["phase"] = 3
                 state["phase_start_time"] = now
@@ -345,7 +343,7 @@ class ActionChain(object):
                 else:
                     target_x = (x1 + x2) // 2
                     state["pre_target_x"] = target_x
-                return target_x, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
+                return target_x, None, Mode.CARRY_BOTTLE2
             else:
                 state["phase"] = 7
                 state["phase_start_time"] = now
@@ -358,37 +356,64 @@ class ActionChain(object):
                 state["phase"] = 8
                 state["phase_start_time"] = now
 
-        # 8. 左旋回（0.8秒, 左:0, 右:60）
+        # 8. 左旋回（1.5秒, 左:0, 右:30）
         if state["phase"] == 8:
-            if now - state["phase_start_time"] < 0.8:
-                return None, (0, 60), Mode.CARRY_BOTTLE2
+            if now - state["phase_start_time"] < 1.5:
+                return None, (0, 30), Mode.CARRY_BOTTLE2
             else:
                 state["phase"] = 9
                 state["phase_start_time"] = now
 
-        # 9. 青検出（1000超え→500以下で1秒後、または最大3秒でBACK_AND_TURN2）
+
+
+        # 9. 青検出（1000超えたらphase10へ）
         if state["phase"] == 9:
-            if state['eye_blue_start'] is None:
-                state['eye_blue_start'] = now
-            if not state['blue_over1000'] and blue_pixel_count > 1000:
-                state['blue_over1000'] = True
-            if state['blue_over1000'] and state['blue_under500_time'] is None and blue_pixel_count <= 500:
-                state['blue_under500_time'] = now
+            blue_result = find_blue_target_center(image)
+            if blue_result is not None:
+                center, _, blue_pixel_count = blue_result
+            else:
+                center, blue_pixel_count = None, 0
+            x1, _, x2, _ = ROI_CNN
+            if center is not None:
+                target_x = center[0]
+            else:
+                target_x = (x1 + x2) // 2
+            if blue_pixel_count > 1000:
+                state["phase"] = 10
+                state["phase_start_time"] = now
+            return target_x, None, Mode.CARRY_BOTTLE2
 
-            to_back_and_turn2 = False
-            if state['blue_under500_time'] is not None:
-                if now - state['blue_under500_time'] >= 1.0:
-                    to_back_and_turn2 = True
-            if now - state['eye_blue_start'] >= 3.0:
-                to_back_and_turn2 = True
+        # 10. 青ピクセルが500以下まで減るまでcenter追従
+        if state["phase"] == 10:
+            blue_result = find_blue_target_center(image)
+            if blue_result is not None:
+                center, _, blue_pixel_count = blue_result
+            else:
+                center, blue_pixel_count = None, 0
+            x1, _, x2, _ = ROI_CNN
+            if center is not None:
+                target_x = center[0]
+            else:
+                target_x = (x1 + x2) // 2
+            if blue_pixel_count <= 500:
+                state["phase"] = 11
+                state["phase_start_time"] = now
+            return target_x, None, Mode.CARRY_BOTTLE2
 
-            if not to_back_and_turn2:
+        # 11. 500以下になってから1秒間center追従、その後back_and_turn2
+        if state["phase"] == 11:
+            blue_result = find_blue_target_center(image)
+            if blue_result is not None:
+                center, _, blue_pixel_count = blue_result
+            else:
+                center, blue_pixel_count = None, 0
+            if now - state["phase_start_time"] < 1.0:
                 x1, _, x2, _ = ROI_CNN
                 if center is not None:
                     target_x = center[0]
                 else:
                     target_x = (x1 + x2) // 2
-                return target_x, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
+                return target_x, None, Mode.CARRY_BOTTLE2
             else:
                 state["pre_target_x"] = None
                 state['eye_blue_start'] = None
@@ -400,131 +425,6 @@ class ActionChain(object):
                 return None, None, Mode.BACK_AND_TURN2
 
         # どの分岐にも入らなかった場合のフェールセーフ
-        return None, None, Mode.CARRY_BOTTLE2
-
-        # 2. FORWARD (blue_detected_time+0〜2.5秒, 2.5秒直進)
-        if state["phase"] == 2:
-            print(f"  phase2: elapsed={now - state['phase_start_time']}")
-            if now - state["phase_start_time"] < 2.5:
-                print("  phase2: forward")
-                left_speed = right_speed = BASE_SPEED
-                return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
-            else:
-                print("  phase2: to phase3")
-                state["phase"] = 3
-                state["phase_start_time"] = now
-                x1, _, x2, _ = ROI_CNN
-                state["pre_target_x"] = (x1 + x2) // 2
-
-        # 3. TURN_LEFT (1.5秒左旋回)
-        if state["phase"] == 3:
-            print(f"  phase3: elapsed={now - state['phase_start_time']}")
-            if now - state["phase_start_time"] < 1.5:
-                print("  phase3: turning left")
-                left_speed, right_speed = 0, 30  # 左旋回
-                return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
-            else:
-                print("  phase3: to phase4")
-                state["phase"] = 4
-                state["phase_start_time"] = now
-
-        # 4. GATE_PASS (2.0秒get_virtual_line_edges_at_yで直進)
-        if state["phase"] == 4:
-            print(f"  phase4: elapsed={now - state['phase_start_time']}")
-            if now - state["phase_start_time"] < 2.0:
-                pre_target_x = state.get("pre_target_x")
-                temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x)
-                x1, _, x2, _ = ROI_CNN
-                if temp_x is not None:
-                    target_x = temp_x
-                    state["pre_target_x"] = temp_x
-                elif pre_target_x is not None:
-                    target_x = pre_target_x
-                else:
-                    target_x = (x1 + x2) // 2
-                    state["pre_target_x"] = target_x
-                left_speed = right_speed = BASE_SPEED
-                print(f"  phase4: returning target_x={target_x}, speeds=({BASE_SPEED},{BASE_SPEED})")
-                return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE2
-            else:
-                print("  phase4: to phase5")
-                state["phase"] = 5
-                state["phase_start_time"] = now
-
-        # 5. FORWARD2 (2.0秒直進)
-        if state["phase"] == 5:
-            print(f"  phase5: elapsed={now - state['phase_start_time']}")
-            if now - state["phase_start_time"] < 2.0:
-                print("  phase5: forward2")
-                left_speed = right_speed = BASE_SPEED
-                return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
-            else:
-                print("  phase5: to phase6")
-                state["phase"] = 6
-                state["phase_start_time"] = now
-
-        # 6. TURN_LEFT (1.5秒左旋回)
-        if state["phase"] == 6:
-            print(f"  phase6: elapsed={now - state['phase_start_time']}")
-            if now - state["phase_start_time"] < 1.5:
-                print("  phase6: turning left")
-                left_speed, right_speed = 0, 30
-                return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
-            else:
-                print("  phase6: to phase7")
-                state["phase"] = 7
-                state["phase_start_time"] = now
-
-        # 7. EYE_BLUE: 青検出（bottle1と同じロジック、最大3秒）
-        if state["phase"] == 7:
-            print(f"  phase7: elapsed={now - state['phase_start_time']}")
-            if state['eye_blue_start'] is None:
-                state['eye_blue_start'] = now
-            if 'blue_over1000' not in state:
-                state['blue_over1000'] = False
-            if 'blue_under500_time' not in state:
-                state['blue_under500_time'] = None
-
-            center, _, blue_pixel_count = find_blue_target_center(image)
-            print(f"    phase7: blue_pixel_count={blue_pixel_count} blue_over1000={state['blue_over1000']} blue_under500_time={state['blue_under500_time']}")
-            if not state['blue_over1000'] and blue_pixel_count > 1000:
-                print("    phase7: blue over 1000!")
-                state['blue_over1000'] = True
-            if state['blue_over1000'] and state['blue_under500_time'] is None and blue_pixel_count <= 500:
-                print("    phase7: blue under 500!")
-                state['blue_under500_time'] = now
-
-            to_back_and_turn2 = False
-            if state['blue_under500_time'] is not None:
-                if now - state['blue_under500_time'] >= 1.0:
-                    to_back_and_turn2 = True
-            if now - state['eye_blue_start'] >= 3.0:
-                to_back_and_turn2 = True
-
-            if not to_back_and_turn2:
-                x1, _, x2, _ = ROI_CNN
-                if center is not None:
-                    target_x = center[0]
-                else:
-                    target_x = (x1 + x2) // 2
-                left_speed = right_speed = BASE_SPEED
-                print(f"    phase7: returning target_x={target_x}, speeds=({BASE_SPEED},{BASE_SPEED})")
-                return target_x, (left_speed, right_speed), Mode.CARRY_BOTTLE2
-            else:
-                print("    phase7: to BACK_AND_TURN2")
-                state["pre_target_x"] = None
-                state['eye_blue_start'] = None
-                state['blue_over1000'] = False
-                state['blue_under500_time'] = None
-                state["phase"] = 0
-                state["phase_start_time"] = None
-                state["blue_detected"] = False
-                state["blue_lost_time"] = None
-                state["blue_detected_time"] = None
-                return None, None, Mode.BACK_AND_TURN2
-
-        # どの分岐にも入らなかった場合のフェールセーフ
-        print("  [carry_bottle2] fail-safe return")
         return None, None, Mode.CARRY_BOTTLE2
 
     def back_and_turn2(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
@@ -546,8 +446,7 @@ class ActionChain(object):
             if state["phase_start_time"] is None:
                 state["phase_start_time"] = now
             if now - state["phase_start_time"] < 2.0:
-                left_speed = right_speed = BASE_SPEED
-                return None, (left_speed, right_speed), Mode.BACK_AND_TURN2
+                return None, (BASE_SPEED, BASE_SPEED), Mode.BACK_AND_TURN2
             else:
                 state["phase"] = 1
                 state["phase_start_time"] = now
@@ -555,8 +454,7 @@ class ActionChain(object):
         # 1. 1.5秒右旋回（左:30, 右:0）
         if state["phase"] == 1:
             if now - state["phase_start_time"] < 1.5:
-                left_speed, right_speed = 30, 0
-                return None, (left_speed, right_speed), Mode.BACK_AND_TURN2
+                return None, (30, 0), Mode.BACK_AND_TURN2
             else:
                 state["phase"] = 2
                 state["phase_start_time"] = now
@@ -582,15 +480,13 @@ class ActionChain(object):
             "turned": False,
             "blue_line_detected_time": None,
         })
-        x1, y1, x2, y2 = ROI_CNN
-        y_hit = get_line_trace_edges_at_x320(image)
-        reached = y_hit is not None and y_hit >= 450
-        left_speed = right_speed = None
-        target_x = None
-        now = time.time()
 
         # 0. ライン到達前は中央追従
         if state["phase"] == 0:
+            x1, y1, x2, y2 = ROI_CNN
+            now = time.time()
+            y_hit = get_line_trace_edges_at_x320(image)
+            reached = y_hit is not None and y_hit >= 450
             if reached and not state["reached"]:
                 state["reached"] = True
                 state["reached_time"] = now
@@ -598,33 +494,46 @@ class ActionChain(object):
                 state["turned"] = False
             elif not state["reached"]:
                 target_x = (x1 + x2) // 2
-                return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
+                return target_x, None, Mode.HEAD_GOAL
             # reachedが一度Trueになったら絶対にリセットしない
             # phase=1以降はreached状態を維持
 
-        # 1. 到達直後0.5秒は直進し、その後必ず左旋回に遷移（到達状態はリセットしない）
+        # 1. 到達直後0.5秒は直進
         if state["phase"] == 1:
+            x1, y1, x2, y2 = ROI_CNN
+            now = time.time()
             if state["reached_time"] is not None and (now - state["reached_time"] < 0.5):
                 target_x = (x1 + x2) // 2
-                left_speed = right_speed = BASE_SPEED
-                return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
-            # 0.5秒経過後は必ず左旋回に遷移
+                return target_x, (BASE_SPEED, BASE_SPEED), Mode.HEAD_GOAL
+            else:
+                # 0.5秒経過後は必ず左旋回に遷移
+                state["phase"] = 2
+                state["phase_start_time"] = now
+                state["left_turn_start"] = now
+                return None, None, Mode.HEAD_GOAL
+
+        # 2. 左旋回（1.5秒）
+        if state["phase"] == 2:
+            x1, y1, x2, y2 = ROI_CNN
+            now = time.time()
             if "left_turn_start" not in state or state["left_turn_start"] is None:
                 state["left_turn_start"] = now
             elapsed = now - state["left_turn_start"]
+            target_x = (x1 + x2) // 2
             if elapsed < 1.5:
-                left_speed, right_speed = 0, 30
-                return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
+                return target_x, (0, 30), Mode.HEAD_GOAL
             else:
                 state["turned"] = True
                 state["left_turn_start"] = None
                 # 次のphaseへ
-                state["phase"] = 2
+                state["phase"] = 3
                 state["phase_start_time"] = now
                 state["blue_line_detected_time"] = None
 
-        # 2. 以降は右端追従（青ライン検出後は絶対にリセットせず、1.5秒後に無条件でPAUSE）
-        if state["phase"] == 2:
+        # 3. 以降は右端追従（青ライン検出後は絶対にリセットせず、1.5秒後に無条件でPAUSE）
+        if state["phase"] == 3:
+            x1, y1, x2, y2 = ROI_CNN
+            now = time.time()
             if "right_trace_start" not in state or state["right_trace_start"] is None:
                 state["right_trace_start"] = now
             left_x, right_x, mask = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
@@ -632,8 +541,6 @@ class ActionChain(object):
                 target_x = right_x
             else:
                 target_x = (x1 + x2) // 2
-            left_speed = right_speed = BASE_SPEED
-
             # 青ライン検出ロジック
             blue_line = get_is_blue_line_at_y(image, target_y=OFFSET_Y)
             # blue_lineが一度Trueになったら絶対にリセットしない
@@ -648,9 +555,9 @@ class ActionChain(object):
                     # blue_line_detected_timeは絶対にリセットしない
                     return None, None, Mode.PAUSE
                 else:
-                    return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
+                    return target_x, (BASE_SPEED, BASE_SPEED), Mode.HEAD_GOAL
 
-            return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
+            return target_x, (BASE_SPEED, BASE_SPEED), Mode.HEAD_GOAL
 
     def trun_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
@@ -661,8 +568,7 @@ class ActionChain(object):
 
         elapsed_time = self.current_time - self.start_time
         if elapsed_time < 1.5:
-            left_speed, right_speed = 0, 30
-            return None, (left_speed, right_speed), Mode.TURN_LEFT
+            return None, (0, 30), Mode.TURN_LEFT
         self.start_time = 0.0
         return None, None, Mode.PAUSE
 
@@ -675,8 +581,7 @@ class ActionChain(object):
 
         elapsed_time = self.current_time - self.start_time
         if elapsed_time < 1.5:
-            left_speed, right_speed = 30, 0
-            return None, (left_speed, right_speed), Mode.TURN_RIGHT
+            return None, (30, 0), Mode.TURN_RIGHT
         self.start_time = 0.0
         return None, None, Mode.PAUSE
 
@@ -689,8 +594,7 @@ class ActionChain(object):
 
         elapsed_time = self.current_time - self.start_time
         if elapsed_time < 0.3:
-            left_speed, right_speed = 0, 50
-            return None, (left_speed, right_speed), Mode.SMALL_TURN_LEFT
+            return None, (0, 50), Mode.SMALL_TURN_LEFT
         self.start_time = 0.0
         return None, None, Mode.PAUSE
 
@@ -703,8 +607,7 @@ class ActionChain(object):
 
         elapsed_time = self.current_time - self.start_time
         if elapsed_time < 0.3:
-            left_speed, right_speed = 50, 0
-            return None, (left_speed, right_speed), Mode.SMALL_TURN_RIGHT
+            return None, (50, 0), Mode.SMALL_TURN_RIGHT
         self.start_time = 0.0
         return None, None, Mode.PAUSE
 
