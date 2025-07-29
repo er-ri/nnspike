@@ -517,18 +517,19 @@ class ActionChain(object):
             blue_line = get_is_blue_line_at_y(image, target_y=OFFSET_Y)
             if state["blue_line_detected_time"] is not None:
                 elapsed = now - state["blue_line_detected_time"]
-                if elapsed >= 2.0:
-                    # 2秒経過したら必ずPAUSE
+                if elapsed >= 1.0:
+                    # 0.5秒経過したら必ずPAUSE
                     state["phase"] = 0
                     state["phase_start_time"] = None
                     state["blue_line_detected_time"] = None
                     return None, None, Mode.PAUSE
+
             if blue_line:
                 if state["blue_line_detected_time"] is None:
                     state["blue_line_detected_time"] = now
                 return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
-            else:
-                state["blue_line_detected_time"] = None
+
+            # blue_lineがFalseでもblue_line_detected_timeはリセットしない
 
             return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
 
