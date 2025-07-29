@@ -501,7 +501,7 @@ class ActionChain(object):
             if blue_line:
                 if state["blue_line_detected_time"] is None:
                     state["blue_line_detected_time"] = now
-                elif now - state["blue_line_detected_time"] >= 0.5:
+                elif now - state["blue_line_detected_time"] >= 2.0:
                     # 状態リセットしてPAUSEへ
                     state["phase"] = 0
                     state["phase_start_time"] = None
