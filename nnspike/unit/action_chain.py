@@ -111,7 +111,7 @@ class ActionChain(object):
                 state["phase"] = 1
                 state["phase_start_time"] = now
 
-        # 1. 左旋回（1.6秒, 左:0, 右:30）
+        # 1. 左旋回（1.5秒, 左:0, 右:30）
         if state["phase"] == 1:
             if now - state["phase_start_time"] < 1.5:
                 return None, (0, 30), Mode.CARRY_BOTTLE1
@@ -156,9 +156,9 @@ class ActionChain(object):
                 state["phase"] = 5
                 state["phase_start_time"] = now
 
-        # 5. 左旋回（1.6秒, 左:0, 右:30）
+        # 5. 左旋回（1.5秒, 左:0, 右:30）
         if state["phase"] == 5:
-            if now - state["phase_start_time"] < 1.6:
+            if now - state["phase_start_time"] < 1.5:
                 return None, (0, 30), Mode.CARRY_BOTTLE1
             else:
                 state["phase"] = 6
@@ -233,7 +233,7 @@ class ActionChain(object):
                 state["phase"] = 1
                 state["phase_start_time"] = now
 
-        # 1. 左旋回（4.0秒, 左:0, 右:30）
+        # 1. 左旋回（1.5秒, 左:0, 右:30）
         if state["phase"] == 1:
             if now - state["phase_start_time"] < 3.0:
                 left_speed, right_speed = 0, 30
@@ -295,9 +295,9 @@ class ActionChain(object):
                 state["phase"] = 1
                 state["phase_start_time"] = now
 
-        # 1. TURN_LEFT (blue_lost_timeから0.5秒経過後、2.4秒左旋回)
+        # 1. TURN_LEFT (blue_lost_timeから0.5秒経過後、1.5秒左旋回)
         if state["phase"] == 1:
-            if now - state["phase_start_time"] < 2.4:
+            if now - state["phase_start_time"] < 3.0:
                 left_speed, right_speed = 0, 30  # 左旋回
                 return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
             else:
@@ -316,9 +316,9 @@ class ActionChain(object):
                 x1, _, x2, _ = ROI_CNN
                 state["pre_target_x"] = (x1 + x2) // 2
 
-        # 3. TURN_LEFT (1.6秒左旋回)
+        # 3. TURN_LEFT (1.5秒左旋回)
         if state["phase"] == 3:
-            if now - state["phase_start_time"] < 1.6:
+            if now - state["phase_start_time"] < 1.5:
                 left_speed, right_speed = 0, 30  # 左旋回
                 return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
             else:
@@ -354,9 +354,9 @@ class ActionChain(object):
                 state["phase"] = 6
                 state["phase_start_time"] = now
 
-        # 6. TURN_LEFT (1.6秒左旋回)
+        # 6. TURN_LEFT (1.5秒左旋回)
         if state["phase"] == 6:
-            if now - state["phase_start_time"] < 1.6:
+            if now - state["phase_start_time"] < 1.5:
                 left_speed, right_speed = 0, 30
                 return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
             else:
@@ -430,9 +430,9 @@ class ActionChain(object):
                 state["phase"] = 1
                 state["phase_start_time"] = now
 
-        # 1. 1.6秒右旋回（左:30, 右:0）
+        # 1. 1.5秒右旋回（左:30, 右:0）
         if state["phase"] == 1:
-            if now - state["phase_start_time"] < 1.6:
+            if now - state["phase_start_time"] < 1.5:
                 left_speed, right_speed = 30, 0
                 return None, (left_speed, right_speed), Mode.BACK_AND_TURN2
             else:
@@ -490,7 +490,7 @@ class ActionChain(object):
             if "left_turn_start" not in state or state["left_turn_start"] is None:
                 state["left_turn_start"] = now
             elapsed = now - state["left_turn_start"]
-            if elapsed < 1.6:
+            if elapsed < 1.5:
                 left_speed, right_speed = 0, 30
                 return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
             else:
@@ -638,43 +638,41 @@ class ActionChain(object):
     def trun_left_gyro(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         ジャイロz角度の累積変化量（積分値）が-90度に達したらPAUSEに遷移する左旋回アクション。
+        （処理はコメントアウト中）
         """
-        state = self._state.setdefault("trun_left_gyro", {"start_accel_x": None})
-        # 必ず self.et.last_spike_status.sensors.gyro.z から取得
-        gyro = self.et.last_spike_status.sensors.gyro
-        if not gyro or gyro.z is None:
-            state["start_gyro_z"] = None
-            return None, None, Mode.PAUSE
-        current_gyro_z = gyro.z
-        if state.get("start_gyro_z") is None:
-            state["start_gyro_z"] = current_gyro_z
-        delta = current_gyro_z - state["start_gyro_z"]
-        # 左回転はzが一定値に達したら終了（閾値は仮で-90とする）
-        if delta > -90:
-            left_speed, right_speed = 0, 60
-            return None, (left_speed, right_speed), Mode.TURN_LEFT_GYRO
-        # 終了条件を満たしたら状態リセット
-        state["start_gyro_z"] = None
-        return None, None, Mode.PAUSE
+        # state = self._state.setdefault("trun_left_gyro", {"start_accel_x": None})
+        # gyro = self.et.last_spike_status.sensors.gyro
+        # if not gyro or gyro.z is None:
+        #     state["start_gyro_z"] = None
+        #     return None, None, Mode.PAUSE
+        # current_gyro_z = gyro.z
+        # if state.get("start_gyro_z") is None:
+        #     state["start_gyro_z"] = current_gyro_z
+        # delta = current_gyro_z - state["start_gyro_z"]
+        # if delta > -90:
+        #     left_speed, right_speed = 0, 60
+        #     return None, (left_speed, right_speed), Mode.TURN_LEFT_GYRO
+        # state["start_gyro_z"] = None
+        # return None, None, Mode.PAUSE
+        pass
 
     def trun_right_gyro(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         ジャイロz角度の累積変化量（積分値）が+90度に達したらPAUSEに遷移する右旋回アクション。
+        （処理はコメントアウト中）
         """
-        state = self._state.setdefault("trun_right_gyro", {"start_accel_x": None})
-        # 必ず self.et.last_spike_status.sensors.gyro.z から取得
-        gyro = self.et.last_spike_status.sensors.gyro
-        if not gyro or gyro.z is None:
-            state["start_gyro_z"] = None
-            return None, None, Mode.PAUSE
-        current_gyro_z = gyro.z
-        if state.get("start_gyro_z") is None:
-            state["start_gyro_z"] = current_gyro_z
-        delta = current_gyro_z - state["start_gyro_z"]
-        # 右回転はzが一定値に達したら終了（閾値は仮で90とする）
-        if delta < 90:
-            left_speed, right_speed = 60, 0
-            return None, (left_speed, right_speed), Mode.TURN_RIGHT_GYRO
-        # 終了条件を満たしたら状態リセット
-        state["start_gyro_z"] = None
-        return None, None, Mode.PAUSE
+        # state = self._state.setdefault("trun_right_gyro", {"start_accel_x": None})
+        # gyro = self.et.last_spike_status.sensors.gyro
+        # if not gyro or gyro.z is None:
+        #     state["start_gyro_z"] = None
+        #     return None, None, Mode.PAUSE
+        # current_gyro_z = gyro.z
+        # if state.get("start_gyro_z") is None:
+        #     state["start_gyro_z"] = current_gyro_z
+        # delta = current_gyro_z - state["start_gyro_z"]
+        # if delta < 90:
+        #     left_speed, right_speed = 60, 0
+        #     return None, (left_speed, right_speed), Mode.TURN_RIGHT_GYRO
+        # state["start_gyro_z"] = None
+        # return None, None, Mode.PAUSE
+        pass
