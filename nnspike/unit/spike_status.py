@@ -152,15 +152,6 @@ class SpikeStatus:
         # Update sensors
         sensors_data = parsed_data.get("sensors", {})
         self.sensors = SensorStatus.from_dict(sensors_data)
-        # payload[8] に加速度データがあれば必ず上書き
-        payload = parsed_data.get("raw", {}).get("p", [])
-        if len(payload) > 8 and isinstance(payload[8], list) and len(payload[8]) >= 3:
-            if not self.sensors.accelerometer:
-                from nnspike.unit.spike_status import VectorStatus
-                self.sensors.accelerometer = VectorStatus()
-            self.sensors.accelerometer.x = payload[8][0]
-            self.sensors.accelerometer.y = payload[8][1]
-            self.sensors.accelerometer.z = payload[8][2]
 
         # Update battery
         battery_data = parsed_data.get("battery", {})
