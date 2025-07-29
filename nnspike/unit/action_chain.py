@@ -538,7 +538,7 @@ class ActionChain(object):
         self.current_time = time.time()
 
         elapsed_time = self.current_time - self.start_time
-        if elapsed_time < 1.6:
+        if elapsed_time < 1.5:
             left_speed, right_speed = 0, 30
             return None, (left_speed, right_speed), Mode.TURN_LEFT
         self.start_time = 0.0
@@ -552,7 +552,7 @@ class ActionChain(object):
         self.current_time = time.time()
 
         elapsed_time = self.current_time - self.start_time
-        if elapsed_time < 1.6:
+        if elapsed_time < 1.5:
             left_speed, right_speed = 30, 0
             return None, (left_speed, right_speed), Mode.TURN_RIGHT
         self.start_time = 0.0
