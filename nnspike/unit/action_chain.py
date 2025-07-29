@@ -519,8 +519,8 @@ class ActionChain(object):
                 if state["blue_line_detected_time"] is None:
                     state["blue_line_detected_time"] = now
                 elapsed = now - state["blue_line_detected_time"]
-                if elapsed < 0.5:
-                    # 0.5秒間は直進
+                if elapsed < 2.0:
+                    # 2.0秒間は直進
                     return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
                 else:
                     # 状態リセットしてPAUSEへ
