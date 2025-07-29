@@ -502,7 +502,7 @@ class ActionChain(object):
                 state["phase_start_time"] = now
                 state["blue_line_detected_time"] = None
 
-        # 2. 以降は右端追従（青ライン検出で0.5秒後にPAUSE）
+        # 2. 以降は右端追従（青ライン検出で0.5秒直進後にPAUSE）
         if state["phase"] == 2:
             if "right_trace_start" not in state or state["right_trace_start"] is None:
                 state["right_trace_start"] = now
@@ -518,7 +518,11 @@ class ActionChain(object):
             if blue_line:
                 if state["blue_line_detected_time"] is None:
                     state["blue_line_detected_time"] = now
-                elif now - state["blue_line_detected_time"] >= 1.0:
+                elapsed = now - state["blue_line_detected_time"]
+                if elapsed < 0.5:
+                    # 0.5秒間は直進
+                    return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
+                else:
                     # 状態リセットしてPAUSEへ
                     state["phase"] = 0
                     state["phase_start_time"] = None
