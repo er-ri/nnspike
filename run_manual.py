@@ -335,7 +335,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     else:
                         target_x = (x1 + x2) // 2
                 case Mode.AVOID_OBSTACLE:
-                    _, speeds, mode = action_chain.avoid_ob7stacle()
+                    _, speeds, mode = action_chain.avoid_obstacle()
                     if speeds is not None:
                         left_speed, right_speed = speeds
                     else:
