@@ -455,6 +455,7 @@ class ActionChain(object):
         state = self._state.setdefault("heading_goal", {
             "phase": 0,
             "phase_start_time": None,
+            "reached": False,
             "reached_time": None,
             "turned": False,
             "blue_line_detected_time": None,
@@ -468,41 +469,39 @@ class ActionChain(object):
 
         # 0. ライン到達前は中央追従
         if state["phase"] == 0:
-            if reached:
-                state["phase"] = 1
+            if reached and not state["reached"]:
+                state["reached"] = True
                 state["reached_time"] = now
+                state["phase"] = 1
                 state["turned"] = False
-            else:
+            elif not state["reached"]:
                 target_x = (x1 + x2) // 2
                 return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
+            # reachedが一度Trueになったら絶対にリセットしない
+            # phase=1以降はreached状態を維持
 
-        # 1. 到達直後0.5秒は直進
+        # 1. 到達直後0.5秒は直進し、その後必ず左旋回に遷移（到達状態はリセットしない）
         if state["phase"] == 1:
             if state["reached_time"] is not None and (now - state["reached_time"] < 0.5):
                 target_x = (x1 + x2) // 2
                 left_speed = right_speed = BASE_SPEED
                 return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
-            elif not state["turned"]:
-                # 0.5秒経過後に一度だけ左旋回（trun_leftを使わずここで直接処理）
-                if "left_turn_start" not in state or state["left_turn_start"] is None:
-                    state["left_turn_start"] = now
-                elapsed = now - state["left_turn_start"]
-                if elapsed < 0.8:
-                    left_speed, right_speed = 0, 60
-                    return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
-                else:
-                    state["turned"] = True
-                    state["left_turn_start"] = None
-                    # 次のphaseへ
-                    state["phase"] = 2
-                    state["phase_start_time"] = now
-                    state["blue_line_detected_time"] = None
+            # 0.5秒経過後は必ず左旋回に遷移
+            if "left_turn_start" not in state or state["left_turn_start"] is None:
+                state["left_turn_start"] = now
+            elapsed = now - state["left_turn_start"]
+            if elapsed < 0.8:
+                left_speed, right_speed = 0, 60
+                return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
             else:
+                state["turned"] = True
+                state["left_turn_start"] = None
+                # 次のphaseへ
                 state["phase"] = 2
                 state["phase_start_time"] = now
                 state["blue_line_detected_time"] = None
 
-        # 2. 以降は右端追従（青ライン検出で0.5秒直進後にPAUSE）
+        # 2. 以降は右端追従（青ライン検出後は絶対にリセットせず、1.5秒後に無条件でPAUSE）
         if state["phase"] == 2:
             if "right_trace_start" not in state or state["right_trace_start"] is None:
                 state["right_trace_start"] = now
@@ -515,17 +514,16 @@ class ActionChain(object):
 
             # 青ライン検出ロジック
             blue_line = get_is_blue_line_at_y(image, target_y=OFFSET_Y)
-            # blue_lineが一度Trueになったらリセットしない
+            # blue_lineが一度Trueになったら絶対にリセットしない
             if blue_line and state["blue_line_detected_time"] is None:
                 state["blue_line_detected_time"] = now
 
             if state["blue_line_detected_time"] is not None:
                 elapsed = now - state["blue_line_detected_time"]
                 if elapsed >= 1.5:
-                    # 1.5秒経過したら必ずPAUSE
                     state["phase"] = 0
                     state["phase_start_time"] = None
-                    # blue_line_detected_timeはリセットしない（永続）
+                    # blue_line_detected_timeは絶対にリセットしない
                     return None, None, Mode.PAUSE
                 else:
                     return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
