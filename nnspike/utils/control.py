@@ -897,3 +897,125 @@ def get_is_blue_line_at_y(img, target_y, min_run=30):
             current_run = 0
     return max_run >= min_run
 
+# x=320の中心ラインが青的（青い楕円）にヒットしたらTrueを返す関数
+def is_x320_on_blue_target(img, x_tolerance=40):
+    """
+    画像内の青的（楕円）の中心がx=320±x_toleranceの範囲にあればTrueを返す。
+    青的が見つからなければFalse。
+    Args:
+        img: BGR画像 (numpy.ndarray)
+        x_tolerance: 許容するx方向の誤差幅（ピクセル）
+    Returns:
+        bool: x=320付近に青的があればTrue、なければFalse
+    """
+    if img is None or img.size == 0:
+        return False
+    blue_hsv_lower = (100, 80, 80)
+    blue_hsv_upper = (140, 255, 255)
+    blur_kernel = 5
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    mask_blue = cv2.inRange(hsv, np.array(blue_hsv_lower), np.array(blue_hsv_upper))
+    mask_blue = cv2.medianBlur(mask_blue, blur_kernel)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    mask_blue = cv2.morphologyEx(mask_blue, cv2.MORPH_CLOSE, kernel)
+    contours_blue, _ = cv2.findContours(mask_blue, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    best_center = None
+    max_blue_area = 0
+    for cnt in contours_blue:
+        if len(cnt) >= 5:
+            area = cv2.contourArea(cnt)
+            if area > 5:
+                try:
+                    ellipse = cv2.fitEllipse(cnt)
+                    (cx, cy), (major, minor), angle = ellipse
+                    ratio = major/minor if minor > 0 else 0
+                    if 0.2 < ratio < 5.0 and major > 5 and minor > 3:
+                        if area > max_blue_area:
+                            max_blue_area = area
+                            best_center = (int(cx), int(cy))
+                except:
+                    continue
+    if best_center is None:
+        return False
+    cx, cy = best_center
+    if abs(cx - 320) <= x_tolerance:
+        return True
+    return False
+
+# x=320の中心ラインが赤的（赤い楕円）にヒットしたらTrueを返す関数
+def is_x320_on_red_target(img, x_tolerance=40):
+    """
+    画像内の赤的（楕円）の中心がx=320±x_toleranceの範囲にあればTrueを返す。
+    赤的が見つからなければFalse。
+    Args:
+        img: BGR画像 (numpy.ndarray)
+        x_tolerance: 許容するx方向の誤差幅（ピクセル）
+    Returns:
+        bool: x=320付近に赤的があればTrue、なければFalse
+    """
+    if img is None or img.size == 0:
+        return False
+    # 赤色のHSV範囲（2区間）
+    red_hsv_lower1 = (0, 90, 60)
+    red_hsv_upper1 = (15, 255, 210)
+    red_hsv_lower2 = (175, 90, 60)
+    red_hsv_upper2 = (180, 255, 210)
+    blur_kernel = 5
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    mask1 = cv2.inRange(hsv, np.array(red_hsv_lower1), np.array(red_hsv_upper1))
+    mask2 = cv2.inRange(hsv, np.array(red_hsv_lower2), np.array(red_hsv_upper2))
+    mask_red = cv2.bitwise_or(mask1, mask2)
+    mask_red = cv2.medianBlur(mask_red, blur_kernel)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_CLOSE, kernel)
+    contours_red, _ = cv2.findContours(mask_red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    best_center = None
+    max_red_area = 0
+    for cnt in contours_red:
+        if len(cnt) >= 5:
+            area = cv2.contourArea(cnt)
+            if area > 5:
+                try:
+                    ellipse = cv2.fitEllipse(cnt)
+                    (cx, cy), (major, minor), angle = ellipse
+                    ratio = major/minor if minor > 0 else 0
+                    if 0.2 < ratio < 5.0 and major > 5 and minor > 3:
+                        if area > max_red_area:
+                            max_red_area = area
+                            best_center = (int(cx), int(cy))
+                except:
+                    continue
+    if best_center is None:
+        return False
+    cx, cy = best_center
+    if abs(cx - 320) <= x_tolerance:
+        return True
+    return False
+
+# 黒ラインの長さや位置で判定する関数（画像直接渡し、条件はプライベート変数）
+def is_left_black_line_detected(img):
+    _min_width = 60
+    _min_height = 150
+    _min_aspect = 2
+    _min_area = 8000
+    _roi = (0, 80, 140, 420)
+    if img is None:
+        raise FileNotFoundError("画像がNoneです")
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    h, w = mask.shape
+    mask[:, w//2:] = 0
+    mask = cv2.medianBlur(mask, 9)
+    mask = cv2.dilate(mask, np.ones((7,7), np.uint8), iterations=3)
+    x0, y0, x1, y1 = _roi
+    mask_roi = np.zeros_like(mask)
+    mask_roi[y0:y1, x0:x1] = mask[y0:y1, x0:x1]
+    contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    for cnt in contours:
+        x, y, ww, hh = cv2.boundingRect(cnt)
+        area = cv2.contourArea(cnt)
+        aspect = hh / (ww + 1e-5)
+        # ROI内で幅・高さ・アスペクト比・面積のみで判定
+        if ww >= _min_width and hh >= _min_height and aspect >= _min_aspect and area >= _min_area:
+            return True
+    return False
