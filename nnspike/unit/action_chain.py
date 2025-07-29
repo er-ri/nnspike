@@ -652,11 +652,10 @@ class ActionChain(object):
         if state["integrated_delta"] < 90:
             left_speed, right_speed = 0, 60
             return None, (left_speed, right_speed), Mode.TURN_LEFT_GYRO
-        if state["integrated_delta"] >= 90:
-            # 終了条件を満たしたら状態リセット
-            state["last_gyro_z"] = None
-            state["integrated_delta"] = 0.0
-            return None, None, Mode.PAUSE
+        # 終了条件を満たしたら状態リセット
+        state["last_gyro_z"] = None
+        state["integrated_delta"] = 0.0
+        return None, None, Mode.PAUSE
 
     def trun_right_gyro(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
@@ -675,8 +674,7 @@ class ActionChain(object):
         if state["integrated_delta"] > -90:
             left_speed, right_speed = 60, 0
             return None, (left_speed, right_speed), Mode.TURN_RIGHT_GYRO
-        if state["integrated_delta"] <= -90:
-            # 終了条件を満たしたら状態リセット
-            state["last_gyro_z"] = None
-            state["integrated_delta"] = 0.0
-            return None, None, Mode.PAUSE
+        # 終了条件を満たしたら状態リセット
+        state["last_gyro_z"] = None
+        state["integrated_delta"] = 0.0
+        return None, None, Mode.PAUSE
