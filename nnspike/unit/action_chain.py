@@ -483,18 +483,20 @@ class ActionChain(object):
                 left_speed = right_speed = BASE_SPEED
                 return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
             elif not state["turned"]:
-                # 0.5秒経過後に一度だけ左旋回
-                result = self.trun_left()
-                if result is not None:
-                    _, speeds, _ = result
-                    if speeds is not None:
-                        left_speed, right_speed = speeds
-                    else:
-                        left_speed, right_speed = 0, 0
+                # 0.5秒経過後に一度だけ左旋回（trun_leftを使わずここで直接処理）
+                if "left_turn_start" not in state or state["left_turn_start"] is None:
+                    state["left_turn_start"] = now
+                elapsed = now - state["left_turn_start"]
+                if elapsed < 0.8:
+                    left_speed, right_speed = 0, 60
+                    return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
                 else:
-                    left_speed, right_speed = 0, 0
-                state["turned"] = True
-                return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
+                    state["turned"] = True
+                    state["left_turn_start"] = None
+                    # 次のphaseへ
+                    state["phase"] = 2
+                    state["phase_start_time"] = now
+                    state["blue_line_detected_time"] = None
             else:
                 state["phase"] = 2
                 state["phase_start_time"] = now
