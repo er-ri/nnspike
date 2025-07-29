@@ -99,7 +99,7 @@ class ActionChain(object):
                 if red_pixel_count > 3000:
                     state["red_detected_time"] = now
                     state["phase_start_time"] = now
-            if state["red_detected_time"] is None or (now - state["red_detected_time"] < 5.2):
+            if state["red_detected_time"] is None or (now - state["red_detected_time"] < 5.0):
                 if red_pixel_count > 3000 and center is not None:
                     target_x = center[0]
                 else:
