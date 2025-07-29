@@ -538,7 +538,7 @@ class ActionChain(object):
         self.current_time = time.time()
 
         elapsed_time = self.current_time - self.start_time
-        if elapsed_time < 0.8:
+        if elapsed_time < 1.6:
             left_speed, right_speed = 0, 30
             return None, (left_speed, right_speed), Mode.TURN_LEFT
         self.start_time = 0.0
@@ -552,7 +552,7 @@ class ActionChain(object):
         self.current_time = time.time()
 
         elapsed_time = self.current_time - self.start_time
-        if elapsed_time < 0.8:
+        if elapsed_time < 1.6:
             left_speed, right_speed = 30, 0
             return None, (left_speed, right_speed), Mode.TURN_RIGHT
         self.start_time = 0.0
@@ -639,42 +639,32 @@ class ActionChain(object):
         """
         ジャイロz角度の累積変化量（積分値）が-90度に達したらPAUSEに遷移する左旋回アクション。
         """
-        state = self._state.setdefault("trun_left_gyro", {"last_gyro_z": None, "integrated_delta": 0.0})
-        # 最新のgyro_z値を直接取得
-        current_gyro_z = self.et.last_spike_status.sensors.gyro.z
-        if state["last_gyro_z"] is None:
-            state["last_gyro_z"] = current_gyro_z
-        # 差分を積算
-        delta = current_gyro_z - state["last_gyro_z"]
-        state["integrated_delta"] += delta
-        state["last_gyro_z"] = current_gyro_z
-        # 左回転はzがプラス方向に進む（累積+90で終了）
-        if state["integrated_delta"] < 100:
-            left_speed, right_speed = 0, 70
+        state = self._state.setdefault("trun_left_gyro", {"start_accel_x": None})
+        current_accel_x = self.et.last_spike_status.sensors.accelerometer_x
+        if state["start_accel_x"] is None:
+            state["start_accel_x"] = current_accel_x
+        delta = current_accel_x - state["start_accel_x"]
+        # 左回転はxが一定値に達したら終了（閾値は仮で100とする）
+        if delta < 90:
+            left_speed, right_speed = 0, 60
             return None, (left_speed, right_speed), Mode.TURN_LEFT_GYRO
         # 終了条件を満たしたら状態リセット
-        state["last_gyro_z"] = None
-        state["integrated_delta"] = 0.0
+        state["start_accel_x"] = None
         return None, None, Mode.PAUSE
 
     def trun_right_gyro(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         ジャイロz角度の累積変化量（積分値）が+90度に達したらPAUSEに遷移する右旋回アクション。
         """
-        state = self._state.setdefault("trun_right_gyro", {"last_gyro_z": None, "integrated_delta": 0.0})
-        # 最新のgyro_z値を直接取得
-        current_gyro_z = self.et.last_spike_status.sensors.gyro.z
-        if state["last_gyro_z"] is None:
-            state["last_gyro_z"] = current_gyro_z
-        # 差分を積算
-        delta = current_gyro_z - state["last_gyro_z"]
-        state["integrated_delta"] += delta
-        state["last_gyro_z"] = current_gyro_z
-        # 右回転はzがマイナス方向に進む（累積-90で終了）
-        if state["integrated_delta"] > -100:
+        state = self._state.setdefault("trun_right_gyro", {"start_accel_x": None})
+        current_accel_x = self.et.last_spike_status.sensors.accelerometer_x
+        if state["start_accel_x"] is None:
+            state["start_accel_x"] = current_accel_x
+        delta = current_accel_x - state["start_accel_x"]
+        # 右回転はxが一定値に達したら終了（閾値は仮で-100とする）
+        if delta > -100:
             left_speed, right_speed = 70, 0
             return None, (left_speed, right_speed), Mode.TURN_RIGHT_GYRO
         # 終了条件を満たしたら状態リセット
-        state["last_gyro_z"] = None
-        state["integrated_delta"] = 0.0
+        state["start_accel_x"] = None
         return None, None, Mode.PAUSE
