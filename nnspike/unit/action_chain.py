@@ -640,22 +640,12 @@ class ActionChain(object):
         ジャイロz角度の累積変化量（積分値）が-90度に達したらPAUSEに遷移する左旋回アクション。
         """
         state = self._state.setdefault("trun_left_gyro", {"start_accel_x": None})
-        # まず生データから直接取得を試みる
-        raw_data = getattr(self.et.last_spike_status, 'raw_data', None)
-        current_accel_x = None
-        if raw_data and isinstance(raw_data, dict):
-            # recorder.pyと同じような形式で探す
-            if "accelerometer_x" in raw_data:
-                current_accel_x = raw_data["accelerometer_x"]
-            elif "sensors" in raw_data and "accelerometer" in raw_data["sensors"] and "x" in raw_data["sensors"]["accelerometer"]:
-                current_accel_x = raw_data["sensors"]["accelerometer"]["x"]
-        # raw_dataから値が取れなければ即PAUSE
-        if current_accel_x is None:
-            print("[DEBUG] accelerometer_x not found in raw_data. last_spike_status=", self.et.last_spike_status)
-            print("[DEBUG] spike_status=", self.et.spike_status)
-            print("[DEBUG] raw_data=", raw_data)
+        # 必ず self.et.last_spike_status.sensors.accelerometer.x から取得
+        accelerometer = self.et.last_spike_status.sensors.accelerometer
+        if not accelerometer or accelerometer.x is None:
             state["start_accel_x"] = None
             return None, None, Mode.PAUSE
+        current_accel_x = accelerometer.x
         if state["start_accel_x"] is None:
             state["start_accel_x"] = current_accel_x
         delta = current_accel_x - state["start_accel_x"]
@@ -672,27 +662,18 @@ class ActionChain(object):
         ジャイロz角度の累積変化量（積分値）が+90度に達したらPAUSEに遷移する右旋回アクション。
         """
         state = self._state.setdefault("trun_right_gyro", {"start_accel_x": None})
-        # まず生データから直接取得を試みる
-        raw_data = getattr(self.et.last_spike_status, 'raw_data', None)
-        current_accel_x = None
-        if raw_data and isinstance(raw_data, dict):
-            if "accelerometer_x" in raw_data:
-                current_accel_x = raw_data["accelerometer_x"]
-            elif "sensors" in raw_data and "accelerometer" in raw_data["sensors"] and "x" in raw_data["sensors"]["accelerometer"]:
-                current_accel_x = raw_data["sensors"]["accelerometer"]["x"]
-        # raw_dataから値が取れなければ即PAUSE
-        if current_accel_x is None:
-            print("[DEBUG] accelerometer_x not found in raw_data. last_spike_status=", self.et.last_spike_status)
-            print("[DEBUG] spike_status=", self.et.spike_status)
-            print("[DEBUG] raw_data=", raw_data)
+        # 必ず self.et.last_spike_status.sensors.accelerometer.x から取得
+        accelerometer = self.et.last_spike_status.sensors.accelerometer
+        if not accelerometer or accelerometer.x is None:
             state["start_accel_x"] = None
             return None, None, Mode.PAUSE
+        current_accel_x = accelerometer.x
         if state["start_accel_x"] is None:
             state["start_accel_x"] = current_accel_x
         delta = current_accel_x - state["start_accel_x"]
         # 右回転はxが一定値に達したら終了（閾値は仮で-100とする）
-        if delta > -100:
-            left_speed, right_speed = 70, 0
+        if delta > -90:
+            left_speed, right_speed = 60, 0
             return None, (left_speed, right_speed), Mode.TURN_RIGHT_GYRO
         # 終了条件を満たしたら状態リセット
         state["start_accel_x"] = None
