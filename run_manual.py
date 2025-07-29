@@ -273,26 +273,38 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.BLUE_BOTTLE_CATCH:
                     # ブルーボトルキャッチモード: 青重心に向かう
                     if not hasattr(main, "_blue_bottle_catch_state"):
-                        main._blue_bottle_catch_state = {"detected": False}
+                        main._blue_bottle_catch_state = {"detected": False, "below3000_time": None}
                     blue_cx, _, blue_pixel_count = find_bottle_center(frame, color="blue")
                     state = main._blue_bottle_catch_state
+                    now = time.time()
                     if not state["detected"]:
                         if blue_pixel_count > 3000:
                             state["detected"] = True
+                        state["below3000_time"] = None
                         if blue_cx is not None:
                             target_x = blue_cx[0]
                         else:
                             target_x = (x1 + x2) // 2
                     else:
-                        # 一度3000以上になった後、次に3000未満になったらPAUSE
                         if blue_pixel_count < 3000:
-                            mode = Mode.PAUSE
-                            state["detected"] = False
-                            target_x = (x1 + x2) // 2
-                        elif blue_cx is not None:
-                            target_x = blue_cx[0]
+                            if state.get("below3000_time") is None:
+                                state["below3000_time"] = now
+                            # 1秒間直進
+                            if now - state["below3000_time"] < 1.0:
+                                target_x = (x1 + x2) // 2
+                                # 直進速度
+                                left_speed = right_speed = BASE_SPEED
+                            else:
+                                mode = Mode.PAUSE
+                                state["detected"] = False
+                                state["below3000_time"] = None
+                                target_x = (x1 + x2) // 2
                         else:
-                            target_x = (x1 + x2) // 2
+                            state["below3000_time"] = None
+                            if blue_cx is not None:
+                                target_x = blue_cx[0]
+                            else:
+                                target_x = (x1 + x2) // 2
                 case Mode.FOLLOW_LEFT_EDGE:
                     left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     if left_x is not None:
@@ -323,7 +335,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     else:
                         target_x = (x1 + x2) // 2
                 case Mode.AVOID_OBSTACLE:
-                    _, speeds, mode = action_chain.avoid_obstacle()
+                    _, speeds, mode = action_chain.avoid_ob7stacle()
                     if speeds is not None:
                         left_speed, right_speed = speeds
                     else:
