@@ -858,20 +858,22 @@ def get_line_trace_edges_at_x320(img):
     """
     x=320の縦線上で下から上に黒色または青色ラインを探索し、
     一番下でヒットしたy座標のみを返す。
-    黒: RGBすべてblack_thresh未満, 青: HSVでinRange（lower_blue=[100,80,80], upper_blue=[140,255,255]でノートブックと完全一致）
+    黒・青の認識条件は完全一致（両方ともHSVで同じ条件）。
     Returns: target_y or None
     """
     import cv2
     import numpy as np
     center_x = 320
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     h, w = img.shape[:2]
-    # 黒色マスク（固定値50）
-    black_mask = np.all(img_rgb < 50, axis=2).astype(np.uint8) * 255
-    # 青色マスク（引数でなく固定値）
+    # 黒・青共通のHSV条件
+    # 黒: HSVでS,Vが低い(=暗い)
+    black_hsv_lower = (0, 0, 0)
+    black_hsv_upper = (180, 80, 80)
+    # 青: HSVで範囲指定
     blue_hsv_lower = (100, 80, 80)
     blue_hsv_upper = (140, 255, 255)
+    black_mask = cv2.inRange(img_hsv, np.array(black_hsv_lower), np.array(black_hsv_upper))
     blue_mask = cv2.inRange(img_hsv, np.array(blue_hsv_lower), np.array(blue_hsv_upper))
     # 論理和
     target_mask = cv2.bitwise_or(black_mask, blue_mask)
@@ -882,4 +884,36 @@ def get_line_trace_edges_at_x320(img):
         return None
     target_y = int(hit_ys[-1])  # 一番下のヒット点
     return target_y
+
+def get_is_blue_line_at_y(img, target_y, min_run=30):
+    """
+    指定したy座標（target_y）で、HSV条件に合致する青ピクセルがmin_run個以上連続していればTrue、そうでなければFalseを返す。
+    画像全体のx方向を横断して判定する。ノイズ除去や細いラインの検出に有効。
+
+    Args:
+        img (np.ndarray): BGR画像
+        target_y (int): 判定するy座標（画像全体基準）
+        min_run (int, optional): 青ピクセルの最小連続数（デフォルト30）。
+
+    Returns:
+        bool: min_run個以上連続した青ピクセルがあればTrue、なければFalse
+    """
+    if not (0 <= target_y < img.shape[0]):
+        return False
+    img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    blue_hsv_lower = (100, 80, 80)
+    blue_hsv_upper = (140, 255, 255)
+    line_hsv = img_hsv[target_y, :]
+    blue_mask = np.all([(blue_hsv_lower[i] <= line_hsv[:,i]) & (line_hsv[:,i] <= blue_hsv_upper[i]) for i in range(3)], axis=0)
+    # 連続する青ピクセル数がmin_run以上あるか判定
+    max_run = 0
+    current_run = 0
+    for v in blue_mask:
+        if v:
+            current_run += 1
+            if current_run > max_run:
+                max_run = current_run
+        else:
+            current_run = 0
+    return max_run >= min_run
 
