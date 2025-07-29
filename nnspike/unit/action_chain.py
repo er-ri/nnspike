@@ -150,7 +150,7 @@ class ActionChain(object):
 
         # 4. 直進（3.5秒）
         if state["phase"] == 4:
-            if now - state["phase_start_time"] < 3.5:
+            if now - state["phase_start_time"] < 4.8:
                 return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE1
             else:
                 state["phase"] = 5
@@ -158,7 +158,7 @@ class ActionChain(object):
 
         # 5. 左旋回（0.8秒）
         if state["phase"] == 5:
-            if now - state["phase_start_time"] < 0.7:
+            if now - state["phase_start_time"] < 0.8:
                 return None, (0, 60), Mode.CARRY_BOTTLE1
             else:
                 state["phase"] = 6
