@@ -409,26 +409,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     if speeds is not None:
                         left_speed, right_speed = speeds
                 case Mode.FORWARD:
-                    # 画像全体の黄色重心・赤色重心に向かって進む（find_bottle_center使用）
-                    yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, color="yellow")
-                    print(f"[DEBUG] yellow_pixel_count={yellow_pixel_count}")
+                    # 赤色重心に向かって進む（find_bottle_center使用）。イエロー・ブルー検知は行わない。
                     red_cx, _, red_pixel_count = find_bottle_center(frame, color="red")
-                    blue_cx, _, blue_pixel_count = find_bottle_center(frame, color="blue")
-                    if yellow_pixel_count > 14000:
-                        mode = Mode.AVOID_OBSTACLE
-                        print("Avoiding obstacle (auto FORWARD)...")
-                        target_x = (x1 + x2) // 2
-                    elif yellow_pixel_count > 3000:
-                        if yellow_cx is not None:
-                            target_x = yellow_cx[0]  # X座標のみを取得
-                        else:
-                            target_x = (x1 + x2) // 2
-                    elif red_pixel_count > 3000:
+                    if red_pixel_count > 3000:
                         if red_cx is not None:
                             target_x = red_cx[0]  # X座標のみを取得
                         else:
                             target_x = (x1 + x2) // 2
-                    # 青ボトルキャッチは分離
                     else:
                         target_x = (x1 + x2) // 2
                 case Mode.GATE_PASS:
