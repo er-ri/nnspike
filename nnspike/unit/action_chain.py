@@ -671,11 +671,11 @@ class ActionChain(object):
         delta = current_gyro_z - state["last_gyro_z"]
         state["integrated_delta"] += delta
         state["last_gyro_z"] = current_gyro_z
-        # 右回転はzがプラス方向に進む（累積+90で終了）
-        if state["integrated_delta"] < 90:
+        # 右回転はzがマイナス方向に進む（累積-90で終了）
+        if state["integrated_delta"] > -90:
             left_speed, right_speed = 60, 0
             return None, (left_speed, right_speed), Mode.TURN_RIGHT_GYRO
-        if state["integrated_delta"] >= 90:
+        if state["integrated_delta"] <= -90:
             # 終了条件を満たしたら状態リセット
             state["last_gyro_z"] = None
             state["integrated_delta"] = 0.0
