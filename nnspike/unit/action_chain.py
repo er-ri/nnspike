@@ -113,7 +113,7 @@ class ActionChain(object):
 
         # 1. 左旋回（1.6秒, 左:0, 右:30）
         if state["phase"] == 1:
-            if now - state["phase_start_time"] < 1.3:
+            if now - state["phase_start_time"] < 1.4:
                 return None, (0, 30), Mode.CARRY_BOTTLE1
             else:
                 state["phase"] = 2
