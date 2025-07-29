@@ -235,7 +235,7 @@ class ActionChain(object):
 
         # 1. 左旋回（1.5秒, 左:0, 右:30）
         if state["phase"] == 1:
-            if now - state["phase_start_time"] < 3.0:
+            if now - state["phase_start_time"] < 2.8:
                 left_speed, right_speed = 0, 30
                 return None, (left_speed, right_speed), Mode.BACK_AND_TURN1
             else:
@@ -297,7 +297,7 @@ class ActionChain(object):
 
         # 1. TURN_LEFT (blue_lost_timeから0.5秒経過後、1.5秒左旋回)
         if state["phase"] == 1:
-            if now - state["phase_start_time"] < 3.0:
+            if now - state["phase_start_time"] < 2.8:
                 left_speed, right_speed = 0, 30  # 左旋回
                 return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
             else:
