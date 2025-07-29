@@ -173,7 +173,12 @@ class ActionChain(object):
             if 'blue_under500_time' not in state:
                 state['blue_under500_time'] = None
 
-            center, _, blue_pixel_count = find_blue_target_center(image)
+
+            blue_result = find_blue_target_center(image)
+            if blue_result is not None:
+                center, _, blue_pixel_count = blue_result
+            else:
+                center, blue_pixel_count = None, 0
             if not state['blue_over1000'] and blue_pixel_count > 1000:
                 state['blue_over1000'] = True
             if state['blue_over1000'] and state['blue_under500_time'] is None and blue_pixel_count <= 500:
