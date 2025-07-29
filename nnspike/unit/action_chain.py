@@ -111,10 +111,10 @@ class ActionChain(object):
                 state["phase"] = 1
                 state["phase_start_time"] = now
 
-        # 1. 左旋回（0.8秒）
+        # 1. 左旋回（1.6秒, 左:0, 右:30）
         if state["phase"] == 1:
-            if now - state["phase_start_time"] < 0.8:
-                return None, (0, 60), Mode.CARRY_BOTTLE1
+            if now - state["phase_start_time"] < 1.6:
+                return None, (0, 30), Mode.CARRY_BOTTLE1
             else:
                 state["phase"] = 2
                 state["phase_start_time"] = now
@@ -156,10 +156,10 @@ class ActionChain(object):
                 state["phase"] = 5
                 state["phase_start_time"] = now
 
-        # 5. 左旋回（0.8秒）
+        # 5. 左旋回（1.6秒, 左:0, 右:30）
         if state["phase"] == 5:
-            if now - state["phase_start_time"] < 0.8:
-                return None, (0, 60), Mode.CARRY_BOTTLE1
+            if now - state["phase_start_time"] < 1.6:
+                return None, (0, 30), Mode.CARRY_BOTTLE1
             else:
                 state["phase"] = 6
                 state["phase_start_time"] = now
@@ -233,10 +233,10 @@ class ActionChain(object):
                 state["phase"] = 1
                 state["phase_start_time"] = now
 
-        # 1. 左旋回（2.0秒）
+        # 1. 左旋回（4.0秒, 左:0, 右:30）
         if state["phase"] == 1:
-            if now - state["phase_start_time"] < 2.0:
-                left_speed, right_speed = 0, BASE_SPEED
+            if now - state["phase_start_time"] < 3.0:
+                left_speed, right_speed = 0, 30
                 return None, (left_speed, right_speed), Mode.BACK_AND_TURN1
             else:
                 state["phase"] = 2
@@ -295,10 +295,10 @@ class ActionChain(object):
                 state["phase"] = 1
                 state["phase_start_time"] = now
 
-        # 1. TURN_LEFT (blue_lost_timeから0.5秒経過後、1.2秒左旋回)
+        # 1. TURN_LEFT (blue_lost_timeから0.5秒経過後、2.4秒左旋回)
         if state["phase"] == 1:
-            if now - state["phase_start_time"] < 1.2:
-                left_speed, right_speed = 0, 60  # 左旋回
+            if now - state["phase_start_time"] < 2.4:
+                left_speed, right_speed = 0, 30  # 左旋回
                 return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
             else:
                 state["phase"] = 2
@@ -316,10 +316,10 @@ class ActionChain(object):
                 x1, _, x2, _ = ROI_CNN
                 state["pre_target_x"] = (x1 + x2) // 2
 
-        # 3. TURN_LEFT (0.8秒左旋回)
+        # 3. TURN_LEFT (1.6秒左旋回)
         if state["phase"] == 3:
-            if now - state["phase_start_time"] < 0.8:
-                left_speed, right_speed = 0, 60  # 左旋回
+            if now - state["phase_start_time"] < 1.6:
+                left_speed, right_speed = 0, 30  # 左旋回
                 return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
             else:
                 state["phase"] = 4
@@ -354,10 +354,10 @@ class ActionChain(object):
                 state["phase"] = 6
                 state["phase_start_time"] = now
 
-        # 6. TURN_LEFT (0.8秒左旋回)
+        # 6. TURN_LEFT (1.6秒左旋回)
         if state["phase"] == 6:
-            if now - state["phase_start_time"] < 0.8:
-                left_speed, right_speed = 0, 60
+            if now - state["phase_start_time"] < 1.6:
+                left_speed, right_speed = 0, 30
                 return None, (left_speed, right_speed), Mode.CARRY_BOTTLE2
             else:
                 state["phase"] = 7
@@ -430,10 +430,10 @@ class ActionChain(object):
                 state["phase"] = 1
                 state["phase_start_time"] = now
 
-        # 1. 0.8秒右旋回
+        # 1. 1.6秒右旋回（左:30, 右:0）
         if state["phase"] == 1:
-            if now - state["phase_start_time"] < 0.8:
-                left_speed, right_speed = BASE_SPEED, 0
+            if now - state["phase_start_time"] < 1.6:
+                left_speed, right_speed = 30, 0
                 return None, (left_speed, right_speed), Mode.BACK_AND_TURN2
             else:
                 state["phase"] = 2
@@ -490,8 +490,8 @@ class ActionChain(object):
             if "left_turn_start" not in state or state["left_turn_start"] is None:
                 state["left_turn_start"] = now
             elapsed = now - state["left_turn_start"]
-            if elapsed < 0.8:
-                left_speed, right_speed = 0, 60
+            if elapsed < 1.6:
+                left_speed, right_speed = 0, 30
                 return target_x, (left_speed, right_speed), Mode.HEAD_GOAL
             else:
                 state["turned"] = True
