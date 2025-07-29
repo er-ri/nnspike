@@ -314,7 +314,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.FOLLOW_RIGHT_EDGE:
                     yellow_result = find_bottle_center(frame, color="yellow")
                     if yellow_result is not None:
-                        yellow_cx, _, yellow_pixel_count = yellow_result
+                        if len(yellow_result) == 3:
+                            yellow_cx, _, yellow_pixel_count = yellow_result
+                        else:
+                            yellow_cx, yellow_pixel_count = None, 0
                     else:
                         yellow_cx, yellow_pixel_count = None, 0
                     status = et.get_spike_status()
