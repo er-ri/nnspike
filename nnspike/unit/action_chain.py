@@ -640,21 +640,21 @@ class ActionChain(object):
         ジャイロz角度の累積変化量（積分値）が-90度に達したらPAUSEに遷移する左旋回アクション。
         """
         state = self._state.setdefault("trun_left_gyro", {"start_accel_x": None})
-        # 必ず self.et.last_spike_status.sensors.accelerometer.x から取得
-        accelerometer = self.et.last_spike_status.sensors.accelerometer
-        if not accelerometer or accelerometer.x is None:
-            state["start_accel_x"] = None
+        # 必ず self.et.last_spike_status.sensors.gyro.z から取得
+        gyro = self.et.last_spike_status.sensors.gyro
+        if not gyro or gyro.z is None:
+            state["start_gyro_z"] = None
             return None, None, Mode.PAUSE
-        current_accel_x = accelerometer.x
-        if state["start_accel_x"] is None:
-            state["start_accel_x"] = current_accel_x
-        delta = current_accel_x - state["start_accel_x"]
-        # 左回転はxが一定値に達したら終了（閾値は仮で90とする）
-        if delta < 90:
+        current_gyro_z = gyro.z
+        if state.get("start_gyro_z") is None:
+            state["start_gyro_z"] = current_gyro_z
+        delta = current_gyro_z - state["start_gyro_z"]
+        # 左回転はzが一定値に達したら終了（閾値は仮で-90とする）
+        if delta > -90:
             left_speed, right_speed = 0, 60
             return None, (left_speed, right_speed), Mode.TURN_LEFT_GYRO
         # 終了条件を満たしたら状態リセット
-        state["start_accel_x"] = None
+        state["start_gyro_z"] = None
         return None, None, Mode.PAUSE
 
     def trun_right_gyro(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
@@ -662,19 +662,19 @@ class ActionChain(object):
         ジャイロz角度の累積変化量（積分値）が+90度に達したらPAUSEに遷移する右旋回アクション。
         """
         state = self._state.setdefault("trun_right_gyro", {"start_accel_x": None})
-        # 必ず self.et.last_spike_status.sensors.accelerometer.x から取得
-        accelerometer = self.et.last_spike_status.sensors.accelerometer
-        if not accelerometer or accelerometer.x is None:
-            state["start_accel_x"] = None
+        # 必ず self.et.last_spike_status.sensors.gyro.z から取得
+        gyro = self.et.last_spike_status.sensors.gyro
+        if not gyro or gyro.z is None:
+            state["start_gyro_z"] = None
             return None, None, Mode.PAUSE
-        current_accel_x = accelerometer.x
-        if state["start_accel_x"] is None:
-            state["start_accel_x"] = current_accel_x
-        delta = current_accel_x - state["start_accel_x"]
-        # 右回転はxが一定値に達したら終了（閾値は仮で-100とする）
-        if delta > -90:
+        current_gyro_z = gyro.z
+        if state.get("start_gyro_z") is None:
+            state["start_gyro_z"] = current_gyro_z
+        delta = current_gyro_z - state["start_gyro_z"]
+        # 右回転はzが一定値に達したら終了（閾値は仮で90とする）
+        if delta < 90:
             left_speed, right_speed = 60, 0
             return None, (left_speed, right_speed), Mode.TURN_RIGHT_GYRO
         # 終了条件を満たしたら状態リセット
-        state["start_accel_x"] = None
+        state["start_gyro_z"] = None
         return None, None, Mode.PAUSE
