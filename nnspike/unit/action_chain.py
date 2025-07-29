@@ -275,33 +275,27 @@ class ActionChain(object):
         now = time.time()
         center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
 
-        print(f"[carry_bottle2] phase={state['phase']} blue_pixel_count={blue_pixel_count} blue_detected={state.get('blue_detected')} blue_lost_time={state.get('blue_lost_time')}")
-
-        # 0. FOLLOW_RIGHT_EDGE + find_bottle_center(blue)
+        # 0. 青ボトル中心追従（blue_pixel_countが一度3000以上となったら中心追従、
+        #    その後1.0秒経過で左旋回フェーズへ遷移）
         if state["phase"] == 0:
-            print(f"  phase0: blue_detected={state['blue_detected']} blue_pixel_count={blue_pixel_count}")
             if not state["blue_detected"]:
                 if blue_pixel_count > 3000:
-                    print("  blue detected!")
                     state["blue_detected"] = True
-                    state["blue_lost_time"] = None
-            if state["blue_detected"] and state["blue_lost_time"] is None and blue_pixel_count <= 3000:
-                print("  blue lost!")
-                state["blue_lost_time"] = now
-                state["phase_start_time"] = now
-            if not state["blue_detected"] or (state["blue_lost_time"] is not None and now - state["blue_lost_time"] < 0.5):
+                    state["phase_start_time"] = now
+            # blue_detected後、1.0秒経過でphase1へ遷移
+            if state["blue_detected"] and state["phase_start_time"] is not None:
+                if now - state["phase_start_time"] >= 1.0:
+                    state["phase"] = 1
+                    state["phase_start_time"] = now
+                    # phase遷移時はreturnしない（次のphase分岐で即座に動作）
+            if state["phase"] == 0:
                 if blue_pixel_count > 3000 and center is not None:
                     target_x = center[0]
                 else:
                     _, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
                     x1, _, x2, _ = ROI_CNN
                     target_x = right_x if right_x is not None else (x1 + x2) // 2
-                print(f"  phase0: returning target_x={target_x}, speeds=({BASE_SPEED},{BASE_SPEED})")
                 return target_x, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
-            elif state["blue_lost_time"] is not None and now - state["blue_lost_time"] >= 0.5:
-                print("  phase0: to phase1")
-                state["phase"] = 1
-                state["phase_start_time"] = now
 
         # 1. TURN_LEFT (blue_lost_timeから0.5秒経過後、1.5秒左旋回)
         if state["phase"] == 1:
