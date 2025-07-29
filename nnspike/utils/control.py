@@ -677,14 +677,8 @@ def find_blue_target_center(
         return gray_center, gray_area, 0
     return None, None, 0
 
-def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, fallback_center_x=None, previous_center_x=None, preference='right'):
-    """
-    輪郭位置情報基準進路決定システム
-    backup/20250724/control.pyの内容をそのまま追加
-    """
+def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, fallback_center_x=None, previous_center_x=None):
     # --- 進路決定パラメータの初期化 ---
-    if preference is None:
-        preference = 'right'  # デフォルトは右優先
     if fallback_center_x is None:
         fallback_center_x = image_width // 2  # 画像中央をデフォルト中心
     if previous_center_x is not None:
@@ -771,29 +765,15 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
         trajectory_center_x = previous_center_x if previous_center_x is not None else fallback_center_x
     else:
         regions_sorted = sorted(detected_regions, key=lambda x: x['x'])  # x座標順
-        regions_by_priority = sorted(detected_regions, key=lambda x: x['priority'], reverse=True)  # 優先度順
         back_regions = [r for r in detected_regions if r['y'] <= target_y - 50]  # 奥側領域
         high_priority_threshold = 150
-        high_priority_regions = [r for r in detected_regions if r['darkness'] > high_priority_threshold]
         if len(back_regions) >= 2:
-            # 奥側2領域から中心に近いペアを選び、preferenceで左右決定
+            # 奥側2領域から中心に近いペアを選び、左右は順序通り（pair[0]=left, pair[1]=right）
             img_center_x = image_width // 2
             regions_by_center = sorted(back_regions, key=lambda r: abs(r['center'][0] - img_center_x))
             pair = regions_by_center[:2]
-            if preference == 'right':
-                if pair[0]['center'][0] > pair[1]['center'][0]:
-                    right = pair[0]
-                    left = pair[1]
-                else:
-                    right = pair[1]
-                    left = pair[0]
-            elif preference == 'left':
-                if pair[0]['center'][0] < pair[1]['center'][0]:
-                    left = pair[0]
-                    right = pair[1]
-                else:
-                    left = pair[1]
-                    right = pair[0]
+            left = pair[0]
+            right = pair[1]
             left_edge = left['x'] + left['w']
             right_edge = right['x']
             safety_margin = 0

@@ -133,7 +133,7 @@ class ActionChain(object):
         if state["phase"] == 3:
             if now - state["phase_start_time"] < 2.0:
                 pre_target_x = state.get("pre_target_x")
-                temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x, preference='left')
+                temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x)
                 x1, _, x2, _ = ROI_CNN
                 if temp_x is not None:
                     target_x = temp_x
@@ -324,7 +324,7 @@ class ActionChain(object):
         if state["phase"] == 4:
             if now - state["phase_start_time"] < 2.0:
                 pre_target_x = state.get("pre_target_x")
-                temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x, preference='right')
+                temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x)
                 x1, _, x2, _ = ROI_CNN
                 if temp_x is not None:
                     target_x = temp_x
