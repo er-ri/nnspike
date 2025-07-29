@@ -294,15 +294,27 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         else:
                             target_x = (x1 + x2) // 2
                 case Mode.FOLLOW_LEFT_EDGE:
-                    _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                    if right_x is not None:
-                        target_x = right_x
-                    else:
-                        target_x = (x1 + x2) // 2
-                case Mode.FOLLOW_RIGHT_EDGE:
                     left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     if left_x is not None:
                         target_x = left_x
+                    else:
+                        target_x = (x1 + x2) // 2
+                case Mode.FOLLOW_RIGHT_EDGE:
+                    yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, color="yellow")
+                    _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+                    # spike_status.pyで取得したright_position値を利用
+                    et_right_position = None
+                    status = et.get_spike_status()
+                    if hasattr(status, 'motors') and 'B' in status.motors:
+                        et_right_position = status.motors['B'].relative_position
+                    if yellow_pixel_count > 14000 and yellow_cx is not None and et_right_position is not None and abs(et_right_position) <= 7000:
+                        mode = Mode.AVOID_OBSTACLE
+                        print("Avoiding obstacle (auto FOLLOW_RIGHT_EDGE)...")
+                        target_x = (x1 + x2) // 2
+                    elif yellow_pixel_count > 3000 and yellow_cx is not None and et_right_position is not None and abs(et_right_position) <= 7000:
+                        target_x = yellow_cx[0]  # X座標のみを取得
+                    elif right_x is not None:
+                        target_x = right_x
                     else:
                         target_x = (x1 + x2) // 2
                 case Mode.AVOID_OBSTACLE:
