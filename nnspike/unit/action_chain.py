@@ -267,6 +267,7 @@ class ActionChain(object):
             "pre_target_x": None,
         })
         now = time.time()
+
         # 0. 青ピクセル数が3000を超える前は単純直進、超えたらphase1へ
         if state["phase"] == 0:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
@@ -274,45 +275,56 @@ class ActionChain(object):
             if blue_pixel_count > 3000:
                 state["phase"] = 1
                 state["phase_start_time"] = now
+                print(f"[carry_bottle2] phase=0→1 blue_pixel_count={blue_pixel_count} center={center} speeds=None target_x={center[0] if center is not None else None}")
                 return center[0], None, Mode.CARRY_BOTTLE2
             target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
+            print(f"[carry_bottle2] phase=0 blue_pixel_count={blue_pixel_count} center={center} speeds=({BASE_SPEED},{BASE_SPEED}) target_x={target_x}")
             return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
-        print(f"[carry_bottle2] phase={state['phase']} blue_pixel_count={blue_pixel_count} center={center} speeds={...} target_x={...}")
+
         # 1. 青ボトル中心追従（3000以上の間center追従、3000以下になってから0.2秒間center追従、その後phase2へ）
         if state["phase"] == 1:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if blue_pixel_count > 3000 and center is not None:
                 # 青が十分ある間はcenter追従
                 state["below3000_time"] = None
+                print(f"[carry_bottle2] phase=1 blue_pixel_count={blue_pixel_count} center={center} speeds=None target_x={center[0]}")
                 return center[0], None, Mode.CARRY_BOTTLE2
             # 3000以下になった瞬間の時刻を記録
             if "below3000_time" not in state or state["below3000_time"] is None:
                 state["below3000_time"] = now
             # 0.2秒間はcenter追従を継続
             if now - state["below3000_time"] < 0.2 and center is not None:
+                print(f"[carry_bottle2] phase=1(blue<3000,delay) blue_pixel_count={blue_pixel_count} center={center} speeds=None target_x={center[0]}")
                 return center[0], None, Mode.CARRY_BOTTLE2
             # 0.2秒経過したらphase2へ
             state["phase"] = 2
             state["phase_start_time"] = now
             state["below3000_time"] = None
-        print(f"[carry_bottle2] phase={state['phase']} blue_pixel_count={blue_pixel_count} center={center} speeds={...} target_x={...}")
+            print(f"[carry_bottle2] phase=1→2 blue_pixel_count={blue_pixel_count} center={center}")
+
         # 2. 3000以下になってから0.5秒間center追従。その後phase3（左旋回is_left_black_line_detected(image) or 3秒）
         if state["phase"] == 2:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if now - state["phase_start_time"] < 0.5 and center is not None:
+                print(f"[carry_bottle2] phase=2 blue_pixel_count={blue_pixel_count} center={center} speeds=None target_x={center[0]}")
                 return center[0], None, Mode.CARRY_BOTTLE2
             state["phase"] = 3
             state["phase_start_time"] = now
-        print(f"[carry_bottle2] phase={state['phase']} blue_pixel_count={blue_pixel_count} center={center} speeds={...} target_x={...}")
+            print(f"[carry_bottle2] phase=2→3 blue_pixel_count={blue_pixel_count} center={center}")
+
         # 3. 左旋回（is_left_black_line_detected(image)がTrueになるまで、または3秒未満, 左:0, 右:30）
         if state["phase"] == 3:
+            # blue_pixel_count, centerは前phaseで取得済み
+            print(f"[carry_bottle2] phase=3 blue_pixel_count={blue_pixel_count} center={center} speeds=(0,30)")
             if (not is_left_black_line_detected(image)) and (now - state["phase_start_time"] < 3.0):
                 return None, (0, 30), Mode.CARRY_BOTTLE2
             state["phase"] = 4
             state["phase_start_time"] = now
-        print(f"[carry_bottle2] phase={state['phase']} blue_pixel_count={blue_pixel_count} center={center} speeds={...} target_x={...}")
+            print(f"[carry_bottle2] phase=3→4")
+
         # 4. 直進（2.5秒, 両輪BASE_SPEED, pre_target_xも中央にリセット）
         if state["phase"] == 4:
+            print(f"[carry_bottle2] phase=4 speeds=({BASE_SPEED},{BASE_SPEED})")
             if now - state["phase_start_time"] < 2.5:
                 state["pre_target_x"] = (self.x1 + self.x2) // 2
                 return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
