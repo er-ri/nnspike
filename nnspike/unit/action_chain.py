@@ -310,11 +310,11 @@ class ActionChain(object):
             state["below3000_time"] = None
             print(f"[carry_bottle2] phase=1→2 blue_pixel_count={blue_pixel_count} center={center}")
 
-        # 2. 3000以下になってから0.5秒間center追従。その後phase3（左旋回is_left_black_line_detected(image) or 3秒）
+        # 2. 3000以下になってから0.3秒間center追従。その後phase3（左旋回is_left_black_line_detected(image) or 3秒）
         if state["phase"] == 2:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             elapsed = now - state["phase_start_time"]
-            if elapsed < 0.5:
+            if elapsed < 0.3:
                 if center is not None:
                     target_x = center[0]
                 else:
