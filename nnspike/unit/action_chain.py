@@ -376,9 +376,12 @@ class ActionChain(object):
             state["phase"] = 8
             state["phase_start_time"] = now
 
-        # 8. 左旋回（is_x320_on_blue_target(image, x_tolerance=40)がTrueになるまで、または2秒未満, 左:0, 右:30）
+        # 8. 左旋回（is_x320_on_blue_target(image, x_tolerance=60)がTrueでも最低1.2秒は旋回、その後Trueなら即終了、最大2秒, 左:0, 右:30）
         if state["phase"] == 8:
-            if (not is_x320_on_blue_target(image, x_tolerance=40)) and (now - state["phase_start_time"] < 2.0):
+            elapsed = now - state["phase_start_time"]
+            if elapsed < 1.2:
+                return None, (0, 30), Mode.CARRY_BOTTLE2
+            if (not is_x320_on_blue_target(image, x_tolerance=60)) and (elapsed < 2.0):
                 return None, (0, 30), Mode.CARRY_BOTTLE2
             state["phase"] = 9
             state["phase_start_time"] = now
