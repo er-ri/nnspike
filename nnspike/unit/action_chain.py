@@ -235,7 +235,7 @@ class ActionChain(object):
             state["phase"] = 1
             state["phase_start_time"] = now
 
-        # 1. 左旋回（is_x320_on_red_target(image, x_tolerance=40)がTrueでも最低1.5秒は旋回、その後Trueなら即終了、最大3.0秒, 左:0, 右:30）
+        # 1. 左旋回（is_x320_on_red_target(image, x_tolerance=20)がTrueでも最低1.5秒は旋回、その後Trueなら即終了、最大3.0秒, 左:0, 右:30）
         if state["phase"] == 1:
             elapsed = now - state["phase_start_time"]
             if elapsed < 1.5:
