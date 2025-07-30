@@ -369,9 +369,9 @@ class ActionChain(object):
             state["phase"] = 7
             state["phase_start_time"] = now
 
-        # 7. 直進（2.0秒, 両輪BASE_SPEED）
+        # 7. 直進（2.3秒, 両輪BASE_SPEED）
         if state["phase"] == 7:
-            if now - state["phase_start_time"] < 2.0:
+            if now - state["phase_start_time"] < 2.3:
                 return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
             state["phase"] = 8
             state["phase_start_time"] = now
