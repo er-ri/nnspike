@@ -194,7 +194,7 @@ class ActionChain(object):
                 state["phase_start_time"] = now
             return target_x, None, Mode.CARRY_BOTTLE1
 
-        # 9. 青500以下になってから1秒間center追従、その後BACK_AND_TURN1
+        # 9. 青500以下になってから0.5秒間center追従、その後BACK_AND_TURN1
         if state["phase"] == 9:
             blue_result = find_blue_target_center(image)
             if blue_result is not None:
@@ -205,7 +205,7 @@ class ActionChain(object):
                 target_x = center[0]
             else:
                 target_x = (self.x1 + self.x2) // 2
-            if now - state["phase_start_time"] < 1.0:
+            if now - state["phase_start_time"] < 0.5:
                 return target_x, None, Mode.CARRY_BOTTLE1
             # 状態リセット
             self._state["carry_bottle1"] = {"phase": 0, "phase_start_time": None, "pre_target_x": None}
@@ -413,14 +413,14 @@ class ActionChain(object):
                 state["phase_start_time"] = now
             return target_x, None, Mode.CARRY_BOTTLE2
 
-        # 11. 500以下になってから1秒間center追従、その後BACK_AND_TURN2へ遷移
+        # 11. 500以下になってから0.5秒間center追従、その後BACK_AND_TURN2へ遷移
         if state["phase"] == 11:
             blue_result = find_blue_target_center(image)
             if blue_result is not None:
                 center, _, blue_pixel_count = blue_result
             else:
                 center, blue_pixel_count = None, 0
-            if now - state["phase_start_time"] < 1.0:
+            if now - state["phase_start_time"] < 0.5:
                 if center is not None:
                     target_x = center[0]
                 else:
@@ -452,9 +452,9 @@ class ActionChain(object):
             state["phase"] = 1
             state["phase_start_time"] = now
 
-        # 1. 1.5秒右旋回（左:30, 右:0）
+        # 1. 1.3秒右旋回（左:30, 右:0）
         if state["phase"] == 1:
-            if now - state["phase_start_time"] < 1.5:
+            if now - state["phase_start_time"] < 1.3:
                 return None, (30, 0), Mode.BACK_AND_TURN2
             state["phase"] = 2
             state["phase_start_time"] = now
