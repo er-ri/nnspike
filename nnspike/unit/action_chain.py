@@ -233,9 +233,13 @@ class ActionChain(object):
             state["phase"] = 1
             state["phase_start_time"] = now
 
-        # 1. 左旋回（is_x320_on_red_target(image, x_tolerance=40)がTrueになるまで、または最大3.0秒, 左:0, 右:30）
+        # 1. 左旋回（is_x320_on_red_target(image, x_tolerance=40)がTrueでも最低1.5秒は旋回、その後Trueなら即終了、最大3.0秒, 左:0, 右:30）
         if state["phase"] == 1:
-            if (not is_x320_on_red_target(image, x_tolerance=40)) and (now - state["phase_start_time"] < 3.0):
+            elapsed = now - state["phase_start_time"]
+            if elapsed < 1.5:
+                # 最低1.5秒は必ず旋回
+                return None, (0, 30), Mode.BACK_AND_TURN1
+            if (not is_x320_on_red_target(image, x_tolerance=40)) and (elapsed < 3.0):
                 return None, (0, 30), Mode.BACK_AND_TURN1
             state["phase"] = 2
             state["phase_start_time"] = now
