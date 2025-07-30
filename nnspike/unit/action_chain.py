@@ -116,10 +116,12 @@ class ActionChain(object):
             state["phase"] = 2
             state["phase_start_time"] = now
 
-        # 2. 直進（2.0秒）
+        # 2. 右エッジトレース（target_y=250, 2.0秒）
         if state["phase"] == 2:
             if now - state["phase_start_time"] < 2.0:
-                return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE1
+                _, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=250, threshold_value=80)
+                target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
+                return target_x, None, Mode.CARRY_BOTTLE1
             state["phase"] = 3
             state["phase_start_time"] = now
 
@@ -194,7 +196,7 @@ class ActionChain(object):
                 state["phase_start_time"] = now
             return target_x, None, Mode.CARRY_BOTTLE1
 
-        # 9. 青500以下になってから0.5秒間center追従、その後BACK_AND_TURN1
+        # 9. 青500以下になってから0.8秒間center追従、その後BACK_AND_TURN1
         if state["phase"] == 9:
             blue_result = find_blue_target_center(image)
             if blue_result is not None:
@@ -205,7 +207,7 @@ class ActionChain(object):
                 target_x = center[0]
             else:
                 target_x = (self.x1 + self.x2) // 2
-            if now - state["phase_start_time"] < 0.5:
+            if now - state["phase_start_time"] < 0.8:
                 return target_x, None, Mode.CARRY_BOTTLE1
             # 状態リセット
             self._state["carry_bottle1"] = {"phase": 0, "phase_start_time": None, "pre_target_x": None}
@@ -413,14 +415,14 @@ class ActionChain(object):
                 state["phase_start_time"] = now
             return target_x, None, Mode.CARRY_BOTTLE2
 
-        # 11. 500以下になってから0.5秒間center追従、その後BACK_AND_TURN2へ遷移
+        # 11. 500以下になってから0.8秒間center追従、その後BACK_AND_TURN2へ遷移
         if state["phase"] == 11:
             blue_result = find_blue_target_center(image)
             if blue_result is not None:
                 center, _, blue_pixel_count = blue_result
             else:
                 center, blue_pixel_count = None, 0
-            if now - state["phase_start_time"] < 0.5:
+            if now - state["phase_start_time"] < 0.8:
                 if center is not None:
                     target_x = center[0]
                 else:
