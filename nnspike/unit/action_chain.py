@@ -626,7 +626,7 @@ class ActionChain(object):
 
         # 終了判定
         if (
-            is_x320_on_blue_target(image, x_tolerance=40)
+            is_x320_on_blue_target(image, x_tolerance=60)
             or is_x320_on_red_target(image, x_tolerance=40)
             or is_left_black_line_detected(image)
             or (self.current_time - self.start_time) >= 2.0
