@@ -376,7 +376,7 @@ class ActionChain(object):
             state["phase"] = 9
             state["phase_start_time"] = now
 
-        # 9. 青検出（青ピクセル数が1000を超えたらphase10へ）
+        # 9. 青検出（青ピクセル数が1000を超えたらphase10へ、または最大2秒でphase10へ）
         if state["phase"] == 9:
             blue_result = find_blue_target_center(image)
             if blue_result is not None:
@@ -387,12 +387,13 @@ class ActionChain(object):
                 target_x = center[0]
             else:
                 target_x = (self.x1 + self.x2) // 2
-            if blue_pixel_count > 1000:
+            elapsed = now - state["phase_start_time"]
+            if blue_pixel_count > 1000 or elapsed >= 2.0:
                 state["phase"] = 10
                 state["phase_start_time"] = now
             return target_x, None, Mode.CARRY_BOTTLE2
 
-        # 10. 青ピクセルが500以下まで減るまでcenter追従（500以下でphase11へ）
+        # 10. 青ピクセルが500以下まで減るまでcenter追従（500以下でphase11へ、または最大2秒でphase11へ）
         if state["phase"] == 10:
             blue_result = find_blue_target_center(image)
             if blue_result is not None:
@@ -403,7 +404,8 @@ class ActionChain(object):
                 target_x = center[0]
             else:
                 target_x = (self.x1 + self.x2) // 2
-            if blue_pixel_count <= 500:
+            elapsed = now - state["phase_start_time"]
+            if blue_pixel_count <= 500 or elapsed >= 2.0:
                 state["phase"] = 11
                 state["phase_start_time"] = now
             return target_x, None, Mode.CARRY_BOTTLE2
