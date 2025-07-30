@@ -590,26 +590,28 @@ class ActionChain(object):
         if state["phase"] == 3:
             return None, None, Mode.FOLLOW_RIGHT_EDGE
 
-    def trun_left_gyro(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    def trun_left_gyro(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
-        ジャイロz角度の累積変化量（積分値）が-90度に達したらPAUSEに遷移する左旋回アクション。
-        （処理はコメントアウト中）
+        左旋回アクション（is_x320_on_blue_target, is_x320_on_red_target, is_left_black_line_detectedのいずれかで即終了、最大2秒）
+        Args:
+            image: BGR画像 (np.ndarray)
+        Returns:
+            (target_x, (left_speed, right_speed), Mode)
         """
-        # state = self._state.setdefault("trun_left_gyro", {"start_accel_x": None})
-        # gyro = self.et.last_spike_status.sensors.gyro
-        # if not gyro or gyro.z is None:
-        #     state["start_gyro_z"] = None
-        #     return None, None, Mode.PAUSE
-        # current_gyro_z = gyro.z
-        # if state.get("start_gyro_z") is None:
-        #     state["start_gyro_z"] = current_gyro_z
-        # delta = current_gyro_z - state["start_gyro_z"]
-        # if delta > -90:
-        #     left_speed, right_speed = 0, 60
-        #     return None, (left_speed, right_speed), Mode.TURN_LEFT_GYRO
-        # state["start_gyro_z"] = None
-        # return None, None, Mode.PAUSE
-        pass
+        self.start_time = time.time() if self.start_time == 0.0 else self.start_time
+        self.current_time = time.time()
+
+        # 終了判定
+        if (
+            is_x320_on_blue_target(image, x_tolerance=40)
+            or is_x320_on_red_target(image, x_tolerance=40)
+            or is_left_black_line_detected(image)
+            or (self.current_time - self.start_time) >= 2.0
+        ):
+            self.start_time = 0.0
+            return None, None, Mode.PAUSE
+        # 左旋回継続
+        return None, (0, 30), Mode.TURN_LEFT_GYRO
 
     def trun_right_gyro(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
