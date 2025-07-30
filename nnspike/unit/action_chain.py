@@ -285,18 +285,17 @@ class ActionChain(object):
         # 1. 青ボトル中心追従（3000以上の間center追従、3000以下になってから0.2秒間center追従、その後phase2へ）
         if state["phase"] == 1:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
-            if blue_pixel_count > 3000 and center is not None:
-                # 青が十分ある間はcenter追従
+            if blue_pixel_count > 3000:
                 state["below3000_time"] = None
-                target_x = center[0]
+                target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
                 print(f"[carry_bottle2] phase=1 blue_pixel_count={blue_pixel_count} center={center} speeds=None target_x={target_x}")
                 return target_x, None, Mode.CARRY_BOTTLE2
             # 3000以下になった瞬間の時刻を記録
             if "below3000_time" not in state or state["below3000_time"] is None:
                 state["below3000_time"] = now
-            # 0.2秒間はcenter追従を継続
-            if now - state["below3000_time"] < 0.2 and center is not None:
-                target_x = center[0]
+            # 0.2秒間はcenter追従を継続（centerがNoneなら中央）
+            if now - state["below3000_time"] < 0.2:
+                target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
                 print(f"[carry_bottle2] phase=1(blue<3000,delay) blue_pixel_count={blue_pixel_count} center={center} speeds=None target_x={target_x}")
                 return target_x, None, Mode.CARRY_BOTTLE2
             # 0.2秒経過したらphase2へ
@@ -308,8 +307,12 @@ class ActionChain(object):
         # 2. 3000以下になってから0.5秒間center追従。その後phase3（左旋回is_left_black_line_detected(image) or 3秒）
         if state["phase"] == 2:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
-            if now - state["phase_start_time"] < 0.5 and center is not None:
-                target_x = center[0]
+            elapsed = now - state["phase_start_time"]
+            if elapsed < 0.5:
+                if center is not None:
+                    target_x = center[0]
+                else:
+                    target_x = (self.x1 + self.x2) // 2
                 print(f"[carry_bottle2] phase=2 blue_pixel_count={blue_pixel_count} center={center} speeds=None target_x={target_x}")
                 return target_x, None, Mode.CARRY_BOTTLE2
             state["phase"] = 3
