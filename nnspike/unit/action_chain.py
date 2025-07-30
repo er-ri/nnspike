@@ -267,18 +267,16 @@ class ActionChain(object):
             "pre_target_x": None,
         })
         now = time.time()
-        # 0. 右エッジトレースで青ピクセル数が3000を超えたら即座に青ボトル中心追従に切り替え
+        # 0. 青ピクセル数が3000を超える前は単純直進、超えたらphase1へ
         if state["phase"] == 0:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             _, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
-            if blue_pixel_count > 3000 and center is not None:
-                # 青ボトル中心追従（即座にphase1の挙動）
+            if blue_pixel_count > 3000:
                 state["phase"] = 1
                 state["phase_start_time"] = now
                 return center[0], None, Mode.CARRY_BOTTLE2
-            else:
-                target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
-                return target_x, None, Mode.CARRY_BOTTLE2
+            target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
+            return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
 
         # 1. 青ボトル中心追従（3000以上の間center追従、3000以下でphase2へ）
         if state["phase"] == 1:
