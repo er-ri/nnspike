@@ -241,7 +241,7 @@ class ActionChain(object):
             if elapsed < 1.5:
                 # 最低1.5秒は必ず旋回
                 return None, (0, 30), Mode.BACK_AND_TURN1
-            if (not is_x320_on_red_target(image, x_tolerance=40)) and (elapsed < 3.0):
+            if (not is_x320_on_red_target(image, x_tolerance=20)) and (elapsed < 3.0):
                 return None, (0, 30), Mode.BACK_AND_TURN1
             state["phase"] = 2
             state["phase_start_time"] = now
