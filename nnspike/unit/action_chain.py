@@ -277,7 +277,7 @@ class ActionChain(object):
                 return center[0], None, Mode.CARRY_BOTTLE2
             target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
             return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
-
+        print(f"[carry_bottle2] phase={state['phase']} blue_pixel_count={blue_pixel_count} center={center} speeds={...} target_x={...}")
         # 1. 青ボトル中心追従（3000以上の間center追従、3000以下になってから0.2秒間center追従、その後phase2へ）
         if state["phase"] == 1:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
@@ -295,7 +295,7 @@ class ActionChain(object):
             state["phase"] = 2
             state["phase_start_time"] = now
             state["below3000_time"] = None
-
+        print(f"[carry_bottle2] phase={state['phase']} blue_pixel_count={blue_pixel_count} center={center} speeds={...} target_x={...}")
         # 2. 3000以下になってから0.5秒間center追従。その後phase3（左旋回is_left_black_line_detected(image) or 3秒）
         if state["phase"] == 2:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
@@ -303,14 +303,14 @@ class ActionChain(object):
                 return center[0], None, Mode.CARRY_BOTTLE2
             state["phase"] = 3
             state["phase_start_time"] = now
-
+        print(f"[carry_bottle2] phase={state['phase']} blue_pixel_count={blue_pixel_count} center={center} speeds={...} target_x={...}")
         # 3. 左旋回（is_left_black_line_detected(image)がTrueになるまで、または3秒未満, 左:0, 右:30）
         if state["phase"] == 3:
             if (not is_left_black_line_detected(image)) and (now - state["phase_start_time"] < 3.0):
                 return None, (0, 30), Mode.CARRY_BOTTLE2
             state["phase"] = 4
             state["phase_start_time"] = now
-
+        print(f"[carry_bottle2] phase={state['phase']} blue_pixel_count={blue_pixel_count} center={center} speeds={...} target_x={...}")
         # 4. 直進（2.5秒, 両輪BASE_SPEED, pre_target_xも中央にリセット）
         if state["phase"] == 4:
             if now - state["phase_start_time"] < 2.5:
@@ -612,13 +612,7 @@ class ActionChain(object):
         self.current_time = time.time()
 
         # 終了判定
-        if (
-            is_x320_on_blue_target(image, x_tolerance=40)
-            or is_x320_on_red_target(image, x_tolerance=40)
-            or is_left_black_line_detected(image)
-            or (self.current_time - self.start_time) >= 2.0
-        ):
-            self.start_time = 0.0
+        if is_x320_on_red_target(image, x_tolerance=40):
             return None, None, Mode.PAUSE
         # 左旋回継続
         return None, (0, 30), Mode.TURN_LEFT_GYRO
