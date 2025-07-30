@@ -253,8 +253,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     else:
                         left_speed, right_speed, mode = 0, 0, Mode.PAUSE
                 case Mode.TURN_RIGHT_GYRO:
-                    # ジャイロを使った右回転: action_chain.trun_right_gyroを呼ぶ
-                    result = action_chain.trun_right_gyro()
+                    # ジャイロを使った右回転: action_chain.trun_right_gyroを呼ぶ（frameを渡す）
+                    result = action_chain.trun_right_gyro(frame)
                     if result is not None:
                         _, speeds, mode = result
                         if speeds is not None:
