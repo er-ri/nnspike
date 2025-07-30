@@ -484,10 +484,13 @@ class ActionChain(object):
         })
         now = time.time()
 
-        # 0. ライン到達前は中央追従（y_hit >= 450）
+        # 0. ライン到達前は中央追従（y_hit >= 450）、ただし最長1秒で打ち切り
         if state["phase"] == 0:
+            if state["phase_start_time"] is None:
+                state["phase_start_time"] = now
             y_hit = get_line_trace_edges_at_x320(image)
-            if y_hit is not None and y_hit >= 450:
+            elapsed = now - state["phase_start_time"]
+            if (y_hit is not None and y_hit >= 450) or (elapsed >= 1.0):
                 state["phase"] = 1
                 state["phase_start_time"] = now
             else:
