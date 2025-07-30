@@ -442,52 +442,36 @@ class ActionChain(object):
         state = self._state.setdefault("heading_goal", {
             "phase": 0,
             "phase_start_time": None,
-            "reached": False,
-            "reached_time": None,
-            "turned": False,
         })
+        now = time.time()
 
-        # 0. ライン到達前は中央追従
+        # 0. ライン到達前は中央追従（y_hit >= 450）
         if state["phase"] == 0:
-            now = time.time()
             y_hit = get_line_trace_edges_at_x320(image)
-            reached = y_hit is not None and y_hit >= 450
-            if reached and not state["reached"]:
-                state["reached"] = True
-                state["reached_time"] = now
+            if y_hit is not None and y_hit >= 450:
                 state["phase"] = 1
-                state["turned"] = False
-            elif not state["reached"]:
+                state["phase_start_time"] = now
+            else:
                 target_x = (self.x1 + self.x2) // 2
                 return target_x, None, Mode.HEAD_GOAL
 
         # 1. 到達直後0.5秒は直進
         if state["phase"] == 1:
-            now = time.time()
-            if state["reached_time"] is not None and (now - state["reached_time"] < 0.5):
+            if now - state["phase_start_time"] < 0.5:
                 target_x = (self.x1 + self.x2) // 2
                 return target_x, (BASE_SPEED, BASE_SPEED), Mode.HEAD_GOAL
             state["phase"] = 2
             state["phase_start_time"] = now
-            state["left_turn_start"] = now
-            return None, None, Mode.HEAD_GOAL
 
         # 2. 左旋回（1.5秒, 左:0, 右:30）
         if state["phase"] == 2:
-            now = time.time()
-            if "left_turn_start" not in state or state["left_turn_start"] is None:
-                state["left_turn_start"] = now
-            elapsed = now - state["left_turn_start"]
-            if elapsed < 1.5:
+            if now - state["phase_start_time"] < 1.5:
                 return None, (0, 30), Mode.HEAD_GOAL
-            state["turned"] = True
-            state["left_turn_start"] = None
             state["phase"] = 3
             state["phase_start_time"] = now
 
         # 3. 右エッジトレース（青ライン検出でphase4へ）
         if state["phase"] == 3:
-            now = time.time()
             left_x, right_x, mask = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
             if right_x is not None:
                 target_x = right_x
@@ -497,24 +481,19 @@ class ActionChain(object):
             if blue_line:
                 state["phase"] = 4
                 state["phase_start_time"] = now
-                state["right_trace_after_blue_start"] = now
                 return target_x, None, Mode.HEAD_GOAL
             return target_x, None, Mode.HEAD_GOAL
 
         # 4. 青ライン検出後、1.5秒右エッジトレースしたらPAUSE（状態リセット）
         if state["phase"] == 4:
-            now = time.time()
+            if now - state["phase_start_time"] >= 1.5:
+                self._state["heading_goal"] = {"phase": 0, "phase_start_time": None}
+                return None, None, Mode.PAUSE
             left_x, right_x, mask = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
             if right_x is not None:
                 target_x = right_x
             else:
                 target_x = (self.x1 + self.x2) // 2
-            if "right_trace_after_blue_start" not in state or state["right_trace_after_blue_start"] is None:
-                state["right_trace_after_blue_start"] = now
-            elapsed = now - state["right_trace_after_blue_start"]
-            if elapsed >= 1.5:
-                self._state["heading_goal"] = {"phase": 0, "phase_start_time": None, "reached": False, "reached_time": None, "turned": False}
-                return None, None, Mode.PAUSE
             return target_x, None, Mode.HEAD_GOAL
 
     def trun_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
@@ -573,48 +552,42 @@ class ActionChain(object):
         """
         以下の順で動作する:
         0. ライン到達前は中央追従
-        1. 到達時に一度だけ左旋回（trun_left, 0.8秒, 左:0, 右:60）
-        2. 以降は右端追従（run_manual.py側の通常ロジックに任せる）
+        1. 到達直後0.5秒は直進
+        2. 一度だけ左旋回（trun_left, 0.8秒, 左:0, 右:60）
+        3. 以降は右端追従（run_manual.py側の通常ロジックに任せる）
         汎用状態dict(self._state)で管理。
         offset_y_for_turn: この動作専用のライン到達判定Y座標（デフォルト400）
         Returns: (target_x, (left_speed, right_speed), ret_mode)
         """
-        state = self._state.setdefault("turn_at_end", {"reached": False, "turned": False, "reached_time": None})
-        # get_line_trace_edges_at_x320でラインがoffset_y_for_turnに到達しているか判定
-        y_hit = get_line_trace_edges_at_x320(frame)
-        reached = y_hit is not None and y_hit >= offset_y_for_turn
-        left_speed = right_speed = None
-        target_x = None
+        state = self._state.setdefault("turn_at_end", {"phase": 0, "phase_start_time": None})
         now = time.time()
-        if not state["reached"] and reached:
-            state["reached"] = True
-            state["reached_time"] = now
-            state["turned"] = False
-        if not state["reached"]:
-            # ライン到達前は中央
-            target_x = (self.x1 + self.x2) // 2
-            return target_x, (left_speed, right_speed), None
-        # reachedになってから0.5秒間は直進
-        elif state["reached"] and state["reached_time"] is not None and (now - state["reached_time"] < 0.5):
-            target_x = (self.x1 + self.x2) // 2
-            left_speed = right_speed = BASE_SPEED
-            return target_x, (left_speed, right_speed), None
-        # 0.5秒経過後に一度だけ左旋回
-        elif not state["turned"]:
-            result = self.trun_left()
-            if result is not None:
-                _, speeds, _ = result
-                if speeds is not None:
-                    left_speed, right_speed = speeds
-                else:
-                    left_speed, right_speed = 0, 0
+        y_hit = get_line_trace_edges_at_x320(frame)
+
+        # 0. ライン到達前は中央追従
+        if state["phase"] == 0:
+            if y_hit is not None and y_hit >= offset_y_for_turn:
+                state["phase"] = 1
+                state["phase_start_time"] = now
             else:
-                left_speed, right_speed = 0, 0
-            state["turned"] = True
-            return target_x, (left_speed, right_speed), None
-        else:
-            # 以降は右端追従はrun_manual.py側の通常ロジックに任せる
-            # 状態リセットは行わず、右端追従を継続
+                target_x = (self.x1 + self.x2) // 2
+                return target_x, (None, None), None
+
+        # 1. 到達直後0.5秒は直進
+        if state["phase"] == 1:
+            if now - state["phase_start_time"] < 0.5:
+                target_x = (self.x1 + self.x2) // 2
+                return target_x, (BASE_SPEED, BASE_SPEED), None
+            state["phase"] = 2
+            state["phase_start_time"] = now
+
+        # 2. 一度だけ左旋回（0.8秒, 左:0, 右:60）
+        if state["phase"] == 2:
+            if now - state["phase_start_time"] < 0.8:
+                return None, (0, 60), None
+            state["phase"] = 3
+
+        # 3. 以降は右端追従（run_manual.py側の通常ロジックに任せる）
+        if state["phase"] == 3:
             return None, None, Mode.FOLLOW_RIGHT_EDGE
 
     def trun_left_gyro(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
