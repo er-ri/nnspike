@@ -318,7 +318,8 @@ class ActionChain(object):
 
         # 3. 左旋回（is_left_black_line_detected(image)がTrueになるまで、または3秒未満, 左:0, 右:30）
         if state["phase"] == 3:
-            # blue_pixel_count, centerは前phaseで取得済み
+            # 必ずここで値を取得
+            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             print(f"[carry_bottle2] phase=3 blue_pixel_count={blue_pixel_count} center={center} speeds=(0,30)")
             if (not is_left_black_line_detected(image)) and (now - state["phase_start_time"] < 3.0):
                 return None, (0, 30), Mode.CARRY_BOTTLE2
