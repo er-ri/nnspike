@@ -448,11 +448,11 @@ class ActionChain(object):
         })
         now = time.time()
 
-        # 0. 2.0秒間後退
+        # 0. 1.5秒間後退
         if state["phase"] == 0:
             if state["phase_start_time"] is None:
                 state["phase_start_time"] = now
-            if now - state["phase_start_time"] < 2.0:
+            if now - state["phase_start_time"] < 1.5:
                 return None, (BASE_SPEED, BASE_SPEED), Mode.BACK_AND_TURN2
             state["phase"] = 1
             state["phase_start_time"] = now
