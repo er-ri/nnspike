@@ -275,8 +275,9 @@ class ActionChain(object):
             if blue_pixel_count > 3000:
                 state["phase"] = 1
                 state["phase_start_time"] = now
-                print(f"[carry_bottle2] phase=0→1 blue_pixel_count={blue_pixel_count} center={center} speeds=None target_x={center[0] if center is not None else None}")
-                return center[0], None, Mode.CARRY_BOTTLE2
+                target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
+                print(f"[carry_bottle2] phase=0→1 blue_pixel_count={blue_pixel_count} center={center} speeds=None target_x={target_x}")
+                return target_x, None, Mode.CARRY_BOTTLE2
             target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
             print(f"[carry_bottle2] phase=0 blue_pixel_count={blue_pixel_count} center={center} speeds=({BASE_SPEED},{BASE_SPEED}) target_x={target_x}")
             return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
@@ -287,15 +288,17 @@ class ActionChain(object):
             if blue_pixel_count > 3000 and center is not None:
                 # 青が十分ある間はcenter追従
                 state["below3000_time"] = None
-                print(f"[carry_bottle2] phase=1 blue_pixel_count={blue_pixel_count} center={center} speeds=None target_x={center[0]}")
-                return center[0], None, Mode.CARRY_BOTTLE2
+                target_x = center[0]
+                print(f"[carry_bottle2] phase=1 blue_pixel_count={blue_pixel_count} center={center} speeds=None target_x={target_x}")
+                return target_x, None, Mode.CARRY_BOTTLE2
             # 3000以下になった瞬間の時刻を記録
             if "below3000_time" not in state or state["below3000_time"] is None:
                 state["below3000_time"] = now
             # 0.2秒間はcenter追従を継続
             if now - state["below3000_time"] < 0.2 and center is not None:
-                print(f"[carry_bottle2] phase=1(blue<3000,delay) blue_pixel_count={blue_pixel_count} center={center} speeds=None target_x={center[0]}")
-                return center[0], None, Mode.CARRY_BOTTLE2
+                target_x = center[0]
+                print(f"[carry_bottle2] phase=1(blue<3000,delay) blue_pixel_count={blue_pixel_count} center={center} speeds=None target_x={target_x}")
+                return target_x, None, Mode.CARRY_BOTTLE2
             # 0.2秒経過したらphase2へ
             state["phase"] = 2
             state["phase_start_time"] = now
@@ -306,8 +309,9 @@ class ActionChain(object):
         if state["phase"] == 2:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if now - state["phase_start_time"] < 0.5 and center is not None:
-                print(f"[carry_bottle2] phase=2 blue_pixel_count={blue_pixel_count} center={center} speeds=None target_x={center[0]}")
-                return center[0], None, Mode.CARRY_BOTTLE2
+                target_x = center[0]
+                print(f"[carry_bottle2] phase=2 blue_pixel_count={blue_pixel_count} center={center} speeds=None target_x={target_x}")
+                return target_x, None, Mode.CARRY_BOTTLE2
             state["phase"] = 3
             state["phase_start_time"] = now
             print(f"[carry_bottle2] phase=2→3 blue_pixel_count={blue_pixel_count} center={center}")
