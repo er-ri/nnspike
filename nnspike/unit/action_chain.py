@@ -116,9 +116,9 @@ class ActionChain(object):
             state["phase"] = 2
             state["phase_start_time"] = now
 
-        # 2. 右エッジトレース（target_y=250, 2.0秒）
+        # 2. 右エッジトレース（target_y=350, 2.2秒）
         if state["phase"] == 2:
-            if now - state["phase_start_time"] < 2.0:
+            if now - state["phase_start_time"] < 2.2:
                 _, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=350, threshold_value=80)
                 target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.CARRY_BOTTLE1
