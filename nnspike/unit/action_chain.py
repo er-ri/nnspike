@@ -278,13 +278,23 @@ class ActionChain(object):
             target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
             return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
 
-        # 1. 青ボトル中心追従（3000以上の間center追従、3000以下でphase2へ）
+        # 1. 青ボトル中心追従（3000以上の間center追従、3000以下になってから0.2秒間center追従、その後phase2へ）
         if state["phase"] == 1:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if blue_pixel_count > 3000 and center is not None:
+                # 青が十分ある間はcenter追従
+                state["below3000_time"] = None
                 return center[0], None, Mode.CARRY_BOTTLE2
+            # 3000以下になった瞬間の時刻を記録
+            if "below3000_time" not in state or state["below3000_time"] is None:
+                state["below3000_time"] = now
+            # 0.2秒間はcenter追従を継続
+            if now - state["below3000_time"] < 0.2 and center is not None:
+                return center[0], None, Mode.CARRY_BOTTLE2
+            # 0.2秒経過したらphase2へ
             state["phase"] = 2
             state["phase_start_time"] = now
+            state["below3000_time"] = None
 
         # 2. 3000以下になってから0.5秒間center追従。その後phase3（左旋回is_left_black_line_detected(image) or 3秒）
         if state["phase"] == 2:
