@@ -242,8 +242,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             match mode:
                 case Mode.TURN_LEFT_GYRO:
-                    # ジャイロを使った左回転: action_chain.trun_left_gyroを呼ぶ
-                    result = action_chain.trun_left_gyro()
+                    # ジャイロを使った左回転: action_chain.trun_left_gyroを呼ぶ（frameを渡す）
+                    result = action_chain.trun_left_gyro(frame)
                     if result is not None:
                         _, speeds, mode = result
                         if speeds is not None:
