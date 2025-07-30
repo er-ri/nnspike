@@ -150,9 +150,9 @@ class ActionChain(object):
             state["phase"] = 5
             state["phase_start_time"] = now
 
-        # 5. 直進（4.8秒）
+        # 5. 直進（5.0秒）
         if state["phase"] == 5:
-            if now - state["phase_start_time"] < 4.8:
+            if now - state["phase_start_time"] < 5.0:
                 return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE1
             state["phase"] = 6
             state["phase_start_time"] = now
@@ -336,10 +336,10 @@ class ActionChain(object):
             state["phase_start_time"] = now
             print(f"[carry_bottle2] phase=3→4")
 
-        # 4. 直進（2.5秒, 両輪BASE_SPEED, pre_target_xも中央にリセット）
+        # 4. 直進（2.7秒, 両輪BASE_SPEED, pre_target_xも中央にリセット）
         if state["phase"] == 4:
             print(f"[carry_bottle2] phase=4 speeds=({BASE_SPEED},{BASE_SPEED})")
-            if now - state["phase_start_time"] < 2.5:
+            if now - state["phase_start_time"] < 2.7:
                 state["pre_target_x"] = (self.x1 + self.x2) // 2
                 return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
             state["phase"] = 5
