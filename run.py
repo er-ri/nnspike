@@ -23,11 +23,7 @@ import torch
 
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode
 from nnspike.models import NvidiaModel
-<<<<<<< HEAD
-from nnspike.unit import ETRobot, avoid_obstacle
-=======
 from nnspike.unit import ETRobot
->>>>>>> wip/teamwork-li
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info
 from scripts.utils import process_image
 
@@ -124,15 +120,6 @@ def main(model_path, record_sensor_data=False, save_camera_video=False, send_vid
             prob, mode = torch.max(outputs[0], dim=1)
             prob_value = round(prob[0].item(), 2)
             mode_value = mode.item()  # Convert to Python integer
-<<<<<<< HEAD
-            if mode_value == Mode.OBSTACLE_AVOIDANCE:
-                # Invoke obstacle avoidance behavior
-                avoid_obstacle(et)
-                continue
-
-            roi_center_x = (x1 + x2) / 2
-            predicted_x = x1 + (outputs[1][0][0] * (x2 - x1)).detach().item()
-=======
             roi_center_x = (x1 + x2) / 2
             predicted_x = x1 + (outputs[1][0][0] * (x2 - x1)).detach().item()
 
@@ -140,7 +127,6 @@ def main(model_path, record_sensor_data=False, save_camera_video=False, send_vid
                 # Invoke obstacle avoidance behavior
                 continue
 
->>>>>>> wip/teamwork-li
             target_x = predicted_x  # Default to predicted x if no edge following mode is set
 
             offset_pixels = target_x - roi_center_x  # Calculate attitude angle using camera geometry
@@ -151,32 +137,6 @@ def main(model_path, record_sensor_data=False, save_camera_video=False, send_vid
             left_speed = BASE_SPEED - steering_correction
             right_speed = BASE_SPEED + steering_correction
 
-<<<<<<< HEAD
-            et.set_motor_forward_speed(
-                left_speed=int(max(0, min(100, left_speed))),
-                right_speed=int(max(0, min(100, right_speed))),
-            )
-
-            # Log sensor data using the recorder if enabled
-            if record_sensor_data and sensor_recorder is not None:
-                sensor_recorder.log_frame_data(et.get_spike_status())  # Send driving information for the real-time inspection
-
-            info = dict()
-            info["target_x"], info["offset_y"] = target_x, OFFSET_Y
-            info["text"] = {
-                "theta_deg": math.degrees(theta),
-                "relative_position": relative_position.item(),
-                "steering_correction": steering_correction,
-                "left_speed": int(left_speed),
-                "right_speed": int(right_speed),
-                "mode": mode_value,
-                "probability": prob_value,
-            }
-
-            gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
-            gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
-            if send_video_stream and client_socket is not None:
-=======
             et.set_motor_speed(left_speed=int(left_speed), right_speed=int(right_speed))
 
             # Log sensor data using the recorder if enabled
@@ -199,7 +159,6 @@ def main(model_path, record_sensor_data=False, save_camera_video=False, send_vid
                 gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
                 gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
 
->>>>>>> wip/teamwork-li
                 try:
                     ret, buffer = cv2.imencode(".jpg", gray)
                     img_encoded = buffer.tobytes()
