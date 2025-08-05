@@ -16,6 +16,7 @@ Functions:
 
 import math
 from typing import Optional, Tuple
+import time
 
 import cv2
 import numpy as np
@@ -1019,3 +1020,89 @@ def is_left_black_line_detected(img):
         if ww >= _min_width and hh >= _min_height and aspect >= _min_aspect and area >= _min_area:
             return True
     return False
+
+
+# Global state for obstacle detection
+_obstacle_detection_state = {
+    'detections': [],
+    'last_reset_time': 0.0
+}
+
+
+def detect_two_obstacles_and_stop(etrobot, obstacle_threshold: int = 100,
+                                  detection_window: float = 2.0, required_detections: int = 2) -> bool:
+    """
+    Monitor ultrasonic sensor readings and stop the robot when two obstacles are detected.
+
+    This function integrates with the existing robot framework to provide obstacle-based
+    stopping behavior. It tracks obstacle detections over a sliding time window and stops
+    the robot when a threshold number of obstacles have been detected.
+
+    Args:
+        etrobot: ETRobot instance for accessing sensor data and controlling robot
+        obstacle_threshold (int): Distance threshold in mm below which an obstacle is detected (default: 100)
+        detection_window (float): Time window in seconds to track detections (default: 2.0)
+        required_detections (int): Number of obstacle detections required to stop robot (default: 2)
+
+    Returns:
+        bool: True if robot was stopped due to obstacle detection, False otherwise
+
+    Note:
+        This function maintains internal state across calls to track detections over time.
+        The robot will be stopped using its brake() method when obstacles are detected.
+    """
+    from nnspike.unit.etrobot import ETRobot
+
+    if not isinstance(etrobot, ETRobot):
+        raise TypeError("etrobot must be an instance of ETRobot")
+
+    current_time = time.time()
+
+    # Get current sensor reading
+    spike_status = etrobot.get_spike_status()
+    distance_reading = spike_status.sensors.distance
+
+    # Skip if no valid distance reading
+    if distance_reading is None:
+        return False
+
+    # Clean up old detections outside the time window
+    global _obstacle_detection_state
+    state = _obstacle_detection_state
+
+    # Remove detections older than the detection window
+    state['detections'] = [
+        detection_time for detection_time in state['detections']
+        if current_time - detection_time <= detection_window
+    ]
+
+    # Check if current reading indicates an obstacle
+    if distance_reading <= obstacle_threshold:
+        # Add detection if it's not too close to the last one (avoid duplicate rapid detections)
+        if not state['detections'] or (current_time - state['detections'][-1]) > 0.1:
+            state['detections'].append(current_time)
+
+    # Check if we have enough detections to stop the robot
+    if len(state['detections']) >= required_detections:
+        # Stop the robot
+        etrobot.brake()
+
+        # Reset detection state to prevent repeated stopping
+        state['detections'] = []
+        state['last_reset_time'] = current_time
+
+        return True
+
+    return False
+
+
+def reset_obstacle_detection_state():
+    """
+    Reset the internal state of obstacle detection.
+
+    This can be called to clear the detection history, useful when starting
+    a new navigation sequence or after manual intervention.
+    """
+    global _obstacle_detection_state
+    _obstacle_detection_state['detections'] = []
+    _obstacle_detection_state['last_reset_time'] = time.time()
