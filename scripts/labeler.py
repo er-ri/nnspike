@@ -84,7 +84,16 @@ def main():
             "frame": row["frame_number"],
             "data type": row["data_type"],
         }
-        image = draw_driving_info(image.copy(), info, ROI_CNN)
+
+        # y=300の位置に水平線、画面中央に垂直線を描画
+        image_with_line = image.copy()
+        y_line = 300
+        x_center = image_with_line.shape[1] // 2
+        # 水平線（黄色）
+        cv2.line(image_with_line, (0, y_line), (image_with_line.shape[1], y_line), (0, 255, 255), 2)
+        # 垂直線（黄色）
+        cv2.line(image_with_line, (x_center, 0), (x_center, image_with_line.shape[0]), (0, 255, 255), 2)
+        image = draw_driving_info(image_with_line, info, ROI_CNN)
 
         cv2.imshow(f"ETRobot: {dir_path}", image)
 

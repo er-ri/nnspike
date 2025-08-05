@@ -116,10 +116,10 @@ class ActionChain(object):
             state["phase"] = 2
             state["phase_start_time"] = now
 
-        # 2. 右エッジトレース（target_y=350, 2.2秒）
+        # 2. 右エッジトレース（target_y=300, 2.2秒）
         if state["phase"] == 2:
             if now - state["phase_start_time"] < 2.2:
-                _, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=350, threshold_value=80)
+                _, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=300, threshold_value=80)
                 target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.CARRY_BOTTLE1
             state["phase"] = 3
@@ -320,8 +320,6 @@ class ActionChain(object):
 
         # 3. 左旋回（is_left_black_line_detected(image)がTrueになるまで、または3秒未満, 左:0, 右:30）
         if state["phase"] == 3:
-            # 必ずここで値を取得
-            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if (not is_left_black_line_detected(image)) and (now - state["phase_start_time"] < 3.0):
                 return None, (0, 30), Mode.CARRY_BOTTLE2
             state["phase"] = 4
@@ -624,9 +622,9 @@ class ActionChain(object):
         if state["phase"] == 3:
             return None, None, Mode.FOLLOW_RIGHT_EDGE
 
-    def trun_left_gyro(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    def turn_left_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
-        trun_leftと同じロジックで左旋回（1.5秒左:0,右:30→PAUSE）
+        左旋回（右モーターBの相対位置差分で判定、430未満の間は左:0,右:30で継続。430超えたらPAUSE）
         et.status.motors["B"].relative_position, et.status.motors["A"].relative_positionを条件として利用可能
         """
         # 右モーターの初期位置を記録
@@ -646,14 +644,15 @@ class ActionChain(object):
                     self._right_position_start = None
                     return None, None, Mode.PAUSE
                 else:
-                    return None, (0, 30), Mode.TURN_LEFT_GYRO
+                    return None, (0, 30), Mode.TURN_LEFT_RELATIVE
 
         self._right_position_start = None
         return None, None, Mode.PAUSE
 
-    def trun_right_gyro(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    def turn_right_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
-        左右逆ロジック：左モーター(A)の差分で判定し、430未満の間は右旋回（左:30, 右:0）を継続。
+        右旋回（左モーターAの相対位置差分で判定、430未満の間は左:30,右:0で継続。430超えたらPAUSE）
+        et.status.motors["A"].relative_position, et.status.motors["B"].relative_positionを条件として利用可能
         """
         # 左モーターの初期位置を記録
         if not hasattr(self, '_left_position_start') or self._left_position_start is None:
@@ -672,7 +671,7 @@ class ActionChain(object):
                     self._left_position_start = None
                     return None, None, Mode.PAUSE
                 else:
-                    return None, (30, 0), Mode.TURN_RIGHT_GYRO
+                    return None, (30, 0), Mode.TURN_RIGHT_RELATIVE
 
         self._left_position_start = None
         return None, None, Mode.PAUSE
