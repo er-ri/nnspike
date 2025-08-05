@@ -626,40 +626,53 @@ class ActionChain(object):
 
     def trun_left_gyro(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
-        左旋回アクション（is_x320_on_blue_target, is_x320_on_red_target, is_left_black_line_detectedのいずれかで即終了、最大2秒）
-        Args:
-            image: BGR画像 (np.ndarray)
-        Returns:
-            (target_x, (left_speed, right_speed), Mode)
+        trun_leftと同じロジックで左旋回（1.5秒左:0,右:30→PAUSE）
+        et.status.motors["B"].relative_position, et.status.motors["A"].relative_positionを条件として利用可能
         """
-        self.start_time = time.time() if self.start_time == 0.0 else self.start_time
-        self.current_time = time.time()
+        # 右モーターの初期位置を記録
+        if not hasattr(self, '_right_position_start') or self._right_position_start is None:
+            status = self.et.status
+            if status is not None and status.motors.get("B") is not None:
+                self._right_position_start = status.motors.get("B").relative_position
+            else:
+                self._right_position_start = None
 
-        # 終了判定
-        if is_x320_on_red_target(image, x_tolerance=40):
-            return None, None, Mode.PAUSE
-        # 左旋回継続
-        return None, (0, 30), Mode.TURN_LEFT_GYRO
+        status = self.et.status
+        if status is not None:
+            right_position = status.motors.get("B").relative_position if status.motors.get("B") is not None else None
+            # 右(B)の開始～現在の差分が430を超えたら停止
+            if self._right_position_start is not None and right_position is not None:
+                if abs(right_position - self._right_position_start) > 430:
+                    self._right_position_start = None
+                    return None, None, Mode.PAUSE
+                else:
+                    return None, (0, 30), Mode.TURN_LEFT_GYRO
+
+        self._right_position_start = None
+        return None, None, Mode.PAUSE
 
     def trun_right_gyro(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
-        右旋回アクション（is_x320_on_blue_target, is_x320_on_red_target, is_left_black_line_detectedのいずれかで即終了、最大2秒）
-        Args:
-            image: BGR画像 (np.ndarray)
-        Returns:
-            (target_x, (left_speed, right_speed), Mode)
+        左右逆ロジック：左モーター(A)の差分で判定し、430未満の間は右旋回（左:30, 右:0）を継続。
         """
-        self.start_time = time.time() if self.start_time == 0.0 else self.start_time
-        self.current_time = time.time()
+        # 左モーターの初期位置を記録
+        if not hasattr(self, '_left_position_start') or self._left_position_start is None:
+            status = self.et.status
+            if status is not None and status.motors.get("A") is not None:
+                self._left_position_start = status.motors.get("A").relative_position
+            else:
+                self._left_position_start = None
 
-        # 終了判定
-        if (
-            is_x320_on_blue_target(image, x_tolerance=60)
-            or is_x320_on_red_target(image, x_tolerance=40)
-            or is_left_black_line_detected(image)
-            or (self.current_time - self.start_time) >= 2.0
-        ):
-            self.start_time = 0.0
-            return None, None, Mode.PAUSE
-        # 右旋回継続
-        return None, (30, 0), Mode.TURN_RIGHT_GYRO
+        status = self.et.status
+        if status is not None:
+            left_position = status.motors.get("A").relative_position if status.motors.get("A") is not None else None
+            # 左(A)の開始～現在の差分が430を超えたら停止
+            if self._left_position_start is not None and left_position is not None:
+                if abs(left_position - self._left_position_start) > 430:
+                    self._left_position_start = None
+                    return None, None, Mode.PAUSE
+                else:
+                    return None, (30, 0), Mode.TURN_RIGHT_GYRO
+
+        self._left_position_start = None
+        return None, None, Mode.PAUSE
