@@ -10,7 +10,7 @@ import cv2
 import pandas as pd
 
 from nnspike.constants import OFFSET_Y, ROI_CNN, Mode
-from nnspike.utils import draw_driving_info, find_bottle_center_with_blue_count, find_bottle_center_with_yellow_count
+from nnspike.utils import draw_driving_info, find_bottle_center
 
 
 def read_label_data(label_path: str, image_path: str | None = None):
@@ -19,13 +19,6 @@ def read_label_data(label_path: str, image_path: str | None = None):
     filtered_df = df[df["use"] == True]
     filtered_df = filtered_df.reset_index(drop=True)  # Reset index for easier navigation
     image_path = image_path.replace("./", "../") if image_path is not None else None
-<<<<<<< HEAD
-    # Check whether image_path exists
-    if image_path is not None and not os.path.exists(image_path):
-        print(f"Warning: Image path '{image_path}' does not exist. Using first available image instead.")
-        image_path = filtered_df["image_path"].iloc[0] if not filtered_df.empty else None
-=======
->>>>>>> wip/teamwork-li
     index = filtered_df[filtered_df["image_path"] == image_path].index[0] if image_path is not None else 0
 
     return filtered_df, index
@@ -56,27 +49,38 @@ def main():
         row = df.iloc[index]
         mode = row["mode"]
         target_x = row["target_x"] if not pd.isna(row["target_x"]) else 0
-
         # interval = row["interval"]
         image_path = row["image_path"].replace("../", "./")
         image = cv2.imread(image_path)
+        from nnspike.utils import get_virtual_line_edges_at_y, find_blue_target_center
+        target_v = get_virtual_line_edges_at_y(image, OFFSET_Y)
+        target_w, _, _ = find_blue_target_center(image)
 
         offset_y = OFFSET_Y  # Constant value for y-offset in ROI_CNN (new: 350)
 
-        _, _, yellow_pixel_count = find_bottle_center_with_yellow_count(image=image)
-        _, _, blue_pixel_count = find_bottle_center_with_blue_count(image=image)
+        _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow")
+        blue_center_x, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
+        red_center_x, _, red_pixel_count = find_bottle_center(image=image, color="red")
 
         info = dict()
-        info["target_x"], info["offset_y"] = target_x, offset_y
+        info["target_x"] = target_x
+        info["target_v"] = target_v
+        info["target_w"] = target_w
+        info["offset_y"] = offset_y
 
         dir_path, filename = image_path.rsplit("/", 1)
 
         info["text"] = {
             "image path": filename,
             "mode": mode,
-            "target_x": target_x,
+            "target_x": int(target_x),
+            "target_v": int(target_v),
+            "target_w": target_w,
             "yellow_pixel_count": yellow_pixel_count,
             "blue_pixel_count": blue_pixel_count,
+            "red_pixel_count": red_pixel_count,
+            "blue_center_x": blue_center_x,
+            "red_center_x": red_center_x,
             "frame": row["frame_number"],
             "data type": row["data_type"],
         }
