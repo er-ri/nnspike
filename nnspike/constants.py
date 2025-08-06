@@ -33,8 +33,6 @@ class Mode(Enum):
     TURN_LEFT_RELATIVE = 19
     TURN_RIGHT_RELATIVE = 20
 
-
-
 # One-Hot Encoding for Modes
 NUM_MODES = len(Mode)
 # Scale for relative position in motor control
