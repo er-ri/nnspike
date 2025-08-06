@@ -625,17 +625,16 @@ class ActionChain(object):
     def turn_left_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         左旋回（右モーターBの相対位置差分で判定、430未満の間は左:0,右:30で継続。430超えたらPAUSE）
-        et.status.motors["B"].relative_position, et.status.motors["A"].relative_positionを条件として利用可能
+        et.get_spike_status().motors["B"].relative_position, et.get_spike_status().motors["A"].relative_positionを条件として利用
         """
+        status = self.et.get_spike_status()
         # 右モーターの初期位置を記録
         if not hasattr(self, '_right_position_start') or self._right_position_start is None:
-            status = self.et.status
             if status is not None and status.motors.get("B") is not None:
                 self._right_position_start = status.motors.get("B").relative_position
             else:
                 self._right_position_start = None
 
-        status = self.et.status
         if status is not None:
             right_position = status.motors.get("B").relative_position if status.motors.get("B") is not None else None
             # 右(B)の開始～現在の差分が430を超えたら停止
@@ -652,17 +651,16 @@ class ActionChain(object):
     def turn_right_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         右旋回（左モーターAの相対位置差分で判定、430未満の間は左:30,右:0で継続。430超えたらPAUSE）
-        et.status.motors["A"].relative_position, et.status.motors["B"].relative_positionを条件として利用可能
+        et.get_spike_status().motors["A"].relative_position, et.get_spike_status().motors["B"].relative_positionを条件として利用
         """
+        status = self.et.get_spike_status()
         # 左モーターの初期位置を記録
         if not hasattr(self, '_left_position_start') or self._left_position_start is None:
-            status = self.et.status
             if status is not None and status.motors.get("A") is not None:
                 self._left_position_start = status.motors.get("A").relative_position
             else:
                 self._left_position_start = None
 
-        status = self.et.status
         if status is not None:
             left_position = status.motors.get("A").relative_position if status.motors.get("A") is not None else None
             # 左(A)の開始～現在の差分が430を超えたら停止

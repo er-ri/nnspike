@@ -321,15 +321,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     else:
                         yellow_cx, yellow_pixel_count = None, 0
                     status = et.get_spike_status()
-                    # record_sensor_dataと同じ取得方法で右モーターの相対位置を取得
-                    et_right_position = None
-                    try:
-                        et_right_position = status.motors["B"].relative_position
-                    except Exception:
-                        try:
-                            et_right_position = status.motors[1].relative_position
-                        except Exception:
-                            et_right_position = None
+                    # シンプルに右モーターの相対位置を取得
+                    et_right_position = status.motors.get("B").relative_position if status.motors.get("B") is not None else None
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     if yellow_pixel_count > 14000 and yellow_cx is not None and et_right_position is not None and abs(et_right_position) <= 4:
                         mode = Mode.AVOID_OBSTACLE
