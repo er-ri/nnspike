@@ -150,7 +150,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     #et.move_arm(2, 0.5)  # アームを止める
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
-    # TURN_AT_END用の状態管理は不要
     try:
         while et.is_running and keyboard.running:
             ret, frame = cap.read()
@@ -161,6 +160,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             status = et.get_spike_status()
             left_pos = status.motors["A"].relative_position
             right_pos = status.motors["B"].relative_position
+
+            # Log sensor data using the recorder if enabled
+            if record_sensor_data and sensor_recorder is not None:
+                sensor_recorder.log_frame_data(status, mode)
 
             # Save video frame if enabled
             if save_camera_video and video_writer is not None:
