@@ -32,6 +32,7 @@ class Mode(Enum):
     TURN_AT_END = 18
     TURN_LEFT_RELATIVE = 19
     TURN_RIGHT_RELATIVE = 20
+    NVIDIA_FOLLOW = 21
 
 # One-Hot Encoding for Modes
 NUM_MODES = len(Mode)
