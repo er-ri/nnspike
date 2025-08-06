@@ -157,10 +157,56 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
+            # 毎ループ1回だけstatusを取得
+            status = et.get_spike_status()
+            left_pos = status.motors["A"].relative_position
+            right_pos = status.motors["B"].relative_position
 
             # Save video frame if enabled
             if save_camera_video and video_writer is not None:
                 video_writer.write(frame)
+
+            # Send video stream and driving info if enabled (must be after frame, target_x, etc. are set)
+            if send_video_stream and client_socket is not None:
+
+                info = dict()
+                # target_x, offset_yがNoneでない場合のみint変換（通常はint変換で例外は起きない想定）
+                if target_x is not None and offset_y is not None:
+                    info["target_x"] = int(target_x) if isinstance(target_x, (int, float)) else None
+                    info["offset_y"] = int(offset_y) if isinstance(offset_y, (int, float)) else None
+                else:
+                    info["target_x"], info["offset_y"] = None, None
+                # draw_driving_infoでint()エラーを防ぐため、Noneなら0に変換
+                info["target_x"] = info["target_x"] if info["target_x"] is not None else 0
+                info["offset_y"] = info["offset_y"] if info["offset_y"] is not None else 0
+                info["text"] = {
+                    "mode": mode.name,
+                    "left_relative_position": int(left_pos) if left_pos is not None else 0,
+                    "right_relative_position": int(right_pos) if right_pos is not None else 0,
+                    "theta_deg": round(math.degrees(theta), 2) if theta is not None else 0,
+                    "steering_correction": round(steering_correction, 2) if steering_correction is not None else 0,
+                    "left_speed": int(left_speed) if left_speed is not None else 0,
+                    "right_speed": int(right_speed) if right_speed is not None else 0,
+                }
+
+                # Create visualization frame
+                gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
+                gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
+                # Draw contour on the visualization if found
+                if max_contour is not None and mx is not None and my is not None:
+                    # Adjust contour coordinates to full frame
+                    adjusted_contour = max_contour + np.array([x1, y1])
+                    cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)  # Draw centroid
+                    cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
+
+                try:
+                    ret, buffer = cv2.imencode(".jpg", gray)
+                    img_encoded = buffer.tobytes()
+                    data = pickle.dumps(img_encoded)
+                    client_socket.sendall(struct.pack("L", len(data)) + data)
+                except Exception as e:
+                    print(f"Socket error: {e}")
+                    break
 
             # Check for keyboard input to change behavior mode
             key = keyboard.get_key()
@@ -190,11 +236,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 mode = Mode.SMALL_TURN_RIGHT
                 print("Switched to small turn right mode")
             elif key == "i":
-                mode = Mode.TURN_LEFT_GYRO
-                print("Switched to turn left (gyro) mode")
+                mode = Mode.TURN_LEFT_RELATIVE
+                print("Switched to turn left (relative) mode")
             elif key == "o":
-                mode = Mode.TURN_RIGHT_GYRO
-                print("Switched to turn right (gyro) mode")
+                mode = Mode.TURN_RIGHT_RELATIVE
+                print("Switched to turn right (relative) mode")
             elif key == "b":
                 mode = Mode.BACKWARD
                 print("Switched to backward mode")
@@ -237,8 +283,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             target_x = None  # Default target x position
             offset_y = None  # target_y相当も初期化
             left_speed, right_speed = None, None  # Initialize speeds
-
-
 
             match mode:
                 case Mode.TURN_LEFT_RELATIVE:
@@ -320,15 +364,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                             yellow_cx, yellow_pixel_count = None, 0
                     else:
                         yellow_cx, yellow_pixel_count = None, 0
-                    status = et.get_spike_status()
-                    # シンプルに右モーターの相対位置を取得
-                    et_right_position = status.motors.get("B").relative_position if status.motors.get("B") is not None else None
+                    # シンプルに右モーターの相対位置はright_posを使う
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                    if yellow_pixel_count > 14000 and yellow_cx is not None and et_right_position is not None and abs(et_right_position) <= 4:
+                    if yellow_pixel_count > 14000 and yellow_cx is not None and right_pos is not None and abs(right_pos) <= 4:
                         mode = Mode.AVOID_OBSTACLE
                         print("Avoiding obstacle (auto FOLLOW_RIGHT_EDGE)...")
                         target_x = (x1 + x2) // 2
-                    elif yellow_pixel_count > 3000 and yellow_cx is not None and et_right_position is not None and abs(et_right_position) <= 4:
+                    elif yellow_pixel_count > 3000 and yellow_cx is not None and right_pos is not None and abs(right_pos) <= 4:
                         target_x = yellow_cx[0]  # X座標のみを取得
                     elif right_x is not None:
                         target_x = right_x
@@ -454,12 +496,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     # Default to center if invalid edge specified
                     target_x = (x1 + x2) // 2
 
-
-            # 可視化・送信用変数の初期化
-            mx = my = theta = steering_correction = None
-            max_contour = None
-
-            if target_x is not None:
+            # target_xがNoneのときのみ可視化・送信用変数をリセット
+            if target_x is None:
+                mx = my = theta = steering_correction = None
+                max_contour = None
+            else:
                 # Calculate position relative to ROI
                 mx = target_x - x1  # Relative to ROI
                 my = OFFSET_Y - y1  # Relative to ROI
@@ -487,14 +528,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if right_speed is None:
                 right_speed = 0
             # Clamp speed values to valid range (必ずset_motor_speed前に実施)
-            try:
-                left_speed = int(max(0, min(100, left_speed)))
-            except Exception:
-                left_speed = 0
-            try:
-                right_speed = int(max(0, min(100, right_speed)))
-            except Exception:
-                right_speed = 0
+            left_speed = int(max(0, min(100, left_speed)))
+            right_speed = int(max(0, min(100, right_speed)))
 
             # Temporarily set Heading Gate mode
             if mode == Mode.PAUSE:
@@ -504,60 +539,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     left_speed=left_speed,
                     right_speed=right_speed,
                 )
-
-            # Log sensor data using the recorder if enabled
-            if record_sensor_data and sensor_recorder is not None:
-                sensor_recorder.log_frame_data(et.get_spike_status(), mode)
-
-            if send_video_stream and client_socket is not None:
-                status = et.get_spike_status()
-                left_pos = status.motors["A"].relative_position
-                right_pos = status.motors["B"].relative_position
-
-                info = dict()
-                # target_x, offset_yがNoneでない場合のみint変換し、例外もガード
-                if target_x is not None and offset_y is not None:
-                    try:
-                        info["target_x"] = int(target_x)
-                    except Exception:
-                        info["target_x"] = None
-                    try:
-                        info["offset_y"] = int(offset_y)
-                    except Exception:
-                        info["offset_y"] = None
-                else:
-                    info["target_x"], info["offset_y"] = None, None
-                # draw_driving_infoでint()エラーを防ぐため、Noneなら0に変換
-                info["target_x"] = info["target_x"] if info["target_x"] is not None else 0
-                info["offset_y"] = info["offset_y"] if info["offset_y"] is not None else 0
-                info["text"] = {
-                    "mode": mode.name,
-                    "left_relative_position": int(left_pos) if left_pos is not None else 0,
-                    "right_relative_position": int(right_pos) if right_pos is not None else 0,
-                    "theta_deg": round(math.degrees(theta), 2) if theta is not None else 0,
-                    "steering_correction": round(steering_correction, 2) if steering_correction is not None else 0,
-                    "left_speed": int(left_speed) if left_speed is not None else 0,
-                    "right_speed": int(right_speed) if right_speed is not None else 0,
-                }
-
-                # Create visualization frame
-                gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
-                gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
-                # Draw contour on the visualization if found
-                if max_contour is not None and mx is not None and my is not None:
-                    # Adjust contour coordinates to full frame
-                    adjusted_contour = max_contour + np.array([x1, y1])
-                    cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)  # Draw centroid
-                    cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
-
-                try:
-                    ret, buffer = cv2.imencode(".jpg", gray)
-                    img_encoded = buffer.tobytes()
-                    data = pickle.dumps(img_encoded)
-                    client_socket.sendall(struct.pack("L", len(data)) + data)
-                except Exception as e:
-                    print(f"Socket error: {e}")
-                    break
 
     except KeyboardInterrupt:
         print("Interrupted by user")
