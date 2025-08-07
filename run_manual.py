@@ -41,12 +41,11 @@ import cv2
 import numpy as np
 import torch
 
-from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode, RELATIVE_POSITION_SCALE
-
+from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode
+from nnspike.models import NvidiaModel
 from nnspike.unit import ETRobot
 from nnspike.unit.action_chain import ActionChain
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, get_virtual_line_edges_at_y, find_bottle_center, find_blue_target_center
-from nnspike.models import NvidiaModel
 from scripts.utils import process_image
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -556,14 +555,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
                 case Mode.NVIDIA_FOLLOW:
-                    # Use NVIDIA model prediction for line following
-                    if use_nvidia_model and nvidia_prediction is not None:
-                        target_x = nvidia_prediction
-                        # Optional: Use mode prediction for different behaviors
-                        # Currently just using x position prediction
-                    else:
-                        # Fallback to center if model not available
-                        target_x = (x1 + x2) // 2
+                    # NVIDIA_FOLLOWの処理をaction_chainに委譲
+                    target_x, speeds, mode = action_chain.nvidia_follow(frame, nvidia_mode_prediction)
+                    if speeds is not None:
+                        left_speed, right_speed = speeds
                 case _:
                     # Default to center if invalid edge specified
                     target_x = (x1 + x2) // 2
