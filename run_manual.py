@@ -350,8 +350,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "t":
                 mode = Mode.TURN_AT_END
                 print("Switched to Turn at the end mode")
-            # GATE_PASS: ゲートを潜る（仮実装: 直進）
-            # EYE_BLUE: ブルーアイズを目標に動作（仮実装: 青重心に向かう）
 
             target_x = None  # Default target x position
             offset_y = None  # target_y相当も初期化
