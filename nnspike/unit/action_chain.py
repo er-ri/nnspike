@@ -1,3 +1,4 @@
+
 import time
 from typing import Optional, Tuple
 
@@ -16,7 +17,6 @@ from nnspike.utils.control import (
     is_x320_on_red_target,
     is_left_black_line_detected,
 )
-
 
 class ActionChain(object):
     """
@@ -579,6 +579,51 @@ class ActionChain(object):
             return None, (50, 0), Mode.SMALL_TURN_RIGHT
         self.start_time = 0.0
         return None, None, Mode.PAUSE
+
+    def blue_bottle_catch(self, image: np.ndarray) -> tuple:
+        """
+        ブルーボトルキャッチモード: 青重心に向かう。3000ピクセル超で検知、3000未満で0.8秒直進、その後PAUSE。
+        戻り値: (target_x, (left_speed, right_speed), mode)
+        """
+        state = self._state.setdefault("blue_bottle_catch", {"detected": False, "below3000_time": None})
+        blue_cx, _, blue_pixel_count = find_bottle_center(image, color="blue")
+        now = time.time()
+        x1, y1, x2, y2 = self.x1, self.y1, self.x2, self.y2
+        BASE_SPEED = 45  # run_manual.pyと合わせる
+        target_x = None
+        left_speed = right_speed = None
+        mode = Mode.BLUE_BOTTLE_CATCH
+        if not state["detected"]:
+            if blue_pixel_count > 3000:
+                state["detected"] = True
+            state["below3000_time"] = None
+            if blue_cx is not None:
+                target_x = blue_cx[0]
+            else:
+                target_x = (x1 + x2) // 2
+            return target_x, None, mode
+        else:
+            if blue_pixel_count < 3000:
+                if state.get("below3000_time") is None:
+                    state["below3000_time"] = now
+                # 0.8秒間直進
+                if now - state["below3000_time"] < 0.8:
+                    target_x = (x1 + x2) // 2
+                    left_speed = right_speed = BASE_SPEED
+                    return target_x, (left_speed, right_speed), mode
+                else:
+                    # 状態リセットしPAUSEへ
+                    state["detected"] = False
+                    state["below3000_time"] = None
+                    target_x = (x1 + x2) // 2
+                    return target_x, (0, 0), Mode.PAUSE
+            else:
+                state["below3000_time"] = None
+                if blue_cx is not None:
+                    target_x = blue_cx[0]
+                else:
+                    target_x = (x1 + x2) // 2
+                return target_x, None, mode
 
     def turn_at_end(self, frame, offset_y_for_turn=400):
         """
