@@ -87,7 +87,27 @@ class KeyboardController:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)  # type: ignore
 
 
-def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="left", model_path=None, use_nvidia_model=False):
+def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="left", model_path=None):
+    def nvidia_model_predict(frame, left_pos, right_pos, model):
+        """NVIDIAモデルによる予測を行う。"""
+        try:
+            roi_area = process_image(image=frame.copy(), device=device, roi=(x1, y1, x2, y2))
+            rel_pos_a = left_pos if left_pos is not None else 0
+            rel_pos_b = right_pos if right_pos is not None else 0
+            relative_pos_value = abs(rel_pos_a) + abs(rel_pos_b)
+            relative_position = abs(relative_pos_value / RELATIVE_POSITION_SCALE) if relative_pos_value is not None else 0.0
+            relative_position = torch.tensor(relative_position, dtype=torch.float32).unsqueeze(0).to(device)
+            with torch.no_grad():
+                outputs = model(roi_area, relative_position)
+            prob, mode = torch.max(outputs[0], dim=1)
+            nvidia_prob = round(prob[0].item(), 2)
+            nvidia_mode_prediction = mode.item()
+            nvidia_prediction = x1 + (outputs[1][0][0] * (x2 - x1)).detach().item()
+            return nvidia_prediction, nvidia_mode_prediction, nvidia_prob
+        except Exception as e:
+            print(f"NVIDIA model prediction error: {e}")
+            return None, None, None
+
     def unpack_action_result(result, default_mode=Mode.PAUSE):
         # Noneや不正な戻り値も吸収して安全にアンパック
         if result is None:
@@ -143,7 +163,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     # Initialize NVIDIA model if enabled
     model = None
-    if use_nvidia_model and model_path:
+    if model_path:
         print(f"Loading NVIDIA model from: {model_path}")
         model = NvidiaModel()
         try:
@@ -153,7 +173,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         except Exception as e:
             print(f"Error loading NVIDIA model: {e}")
             model = None
-            use_nvidia_model = False
 
     # Set initial mode to PAUSE (initial_mode/course-based logic is disabled)
     # if initial_mode:
@@ -191,34 +210,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             left_pos = status.motors["A"].relative_position
             right_pos = status.motors["B"].relative_position
 
-            # NVIDIA model prediction (if enabled) - currently not used for control
+            # NVIDIAモデル予測用変数の初期化
             nvidia_prediction = None
             nvidia_mode_prediction = None
             nvidia_prob = None
-            if use_nvidia_model and model is not None:
-                try:
-                    roi_area = process_image(image=frame.copy(), device=device, roi=(x1, y1, x2, y2))
-                    
-                    rel_pos_a = left_pos if left_pos is not None else 0
-                    rel_pos_b = right_pos if right_pos is not None else 0
-                    relative_pos_value = abs(rel_pos_a) + abs(rel_pos_b)
-                    relative_position = abs(relative_pos_value / RELATIVE_POSITION_SCALE) if relative_pos_value is not None else 0.0
-                    relative_position = torch.tensor(relative_position, dtype=torch.float32).unsqueeze(0).to(device)
-
-                    with torch.no_grad():
-                        outputs = model(roi_area, relative_position)
-
-                    # Get mode prediction and probability
-                    prob, mode = torch.max(outputs[0], dim=1)
-                    nvidia_prob = round(prob[0].item(), 2)
-                    nvidia_mode_prediction = mode.item()
-                    
-                    # Get x position prediction
-                    nvidia_prediction = x1 + (outputs[1][0][0] * (x2 - x1)).detach().item()
-                    
-                except Exception as e:
-                    print(f"NVIDIA model prediction error: {e}")
-                    nvidia_prediction = None
 
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
@@ -342,12 +337,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "8" or key == "p":
                 mode = Mode.PAUSE
                 print("Pausing robot")
-            # elif key == "n":
-            #     if use_nvidia_model and model is not None:
-            #         mode = Mode.NVIDIA_FOLLOW
-            #         print("Switched to NVIDIA model following mode")
-            #     else:
-            #         print("NVIDIA model not available")
+            elif key == "n":
+                if model is not None:
+                    mode = Mode.NVIDIA_FOLLOW
+                    print("Switched to NVIDIA model following mode")
+                else:
+                    print("NVIDIA model not available")
             elif key == "t":
                 mode = Mode.TURN_AT_END
                 print("Switched to Turn at the end mode")
@@ -461,6 +456,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
                 case Mode.NVIDIA_FOLLOW:
+                    # NVIDIAモデル予測をこのcase内で実行
+                    if model is not None:
+                        nvidia_prediction, nvidia_mode_prediction, nvidia_prob = nvidia_model_predict(frame, left_pos, right_pos, model)
                     # NVIDIA_FOLLOWの処理をaction_chainに委譲
                     target_x, speeds, mode = action_chain.nvidia_follow(frame, nvidia_mode_prediction)
                     if speeds is not None:
@@ -545,22 +543,14 @@ if __name__ == "__main__":
     parser.add_argument("--send-video", action="store_true", help="Send video stream to host PC")
     parser.add_argument("--course", choices=["left", "right"], default="left", help="Initial course to follow: 'left' for left edge, 'right' for right edge (default: left)")
     parser.add_argument("--model-path", help="Path to the trained NVIDIA model file (enables NVIDIA model)")
-    parser.add_argument("--use-nvidia-model", action="store_true", help="Enable NVIDIA model for prediction (requires --model-path)")
 
     args = parser.parse_args()
-
-    # Validate NVIDIA model arguments
-    use_nvidia_model = args.use_nvidia_model or bool(args.model_path)
-    if use_nvidia_model and not args.model_path:
-        print("Error: --model-path is required when using NVIDIA model")
-        exit(1)
-
     print("Starting OpenCV-based line following robot...")
     print(f"Using ROI: {ROI_CNN}")
     print(f"Base speed: {BASE_SPEED}")
     print(f"course: {args.course}")
-    print(f"NVIDIA model: {'Enabled' if use_nvidia_model else 'Disabled'}")
-    if use_nvidia_model:
+    print(f"NVIDIA model: {'Enabled' if args.model_path else 'Disabled'}")
+    if args.model_path:
         print(f"Model path: {args.model_path}")
     print(f"Video streaming to host PC: {'Enabled' if args.send_video else 'Disabled'}")
     print("Controls:")
@@ -571,7 +561,7 @@ if __name__ == "__main__":
     print("  'k' - Small turn left")
     print("  'j' - Small turn right")
     print("  'f' - Forward")
-    if use_nvidia_model:
+    if args.model_path:
         print("  'n' - NVIDIA model following")
     print("  'q' - Quit")
     print("Press Ctrl+C to stop")
@@ -582,5 +572,4 @@ if __name__ == "__main__":
         send_video_stream=args.send_video,
         course=args.course,
         model_path=args.model_path,
-        use_nvidia_model=use_nvidia_model,
     )
