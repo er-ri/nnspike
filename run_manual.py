@@ -168,9 +168,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         model = NvidiaModel()
         try:
             state_dict = torch.load(model_path, map_location=device)
-            model.load_state_dict(state_dict, strict=False)  # strict=Falseでshape不一致を無視
+            model_state = model.state_dict()
+            filtered_state_dict = {k: v for k, v in state_dict.items() if k in model_state and v.shape == model_state[k].shape}
+            model_state.update(filtered_state_dict)
+            model.load_state_dict(model_state)
             model.eval()
-            print("NVIDIA model loaded successfully (strict=False)")
+            print("NVIDIA model loaded successfully (filtered)")
         except Exception as e:
             print(f"Error loading NVIDIA model: {e}")
             model = None
