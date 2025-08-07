@@ -88,6 +88,19 @@ class KeyboardController:
 
 
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="left", model_path=None, use_nvidia_model=False):
+    def unpack_action_result(result, default_mode=Mode.PAUSE):
+        # Noneや不正な戻り値も吸収して安全にアンパック
+        if result is None:
+            return None, (0, 0), default_mode
+        if len(result) == 3:
+            target_x, speeds, mode = result
+            if speeds is None:
+                speeds = (0, 0)
+            if mode is None:
+                mode = default_mode
+            return target_x, speeds, mode
+        return None, (0, 0), default_mode
+
     pre_target_x = None  # GATE_PASS用の前回値
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
@@ -347,45 +360,15 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             match mode:
                 case Mode.TURN_LEFT_RELATIVE:
-                    # ジャイロを使った左回転: action_chain.turn_left_relativeを呼ぶ（frameを渡す）
-                    result = action_chain.turn_left_relative(frame)
-                    if result is not None:
-                        _, speeds, mode = result
-                        if speeds is not None:
-                            left_speed, right_speed = speeds
-                        else:
-                            left_speed, right_speed = 0, 0
-                    else:
-                        left_speed, right_speed, mode = 0, 0, Mode.PAUSE
+                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.turn_left_relative(frame))
                 case Mode.TURN_RIGHT_RELATIVE:
-                    # ジャイロを使った右回転: action_chain.turn_right_relativeを呼ぶ（frameを渡す）
-                    result = action_chain.turn_right_relative(frame)
-                    if result is not None:
-                        _, speeds, mode = result
-                        if speeds is not None:
-                            left_speed, right_speed = speeds
-                        else:
-                            left_speed, right_speed = 0, 0
-                    else:
-                        left_speed, right_speed, mode = 0, 0, Mode.PAUSE
+                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.turn_right_relative(frame))
                 case Mode.TURN_AT_END:
-                    # TURN_AT_END: ロジックをaction_chain.turn_at_endに委譲（状態管理はaction_chain側に任せる）
-                    target_x, speeds, ret_mode = action_chain.turn_at_end(frame)
-                    if speeds is not None:
-                        left_speed, right_speed = speeds
+                    target_x, (left_speed, right_speed), ret_mode = unpack_action_result(action_chain.turn_at_end(frame))
                     if ret_mode == Mode.FOLLOW_RIGHT_EDGE:
                         mode = Mode.FOLLOW_RIGHT_EDGE
                 case Mode.BLUE_BOTTLE_CATCH:
-                    # ブルーボトルキャッチモード: ロジックをaction_chainに委譲
-                    result = action_chain.blue_bottle_catch(frame)
-                    if result is not None:
-                        target_x, speeds, mode = result
-                        if speeds is not None:
-                            left_speed, right_speed = speeds
-                        else:
-                            left_speed, right_speed = 0, 0
-                    else:
-                        left_speed, right_speed, mode = 0, 0, Mode.PAUSE
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.blue_bottle_catch(frame))
                 case Mode.FOLLOW_LEFT_EDGE:
                     left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     if left_x is not None:
@@ -414,85 +397,33 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     else:
                         target_x = (x1 + x2) // 2
                 case Mode.AVOID_OBSTACLE:
-                    _, speeds, mode = action_chain.avoid_obstacle()
-                    if speeds is not None:
-                        left_speed, right_speed = speeds
-                    else:
-                        left_speed, right_speed = 0, 0
+                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.avoid_obstacle())
                 case Mode.TURN_LEFT:
-                    result = action_chain.trun_left()
-                    if result is not None:
-                        _, speeds, mode = result
-                        if speeds is not None:
-                            left_speed, right_speed = speeds
-                        else:
-                            left_speed, right_speed = 0, 0
-                    else:
-                        left_speed, right_speed, mode = 0, 0, Mode.PAUSE
+                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.trun_left())
                 case Mode.SMALL_TURN_LEFT:
-                    result = action_chain.small_turn_left()
-                    if result is not None:
-                        _, speeds, mode = result
-                        if speeds is not None:
-                            left_speed, right_speed = speeds
-                        else:
-                            left_speed, right_speed = 0, 0
-                    else:
-                        left_speed, right_speed, mode = 0, 0, Mode.PAUSE
+                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.small_turn_left())
                 case Mode.TURN_RIGHT:
-                    result = action_chain.trun_right()
-                    if result is not None:
-                        _, speeds, mode = result
-                        if speeds is not None:
-                            left_speed, right_speed = speeds
-                        else:
-                            left_speed, right_speed = 0, 0
-                    else:
-                        left_speed, right_speed, mode = 0, 0, Mode.PAUSE
+                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.trun_right())
                 case Mode.SMALL_TURN_RIGHT:
-                    result = action_chain.small_turn_right()
-                    if result is not None:
-                        _, speeds, mode = result
-                        if speeds is not None:
-                            left_speed, right_speed = speeds
-                        else:
-                            left_speed, right_speed = 0, 0
-                    else:
-                        left_speed, right_speed, mode = 0, 0, Mode.PAUSE
+                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.small_turn_right())
                 case Mode.CARRY_BOTTLE1:
-                    target_x, speeds, mode = action_chain.carry_bottle1(frame)
-                    if speeds is not None:
-                        left_speed, right_speed = speeds
-                    else:
-                        left_speed, right_speed = 0, 0
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.carry_bottle1(frame))
                 case Mode.BACK_AND_TURN1:
-                    target_x, speeds, mode = action_chain.back_and_turn1(frame)
-                    if speeds is not None:
-                        left_speed, right_speed = speeds
-                        # 後退フェーズ（両輪とも正方向速度）の場合はset_motor_backward_speedを使う
-                        if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
-                            et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
-                            continue  # 以降のset_motor_speed処理をスキップ
-                    else:
-                        left_speed, right_speed = 0, 0
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.back_and_turn1(frame))
+                    # 後退フェーズ（両輪とも正方向速度）の場合はset_motor_backward_speedを使う
+                    if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
+                        et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
+                        continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.CARRY_BOTTLE2:
-                    target_x, speeds, mode = action_chain.carry_bottle2(frame)
-                    if speeds is not None:
-                        left_speed, right_speed = speeds
-                    else:
-                        left_speed, right_speed = 0, 0
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.carry_bottle2(frame))
                 case Mode.BACK_AND_TURN2:
-                    target_x, speeds, mode = action_chain.back_and_turn2(frame)
-                    if speeds is not None:
-                        left_speed, right_speed = speeds
-                        # 後退フェーズ（両輪とも正方向速度）の場合はset_motor_backward_speedを使う
-                        if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
-                            et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
-                            continue  # 以降のset_motor_speed処理をスキップ
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.back_and_turn2(frame))
+                    # 後退フェーズ（両輪とも正方向速度）の場合はset_motor_backward_speedを使う
+                    if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
+                        et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
+                        continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.HEAD_GOAL:
-                    target_x, speeds, mode = action_chain.heading_goal(frame)
-                    if speeds is not None:
-                        left_speed, right_speed = speeds
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.heading_goal(frame))
                 case Mode.FORWARD:
                     # 赤色重心に向かって進む（find_bottle_center使用）。イエロー・ブルー検知は行わない。
                     red_cx, _, red_pixel_count = find_bottle_center(frame, color="red")
