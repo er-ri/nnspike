@@ -15,46 +15,20 @@ import torch
 import torchvision.transforms as transforms
 
 from nnspike.constants import OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN
-<<<<<<< HEAD
-from nnspike.models import NvidiaModel
-from nnspike.utils import draw_driving_info
-from scripts.utils import process_image
-=======
 from nnspike.utils import draw_driving_info
 from scripts.utils import load_optimized_model, process_image
->>>>>>> wip/teamwork-li
 
 transform = transforms.ToTensor()
 
 x1, y1, x2, y2 = ROI_CNN
-<<<<<<< HEAD
-
-FILE_LABEL = "20250705153842_label"
-=======
->>>>>>> wip/teamwork-li
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-<<<<<<< HEAD
-course = "left"  # "left" or "right"
-
-
-model = NvidiaModel()
-model.load_state_dict(torch.load("./storage/models/model_left_0713.pth", map_location=device))
-model.eval()
-
-
-def read_label_data(image_path: Optional[str] = None):
-    df = pd.read_csv(f"./storage/labels/{FILE_LABEL}.csv")
-
-    filtered_df = df[(df["use"] == True) & (df["course"] == "left")].copy()
-=======
 def read_label_data(csv_file: str, image_path: Optional[str] = None):
     df = pd.read_csv(csv_file)
 
     filtered_df = df[(df["use"] == True)].copy()
->>>>>>> wip/teamwork-li
     filtered_df = filtered_df.reset_index(drop=True)  # Reset index for easier navigation
     index = filtered_df[filtered_df["image_path"] == image_path].index[0] if image_path is not None else 0
 
@@ -99,10 +73,7 @@ The validator displays model predictions overlaid on images with:
         elif index >= len(df):
             index = len(df) - 1
 
-<<<<<<< HEAD
-=======
         print(f"Processing index: {index}/{len(df) - 1}")
->>>>>>> wip/teamwork-li
         row = df.iloc[index]
         image_path = row["image_path"].replace("../", "./")
         relative_position = abs(row["motor_a_relative_position"] / RELATIVE_POSITION_SCALE)
@@ -116,11 +87,7 @@ The validator displays model predictions overlaid on images with:
 
         prob, mode = torch.max(outputs[0], dim=1)
 
-<<<<<<< HEAD
-        offset_x = x1 + (outputs[1][0][0] * (x2 - x1)).detach().item()
-=======
         target_x = x1 + (outputs[1][0][0] * (x2 - x1)).detach().item()
->>>>>>> wip/teamwork-li
         offset_y = OFFSET_Y
 
         dir_path, filename = image_path.rsplit("/", 1)
@@ -132,13 +99,8 @@ The validator displays model predictions overlaid on images with:
         info["target_x"], info["offset_y"] = target_x, offset_y
         info["text"] = {
             "image path": filename,
-<<<<<<< HEAD
-            "offset x": offset_x,
-            "difference": offset_x - train_x,
-=======
             "offset x": target_x,
             "difference": target_x - train_x,
->>>>>>> wip/teamwork-li
             "mode": mode.item(),
             "probability": round(prob[0].item(), 2),
             "type": row["data_type"],

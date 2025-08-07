@@ -1,8 +1,5 @@
 import torch
-<<<<<<< HEAD
-=======
 import torch.nn as nn
->>>>>>> wip/teamwork-li
 import torchvision.transforms as transforms
 
 from nnspike.models import NvidiaModel
