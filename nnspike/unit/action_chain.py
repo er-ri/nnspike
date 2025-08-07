@@ -1343,3 +1343,113 @@ class ActionChain(object):
             else:
                 target_x = (self.x1 + self.x2) // 2
             return target_x, None, Mode.HEAD_GOAL
+
+    def nvidia_follow(self, image: np.ndarray, nvidia_mode_prediction: Optional[int]) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+        """
+        NVIDIA_FOLLOWモードの処理を実行する。
+        
+        【挙動の流れ】
+        1. 右モーター相対位置をチェック
+           - abs(right_pos) > 21000: CARRY_BOTTLE1モードに自動切り替え
+        
+        2. abs(right_pos) >= 7000 かつ nvidia_mode_prediction が有効な場合:
+           - NVIDIAモデルの予測に基づいて動作を選択
+           - FOLLOW_LEFT_EDGE予測: 左エッジトレース処理を実行
+           - それ以外（FOLLOW_RIGHT_EDGE含む全て）: 一律右エッジトレース処理を実行
+        
+        3. abs(right_pos) < 7000 または予測が無効な場合:
+           - 通常の右エッジトレース処理を実行
+        
+        4. 障害物回避処理（両方のケースで共通）:
+           - 黄色ピクセル数 > 14000 かつ abs(right_pos) <= 5000: 障害物回避開始
+           - 左旋回0.8秒 → 右旋回1.3秒 → 通常動作復帰の3段階実行
+           - 状態は "nvidia_avoid_obstacle" キーで管理
+        
+        5. 黄色ボトル追従:
+           - 黄色ピクセル数 > 3000: 黄色重心に向かう
+           - それ以外: ライン右エッジまたは中央に向かう
+        
+        Args:
+            image: カメラからのフレーム画像
+            nvidia_mode_prediction: NVIDIAモデルのモード予測結果 (Mode.FOLLOW_RIGHT_EDGE.value or Mode.FOLLOW_LEFT_EDGE.value)
+            
+        Returns:
+            (target_x, (left_speed, right_speed), mode)
+            - target_x: 目標X座標（ROI座標系）
+            - speeds: 左右モーター速度のタプル（障害物回避時のみ指定、通常時はNone）
+            - mode: 次のモード（通常はNVIDIA_FOLLOW維持、条件により CARRY_BOTTLE1 に切り替え）
+        """
+        # 右モーター位置を取得
+        status = self.et.get_spike_status()
+        right_pos = status.motors["B"].relative_position if status and status.motors.get("B") else None
+        
+        # 右相対距離が21000を超えたらCARRY_BOTTLE1に切り替え
+        if right_pos is not None and abs(right_pos) > 21000:
+            print(f"Right position {abs(right_pos)} exceeded 21000, switching to CARRY_BOTTLE1")
+            target_x = (self.x1 + self.x2) // 2
+            return target_x, None, Mode.CARRY_BOTTLE1
+        
+        # abs(right_pos) >= 7000かつ左エッジ予測の場合のみ左エッジトレース
+        if right_pos is not None and abs(right_pos) >= 7000 and nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:
+            # 左エッジモード予測の場合のみ：左エッジトレース処理
+            left_x, _, _ = get_line_edges_at_y(image, ROI_CNN, OFFSET_Y, 80)
+            if left_x is not None:
+                target_x = left_x
+            else:
+                target_x = (self.x1 + self.x2) // 2
+            return target_x, None, Mode.NVIDIA_FOLLOW
+        
+        # それ以外の全ての場合：右エッジトレース処理
+        yellow_result = find_bottle_center(image, color="yellow")
+        if yellow_result is not None:
+            if len(yellow_result) == 3:
+                yellow_cx, _, yellow_pixel_count = yellow_result
+            else:
+                yellow_cx, yellow_pixel_count = None, 0
+        else:
+            yellow_cx, yellow_pixel_count = None, 0
+        _, right_x, _ = get_line_edges_at_y(image, ROI_CNN, OFFSET_Y, 80)
+        
+        # 障害物回避処理（right_pos <= 5000の場合のみ）
+        if yellow_pixel_count > 14000 and yellow_cx is not None and (right_pos is None or abs(right_pos) <= 5000):
+            # 障害物回避を直接実装
+            state = self._state.setdefault("nvidia_avoid_obstacle", {
+                "phase": 0,
+                "phase_start_time": None,
+            })
+            now = time.time()
+            
+            # 0. 左旋回（0.8秒）
+            if state["phase"] == 0:
+                if state["phase_start_time"] is None:
+                    state["phase_start_time"] = now
+                if now - state["phase_start_time"] < 0.8:
+                    print("Avoiding obstacle (right edge trace) - Phase 0: Left turn...")
+                    target_x = (self.x1 + self.x2) // 2
+                    return target_x, (40, 70), Mode.NVIDIA_FOLLOW
+                state["phase"] = 1
+                state["phase_start_time"] = now
+
+            # 1. 右旋回（1.3秒）
+            if state["phase"] == 1:
+                if now - state["phase_start_time"] < 1.3:
+                    print("Avoiding obstacle (right edge trace) - Phase 1: Right turn...")
+                    target_x = (self.x1 + self.x2) // 2
+                    return target_x, (80, 50), Mode.NVIDIA_FOLLOW
+                state["phase"] = 2
+                state["phase_start_time"] = now
+
+            # 2. チェーン終了でリセット
+            if state["phase"] == 2:
+                self._state["nvidia_avoid_obstacle"] = {"phase": 0, "phase_start_time": None}
+                print("Avoiding obstacle (right edge trace) - Complete, returning to normal mode...")
+                target_x = (self.x1 + self.x2) // 2
+                return target_x, None, Mode.NVIDIA_FOLLOW
+        elif yellow_pixel_count > 3000 and yellow_cx is not None and (right_pos is None or abs(right_pos) <= 5000):
+            target_x = yellow_cx[0]  # X座標のみを取得
+        elif right_x is not None:
+            target_x = right_x
+        else:
+            target_x = (self.x1 + self.x2) // 2
+        
+        return target_x, None, Mode.NVIDIA_FOLLOW
