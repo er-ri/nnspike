@@ -1,0 +1,18 @@
+{
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "python.defaultInterpreterPath": "C:\\Users\\MSAD\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "python.analysis.extraPaths": [
+            "${workspaceFolder}",
+            "${workspaceFolder}/nnspike"
+        ],
+        "python.analysis.autoImportCompletions": true,
+        "python.analysis.autoSearchPaths": true,
+        "python.analysis.diagnosticMode": "workspace",
+        "python.analysis.indexing": true
+    }
+}
