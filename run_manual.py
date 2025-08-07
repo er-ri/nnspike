@@ -130,8 +130,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     if record_sensor_data:
         sensor_recorder = SensorRecorder(timestamp=TIMESTAMP)
         sensor_recorder.start_recording()  # Initialize video writer conditionally
-    video_writer = None
 
+    video_writer = None
     if save_camera_video:
         fourcc = cv2.VideoWriter_fourcc(*"XVID")  # type: ignore[attr-defined]
         video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
@@ -146,8 +146,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             fps=30,
             frameSize=(frame_width, frame_height),
         )  # Socket connection for sending camera capture (only if enabled)
-    client_socket = None
 
+    client_socket = None
     if send_video_stream:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
