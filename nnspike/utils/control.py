@@ -992,6 +992,49 @@ def is_x320_on_red_target(img, x_tolerance=40):
         return True
     return False
 
+def get_red_target_center_x(img):
+    """
+    画像内の赤的（楕円）の中心x座標を返す。
+    赤的が見つからなければNoneを返す。
+    Args:
+        img: BGR画像 (numpy.ndarray)
+    Returns:
+        int or None: 赤的の中心x座標、見つからなければNone
+    """
+    if img is None or img.size == 0:
+        return None
+    # 赤色のHSV範囲（2区間）
+    red_hsv_lower1 = (0, 90, 60)
+    red_hsv_upper1 = (15, 255, 210)
+    red_hsv_lower2 = (175, 90, 60)
+    red_hsv_upper2 = (180, 255, 210)
+    blur_kernel = 5
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    mask1 = cv2.inRange(hsv, np.array(red_hsv_lower1), np.array(red_hsv_upper1))
+    mask2 = cv2.inRange(hsv, np.array(red_hsv_lower2), np.array(red_hsv_upper2))
+    mask_red = cv2.bitwise_or(mask1, mask2)
+    mask_red = cv2.medianBlur(mask_red, blur_kernel)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_CLOSE, kernel)
+    contours_red, _ = cv2.findContours(mask_red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    best_center_x = None
+    max_red_area = 0
+    for cnt in contours_red:
+        if len(cnt) >= 5:
+            area = cv2.contourArea(cnt)
+            if area > 5:
+                try:
+                    ellipse = cv2.fitEllipse(cnt)
+                    (cx, cy), (major, minor), angle = ellipse
+                    ratio = major/minor if minor > 0 else 0
+                    if 0.2 < ratio < 5.0 and major > 5 and minor > 3:
+                        if area > max_red_area:
+                            max_red_area = area
+                            best_center_x = int(cx)
+                except:
+                    continue
+    return best_center_x
+
 # 黒ラインの長さや位置で判定する関数（画像直接渡し、条件はプライベート変数）
 def is_left_black_line_detected(img):
     _min_width = 60

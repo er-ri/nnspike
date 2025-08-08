@@ -15,6 +15,7 @@ from nnspike.utils.control import (
     get_is_blue_line_at_y,
     is_x320_on_blue_target,
     is_x320_on_red_target,
+    get_red_target_center_x,
     is_left_black_line_detected,
 )
 
@@ -1036,7 +1037,6 @@ class ActionChain(object):
         # 0. 青ピクセル数が2000を超える前は単純直進、超えたらphase1へ
         if state["phase"] == 0:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
-            _, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
             if blue_pixel_count > 2000:
                 state["phase"] = 1
                 # phase1用 右モーター相対位置記録（絶対値）
@@ -1046,8 +1046,10 @@ class ActionChain(object):
                     state["right_position_start"] = None
                 target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.CARRY_BOTTLE2
-            target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
-            return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
+            # 直進処理：赤ターゲットの中心x座標を使用
+            red_center_x = get_red_target_center_x(image)
+            target_x = red_center_x if red_center_x is not None else (self.x1 + self.x2) // 2
+            return target_x, None, Mode.CARRY_BOTTLE2
 
         # 1. 青ボトル中心追従（2000以上の間center追従、2000以下で右モーター100ユニット移動まで追従、その後phase2へ）
         if state["phase"] == 1:
