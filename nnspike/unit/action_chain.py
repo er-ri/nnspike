@@ -1307,11 +1307,11 @@ class ActionChain(object):
             else:
                 state["left_position_start"] = None
 
-        # 1. 左モーター350ユニット移動まで右旋回（左:30, 右:0）
+        # 1. 左モーター340ユニット移動まで右旋回（左:30, 右:0）
         if state["phase"] == 1:
             if status is not None and status.motors.get("A") is not None and state["left_position_start"] is not None:
                 current_pos = abs(status.motors["A"].relative_position)
-                if abs(current_pos - state["left_position_start"]) < 350:
+                if abs(current_pos - state["left_position_start"]) < 340:
                     return None, (30, 0), Mode.BACK_AND_TURN2
             state["phase"] = 2
 
@@ -1361,11 +1361,11 @@ class ActionChain(object):
                 target_x = (self.x1 + self.x2) // 2
                 return target_x, None, Mode.HEAD_GOAL
 
-        # 1. 到達直後右モーター100ユニット移動まで直進
+        # 1. 到達直後右モーター50ユニット移動まで直進
         if state["phase"] == 1:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 100:
+                if abs(current_pos - state["right_position_start"]) < 50:
                     target_x = (self.x1 + self.x2) // 2
                     return target_x, (BASE_SPEED, BASE_SPEED), Mode.HEAD_GOAL
             state["phase"] = 2
