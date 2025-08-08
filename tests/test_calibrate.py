@@ -95,6 +95,13 @@ def main():
 
             gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
 
+            # Draw reference lines
+            # Yellow horizontal lines at y=300 and y=250
+            cv2.line(gray, (0, 300), (640, 300), (255, 255, 0), 2)
+            cv2.line(gray, (0, 250), (640, 250), (255, 255, 0), 2)
+            # Vertical line at x=320
+            cv2.line(gray, (320, 0), (320, 480), (255, 255, 255), 2)
+
             # Draw centroid point
             cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
             if client_socket is not None:
