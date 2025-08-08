@@ -1117,11 +1117,11 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 5. 左旋回（右モーター400ユニット移動まで, 左:0, 右:30）
+        # 5. 左旋回（右モーター390ユニット移動まで, 左:0, 右:30）
         if state["phase"] == 5:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 400:
+                if abs(current_pos - state["right_position_start"]) < 390:
                     return None, (0, 30), Mode.CARRY_BOTTLE2
             state["phase"] = 6
             # phase6用 右モーター相対位置記録（絶対値）
