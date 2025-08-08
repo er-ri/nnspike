@@ -215,10 +215,16 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             left_pos = status.motors["A"].relative_position
             right_pos = status.motors["B"].relative_position
 
-            # NVIDIAモデル予測用変数の初期化
+            # Position debugging
+            print(f"abs(right_pos)={abs(right_pos) if right_pos is not None else None}")
+
+            # NVIDIAモデル予測を常に実行
             nvidia_prediction = None
             nvidia_mode_prediction = None
             nvidia_prob = None
+            if model is not None:
+                nvidia_prediction, nvidia_mode_prediction, nvidia_prob = nvidia_model_predict(frame, left_pos, right_pos, model)
+                print(f"nvidia_mode_prediction={nvidia_mode_prediction}, nvidia_prob={nvidia_prob}")
 
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
@@ -470,33 +476,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         print(f"Right position {abs(right_pos)} > 21000, switching to CARRY_BOTTLE1")
                         target_x = (x1 + x2) // 2
                     else:
-                        # NVIDIAモデル予測を実行
-                        if model is not None:
-                            nvidia_prediction, nvidia_mode_prediction, nvidia_prob = nvidia_model_predict(frame, left_pos, right_pos, model)
-                            print(f"NVIDIA_FOLLOW DEBUG: nvidia_mode_prediction={nvidia_mode_prediction}, nvidia_prob={nvidia_prob}")
-                        
                         # NVIDIAモデル予測による分岐
-                        if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:
-                            print("NVIDIA_FOLLOW DEBUG: Selecting LEFT EDGE trace")
-                            # 左エッジトレース処理
+                        if nvidia_mode_prediction == 0:  # 左エッジ
                             left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                            if left_x is not None:
-                                target_x = left_x
-                                print(f"NVIDIA_FOLLOW DEBUG: Left edge found at x={left_x}")
-                            else:
-                                target_x = (x1 + x2) // 2
-                                print("NVIDIA_FOLLOW DEBUG: Left edge not found, using center")
-                        else:
-                            print("NVIDIA_FOLLOW DEBUG: Selecting RIGHT EDGE trace")
-                            # 右エッジトレース処理
+                            target_x = left_x if left_x is not None else (x1 + x2) // 2
+                        else:  # 右エッジ（デフォルト）
                             _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                            
-                            if right_x is not None:
-                                target_x = right_x
-                                print(f"NVIDIA_FOLLOW DEBUG: Right edge found at x={right_x}")
-                            else:
-                                target_x = (x1 + x2) // 2
-                                print("NVIDIA_FOLLOW DEBUG: Right edge not found, using center")
+                            target_x = right_x if right_x is not None else (x1 + x2) // 2
                 case _:
                     # Default to center if invalid edge specified
                     target_x = (x1 + x2) // 2
