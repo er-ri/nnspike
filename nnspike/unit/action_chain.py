@@ -782,11 +782,11 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 2. 右エッジトレース（右モーター相対位置差分が1000未満の間）
+        # 2. 右エッジトレース（右モーター相対位置差分が1050未満の間）
         if state["phase"] == 2:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 1000:
+                if abs(current_pos - state["right_position_start"]) < 1050:
                     _, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=300, threshold_value=80)
                     target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
                     return target_x, None, Mode.CARRY_BOTTLE1
@@ -1284,11 +1284,11 @@ class ActionChain(object):
             else:
                 state["left_position_start"] = None
 
-        # 1. 左モーター370ユニット移動まで右旋回（左:30, 右:0）
+        # 1. 左モーター350ユニット移動まで右旋回（左:30, 右:0）
         if state["phase"] == 1:
             if status is not None and status.motors.get("A") is not None and state["left_position_start"] is not None:
                 current_pos = abs(status.motors["A"].relative_position)
-                if abs(current_pos - state["left_position_start"]) < 370:
+                if abs(current_pos - state["left_position_start"]) < 350:
                     return None, (30, 0), Mode.BACK_AND_TURN2
             state["phase"] = 2
 
@@ -1378,12 +1378,12 @@ class ActionChain(object):
                 return target_x, None, Mode.HEAD_GOAL
             return target_x, None, Mode.HEAD_GOAL
 
-        # 4. 青ライン検出後、右モーター300ユニット移動まで右エッジトレースしたらPAUSE（状態リセット）
+        # 4. 青ライン検出後、右モーター600ユニット移動まで右エッジトレースしたらPAUSE（状態リセット）
         if state["phase"] == 4:
             position_limit_reached = False
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                position_limit_reached = abs(current_pos - state["right_position_start"]) >= 300
+                position_limit_reached = abs(current_pos - state["right_position_start"]) >= 600
             
             if position_limit_reached:
                 self._state["heading_goal_relative"] = {"phase": 0, "right_position_start": None}
