@@ -1477,8 +1477,8 @@ class ActionChain(object):
             yellow_cx, yellow_pixel_count = None, 0
         _, right_x, _ = get_line_edges_at_y(image, ROI_CNN, OFFSET_Y, 80)
         
-        # 障害物回避処理（right_pos <= 5000の場合のみ）
-        if yellow_pixel_count > 14000 and yellow_cx is not None and (right_pos is None or abs(right_pos) <= 5000):
+        # 障害物回避処理（right_pos < 7000の場合のみ）
+        if yellow_pixel_count > 14000 and yellow_cx is not None and (right_pos is None or abs(right_pos) < 7000):
             # 障害物回避を直接実装
             state = self._state.setdefault("nvidia_avoid_obstacle", {
                 "phase": 0,
@@ -1512,7 +1512,7 @@ class ActionChain(object):
                 print("Avoiding obstacle (right edge trace) - Complete, returning to normal mode...")
                 target_x = (self.x1 + self.x2) // 2
                 return target_x, None, Mode.NVIDIA_FOLLOW
-        elif yellow_pixel_count > 3000 and yellow_cx is not None and (right_pos is None or abs(right_pos) <= 5000):
+        elif yellow_pixel_count > 3000 and yellow_cx is not None and (right_pos is None or abs(right_pos) < 7000):
             target_x = yellow_cx[0]  # X座標のみを取得
         elif right_x is not None:
             target_x = right_x
