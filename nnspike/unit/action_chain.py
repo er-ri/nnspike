@@ -782,15 +782,15 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 2. 左エッジトレース（右モーター相対位置差分が1100未満の間）
+        # 2. 左エッジトレース（右モーター相対位置差分が1200未満の間）
         if state["phase"] == 2:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 1100:
+                if abs(current_pos - state["right_position_start"]) < 1200:
                     left_x, _, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=300, threshold_value=80)
                     target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
                     return target_x, None, Mode.CARRY_BOTTLE1
-            # 1100超えたら次フェーズへ
+            # 1200超えたら次フェーズへ
             state["phase"] = 3
             state["pre_target_x"] = (self.x1 + self.x2) // 2
             # phase3用 右モーター相対位置記録（絶対値）
