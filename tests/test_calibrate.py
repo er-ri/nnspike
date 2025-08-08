@@ -96,9 +96,9 @@ def main():
             gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
 
             # Draw reference lines
-            # Yellow horizontal lines at y=300 and y=320
+            # Yellow horizontal lines at y=300 and y=330
             cv2.line(gray, (0, 300), (640, 300), (255, 255, 0), 2)
-            cv2.line(gray, (0, 320), (640, 320), (255, 255, 0), 2)
+            cv2.line(gray, (0, 330), (640, 330), (255, 255, 0), 2)
             # Vertical line at x=320
             cv2.line(gray, (320, 0), (320, 480), (255, 255, 255), 2)
 
