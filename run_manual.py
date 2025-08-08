@@ -458,8 +458,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
                 case Mode.NVIDIA_FOLLOW:
-                    # NVIDIAモデル予測をこのcase内で実行
-                    if model is not None:
+                    # NVIDIAモデル予測をこのcase内で実行（right_pos >= 7000の場合のみ）
+                    if model is not None and right_pos is not None and abs(right_pos) >= 7000:
                         nvidia_prediction, nvidia_mode_prediction, nvidia_prob = nvidia_model_predict(frame, left_pos, right_pos, model)
                     # NVIDIA_FOLLOWの処理をaction_chainに委譲
                     target_x, speeds, mode = action_chain.nvidia_follow(frame, nvidia_mode_prediction)
