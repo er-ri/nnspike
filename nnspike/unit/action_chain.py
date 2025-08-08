@@ -1421,8 +1421,7 @@ class ActionChain(object):
                         state["phase_start_time"] = now
                     if now - state["phase_start_time"] < 0.8:
                         print("Avoiding obstacle (right edge trace) - Phase 0: Left turn...")
-                        target_x = (self.x1 + self.x2) // 2
-                        return target_x, (40, 70), Mode.NVIDIA_FOLLOW
+                        return None, (40, 70), Mode.NVIDIA_FOLLOW
                     state["phase"] = 1
                     state["phase_start_time"] = now
 
@@ -1430,8 +1429,7 @@ class ActionChain(object):
                 if state["phase"] == 1:
                     if now - state["phase_start_time"] < 1.3:
                         print("Avoiding obstacle (right edge trace) - Phase 1: Right turn...")
-                        target_x = (self.x1 + self.x2) // 2
-                        return target_x, (80, 50), Mode.NVIDIA_FOLLOW
+                        return None, (80, 50), Mode.NVIDIA_FOLLOW
                     state["phase"] = 2
                     state["phase_start_time"] = now
 
