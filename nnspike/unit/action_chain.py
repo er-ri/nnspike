@@ -745,10 +745,10 @@ class ActionChain(object):
         })
         status = self.et.get_spike_status()
 
-        # 0. 左エッジトレース→赤3000超でphase1へ
+        # 0. 右エッジトレース→赤3000超でphase1へ
         if state["phase"] == 0:
-            left_x, _, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
-            target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
+            _, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
+            target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
             _, _, red_pixel_count = find_bottle_center(image=image, color="red")
             if red_pixel_count > 3000:
                 state["phase"] = 1
@@ -782,13 +782,13 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 2. 左エッジトレース（右モーター相対位置差分が1600未満の間）
+        # 2. 右エッジトレース（右モーター相対位置差分が1600未満の間）
         if state["phase"] == 2:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
                 if abs(current_pos - state["right_position_start"]) < 1600:
-                    left_x, _, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=300, threshold_value=80)
-                    target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
+                    _, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=300, threshold_value=80)
+                    target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
                     return target_x, None, Mode.CARRY_BOTTLE1
             # 1600超えたら次フェーズへ
             state["phase"] = 3
