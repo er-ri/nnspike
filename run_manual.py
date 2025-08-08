@@ -383,11 +383,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         yellow_cx, yellow_pixel_count = None, 0
                     # シンプルに右モーターの相対位置はright_posを使う
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                    if yellow_pixel_count > 14000 and yellow_cx is not None and right_pos is not None and abs(right_pos) <= 4:
+                    if yellow_pixel_count > 14000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
                         print("Avoiding obstacle (auto FOLLOW_RIGHT_EDGE)...")
                         target_x = (x1 + x2) // 2
-                    elif yellow_pixel_count > 3000 and yellow_cx is not None and right_pos is not None and abs(right_pos) <= 4:
+                    elif yellow_pixel_count > 3000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         target_x = yellow_cx[0]  # X座標のみを取得
                     elif right_x is not None:
                         target_x = right_x
