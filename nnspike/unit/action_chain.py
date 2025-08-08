@@ -1034,7 +1034,7 @@ class ActionChain(object):
         })
         status = self.et.get_spike_status()
 
-        # 0. 青ピクセル数が2000を超える前は単純直進、超えたらphase1へ
+        # 0. 青ピクセル数が2000を超える前は赤ターゲット中心追従、超えたらphase1へ
         if state["phase"] == 0:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if blue_pixel_count > 2000:
@@ -1051,32 +1051,22 @@ class ActionChain(object):
             target_x = red_center_x if red_center_x is not None else (self.x1 + self.x2) // 2
             return target_x, None, Mode.CARRY_BOTTLE2
 
-        # 1. 青ボトル中心追従（2000以上の間center追従、2000以下で右モーター100ユニット移動まで追従、その後phase2へ）
+        # 1. 青ボトル中心追従（2000以上の間center追従、2000以下になった瞬間にphase2へ移行）
         if state["phase"] == 1:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
+            target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
+            
             if blue_pixel_count > 2000:
-                state["below1000_position_start"] = None
-                target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.CARRY_BOTTLE2
-            # 2000以下になった瞬間の位置を記録
-            if "below1000_position_start" not in state or state["below1000_position_start"] is None:
-                if status is not None and status.motors.get("B") is not None:
-                    state["below3000_position_start"] = abs(status.motors["B"].relative_position)
-                else:
-                    state["below3000_position_start"] = None
-            # 右モーター100ユニット移動まで center追従を継続
-            if status is not None and status.motors.get("B") is not None and state["below3000_position_start"] is not None:
-                current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["below3000_position_start"]) < 100:
-                    target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
-                    return target_x, None, Mode.CARRY_BOTTLE2
-            # 100ユニット移動したらphase2へ
+            
+            # 2000以下になった瞬間、即座にphase2へ移行
             state["phase"] = 2
+            # phase2用 右モーター相対位置記録（絶対値）
             if status is not None and status.motors.get("B") is not None:
                 state["right_position_start"] = abs(status.motors["B"].relative_position)
             else:
                 state["right_position_start"] = None
-            state["below3000_position_start"] = None
+            return target_x, None, Mode.CARRY_BOTTLE2
 
         # 2. 右モーター100ユニット移動まで center追従。その後phase3
         if state["phase"] == 2:
