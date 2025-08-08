@@ -377,14 +377,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     else:
                         target_x = (x1 + x2) // 2
                 case Mode.FOLLOW_RIGHT_EDGE:
-                    yellow_result = find_bottle_center(frame, color="yellow")
-                    if yellow_result is not None:
-                        if len(yellow_result) == 3:
-                            yellow_cx, _, yellow_pixel_count = yellow_result
-                        else:
-                            yellow_cx, yellow_pixel_count = None, 0
-                    else:
-                        yellow_cx, yellow_pixel_count = None, 0
+                    yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, color="yellow")
                     # シンプルに右モーターの相対位置はright_posを使う
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     
@@ -393,11 +386,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         if model is not None:
                             mode = Mode.NVIDIA_FOLLOW
                             print(f"Right position {abs(right_pos)} >= 7000, switching to NVIDIA_FOLLOW")
-                            # NVIDIA_FOLLOWの処理をaction_chainに委譲
-                            nvidia_mode_int = int(nvidia_mode_prediction) if nvidia_mode_prediction is not None else None
-                            target_x, speeds, mode = action_chain.nvidia_follow(frame, nvidia_mode_int)
-                            if speeds is not None:
-                                left_speed, right_speed = speeds
+                            # NVIDIA_FOLLOWの処理は次のループで実行される
                         else:
                             print("NVIDIA model not available, continuing with FOLLOW_RIGHT_EDGE")
                     elif yellow_pixel_count > 14000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
