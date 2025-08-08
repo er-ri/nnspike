@@ -724,6 +724,27 @@ class ActionChain(object):
 # --- 以下、*_relativeメソッド（元メソッド完全コピー） ---
 
     def carry_bottle1_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+        state = self._state.setdefault("carry_bottle1_relative", {
+            "phase": 0,
+            "pre_target_x": None,
+            "right_position_start": None,
+        })
+            print(f"[carry_bottle1_relative] phase0: 初期ライン・ボトル検出 right_position_start={state['right_position_start']} pre_target_x={state['pre_target_x']}")
+            red_result = find_bottle_center(image, color='red')
+            red_px = red_result[2] if red_result else None
+            print(f"[carry_bottle1_relative] phase1: ボトル中心追従 赤ピクセル数={red_px} right_position_start={state['right_position_start']}")
+            print(f"[carry_bottle1_relative] phase2: 右モーター100ユニット移動まで center追従 right_position_start={state['right_position_start']}")
+            print(f"[carry_bottle1_relative] phase3: 左旋回 is_left_black_line_detected={is_left_black_line_detected(image)} right_position_start={state['right_position_start']}")
+            print(f"[carry_bottle1_relative] phase4: 直進 右モーター930ユニット移動まで right_position_start={state['right_position_start']}")
+            print(f"[carry_bottle1_relative] phase5: 左旋回 右モーター380ユニット移動まで right_position_start={state['right_position_start']}")
+            print(f"[carry_bottle1_relative] phase6: 仮想ライン直進 右モーター800ユニット移動まで right_position_start={state['right_position_start']}")
+            print(f"[carry_bottle1_relative] phase7: 直進 右モーター1000ユニット移動まで right_position_start={state['right_position_start']}")
+            print(f"[carry_bottle1_relative] phase8: 左旋回 is_x320_on_blue_target={is_x320_on_blue_target(image, x_tolerance=40)} right_position_start={state['right_position_start']}")
+            blue_result = find_blue_target_center(image)
+            blue_px = blue_result[2] if blue_result else None
+            print(f"[carry_bottle1_relative] phase9: 青検出 青ピクセル数={blue_px} right_position_start={state['right_position_start']}")
+            print(f"[carry_bottle1_relative] phase10: 青ピクセルが500以下まで減るまでcenter追従 right_position_start={state['right_position_start']}")
+            print(f"[carry_bottle1_relative] phase11: 右モーター100ユニット移動まで center追従→BACK_AND_TURN1 right_position_start={state['right_position_start']}")
         """
         carry_bottle1の位置判定バージョン。
         以下の順で動作する:
