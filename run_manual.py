@@ -215,16 +215,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             left_pos = status.motors["A"].relative_position
             right_pos = status.motors["B"].relative_position
 
-            # Position debugging
-            print(f"abs(right_pos)={abs(right_pos) if right_pos is not None else None}")
-
             # NVIDIAモデル予測を常に実行
             nvidia_prediction = None
             nvidia_mode_prediction = None
             nvidia_prob = None
             if model is not None:
                 nvidia_prediction, nvidia_mode_prediction, nvidia_prob = nvidia_model_predict(frame, left_pos, right_pos, model)
-                print(f"nvidia_mode_prediction={nvidia_mode_prediction}, nvidia_prob={nvidia_prob}")
 
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
@@ -470,6 +466,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
                 case Mode.NVIDIA_FOLLOW:
+                    # NVIDIA_FOLLOWモード用デバッグ
+                    print(f"abs(right_pos)={abs(right_pos) if right_pos is not None else None}")
+                    print(f"nvidia_mode_prediction={nvidia_mode_prediction}, nvidia_prob={nvidia_prob}")
+                    
                     # right_posが21000を超えたらCARRY_BOTTLE1に切り替え
                     if right_pos is not None and abs(right_pos) > 21000:
                         mode = Mode.CARRY_BOTTLE1
