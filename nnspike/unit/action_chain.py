@@ -791,6 +791,11 @@ class ActionChain(object):
             # 1100超えたら次フェーズへ
             state["phase"] = 3
             state["pre_target_x"] = (self.x1 + self.x2) // 2
+            # phase3用 右モーター相対位置記録（絶対値）
+            if status is not None and status.motors.get("B") is not None:
+                state["right_position_start"] = abs(status.motors["B"].relative_position)
+            else:
+                state["right_position_start"] = None
 
         # 3. 左旋回（右モーター相対位置差分が450未満の間 左:0, 右:30）
         if state["phase"] == 3:
