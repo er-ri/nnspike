@@ -1068,7 +1068,7 @@ class ActionChain(object):
                 state["right_position_start"] = None
             return target_x, None, Mode.CARRY_BOTTLE2
 
-        # 2. 右モーター100ユニット移動まで center追従。その後phase3
+        # 2. 右モーター200ユニット移動まで center追従。その後phase3
         if state["phase"] == 2:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
