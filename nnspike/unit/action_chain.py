@@ -760,7 +760,7 @@ class ActionChain(object):
             else:
                 return target_x, None, Mode.CARRY_BOTTLE1
 
-        # 1. 赤ボトル中心追従（右モーター相対位置差分が1100未満の間、赤が見えなければ中央）
+        # 1. 赤ボトル中心追従（右モーター相対位置差分が500未満の間、赤が見えなければ中央）
         if state["phase"] == 1:
             center, _, _ = find_bottle_center(image=image, color="red")
             red_result = find_bottle_center(image, color='red')
@@ -768,7 +768,7 @@ class ActionChain(object):
             # 右モーター相対位置差分で継続判定
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 1100:
+                if abs(current_pos - state["right_position_start"]) < 500:
                     if center is not None:
                         target_x = center[0]
                     else:
@@ -782,15 +782,15 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 2. 右エッジトレース（右モーター相対位置差分が1000未満の間）
+        # 2. 右エッジトレース（右モーター相対位置差分が1600未満の間）
         if state["phase"] == 2:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 1000:
+                if abs(current_pos - state["right_position_start"]) < 1600:
                     _, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=300, threshold_value=80)
                     target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
                     return target_x, None, Mode.CARRY_BOTTLE1
-            # 1000超えたら次フェーズへ
+            # 1600超えたら次フェーズへ
             state["phase"] = 3
             state["pre_target_x"] = (self.x1 + self.x2) // 2
             # phase3用 右モーター相対位置記録（絶対値）
