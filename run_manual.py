@@ -474,7 +474,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         if model is not None:
                             nvidia_prediction, nvidia_mode_prediction, nvidia_prob = nvidia_model_predict(frame, left_pos, right_pos, model)
                             print(f"NVIDIA_FOLLOW DEBUG: nvidia_mode_prediction={nvidia_mode_prediction}, nvidia_prob={nvidia_prob}")
-                            print(f"NVIDIA_FOLLOW DEBUG: FOLLOW_LEFT_EDGE.value={Mode.FOLLOW_LEFT_EDGE.value}, FOLLOW_RIGHT_EDGE.value={Mode.FOLLOW_RIGHT_EDGE.value}")
                         
                         # NVIDIAモデル予測による分岐
                         if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:
