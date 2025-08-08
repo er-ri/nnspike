@@ -809,9 +809,9 @@ class ActionChain(object):
                     state["right_position_start"] = None
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 450:
+                if abs(current_pos - state["right_position_start"]) < 440:
                     return None, (0, 30), Mode.CARRY_BOTTLE1
-            # 450超えたら次フェーズへ
+            # 440超えたら次フェーズへ
             state["phase"] = 4
             state["pre_target_x"] = (self.x1 + self.x2) // 2
             # phase4用 右モーター相対位置記録（絶対値）
