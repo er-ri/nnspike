@@ -734,7 +734,7 @@ class ActionChain(object):
         4. 直進（右モーター300ユニット移動まで）
         5. 仮想ライン直進（右モーター700ユニット移動まで, get_virtual_line_edges_at_y, previous_center_x=pre_target_x）
         6. 直進（右モーター2000ユニット移動まで）
-        7. 左旋回（is_x320_on_blue_targetがTrueになるまで左:0, 右:30で旋回、最大右モーター500ユニット）
+        7. 左旋回（is_x320_on_blue_targetがTrueになるまで左:0, 右:30で旋回、最低300・最大右モーター500ユニット）
         8. 青検出（1000超えたらphase9へ）
         9. 青1000以上の間center追従、500以下でphase10へ
         10. 青500以下になってから右モーター300ユニット移動まで center追従、その後BACK_AND_TURN1
@@ -873,17 +873,25 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 7. 左旋回（is_x320_on_blue_targetがTrueになるまで左:0, 右:30で旋回、最大右モーター500ユニット）
+        # 7. 左旋回（is_x320_on_blue_targetがTrueになるまで左:0, 右:30で旋回、最大右モーター500ユニット、最低300ユニット旋回）
         if state["phase"] == 7:
             blue_target_detected = is_x320_on_blue_target(image, x_tolerance=50)
             position_limit_reached = False
+            minimum_rotation_done = False
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                position_limit_reached = abs(current_pos - state["right_position_start"]) >= 500
+                position_diff = abs(current_pos - state["right_position_start"])
+                minimum_rotation_done = position_diff >= 300
+                position_limit_reached = position_diff >= 500
             
-            if (not blue_target_detected) and (not position_limit_reached):
+            # 最低300ユニット旋回後にblue_target検出を確認、500ユニット上限
+            if minimum_rotation_done and blue_target_detected:
+                state["phase"] = 8
+            elif not position_limit_reached:
                 return None, (0, 30), Mode.CARRY_BOTTLE1
-            state["phase"] = 8
+            else:
+                # 500ユニット到達したが青が見つからない場合も次へ
+                state["phase"] = 8
 
         # 8. 青検出（1000超えたらphase9へ）
         if state["phase"] == 8:
