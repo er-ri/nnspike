@@ -167,11 +167,7 @@ class ActionChain(object):
 
         # 7. 青検出（1000超えたらphase8へ）
         if state["phase"] == 7:
-            blue_result = find_blue_target_center(image)
-            if blue_result is not None:
-                center, _, blue_pixel_count = blue_result
-            else:
-                center, blue_pixel_count = None, 0
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -183,11 +179,7 @@ class ActionChain(object):
 
         # 8. 青1000以上の間center追従、500以下でphase9へ
         if state["phase"] == 8:
-            blue_result = find_blue_target_center(image)
-            if blue_result is not None:
-                center, _, blue_pixel_count = blue_result
-            else:
-                center, blue_pixel_count = None, 0
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -199,11 +191,7 @@ class ActionChain(object):
 
         # 9. 青500以下になってから0.8秒間center追従、その後BACK_AND_TURN1
         if state["phase"] == 9:
-            blue_result = find_blue_target_center(image)
-            if blue_result is not None:
-                center, _, blue_pixel_count = blue_result
-            else:
-                center, blue_pixel_count = None, 0
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -377,11 +365,7 @@ class ActionChain(object):
 
         # 9. 青検出（青ピクセル数が1000を超えたらphase10へ、または最大2秒でphase10へ）
         if state["phase"] == 9:
-            blue_result = find_blue_target_center(image)
-            if blue_result is not None:
-                center, _, blue_pixel_count = blue_result
-            else:
-                center, blue_pixel_count = None, 0
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -394,11 +378,7 @@ class ActionChain(object):
 
         # 10. 青ピクセルが500以下まで減るまでcenter追従（500以下でphase11へ、または最大2秒でphase11へ）
         if state["phase"] == 10:
-            blue_result = find_blue_target_center(image)
-            if blue_result is not None:
-                center, _, blue_pixel_count = blue_result
-            else:
-                center, blue_pixel_count = None, 0
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -411,11 +391,7 @@ class ActionChain(object):
 
         # 11. 500以下になってから0.8秒間center追従、その後BACK_AND_TURN2へ遷移
         if state["phase"] == 11:
-            blue_result = find_blue_target_center(image)
-            if blue_result is not None:
-                center, _, blue_pixel_count = blue_result
-            else:
-                center, blue_pixel_count = None, 0
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if now - state["phase_start_time"] < 0.8:
                 if center is not None:
                     target_x = center[0]
@@ -764,9 +740,8 @@ class ActionChain(object):
 
         # 1. 赤ボトル中心追従（右モーター相対位置差分が1000未満の間、赤pixcelが500未満なら中央）
         if state["phase"] == 1:
-            red_result = find_bottle_center(image=image, color="red")
-            center = red_result[0] if red_result else None
-            red_px = red_result[2] if red_result else None
+            center, _, red_px = find_bottle_center(image=image, color="red")
+            # None チェックは不要 - find_bottle_center は常に3つの値を返す（centerがNoneの場合もあるが）
             # 右モーター相対位置差分で継続判定
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
@@ -896,11 +871,7 @@ class ActionChain(object):
 
         # 8. 青検出（1000超えたらphase9へ）
         if state["phase"] == 8:
-            blue_result = find_blue_target_center(image)
-            if blue_result is not None:
-                center, _, blue_pixel_count = blue_result
-            else:
-                center, blue_pixel_count = None, 0
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -911,11 +882,7 @@ class ActionChain(object):
 
         # 9. 青1000以上の間center追従、500以下でphase10へ
         if state["phase"] == 9:
-            blue_result = find_blue_target_center(image)
-            if blue_result is not None:
-                center, _, blue_pixel_count = blue_result
-            else:
-                center, blue_pixel_count = None, 0
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -931,11 +898,7 @@ class ActionChain(object):
 
         # 10. 青500以下になってから右モーター300ユニット移動まで center追従、その後BACK_AND_TURN1
         if state["phase"] == 10:
-            blue_result = find_blue_target_center(image)
-            if blue_result is not None:
-                center, _, blue_pixel_count = blue_result
-            else:
-                center, blue_pixel_count = None, 0
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -1192,11 +1155,7 @@ class ActionChain(object):
 
         # 9. 青検出（青ピクセル数1000超えたらphase10へ、最大右モーター400ユニット）
         if state["phase"] == 9:
-            blue_result = find_blue_target_center(image)
-            if blue_result is not None:
-                center, _, blue_pixel_count = blue_result
-            else:
-                center, blue_pixel_count = None, 0
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -1218,11 +1177,7 @@ class ActionChain(object):
 
         # 10. 青ピクセルが500以下まで減るまでcenter追従（500以下でphase11へ、最大右モーター400ユニット）
         if state["phase"] == 10:
-            blue_result = find_blue_target_center(image)
-            if blue_result is not None:
-                center, _, blue_pixel_count = blue_result
-            else:
-                center, blue_pixel_count = None, 0
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -1244,11 +1199,7 @@ class ActionChain(object):
 
         # 11. 右モーター300ユニット移動まで center追従、その後BACK_AND_TURN2へ遷移
         if state["phase"] == 11:
-            blue_result = find_blue_target_center(image)
-            if blue_result is not None:
-                center, _, blue_pixel_count = blue_result
-            else:
-                center, blue_pixel_count = None, 0
+            center, _, blue_pixel_count = find_blue_target_center(image)
             
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
@@ -1452,18 +1403,11 @@ class ActionChain(object):
         # abs(right_pos) < 7000 の場合の処理
         if right_pos is None or abs(right_pos) < 7000:
             # 右エッジトレース + 黄色ボトル検知処理
-            yellow_result = find_bottle_center(image, color="yellow")
-            if yellow_result is not None:
-                if len(yellow_result) == 3:
-                    yellow_cx, _, yellow_pixel_count = yellow_result
-                else:
-                    yellow_cx, yellow_pixel_count = None, 0
-            else:
-                yellow_cx, yellow_pixel_count = None, 0
+            yellow_cx, _, yellow_pixel_count = find_bottle_center(image, color="yellow")
             _, right_x, _ = get_line_edges_at_y(image, ROI_CNN, OFFSET_Y, 80)
             
             # 障害物回避処理
-            if yellow_pixel_count > 14000 and yellow_cx is not None:
+            if yellow_pixel_count > 14000:
                 # 障害物回避を直接実装
                 state = self._state.setdefault("nvidia_avoid_obstacle", {
                     "phase": 0,
@@ -1498,7 +1442,7 @@ class ActionChain(object):
                     target_x = (self.x1 + self.x2) // 2
                     return target_x, None, Mode.NVIDIA_FOLLOW
             elif yellow_pixel_count > 3000 and yellow_cx is not None:
-                target_x = yellow_cx[0]  # X座標のみを取得
+                target_x = yellow_cx[0]  # X座標のみを取得（yellow_cxは(x,y)タプル）
             elif right_x is not None:
                 target_x = right_x
             else:
@@ -1519,19 +1463,12 @@ class ActionChain(object):
                 return target_x, None, Mode.NVIDIA_FOLLOW
             else:
                 # 右エッジトレース処理（障害物回避なし）
-                yellow_result = find_bottle_center(image, color="yellow")
-                if yellow_result is not None:
-                    if len(yellow_result) == 3:
-                        yellow_cx, _, yellow_pixel_count = yellow_result
-                    else:
-                        yellow_cx, yellow_pixel_count = None, 0
-                else:
-                    yellow_cx, yellow_pixel_count = None, 0
+                yellow_cx, _, yellow_pixel_count = find_bottle_center(image, color="yellow")
                 _, right_x, _ = get_line_edges_at_y(image, ROI_CNN, OFFSET_Y, 80)
                 
                 # 黄色ボトル追従（障害物回避は行わない）
                 if yellow_pixel_count > 3000 and yellow_cx is not None:
-                    target_x = yellow_cx[0]  # X座標のみを取得
+                    target_x = yellow_cx[0]  # X座標のみを取得（yellow_cxは(x,y)タプル）
                 elif right_x is not None:
                     target_x = right_x
                 else:
