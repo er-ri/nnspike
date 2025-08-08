@@ -745,12 +745,12 @@ class ActionChain(object):
         })
         status = self.et.get_spike_status()
 
-        # 0. 左エッジトレース→赤2000超でphase1へ
+        # 0. 左エッジトレース→赤3000超でphase1へ
         if state["phase"] == 0:
             left_x, _, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
             target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
             _, _, red_pixel_count = find_bottle_center(image=image, color="red")
-            if red_pixel_count > 2000:
+            if red_pixel_count > 3000:
                 state["phase"] = 1
                 # phase1用 右モーター相対位置記録（絶対値）
                 if status is not None and status.motors.get("B") is not None:
@@ -760,21 +760,21 @@ class ActionChain(object):
             else:
                 return target_x, None, Mode.CARRY_BOTTLE1
 
-        # 1. 赤ボトル中心追従（右モーター相対位置差分が500未満の間、赤が見えなければ中央）
+        # 1. 赤ボトル中心追従（右モーター相対位置差分が500未満の間、赤pixcelが500未満なら中央）
         if state["phase"] == 1:
-            center, _, _ = find_bottle_center(image=image, color="red")
-            red_result = find_bottle_center(image, color='red')
+            red_result = find_bottle_center(image=image, color="red")
+            center = red_result[0] if red_result else None
             red_px = red_result[2] if red_result else None
             # 右モーター相対位置差分で継続判定
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
                 if abs(current_pos - state["right_position_start"]) < 500:
-                    if center is not None:
+                    if center is not None and red_px is not None and red_px >= 500:
                         target_x = center[0]
                     else:
                         target_x = (self.x1 + self.x2) // 2
                     return target_x, None, Mode.CARRY_BOTTLE1
-            # 1100超えたら次フェーズへ
+            # 500超えたら次フェーズへ
             state["phase"] = 2
             # phase2用 右モーター相対位置記録（絶対値）
             if status is not None and status.motors.get("B") is not None:
