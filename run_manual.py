@@ -404,23 +404,23 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.SMALL_TURN_RIGHT:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.small_turn_right())
                 case Mode.CARRY_BOTTLE1:
-                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.carry_bottle1(frame))
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.carry_bottle1_relative(frame))
                 case Mode.BACK_AND_TURN1:
-                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.back_and_turn1(frame))
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.back_and_turn1_relative(frame))
                     # 後退フェーズ（両輪とも正方向速度）の場合はset_motor_backward_speedを使う
                     if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
                         et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
                         continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.CARRY_BOTTLE2:
-                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.carry_bottle2(frame))
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.carry_bottle2_relative(frame))
                 case Mode.BACK_AND_TURN2:
-                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.back_and_turn2(frame))
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.back_and_turn2_relative(frame))
                     # 後退フェーズ（両輪とも正方向速度）の場合はset_motor_backward_speedを使う
                     if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
                         et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
                         continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.HEAD_GOAL:
-                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.heading_goal(frame))
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.heading_goal_relative(frame))
                 case Mode.FORWARD:
                     # 赤色重心に向かって進む（find_bottle_center使用）。イエロー・ブルー検知は行わない。
                     red_cx, _, red_pixel_count = find_bottle_center(frame, color="red")
