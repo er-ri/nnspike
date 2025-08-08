@@ -747,9 +747,11 @@ class ActionChain(object):
 
         # 0. 右エッジトレース→赤3000超でphase1へ
         if state["phase"] == 0:
+            print(f"[carry_bottle1_relative] phase0: 右エッジトレース 赤3000超でphase1へ")
             _, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
             target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
             _, _, red_pixel_count = find_bottle_center(image=image, color="red")
+            print(f"[carry_bottle1_relative] phase0: 赤ピクセル数={red_pixel_count} right_x={right_x}")
             if red_pixel_count > 3000:
                 state["phase"] = 1
                 # phase1用 右モーター相対位置記録（絶対値）
