@@ -473,23 +473,31 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         # NVIDIAモデル予測を実行
                         if model is not None:
                             nvidia_prediction, nvidia_mode_prediction, nvidia_prob = nvidia_model_predict(frame, left_pos, right_pos, model)
+                            print(f"NVIDIA_FOLLOW DEBUG: nvidia_mode_prediction={nvidia_mode_prediction}, nvidia_prob={nvidia_prob}")
+                            print(f"NVIDIA_FOLLOW DEBUG: FOLLOW_LEFT_EDGE.value={Mode.FOLLOW_LEFT_EDGE.value}, FOLLOW_RIGHT_EDGE.value={Mode.FOLLOW_RIGHT_EDGE.value}")
                         
                         # NVIDIAモデル予測による分岐
                         if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:
+                            print("NVIDIA_FOLLOW DEBUG: Selecting LEFT EDGE trace")
                             # 左エッジトレース処理
                             left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                             if left_x is not None:
                                 target_x = left_x
+                                print(f"NVIDIA_FOLLOW DEBUG: Left edge found at x={left_x}")
                             else:
                                 target_x = (x1 + x2) // 2
+                                print("NVIDIA_FOLLOW DEBUG: Left edge not found, using center")
                         else:
+                            print("NVIDIA_FOLLOW DEBUG: Selecting RIGHT EDGE trace")
                             # 右エッジトレース処理
                             _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                             
                             if right_x is not None:
                                 target_x = right_x
+                                print(f"NVIDIA_FOLLOW DEBUG: Right edge found at x={right_x}")
                             else:
                                 target_x = (x1 + x2) // 2
+                                print("NVIDIA_FOLLOW DEBUG: Right edge not found, using center")
                 case _:
                     # Default to center if invalid edge specified
                     target_x = (x1 + x2) // 2
