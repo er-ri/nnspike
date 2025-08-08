@@ -1013,8 +1013,8 @@ class ActionChain(object):
         """
         carry_bottle2の位置判定バージョン。
         以下の順で動作する:
-        0. 右エッジトレース（青ピクセル数が3000を超えたらphase1へ）
-        1. 青ボトル中心追従（3000以上の間center追従、3000以下で右モーター100ユニット移動まで追従、その後phase2へ）
+        0. 右エッジトレース（青ピクセル数が2000を超えたらphase1へ）
+        1. 青ボトル中心追従（2000以上の間center追従、2000以下で右モーター100ユニット移動まで追従、その後phase2へ）
         2. 右モーター100ユニット移動まで center追従。その後phase3
         3. 左旋回（is_left_black_line_detected(image)検出まで、最大右モーター1000ユニット, 左:0, 右:30）
         4. 直進（右モーター930ユニット移動まで, 両輪BASE_SPEED）
@@ -1033,11 +1033,11 @@ class ActionChain(object):
         })
         status = self.et.get_spike_status()
 
-        # 0. 青ピクセル数が1000を超える前は単純直進、超えたらphase1へ
+        # 0. 青ピクセル数が2000を超える前は単純直進、超えたらphase1へ
         if state["phase"] == 0:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             _, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
-            if blue_pixel_count > 1000:
+            if blue_pixel_count > 2000:
                 state["phase"] = 1
                 # phase1用 右モーター相対位置記録（絶対値）
                 if status is not None and status.motors.get("B") is not None:
@@ -1049,14 +1049,14 @@ class ActionChain(object):
             target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
             return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
 
-        # 1. 青ボトル中心追従（1000以上の間center追従、1000以下で右モーター100ユニット移動まで追従、その後phase2へ）
+        # 1. 青ボトル中心追従（2000以上の間center追従、2000以下で右モーター100ユニット移動まで追従、その後phase2へ）
         if state["phase"] == 1:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
-            if blue_pixel_count > 1000:
+            if blue_pixel_count > 2000:
                 state["below1000_position_start"] = None
                 target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.CARRY_BOTTLE2
-            # 1000以下になった瞬間の位置を記録
+            # 2000以下になった瞬間の位置を記録
             if "below1000_position_start" not in state or state["below1000_position_start"] is None:
                 if status is not None and status.motors.get("B") is not None:
                     state["below3000_position_start"] = abs(status.motors["B"].relative_position)
