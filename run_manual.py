@@ -132,6 +132,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         sensor_recorder.start_recording()  # Initialize video writer conditionally
 
     video_writer = None
+    video_filename = None  # Initialize to avoid UnboundLocalError
     if save_camera_video:
         fourcc = cv2.VideoWriter_fourcc(*"XVID")  # type: ignore[attr-defined]
         video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
@@ -145,7 +146,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             fourcc=fourcc,
             fps=30,
             frameSize=(frame_width, frame_height),
-        )  # Socket connection for sending camera capture (only if enabled)
+        )
 
     client_socket = None
     if send_video_stream:
@@ -354,6 +355,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             target_x = None  # Default target x position
             offset_y = None  # target_y相当も初期化
             left_speed, right_speed = None, None  # Initialize speeds
+            # Initialize visualization variables
+            mx = my = theta = steering_correction = None
+            max_contour = None
 
             match mode:
                 case Mode.TURN_LEFT_RELATIVE:
@@ -383,7 +387,20 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         yellow_cx, yellow_pixel_count = None, 0
                     # シンプルに右モーターの相対位置はright_posを使う
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                    if yellow_pixel_count > 14000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
+                    
+                    # right_posが7000を超えたらNVIDIA_FOLLOWに切り替え
+                    if right_pos is not None and abs(right_pos) >= 7000:
+                        if model is not None:
+                            mode = Mode.NVIDIA_FOLLOW
+                            print(f"Right position {abs(right_pos)} >= 7000, switching to NVIDIA_FOLLOW")
+                            # NVIDIA_FOLLOWの処理をaction_chainに委譲
+                            nvidia_mode_int = int(nvidia_mode_prediction) if nvidia_mode_prediction is not None else None
+                            target_x, speeds, mode = action_chain.nvidia_follow(frame, nvidia_mode_int)
+                            if speeds is not None:
+                                left_speed, right_speed = speeds
+                        else:
+                            print("NVIDIA model not available, continuing with FOLLOW_RIGHT_EDGE")
+                    elif yellow_pixel_count > 14000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
                         print("Avoiding obstacle (auto FOLLOW_RIGHT_EDGE)...")
                         target_x = (x1 + x2) // 2
@@ -458,13 +475,32 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
                 case Mode.NVIDIA_FOLLOW:
-                    # NVIDIAモデル予測をこのcase内で実行（right_pos >= 7000の場合のみ）
-                    if model is not None and right_pos is not None and abs(right_pos) >= 7000:
-                        nvidia_prediction, nvidia_mode_prediction, nvidia_prob = nvidia_model_predict(frame, left_pos, right_pos, model)
-                    # NVIDIA_FOLLOWの処理をaction_chainに委譲
-                    target_x, speeds, mode = action_chain.nvidia_follow(frame, nvidia_mode_prediction)
-                    if speeds is not None:
-                        left_speed, right_speed = speeds
+                    # right_posが21000を超えたらCARRY_BOTTLE1に切り替え
+                    if right_pos is not None and abs(right_pos) > 21000:
+                        mode = Mode.CARRY_BOTTLE1
+                        print(f"Right position {abs(right_pos)} > 21000, switching to CARRY_BOTTLE1")
+                        target_x = (x1 + x2) // 2
+                    else:
+                        # NVIDIAモデル予測を実行
+                        if model is not None:
+                            nvidia_prediction, nvidia_mode_prediction, nvidia_prob = nvidia_model_predict(frame, left_pos, right_pos, model)
+                        
+                        # NVIDIAモデル予測による分岐
+                        if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:
+                            # 左エッジトレース処理
+                            left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+                            if left_x is not None:
+                                target_x = left_x
+                            else:
+                                target_x = (x1 + x2) // 2
+                        else:
+                            # 右エッジトレース処理
+                            _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+                            
+                            if right_x is not None:
+                                target_x = right_x
+                            else:
+                                target_x = (x1 + x2) // 2
                 case _:
                     # Default to center if invalid edge specified
                     target_x = (x1 + x2) // 2
@@ -528,7 +564,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         # Clean up video writer if it was used
         if save_camera_video and video_writer is not None:
             video_writer.release()
-            print(f"Video saved to: {video_filename}")
+            if video_filename:
+                print(f"Video saved to: {video_filename}")
 
         # Clean up sensor recorder if it was used
         if record_sensor_data and sensor_recorder is not None:
