@@ -866,8 +866,8 @@ class ActionChain(object):
                 if abs(current_pos - state["right_position_start"]) < 2000:
                     return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE1
             # 2000超えたら次フェーズへ
-            state["phase"] = 6
-            # phase6用 右モーター相対位置記録（絶対値）
+            state["phase"] = 7
+            # phase7用 右モーター相対位置記録（絶対値）
             if status is not None and status.motors.get("B") is not None:
                 state["right_position_start"] = abs(status.motors["B"].relative_position)
             else:
