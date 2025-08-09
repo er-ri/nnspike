@@ -90,7 +90,7 @@ class KeyboardController:
 
 
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="left", model_path=None):
-    def nvidia_model_predict(frame, model, et):
+    def nvidia_model_predict(frame, model, et: ETRobot):
         """NVIDIAモデルによる予測を行う。run.pyと完全に同じ方式を使用"""
         try:
             roi_area = process_image(image=frame.copy(), device=device, roi=(x1, y1, x2, y2))
