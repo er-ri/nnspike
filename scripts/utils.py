@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
+from typing import Union
 
 from nnspike.constants import ROI_CNN
 from nnspike.models import NvidiaModel
@@ -103,10 +104,36 @@ def create_qnnpack_static_quantized_model(trained_model, calibration_dataloader)
     return scripted_model
 
 
-def load_optimized_model(path, device):
-    model = torch.jit.load(path, map_location=device)
-    model.eval()
-    return model
+def load_optimized_model(path, device) -> Union[nn.Module, torch.jit.ScriptModule]:
+    """
+    Load model with fallback for cross-platform compatibility.
+    Tries JIT first (Raspberry Pi optimized), then state_dict (Windows compatible).
+    Note: Caller is responsible for NUM_MODES compatibility.
+    """
+    try:
+        # 方法1: JITロード（Raspberry Pi最適化）
+        jit_model: torch.jit.ScriptModule = torch.jit.load(path, map_location=device)
+        jit_model.eval()
+        print("SUCCESS: Model loaded with JIT (optimized for Raspberry Pi)")
+        return jit_model
+    except Exception as e1:
+        print(f"JIT loading failed: {e1}")
+        try:
+            # 方法2: state_dict読み込み（Windows互換）
+            print("Fallback: Loading with state_dict...")
+            
+            state_dict = torch.load(path, map_location=device)
+            
+            # NvidiaModelインスタンスを作成（NUM_MODESは呼び出し元で設定済み）
+            nvidia_model: NvidiaModel = NvidiaModel()
+            nvidia_model.load_state_dict(state_dict)
+            nvidia_model = nvidia_model.to(device)
+            nvidia_model.eval()
+            print("SUCCESS: Model loaded with state_dict (Windows fallback)")
+            return nvidia_model
+            
+        except Exception as e2:
+            raise Exception(f"All loading methods failed. JIT: {e1}, State_dict: {e2}")
 
 
 def model_inference(model, roi_area, tensor_relative_position):

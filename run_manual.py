@@ -41,8 +41,9 @@ import tty
 import cv2
 import numpy as np
 import torch
+import nnspike
 
-from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode
+from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode, NUM_MODES
 from nnspike.unit import ETRobot
 from nnspike.unit.action_chain import ActionChain
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, get_virtual_line_edges_at_y, find_bottle_center, find_blue_target_center
@@ -95,10 +96,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         try:
             roi_area = process_image(image=frame.copy(), device=device, roi=(x1, y1, x2, y2))
             
-            # retrieve_motors_relative_positionが2つの値を返すことを考慮
+            # ETRobot.retrieve_motors_relative_position()は1つの値（int）を返す
+            # 両モーターの絶対値の合計: motor_a_position + motor_b_position
             relative_position = et.retrieve_motors_relative_position()
             scaled_relative_position = relative_position / RELATIVE_POSITION_SCALE
-            tensor_relative_position = torch.tensor(scaled_relative_position, dtype=torch.float32).unsqueeze(0).to(device)
+            tensor_relative_position = torch.tensor([scaled_relative_position], dtype=torch.float32).unsqueeze(0).to(device)
             
             # model_inference関数を使用（torch.no_grad()は関数内で実行される）
             nvidia_prediction, (nvidia_mode_prediction, nvidia_prob) = model_inference(model, roi_area, tensor_relative_position)
@@ -167,11 +169,27 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     if model_path:
         print(f"Loading NVIDIA model from: {model_path}")
         try:
-            # run.pyと同じ方式でモデルをロード（JITコンパイル済み）
+            # 正しいクラス数でモデル読み込み
             model = load_optimized_model(model_path, device)
-            print("NVIDIA model loaded successfully (optimized)")
+            model.eval()
+            print("SUCCESS: NVIDIA model loaded successfully")
+            
+            # モデル情報の表示
+            total_params = sum(p.numel() for p in model.parameters())
+            # 型ガードでmode_classifierの存在を確認
+            if hasattr(model, 'mode_classifier'):
+                classifier = getattr(model, 'mode_classifier')
+                if hasattr(classifier, 'out_features'):
+                    actual_classes: int = classifier.out_features
+                    print(f"Model parameters: {total_params:,}, Classes: {actual_classes}")
+                else:
+                    print(f"Model parameters: {total_params:,}")
+            else:
+                print(f"Model parameters: {total_params:,}")
+            
         except Exception as e:
-            print(f"Error loading NVIDIA model: {e}")
+            print(f"ERROR: Error loading NVIDIA model: {e}")
+            print("Continuing without NVIDIA model...")
             model = None
 
     # Set initial mode to PAUSE (initial_mode/course-based logic is disabled)
