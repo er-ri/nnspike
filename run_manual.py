@@ -47,7 +47,7 @@ from nnspike.models import NvidiaModel
 from nnspike.unit import ETRobot
 from nnspike.unit.action_chain import ActionChain
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, get_virtual_line_edges_at_y, find_bottle_center, find_blue_target_center
-from scripts.utils import process_image
+from scripts.utils import process_image, model_inference
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -89,20 +89,18 @@ class KeyboardController:
 
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="left", model_path=None):
     def nvidia_model_predict(frame, left_pos, right_pos, model):
-        """NVIDIAモデルによる予測を行う。"""
+        """NVIDIAモデルによる予測を行う。run.pyと同じmodel_inference方式を使用"""
         try:
             roi_area = process_image(image=frame.copy(), device=device, roi=(x1, y1, x2, y2))
-            rel_pos_a = left_pos if left_pos is not None else 0
-            rel_pos_b = right_pos if right_pos is not None else 0
-            relative_pos_value = abs(rel_pos_a) + abs(rel_pos_b)
-            relative_position = abs(relative_pos_value / RELATIVE_POSITION_SCALE) if relative_pos_value is not None else 0.0
-            relative_position = torch.tensor(relative_position, dtype=torch.float32).unsqueeze(0).to(device)
-            with torch.no_grad():
-                outputs = model(roi_area, relative_position)
-            prob, mode = torch.max(outputs[0], dim=1)
-            nvidia_prob = round(prob[0].item(), 2)
-            nvidia_mode_prediction = mode.item()
-            nvidia_prediction = x1 + (outputs[1][0][0] * (x2 - x1)).detach().item()
+            
+            # run.pyと同じ方式でrelative_positionを計算
+            relative_pos_value = abs(left_pos or 0) + abs(right_pos or 0)
+            scaled_relative_position = relative_pos_value / RELATIVE_POSITION_SCALE
+            tensor_relative_position = torch.tensor(scaled_relative_position, dtype=torch.float32).unsqueeze(0).to(device)
+            
+            # model_inference関数を使用（run.pyと同じ方式）
+            nvidia_prediction, (nvidia_mode_prediction, nvidia_prob) = model_inference(model, roi_area, tensor_relative_position)
+            
             return nvidia_prediction, nvidia_mode_prediction, nvidia_prob
         except Exception as e:
             print(f"NVIDIA model prediction error: {e}")
