@@ -184,30 +184,29 @@ class ETRobot(object):
 
         return motor_a_position + motor_b_position
 
-    # def set_motor_speed(self, left_speed: int, right_speed: int) -> None:
-    #     """
-    #     Set the ETRobot motor's speed.
-    #
-    #     Args:
-    #         left_speed (int): Left motor speed (-100-100).
-    #         right_speed (int): Right motor speed (-100-100).
-    #     """
-    #     if left_speed < -100 or left_speed > 100 or right_speed < -100 or right_speed > 100:
-    #         raise ValueError("Motor speeds must be between -100 and 100.")
-    #
-    #     if left_speed < 0 or right_speed < 0:
-    #         self._set_motor_backward_speed(left_speed, right_speed)
-    #     else:
-    #         self._set_motor_forward_speed(left_speed, right_speed)
-
-    def set_motor_forward_speed(self, left_speed: int, right_speed: int) -> None:
+    def set_motor_speed(self, left_speed: int, right_speed: int) -> None:
         """
-        Set the ETRobot motor's speed (forward direction).
+        Set the ETRobot motor's speed.
+
+        Args:
+            left_speed (int): Left motor speed (-100-100).
+            right_speed (int): Right motor speed (-100-100).
+        """
+        if left_speed < -100 or left_speed > 100 or right_speed < -100 or right_speed > 100:
+            raise ValueError("Motor speeds must be between -100 and 100.")
+
+        if left_speed < 0 or right_speed < 0:
+            self._set_motor_backward_speed(-left_speed, -right_speed)
+        else:
+            self._set_motor_forward_speed(left_speed, right_speed)
+
+    def _set_motor_forward_speed(self, left_speed: int, right_speed: int) -> None:
+        """
+        Set the ETRobot motor's speed.
 
         Args:
             left_speed (int): Left motor speed (0-100).
-            right_speed (int): Right motor speed (0-100).
-        """
+            right_speed (int): Right motor speed (0-100)."""
         id_byte = self.COMMAND_SET_MOTOR_FORWARD_SPEED_ID.to_bytes(1, "big")
         parameter1_byte = left_speed.to_bytes(1, "big")
         parameter2_byte = right_speed.to_bytes(1, "big")
@@ -216,7 +215,7 @@ class ETRobot(object):
 
         self.__send_command(command)
 
-    def set_motor_backward_speed(self, left_speed: int, right_speed: int) -> None:
+    def _set_motor_backward_speed(self, left_speed: int, right_speed: int) -> None:
         """
         Set the ETRobot motor's speed in reverse direction.
 
@@ -251,10 +250,7 @@ class ETRobot(object):
         Move the arm up or down.
 
         Args:
-            action (int): Action to perform (0 = move down, 1 = move up, 2 = stop arm).
-                0: アームを下げる (move down)
-                1: アームを上げる (move up)
-                2: アームを止める (stop arm)
+            action (int): Action to perform (0 = move up, 1 = move down, 2 = stop arm).
         """
         id_byte = self.COMMAND_MOVE_ARM_ID.to_bytes(1, "big")
         parameter1_byte = action.to_bytes(1, "big")

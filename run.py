@@ -108,10 +108,7 @@ def main(model_path, record_sensor_data=False, save_camera_video=False, send_vid
             scaled_relative_position = et.retrieve_motors_relative_position() / RELATIVE_POSITION_SCALE
             tensor_relative_position = torch.tensor(scaled_relative_position, dtype=torch.float32).unsqueeze(0).to(device)
 
-            with torch.no_grad():
-                outputs = model(roi_area, tensor_relative_position)
-
-            # ToDO: Use the 'Mode' output to determine the driving mode
+            # model_inference関数を使用（torch.no_grad()は関数内で実行される）
             predicted_x, (mode_value, prob_value) = model_inference(model, roi_area, tensor_relative_position)
             roi_center_x = (x1 + x2) / 2
 

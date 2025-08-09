@@ -43,13 +43,15 @@ import numpy as np
 import torch
 
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode
-from nnspike.models import NvidiaModel
 from nnspike.unit import ETRobot
 from nnspike.unit.action_chain import ActionChain
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, get_virtual_line_edges_at_y, find_bottle_center, find_blue_target_center
-from scripts.utils import process_image, model_inference
+from scripts.utils import process_image, model_inference, load_optimized_model
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Enable QNNPACK for optimal performance on ARM processors (Raspberry Pi)
+torch.backends.quantized.engine = "qnnpack"
 
 
 # User defined constants
@@ -88,17 +90,16 @@ class KeyboardController:
 
 
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="left", model_path=None):
-    def nvidia_model_predict(frame, left_pos, right_pos, model):
-        """NVIDIAモデルによる予測を行う。run.pyと同じmodel_inference方式を使用"""
+    def nvidia_model_predict(frame, model, et):
+        """NVIDIAモデルによる予測を行う。run.pyと完全に同じ方式を使用"""
         try:
             roi_area = process_image(image=frame.copy(), device=device, roi=(x1, y1, x2, y2))
             
-            # run.pyと同じ方式でrelative_positionを計算
-            relative_pos_value = abs(left_pos or 0) + abs(right_pos or 0)
-            scaled_relative_position = relative_pos_value / RELATIVE_POSITION_SCALE
+            # run.pyと完全に同じ方式でrelative_positionを計算
+            scaled_relative_position = et.retrieve_motors_relative_position() / RELATIVE_POSITION_SCALE
             tensor_relative_position = torch.tensor(scaled_relative_position, dtype=torch.float32).unsqueeze(0).to(device)
             
-            # model_inference関数を使用（run.pyと同じ方式）
+            # model_inference関数を使用（torch.no_grad()は関数内で実行される）
             nvidia_prediction, (nvidia_mode_prediction, nvidia_prob) = model_inference(model, roi_area, tensor_relative_position)
             
             return nvidia_prediction, nvidia_mode_prediction, nvidia_prob
@@ -164,15 +165,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     model = None
     if model_path:
         print(f"Loading NVIDIA model from: {model_path}")
-        model = NvidiaModel()
         try:
-            state_dict = torch.load(model_path, map_location=device)
-            model_state = model.state_dict()
-            filtered_state_dict = {k: v for k, v in state_dict.items() if k in model_state and v.shape == model_state[k].shape}
-            model_state.update(filtered_state_dict)
-            model.load_state_dict(model_state)
-            model.eval()
-            print("NVIDIA model loaded successfully (filtered)")
+            # run.pyと同じ方式でモデルをロード（JITコンパイル済み）
+            model = load_optimized_model(model_path, device)
+            print("NVIDIA model loaded successfully (optimized)")
         except Exception as e:
             print(f"Error loading NVIDIA model: {e}")
             model = None
@@ -218,7 +214,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             nvidia_mode_prediction = None
             nvidia_prob = None
             if model is not None:
-                nvidia_prediction, nvidia_mode_prediction, nvidia_prob = nvidia_model_predict(frame, left_pos, right_pos, model)
+                nvidia_prediction, nvidia_mode_prediction, nvidia_prob = nvidia_model_predict(frame, model, et)
 
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
@@ -474,11 +470,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         print(f"Right position {abs(right_pos)} > 21000, switching to CARRY_BOTTLE1")
                         target_x = (x1 + x2) // 2
                     else:
-                        # NVIDIAモデル予測による分岐
-                        if nvidia_mode_prediction == 0:  # 左エッジ
+                        # NVIDIAモデル予測による分岐（右か左かのモード制御のみ）
+                        if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:  # 左エッジ
                             left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                             target_x = left_x if left_x is not None else (x1 + x2) // 2
-                        else:  # 右エッジ（デフォルト）
+                        else:  # 左モード以外はすべて右エッジ
                             _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                             target_x = right_x if right_x is not None else (x1 + x2) // 2
                 case _:
