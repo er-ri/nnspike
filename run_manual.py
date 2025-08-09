@@ -91,12 +91,13 @@ class KeyboardController:
 
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="left", model_path=None):
     def nvidia_model_predict(frame, model, et: ETRobot):
-        """NVIDIAモデルによる予測を行う。run.pyと完全に同じ方式を使用"""
+        """NVIDIAモデルによる予測を行う。ノートブックテスト結果を反映した安定版"""
         try:
             roi_area = process_image(image=frame.copy(), device=device, roi=(x1, y1, x2, y2))
             
-            # run.pyと完全に同じ方式でrelative_positionを計算
-            scaled_relative_position = et.retrieve_motors_relative_position() / RELATIVE_POSITION_SCALE
+            # retrieve_motors_relative_positionが2つの値を返すことを考慮
+            relative_position = et.retrieve_motors_relative_position()
+            scaled_relative_position = relative_position / RELATIVE_POSITION_SCALE
             tensor_relative_position = torch.tensor(scaled_relative_position, dtype=torch.float32).unsqueeze(0).to(device)
             
             # model_inference関数を使用（torch.no_grad()は関数内で実行される）
