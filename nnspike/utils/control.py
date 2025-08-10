@@ -991,40 +991,45 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
 
 def get_line_trace_edges_at_x320(img):
     """
-    x=320の縦線上で下から上に黒色ラインを探索し、
+    x=320周辺で幅のある黒色ラインを面積検出し、
     一番下でヒットしたy座標のみを返す。
     Returns: target_y or None
     """
     import cv2
     import numpy as np
     center_x = 320
-    min_y_threshold = 380  # y=380以下は無視（早期誤検出を防ぐ）
+    search_width = 30  # x=305～335の範囲で検索
+    min_y_threshold = 415  # y=415以下は無視
     
-    # グレースケール変換 + 非常に厳しい閾値で真の黒線のみ検出
+    # グレースケール変換 + 閾値処理
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(gray, 20, 255, cv2.THRESH_BINARY_INV)  # 40→20に大幅厳格化
+    _, mask = cv2.threshold(gray, 30, 255, cv2.THRESH_BINARY_INV)
     
-    # ノイズ除去を軽減（誤検出を減らすため）
-    mask = cv2.medianBlur(mask, 5)
+    # 指定範囲での検索
+    x_start = max(0, center_x - search_width // 2)
+    x_end = min(img.shape[1], center_x + search_width // 2)
     
-    # x=320の縦ライン上でヒットしたy座標（下から上）
-    col_target = mask[:, center_x]
-    hit_ys = np.where(col_target == 255)[0]
+    # 輪郭検出による面積ベースの黒ライン検出
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
-    # y座標フィルタリング：min_y_threshold以下は無視
-    valid_hit_ys = hit_ys[hit_ys >= min_y_threshold]
+    valid_line_y = None
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        area = cv2.contourArea(cnt)
+        
+        # 幅20程度の横長ライン条件
+        if (w >= 15 and h >= 5 and w >= h * 2 and area >= 100 and 
+            x <= center_x <= x + w and y >= min_y_threshold):
+            line_bottom = y + h
+            if valid_line_y is None or line_bottom > valid_line_y:
+                valid_line_y = line_bottom
     
-    # デバッグ出力：phase0の早期終了を調査
-    all_hits = len(hit_ys)
-    valid_hits = len(valid_hit_ys)
-    result_y = int(valid_hit_ys[-1]) if len(valid_hit_ys) > 0 else None
-    if all_hits > 0 or result_y is not None:
-        print(f"[DEBUG] get_line_trace_edges_at_x320: all_hits={all_hits}, valid_hits={valid_hits}, result_y={result_y}")
+    # デバッグ出力
+    total_contours = len(contours)
+    if total_contours > 0 or valid_line_y is not None:
+        print(f"[DEBUG] get_line_trace_edges_at_x320: total_contours={total_contours}, valid_line_y={valid_line_y}")
     
-    if len(valid_hit_ys) == 0:
-        return None
-    target_y = int(valid_hit_ys[-1])  # 一番下のヒット点
-    return target_y
+    return valid_line_y
 
 def get_is_blue_line_at_y(img, target_y, min_run=30):
     """
