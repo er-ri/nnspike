@@ -998,7 +998,7 @@ def get_line_trace_edges_at_x320(img):
     import cv2
     import numpy as np
     center_x = 320
-    min_y_threshold = 450  # y=450以下は無視（適切なライン接近距離）
+    min_y_threshold = 480  # y=480以下は無視（適切なライン接近距離）
     img_width = img.shape[1]  # 通常640
     
     # グレースケール変換 + 閾値処理
