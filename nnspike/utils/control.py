@@ -1321,8 +1321,8 @@ def is_vertical_black_line_detected(img):
         parallel_ok = abs(line_center_x - _center_x) <= _center_tolerance
         
         # デバッグ：輪郭詳細を表示
-        print(f"  Contour: x={x}, center_x={line_center_x}, w={ww}, h={hh}, aspect={aspect:.2f}, area={area:.0f}, bottom={line_bottom}")
-        print(f"    Checks: width_ok={width_ok}, height_ok={height_ok}, aspect_ok={aspect_ok}, area_ok={area_ok}, bottom_ok={bottom_ok}, parallel_ok={parallel_ok}")
+        # print(f"  Contour: x={x}, center_x={line_center_x}, w={ww}, h={hh}, aspect={aspect:.2f}, area={area:.0f}, bottom={line_bottom}")
+        # print(f"    Checks: width_ok={width_ok}, height_ok={height_ok}, aspect_ok={aspect_ok}, area_ok={area_ok}, bottom_ok={bottom_ok}, parallel_ok={parallel_ok}")
         
         if width_ok and height_ok and aspect_ok and area_ok and bottom_ok and parallel_ok:
             detected_lines.append((x, line_center_x, ww, hh, aspect, area, line_bottom))
@@ -1330,14 +1330,14 @@ def is_vertical_black_line_detected(img):
             rejected_lines.append((x, line_center_x, ww, hh, aspect, area, line_bottom, width_ok, height_ok, aspect_ok, area_ok, bottom_ok, parallel_ok))
     
     # デバッグ出力
-    total_contours = len(contours)
-    detected_vertical = len(detected_lines) > 0
-    # 常に出力（条件を削除）
-    print(f"[DEBUG] is_vertical_black_line_detected: total_contours={total_contours}, detected_vertical_lines={len(detected_lines)}, img_height={img_height}")
-    print(f"  Conditions: min_width={_min_width}, min_height={_min_height}, min_aspect={_min_aspect}, min_area={_min_area}, center_tolerance=±{_center_tolerance}")
-    for i, (x, center_x, w, h, asp, area, bottom) in enumerate(detected_lines):
-        print(f"  ✅ Parallel Line {i+1}: x={x}, center_x={center_x}, width={w}, height={h}, aspect={asp:.2f}, area={area:.0f}, bottom_y={bottom}")
-    for i, (x, center_x, w, h, asp, area, bottom, w_ok, h_ok, a_ok, ar_ok, b_ok, p_ok) in enumerate(rejected_lines[:3]):  # 最初の3つだけ
-        print(f"  ❌ Rejected {i+1}: x={x}, center_x={center_x}, w={w}({w_ok}), h={h}({h_ok}), asp={asp:.2f}({a_ok}), area={area:.0f}({ar_ok}), bottom={bottom}({b_ok}), parallel({p_ok})")
+    # total_contours = len(contours)
+    # detected_vertical = len(detected_lines) > 0
+    # print(f"[DEBUG] is_vertical_black_line_detected: total_contours={total_contours}, detected_vertical_lines={len(detected_lines)}, img_height={img_height}")
+    # print(f"  Conditions: min_width={_min_width}, min_height={_min_height}, min_aspect={_min_aspect}, min_area={_min_area}, center_tolerance=±{_center_tolerance}")
+    # for i, (x, center_x, w, h, asp, area, bottom) in enumerate(detected_lines):
+    #     print(f"  ✅ Parallel Line {i+1}: x={x}, center_x={center_x}, width={w}, height={h}, aspect={asp:.2f}, area={area:.0f}, bottom_y={bottom}")
+    # for i, (x, center_x, w, h, asp, area, bottom, w_ok, h_ok, a_ok, ar_ok, b_ok, p_ok) in enumerate(rejected_lines[:3]):  # 最初の3つだけ
+    #     print(f"  ❌ Rejected {i+1}: x={x}, center_x={center_x}, w={w}({w_ok}), h={h}({h_ok}), asp={asp:.2f}({a_ok}), area={area:.0f}({ar_ok}), bottom={bottom}({b_ok}), parallel({p_ok})")
     
+    detected_vertical = len(detected_lines) > 0
     return detected_vertical
