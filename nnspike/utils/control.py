@@ -1280,10 +1280,10 @@ def is_vertical_black_line_detected(img):
     Returns:
         bool: 画面下部まで続く垂直な黒いラインが検出されればTrue、なければFalse
     """
-    _min_width = 10    # 垂直ラインの最小幅（15→10に緩和）
-    _min_height = 150  # 最小高さ（200→150に緩和）
-    _min_aspect = 2.0  # 垂直ラインのアスペクト比下限（3.0→2.0に緩和）
-    _min_area = 1500   # 最小面積（3000→1500に緩和）
+    _min_width = 5     # 垂直ラインの最小幅（10→5に緩和）
+    _min_height = 100  # 最小高さ（150→100に緩和）
+    _min_aspect = 1.5  # 垂直ラインのアスペクト比下限（2.0→1.5に緩和）
+    _min_area = 500    # 最小面積（1500→500に緩和）
     
     if img is None:
         raise FileNotFoundError("画像がNoneです")
@@ -1304,7 +1304,7 @@ def is_vertical_black_line_detected(img):
         
         # 画面下部まで続く垂直ラインの条件
         line_bottom = y + hh
-        reaches_bottom = line_bottom >= img_height - 20  # 画面下端から20px以内
+        reaches_bottom = line_bottom >= img_height - 50  # 画面下端から50px以内（20→50に緩和）
         
         if (ww >= _min_width and hh >= _min_height and aspect >= _min_aspect and 
             area >= _min_area and reaches_bottom):
