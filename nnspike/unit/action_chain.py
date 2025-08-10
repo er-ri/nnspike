@@ -751,11 +751,11 @@ class ActionChain(object):
                 # ステータス取得失敗時は継続
                 return None, (40, 70), Mode.AVOID_OBSTACLE
 
-        # 1. 右旋回（右モーター650ユニット移動まで, 左:80, 右:50）
+        # 1. 右旋回（右モーター700ユニット移動まで, 左:80, 右:50）
         if state["phase"] == 1:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 650:
+                if abs(current_pos - state["right_position_start"]) < 700:
                     return None, (80, 50), Mode.AVOID_OBSTACLE
                 else:
                     # 650ユニット到達したので次のフェーズへ
