@@ -1193,7 +1193,7 @@ class ActionChain(object):
                 current_pos = abs(status.motors["B"].relative_position)
                 if abs(current_pos - state["right_position_start"]) < 800:
                     pre_target_x = state.get("pre_target_x")
-                    temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x)
+                    temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x, avoidance_preference='right')
                     if temp_x is not None:
                         target_x = temp_x
                         state["pre_target_x"] = temp_x

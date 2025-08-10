@@ -677,7 +677,25 @@ def find_blue_target_center(
         return gray_center, gray_area, 0
     return None, None, 0
 
-def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, fallback_center_x=None, previous_center_x=None):
+def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, fallback_center_x=None, previous_center_x=None, avoidance_preference=None):
+    """
+    黒色障害物を考慮して仮想ラインの中心座標を計算する関数。
+    
+    Args:
+        img: 入力画像
+        target_y: 目標y座標
+        line_width: ライン幅（デフォルト10）
+        image_width: 画像幅（デフォルト640）
+        fallback_center_x: フォールバック中心x座標
+        previous_center_x: 前回の中心x座標
+        avoidance_preference: 単一障害物の回避方向の優先設定
+                            'left': 左回避を優先
+                            'right': 右回避を優先
+                            None: 画像中心基準で自動決定（デフォルト）
+    
+    Returns:
+        int: 計算された仮想ライン中心のx座標
+    """
     # --- 進路決定パラメータの初期化 ---
     if fallback_center_x is None:
         fallback_center_x = image_width // 2  # 画像中央をデフォルト中心
@@ -813,10 +831,21 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                 # 有効範囲を適度に拡大
                 expanded_min = max(20, previous_center_x - 100) if previous_center_x else 20
                 expanded_max = min(image_width - 20, previous_center_x + 100) if previous_center_x else image_width - 20
-                if contour_center < image_center:
+                
+                # 回避方向の決定
+                if avoidance_preference == 'left':
+                    # 左回避を優先：障害物の左側に迂回
+                    candidate_x = contour_center - total_safety
+                elif avoidance_preference == 'right':
+                    # 右回避を優先：障害物の右側に迂回
                     candidate_x = contour_center + total_safety
                 else:
-                    candidate_x = contour_center - total_safety
+                    # 従来の自動判定：画像中心を基準に決定
+                    if contour_center < image_center:
+                        candidate_x = contour_center + total_safety
+                    else:
+                        candidate_x = contour_center - total_safety
+                
                 # まず拡大範囲で試す
                 if expanded_min <= candidate_x <= expanded_max:
                     trajectory_center_x = candidate_x
@@ -883,10 +912,21 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             # 有効範囲を適度に拡大
             expanded_min = max(20, previous_center_x - 100) if previous_center_x else 20
             expanded_max = min(image_width - 20, previous_center_x + 100) if previous_center_x else image_width - 20
-            if contour_center < image_center:
+            
+            # 回避方向の決定
+            if avoidance_preference == 'left':
+                # 左回避を優先：障害物の左側に迂回
+                candidate_x = contour_center - total_safety
+            elif avoidance_preference == 'right':
+                # 右回避を優先：障害物の右側に迂回
                 candidate_x = contour_center + total_safety
             else:
-                candidate_x = contour_center - total_safety
+                # 従来の自動判定：画像中心を基準に決定
+                if contour_center < image_center:
+                    candidate_x = contour_center + total_safety
+                else:
+                    candidate_x = contour_center - total_safety
+            
             # まず拡大範囲で試す
             if expanded_min <= candidate_x <= expanded_max:
                 trajectory_center_x = candidate_x
