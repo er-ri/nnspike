@@ -1427,10 +1427,10 @@ class ActionChain(object):
                 vertical_line_detected = is_vertical_black_line_detected(image)
                 print(f"[DEBUG] heading_goal_relative phase2: position_diff={position_diff}, minimum_reached={minimum_position_reached}, vertical_detected={vertical_line_detected}, limit_reached={position_limit_reached}")
             
-                # 最低150ユニットは必ず旋回
+                # 最低300ユニットは必ず旋回
                 if not minimum_position_reached:
                     return None, (0, 30), Mode.HEAD_GOAL
-                # 150ユニット超えてから、垂直ライン検出または250ユニット到達まで継続
+                # 300ユニット超えてから、垂直ライン検出または500ユニット到達まで継続
                 if (not vertical_line_detected) and (not position_limit_reached):
                     return None, (0, 30), Mode.HEAD_GOAL
                 # 条件を満たしたので次のフェーズへ

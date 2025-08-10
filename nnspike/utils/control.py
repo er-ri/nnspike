@@ -1297,6 +1297,7 @@ def is_vertical_black_line_detected(img):
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     detected_lines = []
+    rejected_lines = []
     for cnt in contours:
         x, y, ww, hh = cv2.boundingRect(cnt)
         area = cv2.contourArea(cnt)
@@ -1306,16 +1307,27 @@ def is_vertical_black_line_detected(img):
         line_bottom = y + hh
         reaches_bottom = line_bottom >= img_height - 50  # 画面下端から50px以内（20→50に緩和）
         
-        if (ww >= _min_width and hh >= _min_height and aspect >= _min_aspect and 
-            area >= _min_area and reaches_bottom):
+        # 各条件チェック
+        width_ok = ww >= _min_width
+        height_ok = hh >= _min_height  
+        aspect_ok = aspect >= _min_aspect
+        area_ok = area >= _min_area
+        bottom_ok = reaches_bottom
+        
+        if width_ok and height_ok and aspect_ok and area_ok and bottom_ok:
             detected_lines.append((ww, hh, aspect, area, line_bottom))
+        else:
+            rejected_lines.append((ww, hh, aspect, area, line_bottom, width_ok, height_ok, aspect_ok, area_ok, bottom_ok))
     
     # デバッグ出力
     total_contours = len(contours)
     detected_vertical = len(detected_lines) > 0
-    if total_contours > 0 or detected_vertical:
-        print(f"[DEBUG] is_vertical_black_line_detected: total_contours={total_contours}, detected_vertical_lines={len(detected_lines)}, img_height={img_height}")
-        for i, (w, h, asp, area, bottom) in enumerate(detected_lines):
-            print(f"  Vertical Line {i+1}: width={w}, height={h}, aspect={asp:.2f}, area={area:.0f}, bottom_y={bottom}")
+    # 常に出力（条件を削除）
+    print(f"[DEBUG] is_vertical_black_line_detected: total_contours={total_contours}, detected_vertical_lines={len(detected_lines)}, img_height={img_height}")
+    print(f"  Conditions: min_width={_min_width}, min_height={_min_height}, min_aspect={_min_aspect}, min_area={_min_area}")
+    for i, (w, h, asp, area, bottom) in enumerate(detected_lines):
+        print(f"  ✅ Valid Line {i+1}: width={w}, height={h}, aspect={asp:.2f}, area={area:.0f}, bottom_y={bottom}")
+    for i, (w, h, asp, area, bottom, w_ok, h_ok, a_ok, ar_ok, b_ok) in enumerate(rejected_lines[:3]):  # 最初の3つだけ
+        print(f"  ❌ Rejected {i+1}: w={w}({w_ok}), h={h}({h_ok}), asp={asp:.2f}({a_ok}), area={area:.0f}({ar_ok}), bottom={bottom}({b_ok})")
     
     return detected_vertical
