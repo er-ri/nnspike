@@ -1024,20 +1024,27 @@ def get_line_trace_edges_at_x320(img):
     # ROIでx=320に相当する列を取得
     roi_center_x = center_x - roi_x_start  # 320 - 100 = 220
     
-    # x=320の列をスキャンして最も下のライン位置を検出
+    # 各行をスキャンして水平ラインを検出し、x=320を通る最も下のラインを見つける
     valid_line_y = None
     
-    if 0 <= roi_center_x < mask.shape[1]:  # 範囲チェック
-        column_data = mask[:, roi_center_x]  # x=320の列データ
+    # 下から上に向かってスキャン（最も下のラインを優先）
+    for roi_y in range(mask.shape[0] - 1, -1, -1):
+        row_data = mask[roi_y, :]  # 各行の横方向データ
         
         # 白いピクセル（黒ライン）を検出
-        white_pixels = np.where(column_data == 255)[0]
+        white_pixels = np.where(row_data == 255)[0]
         
         if len(white_pixels) > 0:
-            # 最も下の白いピクセル（最大のy座標）
-            roi_bottom_y = white_pixels[-1]
-            # 元の画像座標に変換
-            valid_line_y = roi_bottom_y + roi_y_start
+            # 左端と右端を取得
+            left_x = white_pixels[0]
+            right_x = white_pixels[-1]
+            line_width = right_x - left_x + 1
+            
+            # x=320（roi_center_x=220）がライン内に含まれているかチェック
+            if left_x <= roi_center_x <= right_x and line_width >= 50:  # 最小幅50px
+                # 元の画像座標に変換
+                valid_line_y = roi_y + roi_y_start
+                break  # 最も下のラインを見つけたので終了
     
     return valid_line_y
 
