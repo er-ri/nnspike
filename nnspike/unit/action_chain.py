@@ -1416,7 +1416,7 @@ class ActionChain(object):
         if state["phase"] == 2:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 450
+                if abs(current_pos - state["right_position_start"]) < 450:
                     return None, (0, 30), Mode.HEAD_GOAL
             state["phase"] = 3
 
