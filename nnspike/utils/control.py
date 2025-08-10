@@ -1035,6 +1035,7 @@ def get_line_trace_edges_at_x320(img):
         # 白いピクセル（黒ライン）を検出
         white_pixels = np.where(row_data == 255)[0]
         
+        actual_y = roi_y + roi_y_start
         if len(white_pixels) > 0:
             total_white_rows += 1
             # 左端と右端を取得
@@ -1042,11 +1043,21 @@ def get_line_trace_edges_at_x320(img):
             right_x = white_pixels[-1]
             line_width = right_x - left_x + 1
             
+            # y=480以上の詳細デバッグ
+            if actual_y >= 480:
+                center_check = left_x <= roi_center_x <= right_x
+                print(f"[DEBUG] y={actual_y}: left={left_x}, right={right_x}, width={line_width}, center_check={center_check}, width_ok={line_width >= 50}")
+            
             # x=320（roi_center_x=220）がライン内に含まれているかチェック
             if left_x <= roi_center_x <= right_x and line_width >= 50:  # 最小幅50px
                 # 元の画像座標に変換（上書きで最も下のラインを保持）
                 valid_line_y = roi_y + roi_y_start
-                print(f"[DEBUG] ✅ Updated to line at y={valid_line_y}")
+                if actual_y >= 480:
+                    print(f"[DEBUG] ✅ Updated to line at y={valid_line_y} (TARGET RANGE!)")
+                else:
+                    print(f"[DEBUG] ✅ Updated to line at y={valid_line_y}")
+        elif actual_y >= 480:
+            print(f"[DEBUG] y={actual_y}: NO WHITE PIXELS")
     
     print(f"[DEBUG] Total rows with white pixels: {total_white_rows}, Result: {valid_line_y}")
     return valid_line_y
