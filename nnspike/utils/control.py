@@ -1015,14 +1015,18 @@ def get_line_trace_edges_at_x320(img):
     # ROI抽出
     roi = gray[roi_y_start:roi_y_end, roi_x_start:roi_x_end]
     
-    # ガウシアンブラーでノイズ除去（get_line_edges_at_y方式）
-    blurred = cv2.GaussianBlur(roi, (5, 5), 0)
+    # ガウシアンブラーを無効化してテスト
+    # blurred = cv2.GaussianBlur(roi, (5, 5), 0)
     
-    # 閾値処理（緩い条件でテスト）
-    _, mask = cv2.threshold(blurred, 50, 255, cv2.THRESH_BINARY_INV)
+    # 閾値処理（ブラー無し、黒いライン検出）
+    _, mask = cv2.threshold(roi, 50, 255, cv2.THRESH_BINARY_INV)
     
     # ROIでx=320に相当する列を取得
     roi_center_x = center_x - roi_x_start  # 320 - 100 = 220
+    
+    # 基本診断情報
+    total_white_pixels = np.sum(mask == 255)
+    print(f"[DEBUG] ROI shape: {mask.shape}, total_white_pixels: {total_white_pixels}")
     
     # 各行をスキャンして水平ラインを検出し、x=320を通る最も下のラインを見つける
     valid_line_y = None
