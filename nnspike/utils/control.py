@@ -1026,11 +1026,19 @@ def get_line_trace_edges_at_x320(img):
         x = x_roi + roi_x_start
         y = y_roi + roi_y_start
         
-        # ROI範囲での横ライン条件：ROI幅の70%以上 + 横長比率
+        # ROI範囲での横ライン条件：明確な黒いライン検出
         roi_width = 440  # 540-100=440 固定値
-        min_width = int(roi_width * 0.7)  # ROI幅の70%以上
-        if (w >= min_width and h >= 3 and w >= h * 10 and area >= 500 and 
-            x <= center_x <= x + w):  # ROIで既にy制限済みなのでy条件削除
+        min_width = int(roi_width * 0.7)  # ROI幅の70%以上（308px、ROI内基準）
+        
+        # 明確な横ラインの条件：
+        # 1. 十分な幅（ROI内で308px以上、元画像でも308px以上）
+        # 2. 高さは適度（3px以上、かつ幅の1/3以下で横長）
+        # 3. x=320を通る（元画像座標基準）
+        # 4. 十分な面積
+        if (w >= min_width and 
+            h >= 3 and h <= w // 3 and  # 横長条件を緩和（幅の1/3以下）
+            area >= 500 and 
+            x <= center_x <= x + w):
             line_bottom = y + h
             detected_lines.append((w, h, area, line_bottom))
             if valid_line_y is None or line_bottom > valid_line_y:
@@ -1057,7 +1065,11 @@ def get_line_trace_edges_at_x320(img):
                 line_bottom = y + h
                 min_width = int(roi_width * 0.7)
                 crosses_center = x <= center_x <= x + w
-                print(f"    Contour {i+1}: x={x}, y={y}, w={w}(req≥{min_width}), h={h}, area={area}, bottom={line_bottom}, crosses_center={crosses_center}")
+                width_ok = w >= min_width
+                height_ok = h >= 3 and h <= w // 3
+                area_ok = area >= 500
+                print(f"    Contour {i+1}: x={x}, y={y}, w={w}(req≥{min_width}), h={h}, area={area}, bottom={line_bottom}")
+                print(f"      条件: width_ok={width_ok}, height_ok={height_ok}, area_ok={area_ok}, crosses_center={crosses_center}")
     
     return valid_line_y
 
