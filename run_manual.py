@@ -212,6 +212,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         ),  # Direct radian limits for steering correction
     )
 
+    # フレームカウンターとモデル予測結果を保持する変数
+    frame_counter = 0
+    last_nvidia_prediction = None
+    last_nvidia_mode_prediction = None
+    last_nvidia_prob = None
+
     #et.move_arm(1, 1.0)  # アームを上げる（1: up）
     #et.move_arm(0, 1.0)  # アームを下げる（0: down）
     #et.move_arm(2, 0.5)  # アームを止める
@@ -228,12 +234,20 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             left_pos = status.motors["A"].relative_position
             right_pos = status.motors["B"].relative_position
 
-            # NVIDIAモデル予測をright_posが21000以下の時のみ実行
+            # NVIDIAモデル予測をright_posが21000以下の時のみ実行（フレームスキップで負荷軽減）
             nvidia_prediction = None
             nvidia_mode_prediction = None
             nvidia_prob = None
-            if model is not None and (right_pos is None or abs(right_pos) <= 21000):
-                nvidia_prediction, nvidia_mode_prediction, nvidia_prob = nvidia_model_predict(frame, model, et)
+            frame_counter += 1
+            
+            # 3フレームに1回だけモデル予測を実行（負荷軽減）
+            if model is not None and (right_pos is None or abs(right_pos) <= 21000) and frame_counter % 3 == 0:
+                last_nvidia_prediction, last_nvidia_mode_prediction, last_nvidia_prob = nvidia_model_predict(frame, model, et)
+            
+            # 最新の予測結果を使用
+            nvidia_prediction = last_nvidia_prediction
+            nvidia_mode_prediction = last_nvidia_mode_prediction
+            nvidia_prob = last_nvidia_prob
 
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
