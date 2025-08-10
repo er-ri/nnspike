@@ -706,19 +706,25 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
         area = cv2.contourArea(cnt)
         x, y, w, h = cv2.boundingRect(cnt)
         # 小さい領域や特定範囲を除外し、認識領域のみ抽出
-        if (50 < area < 20000 and w >= 15 and h >= 15 and y <= 450 and not (y >= 350 and 120 <= x <= 520)):
+        if (50 < area < 20000 and w >= 15 and h >= 15 and y <= 450 and not (y >= 330 and 120 <= x <= 520)):
             mask = np.zeros(gray.shape, dtype=np.uint8)
             cv2.fillPoly(mask, [cnt], 255)
             region_pixels = gray[mask == 255]
-            avg_darkness = 255 - np.mean(region_pixels) if len(region_pixels) > 0 else 0
+            # 暗さ判定を改善：平均値だけでなく最小値も考慮
+            avg_brightness = np.mean(region_pixels) if len(region_pixels) > 0 else 255
+            min_brightness = np.min(region_pixels) if len(region_pixels) > 0 else 255
+            avg_darkness = 255 - avg_brightness
+            # 黒色障害物の検出を強化：最小値が非常に暗い場合はボーナス
+            darkness_bonus = 50 if min_brightness < 50 else 0
+            effective_darkness = avg_darkness + darkness_bonus
             # --- 極端に横長かつ暗い領域を除外 ---
-            if w / h > 10 and avg_darkness > 100:
+            if w / h > 10 and effective_darkness > 100:
                 continue
             detected_regions.append({
                 'x': x, 'y': y, 'w': w, 'h': h, 'area': area,
                 'center': (x + w//2, y + h//2),
-                'darkness': avg_darkness,
-                'priority': avg_darkness * (area / 1000)
+                'darkness': effective_darkness,
+                'priority': effective_darkness * (area / 1000)
             })
 
     # --- 小領域のマージ処理 ---
@@ -757,17 +763,56 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             })
     detected_regions = merged
 
-    # --- 進路中心計算ロジック ---
+    # --- 進路中心計算ロジック（黒色障害物回避優先） ---
     trajectory_center_x = None
-    min_safe_gap = 60  # 最小安全幅（40→60に変更）
+    min_safe_gap = 80  # 最小安全幅（60→80に拡大：黒色障害物対策）
     if not detected_regions:
         # 領域がなければ前回値または中央
         trajectory_center_x = previous_center_x if previous_center_x is not None else fallback_center_x
     else:
         regions_sorted = sorted(detected_regions, key=lambda x: x['x'])  # x座標順
         back_regions = [r for r in detected_regions if r['y'] <= target_y - 50]  # 奥側領域
-        high_priority_threshold = 150
-        if len(back_regions) >= 2:
+        high_priority_threshold = 100  # 黒色障害物検出強化（150→100に下げる）
+        
+        # 黒色障害物を最優先で検出・回避
+        dark_obstacles = [r for r in detected_regions if r['darkness'] > high_priority_threshold]
+        if dark_obstacles:
+            # 黒色障害物がある場合は、それらを最優先で回避
+            dark_sorted = sorted(dark_obstacles, key=lambda x: x['x'])  # x座標順
+            if len(dark_sorted) >= 2:
+                # 黒色障害物が複数ある場合
+                best_gap = None
+                for i in range(len(dark_sorted) - 1):
+                    left_region = dark_sorted[i]
+                    right_region = dark_sorted[i + 1]
+                    left_edge = left_region['x'] + left_region['w']
+                    right_edge = right_region['x']
+                    safety_margin = 160  # 黒色障害物同士の場合は大きなマージン
+                    gap_width = right_edge - left_edge - safety_margin
+                    if gap_width >= min_safe_gap:
+                        candidate_x = (left_edge + right_edge) // 2
+                        if valid_center_min <= candidate_x <= valid_center_max:
+                            if best_gap is None or gap_width > best_gap['width']:
+                                best_gap = {'width': gap_width, 'center': candidate_x}
+                if best_gap:
+                    trajectory_center_x = best_gap['center']
+            else:
+                # 単一の黒色障害物の場合
+                region = dark_sorted[0]
+                contour_center = region['center'][0]
+                image_center = image_width // 2
+                safety_distance = 300  # 黒色障害物は特に大きな安全距離
+                width_margin = region['w'] // 2 + 30  # 幅の半分＋追加30ピクセル
+                total_safety = safety_distance + width_margin
+                if contour_center < image_center:
+                    candidate_x = contour_center + total_safety
+                else:
+                    candidate_x = contour_center - total_safety
+                if valid_center_min <= candidate_x <= valid_center_max:
+                    trajectory_center_x = candidate_x
+        
+        # 黒色障害物による回避が決まらなかった場合のみ、従来ロジックを実行
+        if trajectory_center_x is None and len(back_regions) >= 2:
             # 奥側2領域から中心に近いペアを選び、左右は順序通り（pair[0]=left, pair[1]=right）
             img_center_x = image_width // 2
             regions_by_center = sorted(back_regions, key=lambda r: abs(r['center'][0] - img_center_x))
@@ -776,11 +821,11 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             right = pair[1]
             left_edge = left['x'] + left['w']
             right_edge = right['x']
-            safety_margin = 60  # 普通の障害物：左右30ずつ
+            safety_margin = 80  # 基本安全マージン強化（60→80：黒色障害物対策）
             if left['darkness'] > high_priority_threshold:
-                safety_margin += 50  # 暗い障害物：追加で50（合計80）
+                safety_margin += 80  # 暗い障害物：追加で80（合計160）
             if right['darkness'] > high_priority_threshold:
-                safety_margin += 50  # 暗い障害物：追加で50（合計80）
+                safety_margin += 80  # 暗い障害物：追加で80（合計160）
             gap_width = right_edge - left_edge - safety_margin
             # 安全幅を満たす場合のみ中心候補
             if gap_width >= min_safe_gap:
@@ -795,11 +840,11 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                 right_region = regions_sorted[i + 1]
                 left_edge = left_region['x'] + left_region['w']
                 right_edge = right_region['x']
-                safety_margin = 60  # 普通の障害物：左右30ずつ
+                safety_margin = 80  # 基本安全マージン強化（60→80：黒色障害物対策）
                 if left_region['darkness'] > high_priority_threshold:
-                    safety_margin += 50  # 暗い障害物：追加で50（合計80）
+                    safety_margin += 80  # 暗い障害物：追加で80（合計160）
                 if right_region['darkness'] > high_priority_threshold:
-                    safety_margin += 50  # 暗い障害物：追加で50（合計80）
+                    safety_margin += 80  # 暗い障害物：追加で80（合計160）
                 gap_width = right_edge - left_edge - safety_margin
                 if gap_width >= min_safe_gap:
                     candidate_x = (left_edge + right_edge) // 2
@@ -810,17 +855,20 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                             best_gap = {'width': effective_width, 'center': candidate_x}
             if best_gap:
                 trajectory_center_x = best_gap['center']
-        # 単一領域時の中心決定
+        # 単一領域時の中心決定（黒色障害物対策強化）
         if trajectory_center_x is None and len(detected_regions) == 1:
             region = detected_regions[0]
             contour_center = region['center'][0]
             image_center = image_width // 2
-            # 普通の障害物：60、暗い障害物：160ピクセル（複数障害物の倍）
-            safety_distance = 160 if region['darkness'] > 150 else 60
+            # 安全距離を大幅に拡大：普通の障害物120、暗い障害物240ピクセル
+            safety_distance = 240 if region['darkness'] > high_priority_threshold else 120
+            # 障害物の実際の幅も考慮してさらに安全マージンを追加
+            width_margin = region['w'] // 2 + 20  # 幅の半分＋追加20ピクセル
+            total_safety = safety_distance + width_margin
             if contour_center < image_center:
-                candidate_x = contour_center + region['w']//2 + safety_distance
+                candidate_x = contour_center + total_safety
             else:
-                candidate_x = contour_center - region['w']//2 - safety_distance
+                candidate_x = contour_center - total_safety
             if valid_center_min <= candidate_x <= valid_center_max:
                 trajectory_center_x = candidate_x
         # どれにも該当しない場合は前回値または中央
