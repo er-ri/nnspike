@@ -739,13 +739,17 @@ class ActionChain(object):
                 current_pos = abs(status.motors["B"].relative_position)
                 if abs(current_pos - state["right_position_start"]) < 500:
                     return None, (40, 70), Mode.AVOID_OBSTACLE
-            
-            state["phase"] = 1
-            # phase1用も右モーター相対位置記録（絶対値）
-            if status is not None and status.motors.get("B") is not None:
-                state["right_position_start"] = abs(status.motors["B"].relative_position)
+                else:
+                    # 500ユニット到達したので次のフェーズへ
+                    state["phase"] = 1
+                    # phase1用も右モーター相対位置記録（絶対値）
+                    if status is not None and status.motors.get("B") is not None:
+                        state["right_position_start"] = abs(status.motors["B"].relative_position)
+                    else:
+                        state["right_position_start"] = None
             else:
-                state["right_position_start"] = None
+                # ステータス取得失敗時は継続
+                return None, (40, 70), Mode.AVOID_OBSTACLE
 
         # 1. 右旋回（右モーター550ユニット移動まで, 左:70, 右:40）
         if state["phase"] == 1:
@@ -753,13 +757,17 @@ class ActionChain(object):
                 current_pos = abs(status.motors["B"].relative_position)
                 if abs(current_pos - state["right_position_start"]) < 550:
                     return None, (70, 40), Mode.AVOID_OBSTACLE
-            
-            state["phase"] = 2
-            # phase2用も右モーター相対位置記録（絶対値）
-            if status is not None and status.motors.get("B") is not None:
-                state["right_position_start"] = abs(status.motors["B"].relative_position)
+                else:
+                    # 550ユニット到達したので次のフェーズへ
+                    state["phase"] = 2
+                    # phase2用も右モーター相対位置記録（絶対値）
+                    if status is not None and status.motors.get("B") is not None:
+                        state["right_position_start"] = abs(status.motors["B"].relative_position)
+                    else:
+                        state["right_position_start"] = None
             else:
-                state["right_position_start"] = None
+                # ステータス取得失敗時は継続
+                return None, (70, 40), Mode.AVOID_OBSTACLE
 
         # 2. 左旋回（右モーター300ユニット移動まで, 左:40, 右:70）
         if state["phase"] == 2:
@@ -767,8 +775,12 @@ class ActionChain(object):
                 current_pos = abs(status.motors["B"].relative_position)
                 if abs(current_pos - state["right_position_start"]) < 300:
                     return None, (40, 70), Mode.AVOID_OBSTACLE
-            
-            state["phase"] = 3
+                else:
+                    # 300ユニット到達したので次のフェーズへ
+                    state["phase"] = 3
+            else:
+                # ステータス取得失敗時は継続
+                return None, (40, 70), Mode.AVOID_OBSTACLE
 
         # 3. チェーン終了でリセット
         if state["phase"] == 3:
