@@ -1373,7 +1373,7 @@ class ActionChain(object):
         })
         status = self.et.get_spike_status()
 
-        # 0. ライン到達前は中央追従（y_hit >= 450）、ただし最長右モーター700ユニットで打ち切り
+        # 0. ライン到達前は中央追従（y_hit >= 420）、ただし最長右モーター700ユニットで打ち切り
         if state["phase"] == 0:
             if state["right_position_start"] is None:
                 if status is not None and status.motors.get("B") is not None:
