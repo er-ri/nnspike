@@ -1045,10 +1045,14 @@ def get_line_trace_edges_at_x320(img):
             line_width = right_x - left_x + 1
             
             actual_y = roi_y + roi_y_start
-            print(f"[DEBUG] Row {actual_y}: left={left_x+roi_x_start}, right={right_x+roi_x_start}, width={line_width}, center_check={left_x <= roi_center_x <= right_x}")
+            # ROI座標での判定値も表示
+            print(f"[DEBUG] Row {actual_y}: ROI(left={left_x}, right={right_x}, roi_center={roi_center_x}) → IMG(left={left_x+roi_x_start}, right={right_x+roi_x_start}), width={line_width}")
             
             # x=320（roi_center_x=220）がライン内に含まれているかチェック
-            if left_x <= roi_center_x <= right_x and line_width >= 50:  # 最小幅50px
+            simple_check = left_x <= roi_center_x <= right_x
+            print(f"[DEBUG]   Simple check: {left_x} <= {roi_center_x} <= {right_x} = {simple_check}")
+            
+            if simple_check and line_width >= 50:  # 最小幅50px
                 # 元の画像座標に変換
                 valid_line_y = roi_y + roi_y_start
                 print(f"[DEBUG] ✅ Found valid line at y={valid_line_y}")
