@@ -1017,9 +1017,9 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 1. 左旋回（is_x320_on_red_target(image, x_tolerance=40)検出まで、最低右モーター450ユニット、最大右モーター950ユニット, 左:0, 右:30）
+        # 1. 左旋回（is_x320_on_red_target(image, x_tolerance=50)検出まで、最低右モーター450ユニット、最大右モーター950ユニット, 左:0, 右:30）
         if state["phase"] == 1:
-            red_target_detected = is_x320_on_red_target(image, x_tolerance=40)
+            red_target_detected = is_x320_on_red_target(image, x_tolerance=50)
             position_limit_reached = False
             minimum_position_reached = False
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
@@ -1077,7 +1077,7 @@ class ActionChain(object):
                     state["right_position_start"] = None
                 target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.CARRY_BOTTLE2
-            # 直進処理：赤ターゲットの中心x座標を使用
+            # 赤ターゲット中心追従：赤ターゲットの中心x座標に向かって進路制御
             red_center_x = get_red_target_center_x(image)
             target_x = red_center_x if red_center_x is not None else (self.x1 + self.x2) // 2
             return target_x, None, Mode.CARRY_BOTTLE2
