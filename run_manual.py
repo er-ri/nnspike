@@ -228,11 +228,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             left_pos = status.motors["A"].relative_position
             right_pos = status.motors["B"].relative_position
 
-            # NVIDIAモデル予測を常に実行
+            # NVIDIAモデル予測をNVIDIA_FOLLOWモード時のみ実行
             nvidia_prediction = None
             nvidia_mode_prediction = None
             nvidia_prob = None
-            if model is not None:
+            if model is not None and mode == Mode.NVIDIA_FOLLOW:
                 nvidia_prediction, nvidia_mode_prediction, nvidia_prob = nvidia_model_predict(frame, model, et)
 
             # Log sensor data using the recorder if enabled
@@ -400,13 +400,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     if right_pos is not None and abs(right_pos) >= 7000:
                         if model is not None:
                             mode = Mode.NVIDIA_FOLLOW
-                            print(f"Right position {abs(right_pos)} >= 7000, switching to NVIDIA_FOLLOW")
                             # NVIDIA_FOLLOWの処理は次のループで実行される
                         else:
                             print("NVIDIA model not available, continuing with FOLLOW_RIGHT_EDGE")
                     elif yellow_pixel_count > 14000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
-                        print("Avoiding obstacle (auto FOLLOW_RIGHT_EDGE)...")
                         target_x = (x1 + x2) // 2
                     elif yellow_pixel_count > 3000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         target_x = yellow_cx[0]  # X座標のみを取得
@@ -479,15 +477,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
                 case Mode.NVIDIA_FOLLOW:
-                    # NVIDIA_FOLLOWモード用デバッグ
-                    print(f"abs(right_pos)={abs(right_pos) if right_pos is not None else None}")
-                    print(f"nvidia_mode_prediction={nvidia_mode_prediction}, nvidia_prob={nvidia_prob}")
-                    
                     # right_posが21000を超えたらCARRY_BOTTLE1に切り替え
                     if right_pos is not None and abs(right_pos) > 21000:
                         mode = Mode.CARRY_BOTTLE1
                         print(f"Right position {abs(right_pos)} > 21000, switching to CARRY_BOTTLE1")
-                        target_x = (x1 + x2) // 2
                     else:
                         # NVIDIAモデル予測による分岐（右か左かのモード制御のみ）
                         if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:  # 左エッジ
