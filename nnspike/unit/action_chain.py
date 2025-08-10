@@ -1361,7 +1361,7 @@ class ActionChain(object):
         """
         heading_goalの位置判定バージョン（右モーター位置追跡）。
         以下の順で動作する:
-        0. ライン到達前は中央追従（y_hit >= 420）、ただし最長右モーター700ユニットで打ち切り
+        0. ライン到達前は中央追従（y_hit >= 400）、ただし最長右モーター700ユニットで打ち切り
         1. 到達直後右モーター50ユニット移動まで直進
         2. 左旋回（右モーター450ユニット移動まで, 左:0, 右:30）
         3. 右エッジトレース（青ライン検出でphase4へ）
@@ -1373,7 +1373,7 @@ class ActionChain(object):
         })
         status = self.et.get_spike_status()
 
-        # 0. ライン到達前は中央追従（y_hit >= 420）、ただし最長右モーター700ユニットで打ち切り
+        # 0. ライン到達前は中央追従（y_hit >= 400）、ただし最長右モーター700ユニットで打ち切り
         if state["phase"] == 0:
             if state["right_position_start"] is None:
                 if status is not None and status.motors.get("B") is not None:
@@ -1387,7 +1387,7 @@ class ActionChain(object):
                 current_pos = abs(status.motors["B"].relative_position)
                 position_limit_reached = abs(current_pos - state["right_position_start"]) >= 700
             
-            if (y_hit is not None and y_hit >= 420) or position_limit_reached:
+            if (y_hit is not None and y_hit >= 400) or position_limit_reached:
                 state["phase"] = 1
                 # phase1用 右モーター相対位置記録（絶対値）
                 if status is not None and status.motors.get("B") is not None:
