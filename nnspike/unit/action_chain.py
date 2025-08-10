@@ -67,9 +67,9 @@ class ActionChain(object):
             state["phase"] = 2
             state["phase_start_time"] = now
 
-        # 2. 左旋回（0.5秒）
+        # 2. 左旋回（0.3秒）
         if state["phase"] == 2:
-            if now - state["phase_start_time"] < 0.5:
+            if now - state["phase_start_time"] < 0.3:
                 return None, (50, 80), Mode.AVOID_OBSTACLE
             state["phase"] = 3
             state["phase_start_time"] = now
