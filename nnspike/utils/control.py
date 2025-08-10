@@ -999,10 +999,10 @@ def get_line_trace_edges_at_x320(img):
     import numpy as np
     center_x = 320
     
-    # ROI固定値：ごく近距離のライン検出のみ（20cm手前防止）
-    roi_x_start = 150   # 左端150削る（より狭く）
-    roi_x_end = 490     # 右端150削る（640-150=490）
-    roi_y_start = 450   # y=450以下無視（さらに遅い検出、5-10cm手前）
+    # ROI固定値：デバッグ用に一時的に広範囲で確認
+    roi_x_start = 100   # 左端100削る
+    roi_x_end = 540     # 右端100削る（640-100=540）
+    roi_y_start = 300   # y=300以下無視（広範囲で確認）
     roi_y_end = 500     # 下部500まで
     
     # ROI抽出
@@ -1027,17 +1027,13 @@ def get_line_trace_edges_at_x320(img):
         y = y_roi + roi_y_start
         
         # ROI範囲での横ライン条件：ごく近距離の明確な黒いライン検出
-        roi_width = 340  # 490-150=340 固定値
-        min_width = int(roi_width * 0.7)  # ROI幅の70%以上（238px）
+        roi_width = 440  # 540-100=440 固定値
+        min_width = int(roi_width * 0.5)  # ROI幅の50%以上（220px、緩い条件）
         
-        # ごく近距離での横ラインの条件：
-        # 1. 十分な幅（ROI内で238px以上、ほぼ画面横断）
-        # 2. 高さは適度（3px以上、かつ幅の1/2以下で横長）
-        # 3. x=320を通る（元画像座標基準）
-        # 4. 十分な面積
+        # デバッグ用緩い条件で検出範囲確認：
         if (w >= min_width and 
-            h >= 3 and h <= w // 2 and  # 横長条件を緩和（幅の1/2以下）
-            area >= 500 and 
+            h >= 3 and 
+            area >= 300 and 
             x <= center_x <= x + w):
             line_bottom = y + h
             detected_lines.append((w, h, area, line_bottom))
@@ -1047,12 +1043,12 @@ def get_line_trace_edges_at_x320(img):
     # デバッグ出力：ROI範囲とライン検出状況
     total_contours = len(contours)
     if total_contours > 0:
-        print(f"[DEBUG] ROI範囲: x=150-490, y=450-500")
+        print(f"[DEBUG] ROI範囲: x=100-540, y=300-500")
         print(f"[DEBUG] 検出された輪郭数: {total_contours}")
         
         # 検出条件の定義
-        roi_width = 340  # 490-150=340
-        min_width = int(roi_width * 0.7)  # 238px
+        roi_width = 440  # 540-100=440
+        min_width = int(roi_width * 0.5)  # 220px
         
         # 全ての輪郭の詳細チェック
         for i, cnt in enumerate(contours):
@@ -1069,13 +1065,13 @@ def get_line_trace_edges_at_x320(img):
             print(f"    ライン太さ: {h}px ({'十分' if h >= 10 else '細い' if h >= 3 else '極細'})")
             print(f"    x=320通過: {'Yes' if x <= center_x <= x + w else 'No'} (x={x}~{x+w})")
             print(f"    幅条件: {'OK' if w >= min_width else 'NG'} (req≥{min_width})")
-            print(f"    横長条件: {'OK' if h >= 3 and h <= w // 2 else 'NG'}")
-            print(f"    面積条件: {'OK' if area >= 500 else 'NG'}")
+            print(f"    横長条件: {'OK' if h >= 3 else 'NG'} (h≥3)")
+            print(f"    面積条件: {'OK' if area >= 300 else 'NG'} (area≥300)")
             
             # 検出対象かどうか
             all_conditions_met = (w >= min_width and 
-                                h >= 3 and h <= w // 2 and 
-                                area >= 500 and 
+                                h >= 3 and 
+                                area >= 300 and 
                                 x <= center_x <= x + w)
             print(f"    → {'検出対象' if all_conditions_met else '除外'}")
             print()

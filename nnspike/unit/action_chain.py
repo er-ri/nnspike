@@ -1387,26 +1387,26 @@ class ActionChain(object):
         })
         status = self.et.get_spike_status()
 
-        # 0. ライン到達前は中央追従（y_hit >= 420）、ただし最長右モーター500ユニットで打ち切り
+        # 0. ライン到達前は中央追従（y_hit >= 480）、距離制限なし
         if state["phase"] == 0:
             if state["right_position_start"] is None:
-                if status is not None and status.motors.get("B") is not None:
+                if status is not None and status.motors.get("B") is not None and status.motors["B"].relative_position is not None:
                     state["right_position_start"] = abs(status.motors["B"].relative_position)
                 else:
                     state["right_position_start"] = None
 
             y_hit = get_line_trace_edges_at_x320(image)
-            position_limit_reached = False
+            # 距離制限を削除：ライン検出のみで判定
             position_diff = 0
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
+            if status is not None and status.motors.get("B") is not None and status.motors["B"].relative_position is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                position_diff = abs(current_pos - state["right_position_start"])
-                position_limit_reached = position_diff >= 500
+                if state["right_position_start"] is not None:
+                    position_diff = abs(current_pos - state["right_position_start"])
             
-            # ライン到達チェック：y_hitがNoneでないかつ480以上、または距離制限到達
+            # ライン到達チェック：y_hitがNoneでないかつ480以上のみ
             line_reached = y_hit is not None and y_hit >= 480
-            # print(f"[DEBUG] heading_goal_relative phase0: y_hit={y_hit}, line_reached={line_reached}, position_diff={position_diff}, position_limit_reached={position_limit_reached}")
-            if line_reached or position_limit_reached:
+            print(f"[DEBUG] heading_goal_relative phase0: y_hit={y_hit}, line_reached={line_reached}, position_diff={position_diff}")
+            if line_reached:  # 距離制限条件を削除
                 state["phase"] = 2
                 # phase2用 右モーター相対位置記録（絶対値）
                 if status is not None and status.motors.get("B") is not None:
@@ -1419,7 +1419,7 @@ class ActionChain(object):
 
         # 2. 左旋回（右モーター500ユニット移動まで, 左:0, 右:30）
         if state["phase"] == 2:
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
+            if status is not None and status.motors.get("B") is not None:
                 current_pos = abs(status.motors["B"].relative_position)
                 position_diff = abs(current_pos - state["right_position_start"])
                 minimum_position_reached = position_diff >= 300
