@@ -1396,6 +1396,7 @@ class ActionChain(object):
                     state["right_position_start"] = None
 
             y_hit = get_line_trace_edges_at_x320(image)
+            print(f"[heading_goal_relative] y_hit: {y_hit}")
             # 距離制限を削除：ライン検出のみで判定
             position_diff = 0
             if status is not None and status.motors.get("B") is not None and status.motors["B"].relative_position is not None:

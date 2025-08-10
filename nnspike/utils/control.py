@@ -997,10 +997,10 @@ def get_line_trace_edges_at_x320(img):
     """
     center_x = 320
     
-    # ROI固定値：超極近距離検出（y=480直前のライン検出）
+    # ROI固定値：極近距離検出（y=480直前のライン検出）
     roi_x_start = 100   # 左端100削る
     roi_x_end = 540     # 右端100削る（640-100=540）
-    roi_y_start = 450   # y=450以下無視（超極近距離）
+    roi_y_start = 450   # y=450以下無視（極近距離）
     roi_y_end = 540     # 画面最下部まで
     
     # ROI抽出
@@ -1028,10 +1028,8 @@ def get_line_trace_edges_at_x320(img):
     valid_line_y = None
     total_white_rows = 0
     
-    print(f"[DEBUG] ROI shape: {mask.shape}, roi_center_x: {roi_center_x}")
-    
-    # 下から上に向かってスキャン（最も下のラインを優先）
-    for roi_y in range(mask.shape[0] - 1, -1, -1):
+    # 上から下に向かってスキャン（最も下のラインを最後に検出して上書き）
+    for roi_y in range(0, mask.shape[0]):
         row_data = mask[roi_y, :]  # 各行の横方向データ
         
         # 白いピクセル（黒ライン）を検出
@@ -1044,22 +1042,13 @@ def get_line_trace_edges_at_x320(img):
             right_x = white_pixels[-1]
             line_width = right_x - left_x + 1
             
-            actual_y = roi_y + roi_y_start
-            # ROI座標での判定値も表示
-            print(f"[DEBUG] Row {actual_y}: ROI(left={left_x}, right={right_x}, roi_center={roi_center_x}) → IMG(left={left_x+roi_x_start}, right={right_x+roi_x_start}), width={line_width}")
-            
             # x=320（roi_center_x=220）がライン内に含まれているかチェック
-            simple_check = left_x <= roi_center_x <= right_x
-            print(f"[DEBUG]   Simple check: {left_x} <= {roi_center_x} <= {right_x} = {simple_check}")
-            
-            if simple_check and line_width >= 50:  # 最小幅50px
-                # 元の画像座標に変換
+            if left_x <= roi_center_x <= right_x and line_width >= 50:  # 最小幅50px
+                # 元の画像座標に変換（上書きで最も下のラインを保持）
                 valid_line_y = roi_y + roi_y_start
-                print(f"[DEBUG] ✅ Found valid line at y={valid_line_y}")
-                break  # 最も下のラインを見つけたので終了
+                print(f"[DEBUG] ✅ Updated to line at y={valid_line_y}")
     
     print(f"[DEBUG] Total rows with white pixels: {total_white_rows}, Result: {valid_line_y}")
-    
     return valid_line_y
 
 def get_is_blue_line_at_y(img, target_y, min_run=30):
