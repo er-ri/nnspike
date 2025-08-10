@@ -1361,7 +1361,11 @@ class ActionChain(object):
                 # 300ユニット超えてから、水平ライン検出または500ユニット到達まで継続
                 if (not horizontal_line_detected) and (not position_limit_reached):
                     return None, (30, 0), Mode.BACK_AND_TURN2
-            state["phase"] = 2
+                # 条件を満たしたので次のフェーズへ
+                state["phase"] = 2
+            else:
+                # ステータス取得失敗時は継続
+                return None, (30, 0), Mode.BACK_AND_TURN2
 
         # 2. 終了: 状態リセット
         if state["phase"] == 2:
@@ -1438,7 +1442,11 @@ class ActionChain(object):
                 # 300ユニット超えてから、垂直ライン検出または500ユニット到達まで継続
                 if (not vertical_line_detected) and (not position_limit_reached):
                     return None, (0, 30), Mode.HEAD_GOAL
-            state["phase"] = 3
+                # 条件を満たしたので次のフェーズへ
+                state["phase"] = 3
+            else:
+                # ステータス取得失敗時は継続
+                return None, (0, 30), Mode.HEAD_GOAL
 
         # 3. 右エッジトレース（青ライン検出でphase4へ）
         if state["phase"] == 3:
