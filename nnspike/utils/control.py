@@ -1015,56 +1015,22 @@ def get_line_trace_edges_at_x320(img):
     # ROI抽出
     roi = gray[roi_y_start:roi_y_end, roi_x_start:roi_x_end]
     
-    # ガウシアンブラーを無効化してテスト
-    # blurred = cv2.GaussianBlur(roi, (5, 5), 0)
+    # 他の関数と同じOTSU自動閾値を使用
+    _, mask = cv2.threshold(roi, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     
-    # 閾値処理（ブラー無し、黒いライン検出）
-    _, mask = cv2.threshold(roi, 50, 255, cv2.THRESH_BINARY_INV)
-    
-    # ROIでx=320に相当する列を取得
+    # シンプル検知：x=320の列で最も下の白いピクセルを探す
     roi_center_x = center_x - roi_x_start  # 320 - 100 = 220
     
-    # 基本診断情報
-    total_white_pixels = np.sum(mask == 255)
-    print(f"[DEBUG] ROI shape: {mask.shape}, total_white_pixels: {total_white_pixels}")
-    
-    # 各行をスキャンして水平ラインを検出し、x=320を通る最も下のラインを見つける
-    valid_line_y = None
-    total_white_rows = 0
-    
-    # 上から下に向かってスキャン（最も下のラインを最後に検出して上書き）
-    for roi_y in range(0, mask.shape[0]):
-        row_data = mask[roi_y, :]  # 各行の横方向データ
+    if 0 <= roi_center_x < mask.shape[1]:
+        column_data = mask[:, roi_center_x]  # x=320の列
+        white_positions = np.where(column_data == 255)[0]  # 白いピクセルの行番号
         
-        # 白いピクセル（黒ライン）を検出
-        white_pixels = np.where(row_data == 255)[0]
-        
-        actual_y = roi_y + roi_y_start
-        if len(white_pixels) > 0:
-            total_white_rows += 1
-            # 左端と右端を取得
-            left_x = white_pixels[0]
-            right_x = white_pixels[-1]
-            line_width = right_x - left_x + 1
-            
-            # y=480以上の詳細デバッグ
-            if actual_y >= 480:
-                center_check = left_x <= roi_center_x <= right_x
-                print(f"[DEBUG] y={actual_y}: left={left_x}, right={right_x}, width={line_width}, center_check={center_check}, width_ok={line_width >= 50}")
-            
-            # x=320（roi_center_x=220）がライン内に含まれているかチェック
-            if left_x <= roi_center_x <= right_x and line_width >= 20:  # 最小幅20px（緩い条件）
-                # 元の画像座標に変換（上書きで最も下のラインを保持）
-                valid_line_y = roi_y + roi_y_start
-                if actual_y >= 480:
-                    print(f"[DEBUG] ✅ Updated to line at y={valid_line_y} (TARGET RANGE!)")
-                else:
-                    print(f"[DEBUG] ✅ Updated to line at y={valid_line_y}")
-        elif actual_y >= 480:
-            print(f"[DEBUG] y={actual_y}: NO WHITE PIXELS")
+        if len(white_positions) > 0:
+            # 最も下の白いピクセル位置
+            bottom_roi_y = white_positions[-1]
+            return bottom_roi_y + roi_y_start
     
-    print(f"[DEBUG] Total rows with white pixels: {total_white_rows}, Result: {valid_line_y}")
-    return valid_line_y
+    return None
 
 def get_is_blue_line_at_y(img, target_y, min_run=30):
     """
