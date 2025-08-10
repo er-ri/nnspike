@@ -19,6 +19,7 @@ from nnspike.utils.control import (
     is_left_black_line_detected,
     is_horizontal_black_line_detected,
     is_vertical_black_line_detected,
+    is_general_horizontal_line_detected,
 )
 
 class ActionChain(object):
@@ -1353,7 +1354,8 @@ class ActionChain(object):
                 position_diff = abs(current_pos - state["left_position_start"])
                 minimum_position_reached = position_diff >= 300
                 position_limit_reached = position_diff >= 500
-                horizontal_line_detected = is_horizontal_black_line_detected(image)
+                # 水平ライン検出→一般的な水平黒ライン検出に変更
+                horizontal_line_detected = is_general_horizontal_line_detected(image)
             
                 # 最低300ユニットは必ず旋回
                 if not minimum_position_reached:
@@ -1387,7 +1389,7 @@ class ActionChain(object):
         })
         status = self.et.get_spike_status()
 
-        # 0. ライン到達前は中央追従（y_hit >= 480）、距離制限なし
+        # 0. ライン到達前は中央追従（intersection_y=450で黒水平ライン検出まで）、距離制限なし
         if state["phase"] == 0:
             if state["right_position_start"] is None:
                 if status is not None and status.motors.get("B") is not None and status.motors["B"].relative_position is not None:
@@ -1395,25 +1397,30 @@ class ActionChain(object):
                 else:
                     state["right_position_start"] = None
 
-            y_hit = get_line_trace_edges_at_x320(image)
-            print(f"[heading_goal_relative] y_hit: {y_hit}")
-            # 距離制限を削除：ライン検出のみで判定
-            position_diff = 0
-            if status is not None and status.motors.get("B") is not None and status.motors["B"].relative_position is not None:
-                current_pos = abs(status.motors["B"].relative_position)
-                if state["right_position_start"] is not None:
-                    position_diff = abs(current_pos - state["right_position_start"])
-            
-            # ライン到達チェック：y_hitがNoneでないかつ479以上で確実に到達
-            line_reached = y_hit is not None and y_hit >= 480
-            # print(f"[DEBUG] heading_goal_relative phase0: y_hit={y_hit}, line_reached={line_reached}, position_diff={position_diff}")
-            if line_reached:  # 距離制限条件を削除
-                state["phase"] = 2
-                # phase2用 右モーター相対位置記録（絶対値）
+            # intersection_y=450で黒水平ライン検出
+            if is_horizontal_black_line_detected(image, intersection_y=450):
+                state["phase"] = 1
+                # phase1用 右モーター相対位置記録（絶対値）
                 if status is not None and status.motors.get("B") is not None:
-                    state["right_position_start"] = abs(status.motors["B"].relative_position)
+                    rel_pos = status.motors["B"].relative_position
+                    state["right_position_start"] = abs(rel_pos) if rel_pos is not None else None
                 else:
                     state["right_position_start"] = None
+            else:
+                target_x = (self.x1 + self.x2) // 2
+                return target_x, None, Mode.HEAD_GOAL
+
+    # 1. 右モーターの移動距離が50未満なら直進、50以上でphase2へ遷移
+        if state["phase"] == 1:
+            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
+                rel_pos = status.motors["B"].relative_position
+                current_pos = abs(rel_pos) if rel_pos is not None else 0
+                position_diff = abs(current_pos - state["right_position_start"])
+                target_x = (self.x1 + self.x2) // 2
+                if position_diff < 50:
+                    return target_x, None, Mode.HEAD_GOAL
+                else:
+                    state["phase"] = 2
             else:
                 target_x = (self.x1 + self.x2) // 2
                 return target_x, None, Mode.HEAD_GOAL
@@ -1421,8 +1428,9 @@ class ActionChain(object):
         # 2. 左旋回（右モーター500ユニット移動まで, 左:0, 右:30）
         if state["phase"] == 2:
             if status is not None and status.motors.get("B") is not None:
-                current_pos = abs(status.motors["B"].relative_position)
-                position_diff = abs(current_pos - state["right_position_start"])
+                rel_pos = status.motors["B"].relative_position
+                current_pos = abs(rel_pos) if rel_pos is not None else 0
+                position_diff = abs(current_pos - state["right_position_start"]) if state["right_position_start"] is not None else 0
                 minimum_position_reached = position_diff >= 300
                 position_limit_reached = position_diff >= 500
                 vertical_line_detected = is_vertical_black_line_detected(image)
@@ -1453,7 +1461,8 @@ class ActionChain(object):
                 state["phase"] = 4
                 # phase4用 右モーター相対位置記録（絶対値）
                 if status is not None and status.motors.get("B") is not None:
-                    state["right_position_start"] = abs(status.motors["B"].relative_position)
+                    rel_pos = status.motors["B"].relative_position
+                    state["right_position_start"] = abs(rel_pos) if rel_pos is not None else None
                 else:
                     state["right_position_start"] = None
                 return target_x, None, Mode.HEAD_GOAL
@@ -1463,7 +1472,8 @@ class ActionChain(object):
         if state["phase"] == 4:
             position_limit_reached = False
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                current_pos = abs(status.motors["B"].relative_position)
+                rel_pos = status.motors["B"].relative_position
+                current_pos = abs(rel_pos) if rel_pos is not None else 0
                 position_limit_reached = abs(current_pos - state["right_position_start"]) >= 600
             
             if position_limit_reached:
