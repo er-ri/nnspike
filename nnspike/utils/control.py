@@ -1000,7 +1000,7 @@ def get_line_trace_edges_at_x320(img):
     # ROI固定値：超極近距離検出（y=480直前のライン検出）
     roi_x_start = 100   # 左端100削る
     roi_x_end = 540     # 右端100削る（640-100=540）
-    roi_y_start = 470   # y=470以下無視（超極近距離）
+    roi_y_start = 450   # y=450以下無視（超極近距離）
     roi_y_end = 540     # 画面最下部まで
     
     # ROI抽出
