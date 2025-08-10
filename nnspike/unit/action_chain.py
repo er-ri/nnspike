@@ -1376,11 +1376,10 @@ class ActionChain(object):
         """
         heading_goalの位置判定バージョン（右モーター位置追跡）。
         以下の順で動作する:
-        0. ライン到達前は中央追従（y_hit >= 400で遷移）、ただし最長右モーター700ユニットで打ち切り
-        1. 到達直後右モーター30ユニット移動まで直進
-        2. 左旋回（右モーター500ユニット移動まで, 左:0, 右:30）または垂直ライン検出で最低300, 最大500ユニット
-        3. 右エッジトレース（青ライン検出でphase4へ）
-        4. 青ライン検出後、右モーター600ユニット移動まで右エッジトレースしたらPAUSE（状態リセット）
+        0. ライン到達前は中央追従（y_hit >= 430で遷移）、ただし最長右モーター700ユニットで打ち切り
+        1. 左旋回（右モーター500ユニット移動まで, 左:0, 右:30）または垂直ライン検出で最低300, 最大500ユニット
+        2. 右エッジトレース（青ライン検出でphase3へ）
+        3. 青ライン検出後、右モーター600ユニット移動まで右エッジトレースしたらPAUSE（状態リセット）
         """
         state = self._state.setdefault("heading_goal_relative", {
             "phase": 0,
@@ -1388,7 +1387,7 @@ class ActionChain(object):
         })
         status = self.et.get_spike_status()
 
-        # 0. ライン到達前は中央追従（y_hit >= 400）、ただし最長右モーター700ユニットで打ち切り
+        # 0. ライン到達前は中央追従（y_hit >= 430）、ただし最長右モーター700ユニットで打ち切り
         if state["phase"] == 0:
             if state["right_position_start"] is None:
                 if status is not None and status.motors.get("B") is not None:
@@ -1402,12 +1401,12 @@ class ActionChain(object):
                 current_pos = abs(status.motors["B"].relative_position)
                 position_limit_reached = abs(current_pos - state["right_position_start"]) >= 700
             
-            # ライン到達チェック：y_hitがNoneでないかつ400以上、または距離制限到達
-            line_reached = y_hit is not None and y_hit >= 400
+            # ライン到達チェック：y_hitがNoneでないかつ430以上、または距離制限到達
+            line_reached = y_hit is not None and y_hit >= 430
             print(f"[DEBUG] heading_goal_relative phase0: y_hit={y_hit}, line_reached={line_reached}, position_limit_reached={position_limit_reached}")
             if line_reached or position_limit_reached:
-                state["phase"] = 1
-                # phase1用 右モーター相対位置記録（絶対値）
+                state["phase"] = 2
+                # phase2用 右モーター相対位置記録（絶対値）
                 if status is not None and status.motors.get("B") is not None:
                     state["right_position_start"] = abs(status.motors["B"].relative_position)
                 else:
@@ -1416,28 +1415,7 @@ class ActionChain(object):
                 target_x = (self.x1 + self.x2) // 2
                 return target_x, None, Mode.HEAD_GOAL
 
-        # 1. 到達直後右モーター30ユニット移動まで直進
-        if state["phase"] == 1:
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                current_pos = abs(status.motors["B"].relative_position)
-                position_diff = abs(current_pos - state["right_position_start"])
-                print(f"[DEBUG] heading_goal_relative phase1: position_diff={position_diff}")
-                if position_diff < 30:
-                    target_x = (self.x1 + self.x2) // 2
-                    return target_x, (BASE_SPEED, BASE_SPEED), Mode.HEAD_GOAL
-                # 30ユニット到達したのでphase 2へ
-                state["phase"] = 2
-                # phase2用 右モーター相対位置記録（絶対値）
-                if status is not None and status.motors.get("B") is not None:
-                    state["right_position_start"] = abs(status.motors["B"].relative_position)
-                else:
-                    state["right_position_start"] = None
-            else:
-                # ステータス取得失敗時は継続
-                target_x = (self.x1 + self.x2) // 2
-                return target_x, (BASE_SPEED, BASE_SPEED), Mode.HEAD_GOAL
-
-        # 2. 左旋回（右モーター500ユニット移動まで, 左:0, 右:30）
+        # 1. 左旋回（右モーター500ユニット移動まで, 左:0, 右:30）
         if state["phase"] == 2:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
