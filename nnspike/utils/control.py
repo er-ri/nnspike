@@ -1025,11 +1025,11 @@ def get_line_trace_edges_at_x320(img):
                 valid_line_y = line_bottom
     
     # デバッグ出力：超絶ロングライン検出状況
-    total_contours = len(contours)
-    if total_contours > 0 or valid_line_y is not None:
-        print(f"[DEBUG] get_line_trace_edges_at_x320: total_contours={total_contours}, detected_long_lines={len(detected_lines)}, valid_line_y={valid_line_y}")
-        for i, (w, h, area, bottom) in enumerate(detected_lines):
-            print(f"  Long Line {i+1}: width={w}, height={h}, area={area}, bottom_y={bottom}")
+    # total_contours = len(contours)
+    # if total_contours > 0 or valid_line_y is not None:
+    #     print(f"[DEBUG] get_line_trace_edges_at_x320: total_contours={total_contours}, detected_long_lines={len(detected_lines)}, valid_line_y={valid_line_y}")
+    #     for i, (w, h, area, bottom) in enumerate(detected_lines):
+    #         print(f"  Long Line {i+1}: width={w}, height={h}, area={area}, bottom_y={bottom}")
     
     return valid_line_y
 
@@ -1271,21 +1271,24 @@ def is_horizontal_black_line_detected(img):
 
 def is_vertical_black_line_detected(img):
     """
-    画面全体を縦断する垂直な黒いラインが検出されたらTrueを返す関数
+    画面下部まで続く垂直な黒いラインが検出されたらTrueを返す関数
+    （上部は途切れていても良い、下部が画面下端まで続いていることが重要）
     
     Args:
         img: BGR画像 (numpy.ndarray)
     
     Returns:
-        bool: 画面全体を縦断する垂直な黒いラインが検出されればTrue、なければFalse
+        bool: 画面下部まで続く垂直な黒いラインが検出されればTrue、なければFalse
     """
     _min_width = 15    # 垂直ラインの最小幅
-    _min_height = 300  # 画面全体を縦断するための最小高さ
+    _min_height = 200  # 最小高さ（画面全体でなくても良い）
     _min_aspect = 3.0  # 垂直ラインのアスペクト比下限（高さ/幅 >= 3.0）
-    _min_area = 5000   # 最小面積
+    _min_area = 3000   # 最小面積（少し緩和）
     
     if img is None:
         raise FileNotFoundError("画像がNoneです")
+    
+    img_height = img.shape[0]  # 画像の高さ取得
     
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
@@ -1296,13 +1299,26 @@ def is_vertical_black_line_detected(img):
     
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
+    detected_lines = []
     for cnt in contours:
         x, y, ww, hh = cv2.boundingRect(cnt)
         area = cv2.contourArea(cnt)
         aspect = hh / (ww + 1e-5)  # 高さ/幅
         
-        # 画面全体を縦断する垂直ラインの条件
-        if ww >= _min_width and hh >= _min_height and aspect >= _min_aspect and area >= _min_area:
-            return True
+        # 画面下部まで続く垂直ラインの条件
+        line_bottom = y + hh
+        reaches_bottom = line_bottom >= img_height - 20  # 画面下端から20px以内
+        
+        if (ww >= _min_width and hh >= _min_height and aspect >= _min_aspect and 
+            area >= _min_area and reaches_bottom):
+            detected_lines.append((ww, hh, aspect, area, line_bottom))
     
-    return False
+    # デバッグ出力
+    total_contours = len(contours)
+    detected_vertical = len(detected_lines) > 0
+    if total_contours > 0 or detected_vertical:
+        print(f"[DEBUG] is_vertical_black_line_detected: total_contours={total_contours}, detected_vertical_lines={len(detected_lines)}, img_height={img_height}")
+        for i, (w, h, asp, area, bottom) in enumerate(detected_lines):
+            print(f"  Vertical Line {i+1}: width={w}, height={h}, aspect={asp:.2f}, area={area:.0f}, bottom_y={bottom}")
+    
+    return detected_vertical

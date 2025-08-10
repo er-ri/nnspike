@@ -1405,7 +1405,7 @@ class ActionChain(object):
             
             # ライン到達チェック：y_hitがNoneでないかつ450以上、または距離制限到達
             line_reached = y_hit is not None and y_hit >= 450
-            print(f"[DEBUG] heading_goal_relative phase0: y_hit={y_hit}, line_reached={line_reached}, position_diff={position_diff}, position_limit_reached={position_limit_reached}")
+            # print(f"[DEBUG] heading_goal_relative phase0: y_hit={y_hit}, line_reached={line_reached}, position_diff={position_diff}, position_limit_reached={position_limit_reached}")
             if line_reached or position_limit_reached:
                 state["phase"] = 2
                 # phase2用 右モーター相対位置記録（絶対値）
@@ -1417,7 +1417,7 @@ class ActionChain(object):
                 target_x = (self.x1 + self.x2) // 2
                 return target_x, None, Mode.HEAD_GOAL
 
-        # 1. 左旋回（右モーター500ユニット移動まで, 左:0, 右:30）
+        # 1. 左旋回（右モーター250ユニット移動まで, 左:0, 右:30）
         if state["phase"] == 2:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
@@ -1425,11 +1425,12 @@ class ActionChain(object):
                 minimum_position_reached = position_diff >= 300
                 position_limit_reached = position_diff >= 500
                 vertical_line_detected = is_vertical_black_line_detected(image)
+                print(f"[DEBUG] heading_goal_relative phase2: position_diff={position_diff}, minimum_reached={minimum_position_reached}, vertical_detected={vertical_line_detected}, limit_reached={position_limit_reached}")
             
-                # 最低300ユニットは必ず旋回
+                # 最低150ユニットは必ず旋回
                 if not minimum_position_reached:
                     return None, (0, 30), Mode.HEAD_GOAL
-                # 300ユニット超えてから、垂直ライン検出または500ユニット到達まで継続
+                # 150ユニット超えてから、垂直ライン検出または250ユニット到達まで継続
                 if (not vertical_line_detected) and (not position_limit_reached):
                     return None, (0, 30), Mode.HEAD_GOAL
                 # 条件を満たしたので次のフェーズへ
