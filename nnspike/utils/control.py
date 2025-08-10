@@ -1018,8 +1018,8 @@ def get_line_trace_edges_at_x320(img):
     # ガウシアンブラーでノイズ除去（get_line_edges_at_y方式）
     blurred = cv2.GaussianBlur(roi, (5, 5), 0)
     
-    # 閾値処理（より厳格）
-    _, mask = cv2.threshold(blurred, 25, 255, cv2.THRESH_BINARY_INV)
+    # 閾値処理（緩い条件でテスト）
+    _, mask = cv2.threshold(blurred, 50, 255, cv2.THRESH_BINARY_INV)
     
     # ROIでx=320に相当する列を取得
     roi_center_x = center_x - roi_x_start  # 320 - 100 = 220
@@ -1049,7 +1049,7 @@ def get_line_trace_edges_at_x320(img):
                 print(f"[DEBUG] y={actual_y}: left={left_x}, right={right_x}, width={line_width}, center_check={center_check}, width_ok={line_width >= 50}")
             
             # x=320（roi_center_x=220）がライン内に含まれているかチェック
-            if left_x <= roi_center_x <= right_x and line_width >= 50:  # 最小幅50px
+            if left_x <= roi_center_x <= right_x and line_width >= 20:  # 最小幅20px（緩い条件）
                 # 元の画像座標に変換（上書きで最も下のラインを保持）
                 valid_line_y = roi_y + roi_y_start
                 if actual_y >= 480:
