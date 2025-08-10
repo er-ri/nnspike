@@ -228,11 +228,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             left_pos = status.motors["A"].relative_position
             right_pos = status.motors["B"].relative_position
 
-            # NVIDIAモデル予測をNVIDIA_FOLLOWモード時のみ実行
+            # NVIDIAモデル予測をright_posが21000以下の時のみ実行
             nvidia_prediction = None
             nvidia_mode_prediction = None
             nvidia_prob = None
-            if model is not None and mode == Mode.NVIDIA_FOLLOW:
+            if model is not None and (right_pos is None or abs(right_pos) <= 21000):
                 nvidia_prediction, nvidia_mode_prediction, nvidia_prob = nvidia_model_predict(frame, model, et)
 
             # Log sensor data using the recorder if enabled
