@@ -945,7 +945,7 @@ class ActionChain(object):
 
         # 7. 左旋回（is_x320_on_blue_targetがTrueになるまで左:0, 右:30で旋回、最大右モーター500ユニット、最低300ユニット旋回）
         if state["phase"] == 7:
-            blue_target_detected = is_x320_on_blue_target(image, x_tolerance=50)
+            blue_target_detected = is_x320_on_blue_target(image, x_tolerance=60)
             position_limit_reached = False
             minimum_rotation_done = False
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
@@ -1043,9 +1043,9 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 1. 左旋回（is_x320_on_red_target(image, x_tolerance=50)検出まで、最低右モーター450ユニット、最大右モーター950ユニット, 左:0, 右:30）
+        # 1. 左旋回（is_x320_on_red_target(image, x_tolerance=60)検出まで、最低右モーター450ユニット、最大右モーター950ユニット, 左:0, 右:30）
         if state["phase"] == 1:
-            red_target_detected = is_x320_on_red_target(image, x_tolerance=50)
+            red_target_detected = is_x320_on_red_target(image, x_tolerance=60)
             position_limit_reached = False
             minimum_position_reached = False
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
@@ -1225,7 +1225,7 @@ class ActionChain(object):
 
         # 8. 左旋回（is_x320_on_blue_target検出まで、最低右モーター300ユニット、最大右モーター500ユニット, 左:0, 右:30）
         if state["phase"] == 8:
-            blue_target_detected = is_x320_on_blue_target(image, x_tolerance=50)
+            blue_target_detected = is_x320_on_blue_target(image, x_tolerance=60)
             position_limit_reached = False
             minimum_position_reached = False
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
