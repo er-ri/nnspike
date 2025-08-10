@@ -1002,7 +1002,7 @@ def get_line_trace_edges_at_x320(img):
     # ROI固定値：デバッグ用に一時的に広範囲で確認
     roi_x_start = 100   # 左端100削る
     roi_x_end = 540     # 右端100削る（640-100=540）
-    roi_y_start = 300   # y=300以下無視（広範囲で確認）
+    roi_y_start = 400   # y=400以下無視
     roi_y_end = 500     # 下部500まで
     
     # ROI抽出
@@ -1036,21 +1036,23 @@ def get_line_trace_edges_at_x320(img):
             area >= 300 and 
             x <= center_x <= x + w):
             line_bottom = y + h
-            detected_lines.append((w, h, area, line_bottom))
+            detected_lines.append((w, h, area, line_bottom, x, y))  # x, y も記録
+            # 最も下のライン位置を選択（bottom位置が最大のもの）
             if valid_line_y is None or line_bottom > valid_line_y:
                 valid_line_y = line_bottom
     
     # デバッグ出力：ROI範囲とライン検出状況
     total_contours = len(contours)
     if total_contours > 0:
-        print(f"[DEBUG] ROI範囲: x=100-540, y=300-500")
+        print(f"[DEBUG] ROI範囲: x=100-540, y=400-500")
         print(f"[DEBUG] 検出された輪郭数: {total_contours}")
         
         # 検出条件の定義
         roi_width = 440  # 540-100=440
         min_width = int(roi_width * 0.5)  # 220px
         
-        # 全ての輪郭の詳細チェック
+        # 全ての輪郭の詳細チェック + 検出対象の表示
+        detected_targets = []
         for i, cnt in enumerate(contours):
             x_roi, y_roi, w, h = cv2.boundingRect(cnt)
             area = cv2.contourArea(cnt)
@@ -1059,24 +1061,25 @@ def get_line_trace_edges_at_x320(img):
             y = y_roi + roi_y_start
             line_bottom = y + h
             
-            print(f"  輪郭 {i+1}:")
-            print(f"    位置: x={x}, y={y}, bottom={line_bottom}")
-            print(f"    サイズ: w={w}, h={h}, area={area}")
-            print(f"    ライン太さ: {h}px ({'十分' if h >= 10 else '細い' if h >= 3 else '極細'})")
-            print(f"    x=320通過: {'Yes' if x <= center_x <= x + w else 'No'} (x={x}~{x+w})")
-            print(f"    幅条件: {'OK' if w >= min_width else 'NG'} (req≥{min_width})")
-            print(f"    横長条件: {'OK' if h >= 3 else 'NG'} (h≥3)")
-            print(f"    面積条件: {'OK' if area >= 300 else 'NG'} (area≥300)")
-            
-            # 検出対象かどうか
+            # 検出対象かどうかチェック
             all_conditions_met = (w >= min_width and 
                                 h >= 3 and 
                                 area >= 300 and 
                                 x <= center_x <= x + w)
-            print(f"    → {'検出対象' if all_conditions_met else '除外'}")
-            print()
+            
+            if all_conditions_met:
+                detected_targets.append((line_bottom, w, h, area, x, y))
+                print(f"  ✅ 検出対象 {len(detected_targets)}: bottom={line_bottom}, w={w}, h={h}, area={area}")
+            else:
+                print(f"  ❌ 除外: bottom={line_bottom}, w={w}, h={h}, area={area}")
         
-        print(f"[RESULT] detected_long_lines={len(detected_lines)}, valid_line_y={valid_line_y}")
+        # 最も下の検出対象を表示
+        if detected_targets:
+            detected_targets.sort(key=lambda x: x[0], reverse=True)  # bottom位置で降順ソート
+            best_bottom = detected_targets[0][0]
+            print(f"[RESULT] 検出対象数={len(detected_targets)}, 最下位bottom={best_bottom}, selected_y={valid_line_y}")
+        else:
+            print(f"[RESULT] detected_long_lines=0, valid_line_y={valid_line_y}")
     
     return valid_line_y
 
