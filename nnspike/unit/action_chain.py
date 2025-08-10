@@ -1417,7 +1417,7 @@ class ActionChain(object):
                 target_x = (self.x1 + self.x2) // 2
                 return target_x, None, Mode.HEAD_GOAL
 
-        # 1. 左旋回（右モーター500ユニット移動まで, 左:0, 右:30）
+        # 2. 左旋回（右モーター500ユニット移動まで, 左:0, 右:30）
         if state["phase"] == 2:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
@@ -1434,6 +1434,7 @@ class ActionChain(object):
                 if (not vertical_line_detected) and (not position_limit_reached):
                     return None, (0, 30), Mode.HEAD_GOAL
                 # 条件を満たしたので次のフェーズへ
+                print(f"[DEBUG] heading_goal_relative phase2 → phase3: vertical_detected={vertical_line_detected}, limit_reached={position_limit_reached}")
                 state["phase"] = 3
             else:
                 # ステータス取得失敗時は継続
