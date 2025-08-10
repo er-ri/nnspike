@@ -1438,6 +1438,8 @@ class ActionChain(object):
                 minimum_position_reached = position_diff >= 300
                 position_limit_reached = position_diff >= 500
                 vertical_line_detected = is_vertical_black_line_detected(image)
+                
+                print(f"[DEBUG] heading_goal_relative phase2: position_diff={position_diff}, minimum_reached={minimum_position_reached}, limit_reached={position_limit_reached}, vertical_detected={vertical_line_detected}")
             
                 # 最低300ユニットは必ず旋回
                 if not minimum_position_reached:
@@ -1446,6 +1448,7 @@ class ActionChain(object):
                 if (not vertical_line_detected) and (not position_limit_reached):
                     return None, (0, 30), Mode.HEAD_GOAL
                 # 条件を満たしたので次のフェーズへ
+                print(f"[DEBUG] heading_goal_relative phase2: transitioning to phase3 - vertical_detected={vertical_line_detected}, limit_reached={position_limit_reached}")
                 state["phase"] = 3
             else:
                 # ステータス取得失敗時は継続
