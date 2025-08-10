@@ -746,11 +746,11 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 1. 右旋回（右モーター700ユニット移動まで, 左:80, 右:50）
+        # 1. 右旋回（右モーター600ユニット移動まで, 左:80, 右:50）
         if state["phase"] == 1:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 700:
+                if abs(current_pos - state["right_position_start"]) < 600:
                     return None, (70, 40), Mode.AVOID_OBSTACLE
             
             state["phase"] = 2
