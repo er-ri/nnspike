@@ -725,7 +725,7 @@ class ActionChain(object):
         })
         status = self.et.get_spike_status()
 
-        # 0. 左旋回（右モーター350ユニット移動まで, 左:40, 右:70）
+        # 0. 左旋回（右モーター700ユニット移動まで, 左:40, 右:70）
         if state["phase"] == 0:
             if state["right_position_start"] is None:
                 if status is not None and status.motors.get("B") is not None:
@@ -735,7 +735,7 @@ class ActionChain(object):
             
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 350:
+                if abs(current_pos - state["right_position_start"]) < 700:
                     return None, (40, 70), Mode.AVOID_OBSTACLE
             
             state["phase"] = 1
@@ -745,11 +745,11 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 1. 右旋回（右モーター550ユニット移動まで, 左:80, 右:50）
+        # 1. 右旋回（右モーター800ユニット移動まで, 左:80, 右:50）
         if state["phase"] == 1:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 550:
+                if abs(current_pos - state["right_position_start"]) < 800:
                     return None, (80, 50), Mode.AVOID_OBSTACLE
             
             state["phase"] = 2
