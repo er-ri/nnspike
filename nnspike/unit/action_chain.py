@@ -260,7 +260,7 @@ class ActionChain(object):
         以下の順で動作する:
         0. 右エッジトレース（青ピクセル数が3000を超えたらphase1へ）
         1. 青ボトル中心追従（3000以上の間center追従、3000以下でphase2へ）
-        2. 3000以下になってから0.5秒間center追従。その後phase3（左旋回is_left_black_line_detected(image) or 3秒）
+        2. 3000以下になってから0.3秒間center追従。その後phase3（左旋回is_left_black_line_detected(image) or 3秒）
         3. 左旋回（is_left_black_line_detected(image)がTrueになるまで、または3秒未満, 左:0, 右:30）
         4. 直進（2.5秒, 両輪BASE_SPEED, pre_target_xも中央にリセット）
         5. 左旋回（1.5秒, 左:0, 右:30）
@@ -844,7 +844,7 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 3. 左旋回（右モーター相対位置差分が400未満の間 左:0, 右:30）
+        # 3. 左旋回（右モーター相対位置差分が390未満の間 左:0, 右:30）
         if state["phase"] == 3:
             status = self.et.get_spike_status()
             if "right_position_start" not in state or state["right_position_start"] is None:
@@ -854,9 +854,9 @@ class ActionChain(object):
                     state["right_position_start"] = None
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 400:
+                if abs(current_pos - state["right_position_start"]) < 390:
                     return None, (0, 30), Mode.CARRY_BOTTLE1
-            # 400超えたら次フェーズへ
+            # 390超えたら次フェーズへ
             state["phase"] = 4
             # phase4用 右モーター相対位置記録（絶対値）
             if status is not None and status.motors.get("B") is not None:
