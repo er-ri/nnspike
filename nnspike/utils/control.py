@@ -998,12 +998,12 @@ def get_line_trace_edges_at_x320(img):
     import cv2
     import numpy as np
     center_x = 320
-    min_y_threshold = 480  # y=480以下は無視（適切なライン接近距離）
+    min_y_threshold = 400  # y=400以下は無視（より厳格な接近距離）
     img_width = img.shape[1]  # 通常640
     
-    # グレースケール変換 + 閾値処理
+    # グレースケール変換 + 閾値処理（より厳格）
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(gray, 40, 255, cv2.THRESH_BINARY_INV)
+    _, mask = cv2.threshold(gray, 25, 255, cv2.THRESH_BINARY_INV)  # 40→25に厳格化
     
     # 輪郭検出による超絶ロング黒ライン検出
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -1025,11 +1025,22 @@ def get_line_trace_edges_at_x320(img):
                 valid_line_y = line_bottom
     
     # デバッグ出力：超絶ロングライン検出状況
-    # total_contours = len(contours)
-    # if total_contours > 0 or valid_line_y is not None:
-    #     print(f"[DEBUG] get_line_trace_edges_at_x320: total_contours={total_contours}, detected_long_lines={len(detected_lines)}, valid_line_y={valid_line_y}")
-    #     for i, (w, h, area, bottom) in enumerate(detected_lines):
-    #         print(f"  Long Line {i+1}: width={w}, height={h}, area={area}, bottom_y={bottom}")
+    total_contours = len(contours)
+    if total_contours > 0 or valid_line_y is not None:
+        print(f"[DEBUG] get_line_trace_edges_at_x320: total_contours={total_contours}, detected_long_lines={len(detected_lines)}, valid_line_y={valid_line_y}")
+        for i, (w, h, area, bottom) in enumerate(detected_lines):
+            print(f"  Long Line {i+1}: width={w}, height={h}, area={area}, bottom_y={bottom}")
+        
+        # 検出失敗時の詳細解析：全輪郭チェック
+        if len(detected_lines) == 0 and total_contours > 0:
+            print("  [ANALYSIS] No long lines detected - analyzing all contours:")
+            for i, cnt in enumerate(contours[:5]):  # 最初の5個まで
+                x, y, w, h = cv2.boundingRect(cnt)
+                area = cv2.contourArea(cnt)
+                line_bottom = y + h
+                min_width = int(img_width * 0.7)
+                crosses_center = x <= center_x <= x + w
+                print(f"    Contour {i+1}: x={x}, y={y}, w={w}(req≥{min_width}), h={h}, area={area}, bottom={line_bottom}, crosses_center={crosses_center}, y≥{min_y_threshold}={y >= min_y_threshold}")
     
     return valid_line_y
 
