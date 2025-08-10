@@ -1330,25 +1330,25 @@ class ActionChain(object):
         # 0. 左モーター570ユニット移動まで後退
         if state["phase"] == 0:
             if state["left_position_start"] is None:
-                if status is not None and status.motors.get("A") is not None:
+                if status is not None and status.motors.get("A") is not None and status.motors["A"].relative_position is not None:
                     state["left_position_start"] = abs(status.motors["A"].relative_position)
                 else:
                     state["left_position_start"] = None
 
-            if status is not None and status.motors.get("A") is not None and state["left_position_start"] is not None:
+            if status is not None and status.motors.get("A") is not None and state["left_position_start"] is not None and status.motors["A"].relative_position is not None:
                 current_pos = abs(status.motors["A"].relative_position)
                 if abs(current_pos - state["left_position_start"]) < 570:
                     return None, (BASE_SPEED, BASE_SPEED), Mode.BACK_AND_TURN2
             state["phase"] = 1
             # phase1用 左モーター相対位置記録（絶対値）
-            if status is not None and status.motors.get("A") is not None:
+            if status is not None and status.motors.get("A") is not None and status.motors["A"].relative_position is not None:
                 state["left_position_start"] = abs(status.motors["A"].relative_position)
             else:
                 state["left_position_start"] = None
 
         # 1. 左モーター500ユニット移動まで右旋回（左:30, 右:0）
         if state["phase"] == 1:
-            if status is not None and status.motors.get("A") is not None and state["left_position_start"] is not None:
+            if status is not None and status.motors.get("A") is not None and state["left_position_start"] is not None and status.motors["A"].relative_position is not None:
                 current_pos = abs(status.motors["A"].relative_position)
                 position_diff = abs(current_pos - state["left_position_start"])
                 minimum_position_reached = position_diff >= 300
