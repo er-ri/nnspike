@@ -832,13 +832,37 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                 expanded_min = max(20, previous_center_x - 100) if previous_center_x else 20
                 expanded_max = min(image_width - 20, previous_center_x + 100) if previous_center_x else image_width - 20
                 
-                # 回避方向の決定
+                # 回避方向の決定（安全性を優先）
                 if avoidance_preference == 'left':
-                    # 左回避を優先：障害物の左側に迂回
-                    candidate_x = contour_center - total_safety
+                    # 左回避を優先：但し障害物が極端に左にある場合は右回避も検討
+                    left_candidate = contour_center - total_safety
+                    right_candidate = contour_center + total_safety
+                    
+                    # 障害物が極端に左（x <= 120）にある場合は右回避を検討
+                    if contour_center <= 120:
+                        # 右回避の方が安全かチェック
+                        if right_candidate <= expanded_max:
+                            candidate_x = right_candidate  # 右回避を選択
+                        else:
+                            candidate_x = left_candidate   # 左回避のまま
+                    else:
+                        candidate_x = left_candidate
+                        
                 elif avoidance_preference == 'right':
-                    # 右回避を優先：障害物の右側に迂回
-                    candidate_x = contour_center + total_safety
+                    # 右回避を優先：但し障害物が極端に右にある場合は左回避も検討
+                    left_candidate = contour_center - total_safety
+                    right_candidate = contour_center + total_safety
+                    
+                    # 障害物が極端に右（x >= 520）にある場合は左回避を検討
+                    if contour_center >= 520:
+                        # 左回避の方が安全かチェック
+                        if left_candidate >= expanded_min:
+                            candidate_x = left_candidate   # 左回避を選択
+                        else:
+                            candidate_x = right_candidate  # 右回避のまま
+                    else:
+                        candidate_x = right_candidate
+                        
                 else:
                     # 従来の自動判定：画像中心を基準に決定
                     if contour_center < image_center:
@@ -913,13 +937,37 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             expanded_min = max(20, previous_center_x - 100) if previous_center_x else 20
             expanded_max = min(image_width - 20, previous_center_x + 100) if previous_center_x else image_width - 20
             
-            # 回避方向の決定
+            # 回避方向の決定（安全性を優先）
             if avoidance_preference == 'left':
-                # 左回避を優先：障害物の左側に迂回
-                candidate_x = contour_center - total_safety
+                # 左回避を優先：但し障害物が極端に左にある場合は右回避も検討
+                left_candidate = contour_center - total_safety
+                right_candidate = contour_center + total_safety
+                
+                # 障害物が極端に左（x <= 120）にある場合は右回避を検討
+                if contour_center <= 120:
+                    # 右回避の方が安全かチェック
+                    if right_candidate <= expanded_max:
+                        candidate_x = right_candidate  # 右回避を選択
+                    else:
+                        candidate_x = left_candidate   # 左回避のまま
+                else:
+                    candidate_x = left_candidate
+                    
             elif avoidance_preference == 'right':
-                # 右回避を優先：障害物の右側に迂回
-                candidate_x = contour_center + total_safety
+                # 右回避を優先：但し障害物が極端に右にある場合は左回避も検討
+                left_candidate = contour_center - total_safety
+                right_candidate = contour_center + total_safety
+                
+                # 障害物が極端に右（x >= 520）にある場合は左回避を検討
+                if contour_center >= 520:
+                    # 左回避の方が安全かチェック
+                    if left_candidate >= expanded_min:
+                        candidate_x = left_candidate   # 左回避を選択
+                    else:
+                        candidate_x = right_candidate  # 右回避のまま
+                else:
+                    candidate_x = right_candidate
+                    
             else:
                 # 従来の自動判定：画像中心を基準に決定
                 if contour_center < image_center:
