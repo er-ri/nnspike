@@ -998,11 +998,18 @@ def get_line_trace_edges_at_x320(img):
     import cv2
     import numpy as np
     center_x = 320
-    min_y_threshold = 400  # y=400以下は無視（より厳格な接近距離）
-    img_width = img.shape[1]  # 通常640
+    
+    # ROI固定値：y<300無視、画面端除外
+    roi_x_start = 100   # 左端100削る
+    roi_x_end = 540     # 右端100削る（640-100=540）
+    roi_y_start = 300   # y=300以下完全無視
+    roi_y_end = 500     # 下部500まで
+    
+    # ROI抽出
+    roi = img[roi_y_start:roi_y_end, roi_x_start:roi_x_end]
     
     # グレースケール変換 + 閾値処理（より厳格）
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     _, mask = cv2.threshold(gray, 25, 255, cv2.THRESH_BINARY_INV)  # 40→25に厳格化
     
     # 輪郭検出による超絶ロング黒ライン検出
@@ -1012,21 +1019,27 @@ def get_line_trace_edges_at_x320(img):
     detected_lines = []
     
     for cnt in contours:
-        x, y, w, h = cv2.boundingRect(cnt)
+        x_roi, y_roi, w, h = cv2.boundingRect(cnt)
         area = cv2.contourArea(cnt)
         
-        # 超絶ロング横ライン条件：画面幅の70%以上 + 横長比率
-        min_width = int(img_width * 0.7)  # 画面幅の70%以上（約450px）
-        if (w >= min_width and h >= 3 and w >= h * 10 and area >= 1000 and 
-            x <= center_x <= x + w and y >= min_y_threshold):
+        # ROI座標を元の画像座標に変換
+        x = x_roi + roi_x_start
+        y = y_roi + roi_y_start
+        
+        # ROI範囲での横ライン条件：ROI幅の70%以上 + 横長比率
+        roi_width = 440  # 540-100=440 固定値
+        min_width = int(roi_width * 0.7)  # ROI幅の70%以上
+        if (w >= min_width and h >= 3 and w >= h * 10 and area >= 500 and 
+            x <= center_x <= x + w):  # ROIで既にy制限済みなのでy条件削除
             line_bottom = y + h
             detected_lines.append((w, h, area, line_bottom))
             if valid_line_y is None or line_bottom > valid_line_y:
                 valid_line_y = line_bottom
     
-    # デバッグ出力：超絶ロングライン検出状況
+    # デバッグ出力：ROI範囲とライン検出状況
     total_contours = len(contours)
     if total_contours > 0 or valid_line_y is not None:
+        print(f"[DEBUG] ROI範囲: x=100-540, y=300-500")
         print(f"[DEBUG] get_line_trace_edges_at_x320: total_contours={total_contours}, detected_long_lines={len(detected_lines)}, valid_line_y={valid_line_y}")
         for i, (w, h, area, bottom) in enumerate(detected_lines):
             print(f"  Long Line {i+1}: width={w}, height={h}, area={area}, bottom_y={bottom}")
@@ -1034,13 +1047,17 @@ def get_line_trace_edges_at_x320(img):
         # 検出失敗時の詳細解析：全輪郭チェック
         if len(detected_lines) == 0 and total_contours > 0:
             print("  [ANALYSIS] No long lines detected - analyzing all contours:")
+            roi_width = 440
             for i, cnt in enumerate(contours[:5]):  # 最初の5個まで
-                x, y, w, h = cv2.boundingRect(cnt)
+                x_roi, y_roi, w, h = cv2.boundingRect(cnt)
                 area = cv2.contourArea(cnt)
+                # ROI座標を元の画像座標に変換
+                x = x_roi + roi_x_start
+                y = y_roi + roi_y_start
                 line_bottom = y + h
-                min_width = int(img_width * 0.7)
+                min_width = int(roi_width * 0.7)
                 crosses_center = x <= center_x <= x + w
-                print(f"    Contour {i+1}: x={x}, y={y}, w={w}(req≥{min_width}), h={h}, area={area}, bottom={line_bottom}, crosses_center={crosses_center}, y≥{min_y_threshold}={y >= min_y_threshold}")
+                print(f"    Contour {i+1}: x={x}, y={y}, w={w}(req≥{min_width}), h={h}, area={area}, bottom={line_bottom}, crosses_center={crosses_center}")
     
     return valid_line_y
 
