@@ -717,8 +717,8 @@ class ActionChain(object):
         avoid_obstacleの位置判定バージョン。
         以下の順で動作する:
         0. 左旋回（右モーター500ユニット移動まで, 左:40, 右:70）
-        1. 右旋回（右モーター550ユニット移動まで, 左:70, 右:40）
-        2. 左旋回（右モーター300ユニット移動まで, 左:40, 右:70）
+        1. 右旋回（右モーター650ユニット移動まで, 左:80, 右:50）
+        2. 左旋回（右モーター350ユニット移動まで, 左:40, 右:70）
         3. チェーン終了で右端追従モードへ復帰
         """
         state = self._state.setdefault("avoid_obstacle_relative", {
@@ -751,14 +751,14 @@ class ActionChain(object):
                 # ステータス取得失敗時は継続
                 return None, (40, 70), Mode.AVOID_OBSTACLE
 
-        # 1. 右旋回（右モーター650ユニット移動まで, 左:70, 右:40）
+        # 1. 右旋回（右モーター650ユニット移動まで, 左:80, 右:50）
         if state["phase"] == 1:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
                 if abs(current_pos - state["right_position_start"]) < 650:
                     return None, (80, 50), Mode.AVOID_OBSTACLE
                 else:
-                    # 550ユニット到達したので次のフェーズへ
+                    # 650ユニット到達したので次のフェーズへ
                     state["phase"] = 2
                     # phase2用も右モーター相対位置記録（絶対値）
                     if status is not None and status.motors.get("B") is not None:
@@ -767,16 +767,16 @@ class ActionChain(object):
                         state["right_position_start"] = None
             else:
                 # ステータス取得失敗時は継続
-                return None, (70, 40), Mode.AVOID_OBSTACLE
+                return None, (80, 50), Mode.AVOID_OBSTACLE
 
-        # 2. 左旋回（右モーター400ユニット移動まで, 左:40, 右:70）
+        # 2. 左旋回（右モーター350ユニット移動まで, 左:40, 右:70）
         if state["phase"] == 2:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 400:
+                if abs(current_pos - state["right_position_start"]) < 350:
                     return None, (40, 70), Mode.AVOID_OBSTACLE
                 else:
-                    # 300ユニット到達したので次のフェーズへ
+                    # 350ユニット到達したので次のフェーズへ
                     state["phase"] = 3
             else:
                 # ステータス取得失敗時は継続
