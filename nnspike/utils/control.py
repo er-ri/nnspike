@@ -1381,13 +1381,14 @@ def is_vertical_black_line_detected(img):
     if img is None:
         raise FileNotFoundError("画像がNoneです")
     
-    # 一般的な水平ライン検出パラメータ
-    _min_width = 150      # ノートブック準拠: 幅条件
-    _min_height = 10      # ノートブック準拠: 高さ条件
-    _max_aspect = 0.2     # ノートブック準拠: アスペクト比（高さ/幅）
-    _min_area = 3000      # ノートブック準拠: 面積条件
-    _angle_threshold = 10  # 0度±10または90度±10を許容
+    # 一般的な垂直ライン検出パラメータ（ノートブックと同期）
+    _min_width = 80      # 幅条件（80px以上）
+    _min_height = 300    # 高さ条件（300px以上）
+    _min_aspect = 4.5    # アスペクト比（4.5以上）
+    _min_area = 20000     # 面積条件（20000px^2以上）
+    _angle_threshold = 10  # 90度±10度のみ許容
     _center_x = 320
+    _center_tolerance = 60  # x=320±60px
     _roi = (200, 0, 440, 540)  # ノートブック準拠ROI
     
     # グレースケール変換
@@ -1414,28 +1415,26 @@ def is_vertical_black_line_detected(img):
         area = cv2.contourArea(contour)
         aspect_ratio = height / width if width > 0 else float('inf')
         # 角度計算
-        angle = None
+        angle_norm = None
+        angle_ok = False
         if len(contour) >= 5:
             rect = cv2.minAreaRect(contour)
             angle_raw = rect[2]
-            # minAreaRectの仕様: -90〜0度、短辺がx軸方向に近い場合-90、長辺がx軸方向に近い場合0
             if angle_raw < -45:
-                angle_norm = 90 + angle_raw  # 水平に近い場合0付近、垂直に近い場合90付近
+                angle_norm = 90 + angle_raw
             else:
-                angle_norm = angle_raw  # 0付近
-            angle_from_0 = abs(angle_norm)
+                angle_norm = angle_raw
             angle_from_90 = abs(abs(angle_norm) - 90)
+            angle_ok = (angle_from_90 <= _angle_threshold)
         else:
-            angle_from_0 = 0
-            angle_from_90 = 90
-        # x=320との交差判定（y座標制限なし）
-        crosses_center = (x <= _center_x <= x + width)
-        # 0度±10または90度±10を許容
-        angle_ok = (angle_from_0 <= _angle_threshold) or (angle_from_90 <= _angle_threshold)
+            angle_ok = False
+        # x=320±_center_toleranceを通るか
+        line_center_x = x + width // 2
+        crosses_center = abs(line_center_x - _center_x) <= _center_tolerance
         if (
             width >= _min_width and 
             height >= _min_height and 
-            aspect_ratio <= _max_aspect and 
+            aspect_ratio >= _min_aspect and 
             area >= _min_area and 
             crosses_center and
             angle_ok
