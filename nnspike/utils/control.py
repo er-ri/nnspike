@@ -1230,40 +1230,121 @@ def is_left_black_line_detected(img):
             return True
     return False
 
-def is_horizontal_black_line_detected(img):
+def is_general_horizontal_line_detected(img):
     """
-    画面全体を横切る水平な黒いラインが検出されたらTrueを返す関数
+    x=320と交差する一般的な水平黒ラインが検出されたらTrueを返す関数
+    ROI: y0から540まで全体、x=320との交差必須、90度に近い角度を重視
     
     Args:
         img: BGR画像 (numpy.ndarray)
     
     Returns:
-        bool: 画面全体を横切る水平な黒いラインが検出されればTrue、なければFalse
+        bool: x=320と交差し90度に近い水平黒ラインが検出されればTrue、なければFalse
     """
-    _min_width = 400   # 画面全体を横切るための最小幅
-    _min_height = 15   # 水平ラインの最小高さ
-    _max_aspect = 0.3  # 水平ラインのアスペクト比上限（高さ/幅 < 0.3）
-    _min_area = 5000   # 最小面積
-    
     if img is None:
         raise FileNotFoundError("画像がNoneです")
     
+    # 一般的な水平ライン検出パラメータ
+    _min_width = 200      # より緩い幅条件
+    _min_height = 10      # より緩い高さ条件
+    _max_aspect = 0.3     # 水平ライン重視（高さ/幅 < 0.3）
+    _min_area = 2000      # より緩い面積条件
+    _center_x = 320
+    _roi = (100, 0, 540, 540)  # y0から540まで全体をカバー
+    
+    # グレースケール変換
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     
-    # ノイズ除去と形状の強調
-    mask = cv2.medianBlur(mask, 7)
-    mask = cv2.dilate(mask, np.ones((5,5), np.uint8), iterations=2)
+    # OTSU自動閾値
+    _, black_mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # ノイズ除去（軽め）
+    black_mask = cv2.medianBlur(black_mask, 5)
+    black_mask = cv2.dilate(black_mask, np.ones((5, 5), np.uint8), iterations=1)
+    black_mask = cv2.morphologyEx(black_mask, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
     
-    for cnt in contours:
-        x, y, ww, hh = cv2.boundingRect(cnt)
-        area = cv2.contourArea(cnt)
-        aspect = hh / (ww + 1e-5)  # 高さ/幅
+    # ROI適用
+    x0, y0, x1, y1 = _roi
+    mask_roi = np.zeros_like(black_mask)
+    mask_roi[y0:y1, x0:x1] = black_mask[y0:y1, x0:x1]
+    
+    # 輪郭検出
+    contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    for contour in contours:
+        x, y, width, height = cv2.boundingRect(contour)
+        area = cv2.contourArea(contour)
+        aspect_ratio = height / width if width > 0 else float('inf')
         
-        # 画面全体を横切る水平ラインの条件
-        if ww >= _min_width and hh >= _min_height and aspect <= _max_aspect and area >= _min_area:
+        # x=320との交差判定（y座標制限なし）
+        crosses_center = (x <= _center_x <= x + width)
+        
+        if (width >= _min_width and 
+            height >= _min_height and 
+            aspect_ratio <= _max_aspect and 
+            area >= _min_area and 
+            crosses_center):
+            return True
+    
+    return False
+
+def is_horizontal_black_line_detected(img, intersection_y=450):
+    """
+    x=320を通り、指定されたy座標と交差する水平黒ラインが検出されたらTrueを返す関数
+    frame_1909を未検出、frame_1910を検出するようにバランス調整された実装
+    
+    Args:
+        img: BGR画像 (numpy.ndarray)
+        intersection_y: 交差判定するy座標 (int, default=450)
+    
+    Returns:
+        bool: x=320を通り、指定されたy座標と交差する水平黒ラインが検出されればTrue、なければFalse
+    """
+    if img is None:
+        raise FileNotFoundError("画像がNoneです")
+    
+    # バランス調整されたパラメータ
+    _min_width = 400      
+    _min_height = 140     # frame_1909(136)と1910(149)の間に設定
+    _max_aspect = 0.4     
+    _min_area = 23000     # frame_1909(22684)と1910(23996)の間に設定
+    _center_x = 320
+    _roi = (100, 300, 540, 540)
+    
+    # グレースケール変換
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    
+    # OTSU自動閾値
+    _, black_mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    
+    # ノイズ除去
+    black_mask = cv2.medianBlur(black_mask, 9)
+    black_mask = cv2.dilate(black_mask, np.ones((7, 7), np.uint8), iterations=2)
+    black_mask = cv2.morphologyEx(black_mask, cv2.MORPH_CLOSE, np.ones((11, 11), np.uint8))
+    
+    # ROI適用
+    x0, y0, x1, y1 = _roi
+    mask_roi = np.zeros_like(black_mask)
+    mask_roi[y0:y1, x0:x1] = black_mask[y0:y1, x0:x1]
+    
+    # 輪郭検出
+    contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    for contour in contours:
+        x, y, width, height = cv2.boundingRect(contour)
+        area = cv2.contourArea(contour)
+        aspect_ratio = height / width if width > 0 else float('inf')
+        crosses_center = (x <= _center_x <= x + width)
+        
+        # 指定されたy座標との交差判定
+        crosses_intersection_y = (y <= intersection_y <= y + height)
+        
+        if (width >= _min_width and 
+            height >= _min_height and 
+            aspect_ratio <= _max_aspect and 
+            area >= _min_area and 
+            crosses_center and
+            crosses_intersection_y):
             return True
     
     return False
