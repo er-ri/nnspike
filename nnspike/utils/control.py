@@ -1000,9 +1000,9 @@ def get_line_trace_edges_at_x320(img):
     center_x = 320
     min_y_threshold = 380  # y=380以下は無視（早期誤検出を防ぐ）
     
-    # グレースケール変換 + より厳しい固定閾値で真の黒線のみ検出
+    # グレースケール変換 + 非常に厳しい閾値で真の黒線のみ検出
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(gray, 40, 255, cv2.THRESH_BINARY_INV)  # 60→40により厳しく
+    _, mask = cv2.threshold(gray, 20, 255, cv2.THRESH_BINARY_INV)  # 40→20に大幅厳格化
     
     # ノイズ除去を軽減（誤検出を減らすため）
     mask = cv2.medianBlur(mask, 5)
