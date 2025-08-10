@@ -1104,7 +1104,7 @@ class ActionChain(object):
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 100:
+                if abs(current_pos - state["right_position_start"]) < 200:
                     if center is not None:
                         target_x = center[0]
                     else:
