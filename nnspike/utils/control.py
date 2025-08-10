@@ -999,10 +999,10 @@ def get_line_trace_edges_at_x320(img):
     import numpy as np
     center_x = 320
     
-    # ROI固定値：y<300無視、画面端除外
+    # ROI固定値：より下の方のライン検出（早期検出を防ぐ）
     roi_x_start = 100   # 左端100削る
     roi_x_end = 540     # 右端100削る（640-100=540）
-    roi_y_start = 300   # y=300以下完全無視
+    roi_y_start = 400   # y=400以下無視（より遅い検出）
     roi_y_end = 500     # 下部500まで
     
     # ROI抽出
@@ -1028,10 +1028,10 @@ def get_line_trace_edges_at_x320(img):
         
         # ROI範囲での横ライン条件：明確な黒いライン検出
         roi_width = 440  # 540-100=440 固定値
-        min_width = int(roi_width * 0.7)  # ROI幅の70%以上（308px、ROI内基準）
+        min_width = int(roi_width * 0.8)  # ROI幅の80%以上（352px、より厳格）
         
         # 明確な横ラインの条件：
-        # 1. 十分な幅（ROI内で308px以上、元画像でも308px以上）
+        # 1. 十分な幅（ROI内で352px以上、より厳格）
         # 2. 高さは適度（3px以上、かつ幅の1/2以下で横長）
         # 3. x=320を通る（元画像座標基準）
         # 4. 十分な面積
@@ -1047,7 +1047,7 @@ def get_line_trace_edges_at_x320(img):
     # デバッグ出力：ROI範囲とライン検出状況
     total_contours = len(contours)
     if total_contours > 0 or valid_line_y is not None:
-        print(f"[DEBUG] ROI範囲: x=100-540, y=300-500")
+        print(f"[DEBUG] ROI範囲: x=100-540, y=400-500")
         print(f"[DEBUG] get_line_trace_edges_at_x320: total_contours={total_contours}, detected_long_lines={len(detected_lines)}, valid_line_y={valid_line_y}")
         for i, (w, h, area, bottom) in enumerate(detected_lines):
             print(f"  Long Line {i+1}: width={w}, height={h}, area={area}, bottom_y={bottom}")
