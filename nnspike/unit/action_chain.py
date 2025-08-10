@@ -1403,8 +1403,8 @@ class ActionChain(object):
                 if state["right_position_start"] is not None:
                     position_diff = abs(current_pos - state["right_position_start"])
             
-            # ライン到達チェック：y_hitがNoneでないかつ500以上で確実に到達
-            line_reached = y_hit is not None and y_hit >= 500
+            # ライン到達チェック：y_hitがNoneでないかつ480以上で確実に到達
+            line_reached = y_hit is not None and y_hit >= 480
             print(f"[DEBUG] heading_goal_relative phase0: y_hit={y_hit}, line_reached={line_reached}, position_diff={position_diff}")
             if line_reached:  # 距離制限条件を削除
                 state["phase"] = 2

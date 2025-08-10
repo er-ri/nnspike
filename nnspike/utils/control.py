@@ -999,11 +999,11 @@ def get_line_trace_edges_at_x320(img):
     import numpy as np
     center_x = 320
     
-    # ROI固定値：画面最下部まで検出（y=500検出のため）
+    # ROI固定値：極近距離検出（y=480直前のライン検出）
     roi_x_start = 100   # 左端100削る
     roi_x_end = 540     # 右端100削る（640-100=540）
-    roi_y_start = 450   # y=450以下無視（より近距離検出）
-    roi_y_end = 540     # 画面最下部まで（540px、十分な範囲）
+    roi_y_start = 440   # y=440以下無視（極近距離）
+    roi_y_end = 540     # 画面最下部まで
     
     # ROI抽出
     roi = img[roi_y_start:roi_y_end, roi_x_start:roi_x_end]
@@ -1044,7 +1044,7 @@ def get_line_trace_edges_at_x320(img):
     # デバッグ出力：ROI範囲とライン検出状況
     total_contours = len(contours)
     if total_contours > 0:
-        print(f"[DEBUG] ROI範囲: x=100-540, y=450-540")
+        print(f"[DEBUG] ROI範囲: x=100-540, y=460-540")
         print(f"[DEBUG] 検出された輪郭数: {total_contours}")
         
         # 検出条件の定義
