@@ -826,18 +826,16 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                 region = dark_sorted[0]
                 contour_center = region['center'][0]
                 image_center = image_width // 2
-                safety_distance = 120  # 安全距離を縮小（240→120）
-                width_margin = region['w'] // 2 + 10  # 幅マージンを縮小（20→10）
-                total_safety = safety_distance + width_margin
-                # 有効範囲を適度に縮小
+                safe_distance_from_obstacle = 200  # 黒色障害物からの安全距離（200ピクセル）
+                # 前回中心から±60ピクセルの範囲で回避先を制限（過度な移動を防ぐ）
                 expanded_min = max(20, previous_center_x - 60) if previous_center_x else 20
                 expanded_max = min(image_width - 20, previous_center_x + 60) if previous_center_x else image_width - 20
                 
                 # 回避方向の決定（安全性を優先）
                 if avoidance_preference == 'left':
                     # 左回避を優先：但し障害物が極端に左にある場合は右回避も検討
-                    left_candidate = contour_center - total_safety
-                    right_candidate = contour_center + total_safety
+                    left_candidate = contour_center - safe_distance_from_obstacle
+                    right_candidate = contour_center + safe_distance_from_obstacle
                     
                     # 障害物が極端に左（x <= 120）にある場合は右回避を検討
                     if contour_center <= 120:
@@ -851,8 +849,8 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                         
                 elif avoidance_preference == 'right':
                     # 右回避を優先：但し障害物が極端に右にある場合は左回避も検討
-                    left_candidate = contour_center - total_safety
-                    right_candidate = contour_center + total_safety
+                    left_candidate = contour_center - safe_distance_from_obstacle
+                    right_candidate = contour_center + safe_distance_from_obstacle
                     
                     # 障害物が極端に右（x >= 520）にある場合は左回避を検討
                     if contour_center >= 520:
@@ -867,9 +865,9 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                 else:
                     # 従来の自動判定：画像中心を基準に決定
                     if contour_center < image_center:
-                        candidate_x = contour_center + total_safety
+                        candidate_x = contour_center + safe_distance_from_obstacle
                     else:
-                        candidate_x = contour_center - total_safety
+                        candidate_x = contour_center - safe_distance_from_obstacle
                 
                 # まず拡大範囲で試す
                 if expanded_min <= candidate_x <= expanded_max:
@@ -929,20 +927,17 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             region = detected_regions[0]
             contour_center = region['center'][0]
             image_center = image_width // 2
-            # 安全距離を適度に調整：普通の障害物60、暗い障害物120ピクセル
-            safety_distance = 120 if region['darkness'] > high_priority_threshold else 60
-            # 障害物の実際の幅も考慮してマージンを追加
-            width_margin = region['w'] // 2 + 10  # 幅の半分＋10ピクセル（20→10に縮小）
-            total_safety = safety_distance + width_margin
-            # 有効範囲を適度に縮小
+            # 黒色障害物からの安全距離（普通の障害物140px、暗い障害物200px）
+            safe_distance_from_obstacle = 200 if region['darkness'] > high_priority_threshold else 140
+            # 前回中心から±60ピクセルの範囲で回避先を制限（過度な移動を防ぐ）
             expanded_min = max(20, previous_center_x - 60) if previous_center_x else 20
             expanded_max = min(image_width - 20, previous_center_x + 60) if previous_center_x else image_width - 20
             
             # 回避方向の決定（安全性を優先）
             if avoidance_preference == 'left':
                 # 左回避を優先：但し障害物が極端に左にある場合は右回避も検討
-                left_candidate = contour_center - total_safety
-                right_candidate = contour_center + total_safety
+                left_candidate = contour_center - safe_distance_from_obstacle
+                right_candidate = contour_center + safe_distance_from_obstacle
                 
                 # 障害物が極端に左（x <= 120）にある場合は右回避を検討
                 if contour_center <= 120:
@@ -956,8 +951,8 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                     
             elif avoidance_preference == 'right':
                 # 右回避を優先：但し障害物が極端に右にある場合は左回避も検討
-                left_candidate = contour_center - total_safety
-                right_candidate = contour_center + total_safety
+                left_candidate = contour_center - safe_distance_from_obstacle
+                right_candidate = contour_center + safe_distance_from_obstacle
                 
                 # 障害物が極端に右（x >= 520）にある場合は左回避を検討
                 if contour_center >= 520:
@@ -972,9 +967,9 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             else:
                 # 従来の自動判定：画像中心を基準に決定
                 if contour_center < image_center:
-                    candidate_x = contour_center + total_safety
+                    candidate_x = contour_center + safe_distance_from_obstacle
                 else:
-                    candidate_x = contour_center - total_safety
+                    candidate_x = contour_center - safe_distance_from_obstacle
             
             # まず拡大範囲で試す
             if expanded_min <= candidate_x <= expanded_max:
