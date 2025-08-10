@@ -1318,11 +1318,11 @@ class ActionChain(object):
             else:
                 state["left_position_start"] = None
 
-        # 1. 左モーター340ユニット移動まで右旋回（左:30, 右:0）
+        # 1. 左モーター320ユニット移動まで右旋回（左:30, 右:0）
         if state["phase"] == 1:
             if status is not None and status.motors.get("A") is not None and state["left_position_start"] is not None:
                 current_pos = abs(status.motors["A"].relative_position)
-                if abs(current_pos - state["left_position_start"]) < 340:
+                if abs(current_pos - state["left_position_start"]) < 320:
                     return None, (30, 0), Mode.BACK_AND_TURN2
             state["phase"] = 2
 
