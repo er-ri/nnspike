@@ -1147,11 +1147,11 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 4. 直進（右モーター850ユニット移動まで, 両輪BASE_SPEED）
+        # 4. 直進（右モーター870ユニット移動まで, 両輪BASE_SPEED）
         if state["phase"] == 4:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 850:
+                if abs(current_pos - state["right_position_start"]) < 870:
                     state["pre_target_x"] = (self.x1 + self.x2) // 2
                     return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
             state["phase"] = 5
