@@ -1280,10 +1280,10 @@ def is_vertical_black_line_detected(img):
     Returns:
         bool: 画面下部まで続く垂直な黒いラインが検出されればTrue、なければFalse
     """
-    _min_width = 15    # 垂直ラインの最小幅
-    _min_height = 200  # 最小高さ（画面全体でなくても良い）
-    _min_aspect = 3.0  # 垂直ラインのアスペクト比下限（高さ/幅 >= 3.0）
-    _min_area = 3000   # 最小面積（少し緩和）
+    _min_width = 10    # 垂直ラインの最小幅（15→10に緩和）
+    _min_height = 150  # 最小高さ（200→150に緩和）
+    _min_aspect = 2.0  # 垂直ラインのアスペクト比下限（3.0→2.0に緩和）
+    _min_area = 1500   # 最小面積（3000→1500に緩和）
     
     if img is None:
         raise FileNotFoundError("画像がNoneです")
@@ -1291,11 +1291,8 @@ def is_vertical_black_line_detected(img):
     img_height = img.shape[0]  # 画像の高さ取得
     
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    
-    # ノイズ除去と形状の強調
-    mask = cv2.medianBlur(mask, 7)
-    mask = cv2.dilate(mask, np.ones((5,5), np.uint8), iterations=2)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    _, mask = cv2.threshold(blurred, 50, 255, cv2.THRESH_BINARY_INV)  # 固定閾値50
     
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
