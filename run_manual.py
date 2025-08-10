@@ -234,14 +234,14 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             left_pos = status.motors["A"].relative_position
             right_pos = status.motors["B"].relative_position
 
-            # NVIDIAモデル予測をright_posが21000以下の時のみ実行（フレームスキップで負荷軽減）
+            # NVIDIAモデル予測をright_posが22000以下の時のみ実行（フレームスキップで負荷軽減）
             nvidia_prediction = None
             nvidia_mode_prediction = None
             nvidia_prob = None
             frame_counter += 1
             
             # 3フレームに1回だけモデル予測を実行（負荷軽減）
-            if model is not None and (right_pos is None or abs(right_pos) <= 21000) and frame_counter % 3 == 0:
+            if model is not None and (right_pos is None or abs(right_pos) <= 22000) and frame_counter % 3 == 0:
                 last_nvidia_prediction, last_nvidia_mode_prediction, last_nvidia_prob = nvidia_model_predict(frame, model, et)
             
             # 最新の予測結果を使用
@@ -491,10 +491,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
                 case Mode.NVIDIA_FOLLOW:
-                    # right_posが21000を超えたらCARRY_BOTTLE1に切り替え
-                    if right_pos is not None and abs(right_pos) > 21000:
+                    # right_posが22000を超えたらCARRY_BOTTLE1に切り替え
+                    if right_pos is not None and abs(right_pos) > 22000:
                         mode = Mode.CARRY_BOTTLE1
-                        print(f"Right position {abs(right_pos)} > 21000, switching to CARRY_BOTTLE1")
+                        print(f"Right position {abs(right_pos)} > 22000, switching to CARRY_BOTTLE1")
                     else:
                         # NVIDIAモデル予測による分岐（右か左かのモード制御のみ）
                         if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:  # 左エッジ
