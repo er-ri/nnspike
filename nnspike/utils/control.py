@@ -998,20 +998,25 @@ def get_line_trace_edges_at_x320(img):
     import cv2
     import numpy as np
     center_x = 320
+    min_y_threshold = 380  # y=380以下は無視（早期誤検出を防ぐ）
     
     # グレースケール変換 + より厳しい固定閾値で真の黒線のみ検出
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(gray, 60, 255, cv2.THRESH_BINARY_INV)  # OTSU→固定閾値60に変更
+    _, mask = cv2.threshold(gray, 40, 255, cv2.THRESH_BINARY_INV)  # 60→40により厳しく
     
     # ノイズ除去を軽減（誤検出を減らすため）
-    mask = cv2.medianBlur(mask, 5)  # 7→5に縮小
+    mask = cv2.medianBlur(mask, 5)
     
     # x=320の縦ライン上でヒットしたy座標（下から上）
     col_target = mask[:, center_x]
     hit_ys = np.where(col_target == 255)[0]
-    if len(hit_ys) == 0:
+    
+    # y座標フィルタリング：min_y_threshold以下は無視
+    valid_hit_ys = hit_ys[hit_ys >= min_y_threshold]
+    
+    if len(valid_hit_ys) == 0:
         return None
-    target_y = int(hit_ys[-1])  # 一番下のヒット点
+    target_y = int(valid_hit_ys[-1])  # 一番下のヒット点
     return target_y
 
 def get_is_blue_line_at_y(img, target_y, min_run=30):
