@@ -991,29 +991,23 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
 
 def get_line_trace_edges_at_x320(img):
     """
-    x=320の縦線上で下から上に黒色または青色ラインを探索し、
+    x=320の縦線上で下から上に黒色ラインを探索し、
     一番下でヒットしたy座標のみを返す。
-    黒・青の認識条件は完全一致（両方ともHSVで同じ条件）。
     Returns: target_y or None
     """
     import cv2
     import numpy as np
     center_x = 320
-    img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    h, w = img.shape[:2]
-    # 黒・青共通のHSV条件
-    # 黒: HSVでS,Vが低い(=暗い)
-    black_hsv_lower = (0, 0, 0)
-    black_hsv_upper = (180, 80, 80)
-    # 青: HSVで範囲指定
-    blue_hsv_lower = (100, 80, 80)
-    blue_hsv_upper = (140, 255, 255)
-    black_mask = cv2.inRange(img_hsv, np.array(black_hsv_lower), np.array(black_hsv_upper))
-    blue_mask = cv2.inRange(img_hsv, np.array(blue_hsv_lower), np.array(blue_hsv_upper))
-    # 論理和
-    target_mask = cv2.bitwise_or(black_mask, blue_mask)
+    
+    # グレースケール変換 + OTSU二値化（is_horizontal_black_line_detectedと同じ手法）
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    
+    # ノイズ除去（is_horizontal_black_line_detectedと同様）
+    mask = cv2.medianBlur(mask, 7)
+    
     # x=320の縦ライン上でヒットしたy座標（下から上）
-    col_target = target_mask[:, center_x]
+    col_target = mask[:, center_x]
     hit_ys = np.where(col_target == 255)[0]
     if len(hit_ys) == 0:
         return None
