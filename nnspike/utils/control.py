@@ -715,7 +715,10 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             min_brightness = np.min(region_pixels) if len(region_pixels) > 0 else 255
             avg_darkness = 255 - avg_brightness
             # 黒色障害物の検出を強化：最小値が非常に暗い場合はボーナス
-            darkness_bonus = 50 if min_brightness < 50 else 0
+            darkness_bonus = 80 if min_brightness < 50 else 0  # ボーナスを50→80に増加
+            # さらに、平均輝度が低い場合も追加ボーナス
+            if avg_brightness < 100:
+                darkness_bonus += 50  # 平均輝度が低い場合の追加ボーナス
             effective_darkness = avg_darkness + darkness_bonus
             # --- 極端に横長かつ暗い領域を除外 ---
             if w / h > 10 and effective_darkness > 100:
@@ -772,9 +775,9 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
     else:
         regions_sorted = sorted(detected_regions, key=lambda x: x['x'])  # x座標順
         back_regions = [r for r in detected_regions if r['y'] <= target_y - 50]  # 奥側領域
-        high_priority_threshold = 100  # 黒色障害物検出強化（150→100に下げる）
+        high_priority_threshold = 80  # 黒色障害物検出をさらに強化（100→80に下げる）
         
-        # 黒色障害物を最優先で検出・回避
+        # 黒色障害物を最優先で検出・回避（超保守的戦略）
         dark_obstacles = [r for r in detected_regions if r['darkness'] > high_priority_threshold]
         if dark_obstacles:
             # 黒色障害物がある場合は、それらを最優先で回避
@@ -787,29 +790,41 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                     right_region = dark_sorted[i + 1]
                     left_edge = left_region['x'] + left_region['w']
                     right_edge = right_region['x']
-                    safety_margin = 160  # 黒色障害物同士の場合は大きなマージン
+                    safety_margin = 200  # さらに大きなマージン（160→200）
                     gap_width = right_edge - left_edge - safety_margin
                     if gap_width >= min_safe_gap:
                         candidate_x = (left_edge + right_edge) // 2
-                        if valid_center_min <= candidate_x <= valid_center_max:
+                        # 有効範囲を大幅に拡大して回避ルートを確保
+                        expanded_min = max(20, previous_center_x - 150) if previous_center_x else 20
+                        expanded_max = min(image_width - 20, previous_center_x + 150) if previous_center_x else image_width - 20
+                        if expanded_min <= candidate_x <= expanded_max:
                             if best_gap is None or gap_width > best_gap['width']:
                                 best_gap = {'width': gap_width, 'center': candidate_x}
                 if best_gap:
                     trajectory_center_x = best_gap['center']
             else:
-                # 単一の黒色障害物の場合
+                # 単一の黒色障害物の場合（極めて保守的な回避）
                 region = dark_sorted[0]
                 contour_center = region['center'][0]
                 image_center = image_width // 2
-                safety_distance = 300  # 黒色障害物は特に大きな安全距離
-                width_margin = region['w'] // 2 + 30  # 幅の半分＋追加30ピクセル
+                safety_distance = 400  # 大幅に安全距離を拡大（300→400）
+                width_margin = region['w'] + 50  # 幅全体＋50ピクセル（さらに保守的）
                 total_safety = safety_distance + width_margin
+                # 有効範囲を大幅に拡大
+                expanded_min = max(20, previous_center_x - 200) if previous_center_x else 20
+                expanded_max = min(image_width - 20, previous_center_x + 200) if previous_center_x else image_width - 20
                 if contour_center < image_center:
                     candidate_x = contour_center + total_safety
                 else:
                     candidate_x = contour_center - total_safety
-                if valid_center_min <= candidate_x <= valid_center_max:
+                # まず拡大範囲で試す
+                if expanded_min <= candidate_x <= expanded_max:
                     trajectory_center_x = candidate_x
+                # 拡大範囲でもダメなら端に寄せる
+                elif candidate_x < expanded_min:
+                    trajectory_center_x = expanded_min
+                elif candidate_x > expanded_max:
+                    trajectory_center_x = expanded_max
         
         # 黒色障害物による回避が決まらなかった場合のみ、従来ロジックを実行
         if trajectory_center_x is None and len(back_regions) >= 2:
@@ -860,17 +875,26 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             region = detected_regions[0]
             contour_center = region['center'][0]
             image_center = image_width // 2
-            # 安全距離を大幅に拡大：普通の障害物120、暗い障害物240ピクセル
-            safety_distance = 240 if region['darkness'] > high_priority_threshold else 120
+            # 安全距離を大幅に拡大：普通の障害物150、暗い障害物300ピクセル
+            safety_distance = 300 if region['darkness'] > high_priority_threshold else 150
             # 障害物の実際の幅も考慮してさらに安全マージンを追加
-            width_margin = region['w'] // 2 + 20  # 幅の半分＋追加20ピクセル
+            width_margin = region['w'] + 40  # 幅全体＋追加40ピクセル（さらに保守的）
             total_safety = safety_distance + width_margin
+            # 有効範囲を拡大
+            expanded_min = max(20, previous_center_x - 200) if previous_center_x else 20
+            expanded_max = min(image_width - 20, previous_center_x + 200) if previous_center_x else image_width - 20
             if contour_center < image_center:
                 candidate_x = contour_center + total_safety
             else:
                 candidate_x = contour_center - total_safety
-            if valid_center_min <= candidate_x <= valid_center_max:
+            # まず拡大範囲で試す
+            if expanded_min <= candidate_x <= expanded_max:
                 trajectory_center_x = candidate_x
+            # 拡大範囲でもダメなら端に寄せる
+            elif candidate_x < expanded_min:
+                trajectory_center_x = expanded_min
+            elif candidate_x > expanded_max:
+                trajectory_center_x = expanded_max
         # どれにも該当しない場合は前回値または中央
         if trajectory_center_x is None:
             trajectory_center_x = previous_center_x if previous_center_x is not None else fallback_center_x
