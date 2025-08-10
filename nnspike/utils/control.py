@@ -999,12 +999,12 @@ def get_line_trace_edges_at_x320(img):
     import numpy as np
     center_x = 320
     
-    # グレースケール変換 + OTSU二値化（is_horizontal_black_line_detectedと同じ手法）
+    # グレースケール変換 + より厳しい固定閾値で真の黒線のみ検出
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    _, mask = cv2.threshold(gray, 60, 255, cv2.THRESH_BINARY_INV)  # OTSU→固定閾値60に変更
     
-    # ノイズ除去（is_horizontal_black_line_detectedと同様）
-    mask = cv2.medianBlur(mask, 7)
+    # ノイズ除去を軽減（誤検出を減らすため）
+    mask = cv2.medianBlur(mask, 5)  # 7→5に縮小
     
     # x=320の縦ライン上でヒットしたy座標（下から上）
     col_target = mask[:, center_x]
