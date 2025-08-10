@@ -991,43 +991,45 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
 
 def get_line_trace_edges_at_x320(img):
     """
-    x=320周辺で幅のある黒色ラインを面積検出し、
-    一番下でヒットしたy座標のみを返す。
+    画面を横切る超絶ロング黒ラインを検出し、
+    x=320を通る一番下のライン位置を返す。
     Returns: target_y or None
     """
     import cv2
     import numpy as np
     center_x = 320
-    search_width = 30  # x=305～335の範囲で検索
     min_y_threshold = 415  # y=415以下は無視
+    img_width = img.shape[1]  # 通常640
     
     # グレースケール変換 + 閾値処理
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(gray, 30, 255, cv2.THRESH_BINARY_INV)
+    _, mask = cv2.threshold(gray, 40, 255, cv2.THRESH_BINARY_INV)
     
-    # 指定範囲での検索
-    x_start = max(0, center_x - search_width // 2)
-    x_end = min(img.shape[1], center_x + search_width // 2)
-    
-    # 輪郭検出による面積ベースの黒ライン検出
+    # 輪郭検出による超絶ロング黒ライン検出
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     valid_line_y = None
+    detected_lines = []
+    
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
         area = cv2.contourArea(cnt)
         
-        # 幅20程度の横長ライン条件
-        if (w >= 15 and h >= 5 and w >= h * 2 and area >= 100 and 
+        # 超絶ロング横ライン条件：画面幅の70%以上 + 横長比率
+        min_width = int(img_width * 0.7)  # 画面幅の70%以上（約450px）
+        if (w >= min_width and h >= 3 and w >= h * 10 and area >= 1000 and 
             x <= center_x <= x + w and y >= min_y_threshold):
             line_bottom = y + h
+            detected_lines.append((w, h, area, line_bottom))
             if valid_line_y is None or line_bottom > valid_line_y:
                 valid_line_y = line_bottom
     
-    # デバッグ出力
+    # デバッグ出力：超絶ロングライン検出状況
     total_contours = len(contours)
     if total_contours > 0 or valid_line_y is not None:
-        print(f"[DEBUG] get_line_trace_edges_at_x320: total_contours={total_contours}, valid_line_y={valid_line_y}")
+        print(f"[DEBUG] get_line_trace_edges_at_x320: total_contours={total_contours}, detected_long_lines={len(detected_lines)}, valid_line_y={valid_line_y}")
+        for i, (w, h, area, bottom) in enumerate(detected_lines):
+            print(f"  Long Line {i+1}: width={w}, height={h}, area={area}, bottom_y={bottom}")
     
     return valid_line_y
 
