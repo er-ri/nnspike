@@ -1002,7 +1002,7 @@ def get_line_trace_edges_at_x320(img):
     # ROI固定値：極近距離検出（y=480直前のライン検出）
     roi_x_start = 100   # 左端100削る
     roi_x_end = 540     # 右端100削る（640-100=540）
-    roi_y_start = 440   # y=440以下無視（極近距離）
+    roi_y_start = 450   # y=450以下無視（極近距離）
     roi_y_end = 540     # 画面最下部まで
     
     # ROI抽出
@@ -1041,45 +1041,11 @@ def get_line_trace_edges_at_x320(img):
             if valid_line_y is None or line_bottom > valid_line_y:
                 valid_line_y = line_bottom
     
-    # デバッグ出力：ROI範囲とライン検出状況
-    total_contours = len(contours)
-    if total_contours > 0:
-        print(f"[DEBUG] ROI範囲: x=100-540, y=460-540")
-        print(f"[DEBUG] 検出された輪郭数: {total_contours}")
-        
-        # 検出条件の定義
-        roi_width = 440  # 540-100=440
-        min_width = int(roi_width * 0.5)  # 220px
-        
-        # 全ての輪郭の詳細チェック + 検出対象の表示
-        detected_targets = []
-        for i, cnt in enumerate(contours):
-            x_roi, y_roi, w, h = cv2.boundingRect(cnt)
-            area = cv2.contourArea(cnt)
-            # ROI座標を元の画像座標に変換
-            x = x_roi + roi_x_start
-            y = y_roi + roi_y_start
-            line_bottom = y + h
-            
-            # 検出対象かどうかチェック
-            all_conditions_met = (w >= min_width and 
-                                h >= 3 and 
-                                area >= 300 and 
-                                x <= center_x <= x + w)
-            
-            if all_conditions_met:
-                detected_targets.append((line_bottom, w, h, area, x, y))
-                print(f"  ✅ 検出対象 {len(detected_targets)}: bottom={line_bottom}, w={w}, h={h}, area={area}")
-            else:
-                print(f"  ❌ 除外: bottom={line_bottom}, w={w}, h={h}, area={area}")
-        
-        # 最も下の検出対象を表示
-        if detected_targets:
-            detected_targets.sort(key=lambda x: x[0], reverse=True)  # bottom位置で降順ソート
-            best_bottom = detected_targets[0][0]
-            print(f"[RESULT] 検出対象数={len(detected_targets)}, 最下位bottom={best_bottom}, selected_y={valid_line_y}")
-        else:
-            print(f"[RESULT] detected_long_lines=0, valid_line_y={valid_line_y}")
+    # デバッグ出力無効化
+    # total_contours = len(contours)
+    # if total_contours > 0:
+    #     print(f"[DEBUG] ROI範囲: x=100-540, y=460-540")
+    #     print(f"[DEBUG] 検出された輪郭数: {total_contours}")
     
     return valid_line_y
 
