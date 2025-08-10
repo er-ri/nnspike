@@ -998,7 +998,7 @@ def get_line_trace_edges_at_x320(img):
     import cv2
     import numpy as np
     center_x = 320
-    min_y_threshold = 500  # y=500以下は無視（ロボットがライン直前まで接近してから検出）
+    min_y_threshold = 450  # y=450以下は無視（適切なライン接近距離）
     img_width = img.shape[1]  # 通常640
     
     # グレースケール変換 + 閾値処理
