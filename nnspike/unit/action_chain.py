@@ -67,15 +67,22 @@ class ActionChain(object):
             state["phase"] = 2
             state["phase_start_time"] = now
 
-        # 2. 左旋回（0.3秒）
+        # 2. 直進（0.5秒）
         if state["phase"] == 2:
-            if now - state["phase_start_time"] < 0.3:
-                return None, (50, 80), Mode.AVOID_OBSTACLE
+            if now - state["phase_start_time"] < 0.5:
+                return None, (50, 50), Mode.AVOID_OBSTACLE
             state["phase"] = 3
             state["phase_start_time"] = now
 
-        # 3. チェーン終了でリセット
+        # 3. 左旋回（0.3秒）
         if state["phase"] == 3:
+            if now - state["phase_start_time"] < 0.3:
+                return None, (50, 80), Mode.AVOID_OBSTACLE
+            state["phase"] = 4
+            state["phase_start_time"] = now
+
+        # 4. チェーン終了でリセット
+        if state["phase"] == 4:
             self._state["avoid_obstacle"] = {"phase": 0, "phase_start_time": None}
             return None, None, Mode.FOLLOW_RIGHT_EDGE
 
