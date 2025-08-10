@@ -716,13 +716,12 @@ class ActionChain(object):
         avoid_obstacleの位置判定バージョン。
         以下の順で動作する:
         0. 左旋回（右モーター350ユニット移動まで, 左:40, 右:70）
-        1. 右旋回（左モーター550ユニット移動まで, 左:80, 右:50）
+        1. 右旋回（右モーター550ユニット移動まで, 左:80, 右:50）
         2. チェーン終了で右端追従モードへ復帰
         """
         state = self._state.setdefault("avoid_obstacle_relative", {
             "phase": 0,
             "right_position_start": None,
-            "left_position_start": None,
         })
         status = self.et.get_spike_status()
 
@@ -740,17 +739,17 @@ class ActionChain(object):
                     return None, (40, 70), Mode.AVOID_OBSTACLE
             
             state["phase"] = 1
-            # phase1用 左モーター相対位置記録（絶対値）
-            if status is not None and status.motors.get("A") is not None:
-                state["left_position_start"] = abs(status.motors["A"].relative_position)
+            # phase1用も右モーター相対位置記録（絶対値）
+            if status is not None and status.motors.get("B") is not None:
+                state["right_position_start"] = abs(status.motors["B"].relative_position)
             else:
-                state["left_position_start"] = None
+                state["right_position_start"] = None
 
-        # 1. 右旋回（左モーター550ユニット移動まで, 左:80, 右:50）
+        # 1. 右旋回（右モーター550ユニット移動まで, 左:80, 右:50）
         if state["phase"] == 1:
-            if status is not None and status.motors.get("A") is not None and state["left_position_start"] is not None:
-                current_pos = abs(status.motors["A"].relative_position)
-                if abs(current_pos - state["left_position_start"]) < 550:
+            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
+                current_pos = abs(status.motors["B"].relative_position)
+                if abs(current_pos - state["right_position_start"]) < 550:
                     return None, (80, 50), Mode.AVOID_OBSTACLE
             
             state["phase"] = 2
@@ -760,7 +759,6 @@ class ActionChain(object):
             self._state["avoid_obstacle_relative"] = {
                 "phase": 0, 
                 "right_position_start": None,
-                "left_position_start": None,
             }
             return None, None, Mode.FOLLOW_RIGHT_EDGE
 
