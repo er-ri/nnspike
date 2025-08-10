@@ -759,7 +759,7 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
 
     # --- 進路中心計算ロジック ---
     trajectory_center_x = None
-    min_safe_gap = 40  # 最小安全幅
+    min_safe_gap = 60  # 最小安全幅（40→60に変更）
     if not detected_regions:
         # 領域がなければ前回値または中央
         trajectory_center_x = previous_center_x if previous_center_x is not None else fallback_center_x
@@ -778,9 +778,9 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             right_edge = right['x']
             safety_margin = 0
             if left['darkness'] > high_priority_threshold:
-                safety_margin += 15
+                safety_margin += 35  # 15→35に変更（+20）
             if right['darkness'] > high_priority_threshold:
-                safety_margin += 15
+                safety_margin += 35  # 15→35に変更（+20）
             gap_width = right_edge - left_edge - safety_margin
             # 安全幅を満たす場合のみ中心候補
             if gap_width >= min_safe_gap:
@@ -797,9 +797,9 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                 right_edge = right_region['x']
                 safety_margin = 0
                 if left_region['darkness'] > high_priority_threshold:
-                    safety_margin += 15
+                    safety_margin += 35  # 15→35に変更（+20）
                 if right_region['darkness'] > high_priority_threshold:
-                    safety_margin += 15
+                    safety_margin += 35  # 15→35に変更（+20）
                 gap_width = right_edge - left_edge - safety_margin
                 if gap_width >= min_safe_gap:
                     candidate_x = (left_edge + right_edge) // 2
@@ -815,8 +815,8 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             region = detected_regions[0]
             contour_center = region['center'][0]
             image_center = image_width // 2
-            base_safety_distance = 20
-            darkness_bonus = min(region['darkness'] / 10, 30)
+            base_safety_distance = 40  # 20→40に変更（+20）
+            darkness_bonus = min(region['darkness'] / 10, 50)  # 30→50に変更（+20）
             safety_distance = base_safety_distance + darkness_bonus
             if contour_center < image_center:
                 candidate_x = contour_center + region['w']//2 + safety_distance
