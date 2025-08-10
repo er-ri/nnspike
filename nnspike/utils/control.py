@@ -999,10 +999,10 @@ def get_line_trace_edges_at_x320(img):
     import numpy as np
     center_x = 320
     
-    # ROI固定値：より下の方のライン検出（早期検出を防ぐ）
-    roi_x_start = 100   # 左端100削る
-    roi_x_end = 540     # 右端100削る（640-100=540）
-    roi_y_start = 400   # y=400以下無視（より遅い検出）
+    # ROI固定値：ごく近距離のライン検出のみ（20cm手前防止）
+    roi_x_start = 150   # 左端150削る（より狭く）
+    roi_x_end = 490     # 右端150削る（640-150=490）
+    roi_y_start = 450   # y=450以下無視（さらに遅い検出、5-10cm手前）
     roi_y_end = 500     # 下部500まで
     
     # ROI抽出
@@ -1026,12 +1026,12 @@ def get_line_trace_edges_at_x320(img):
         x = x_roi + roi_x_start
         y = y_roi + roi_y_start
         
-        # ROI範囲での横ライン条件：明確な黒いライン検出
-        roi_width = 440  # 540-100=440 固定値
-        min_width = int(roi_width * 0.8)  # ROI幅の80%以上（352px、より厳格）
+        # ROI範囲での横ライン条件：ごく近距離の明確な黒いライン検出
+        roi_width = 340  # 490-150=340 固定値
+        min_width = int(roi_width * 0.7)  # ROI幅の70%以上（238px）
         
-        # 明確な横ラインの条件：
-        # 1. 十分な幅（ROI内で352px以上、より厳格）
+        # ごく近距離での横ラインの条件：
+        # 1. 十分な幅（ROI内で238px以上、ほぼ画面横断）
         # 2. 高さは適度（3px以上、かつ幅の1/2以下で横長）
         # 3. x=320を通る（元画像座標基準）
         # 4. 十分な面積
@@ -1046,30 +1046,41 @@ def get_line_trace_edges_at_x320(img):
     
     # デバッグ出力：ROI範囲とライン検出状況
     total_contours = len(contours)
-    if total_contours > 0 or valid_line_y is not None:
-        print(f"[DEBUG] ROI範囲: x=100-540, y=400-500")
-        print(f"[DEBUG] get_line_trace_edges_at_x320: total_contours={total_contours}, detected_long_lines={len(detected_lines)}, valid_line_y={valid_line_y}")
-        for i, (w, h, area, bottom) in enumerate(detected_lines):
-            print(f"  Long Line {i+1}: width={w}, height={h}, area={area}, bottom_y={bottom}")
+    if total_contours > 0:
+        print(f"[DEBUG] ROI範囲: x=150-490, y=450-500")
+        print(f"[DEBUG] 検出された輪郭数: {total_contours}")
         
-        # 検出失敗時の詳細解析：全輪郭チェック
-        if len(detected_lines) == 0 and total_contours > 0:
-            print("  [ANALYSIS] No long lines detected - analyzing all contours:")
-            roi_width = 440
-            for i, cnt in enumerate(contours[:5]):  # 最初の5個まで
-                x_roi, y_roi, w, h = cv2.boundingRect(cnt)
-                area = cv2.contourArea(cnt)
-                # ROI座標を元の画像座標に変換
-                x = x_roi + roi_x_start
-                y = y_roi + roi_y_start
-                line_bottom = y + h
-                min_width = int(roi_width * 0.7)
-                crosses_center = x <= center_x <= x + w
-                width_ok = w >= min_width
-                height_ok = h >= 3 and h <= w // 2  # 幅の1/2以下
-                area_ok = area >= 500
-                print(f"    Contour {i+1}: x={x}, y={y}, w={w}(req≥{min_width}), h={h}, area={area}, bottom={line_bottom}")
-                print(f"      条件: width_ok={width_ok}, height_ok={height_ok}, area_ok={area_ok}, crosses_center={crosses_center}")
+        # 検出条件の定義
+        roi_width = 340  # 490-150=340
+        min_width = int(roi_width * 0.7)  # 238px
+        
+        # 全ての輪郭の詳細チェック
+        for i, cnt in enumerate(contours):
+            x_roi, y_roi, w, h = cv2.boundingRect(cnt)
+            area = cv2.contourArea(cnt)
+            # ROI座標を元の画像座標に変換
+            x = x_roi + roi_x_start
+            y = y_roi + roi_y_start
+            line_bottom = y + h
+            
+            print(f"  輪郭 {i+1}:")
+            print(f"    位置: x={x}, y={y}, bottom={line_bottom}")
+            print(f"    サイズ: w={w}, h={h}, area={area}")
+            print(f"    ライン太さ: {h}px ({'十分' if h >= 10 else '細い' if h >= 3 else '極細'})")
+            print(f"    x=320通過: {'Yes' if x <= center_x <= x + w else 'No'} (x={x}~{x+w})")
+            print(f"    幅条件: {'OK' if w >= min_width else 'NG'} (req≥{min_width})")
+            print(f"    横長条件: {'OK' if h >= 3 and h <= w // 2 else 'NG'}")
+            print(f"    面積条件: {'OK' if area >= 500 else 'NG'}")
+            
+            # 検出対象かどうか
+            all_conditions_met = (w >= min_width and 
+                                h >= 3 and h <= w // 2 and 
+                                area >= 500 and 
+                                x <= center_x <= x + w)
+            print(f"    → {'検出対象' if all_conditions_met else '除外'}")
+            print()
+        
+        print(f"[RESULT] detected_long_lines={len(detected_lines)}, valid_line_y={valid_line_y}")
     
     return valid_line_y
 
