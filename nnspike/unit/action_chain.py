@@ -42,7 +42,8 @@ class ActionChain(object):
         以下の順で動作する:
         0. 左旋回 (左:40, 右:70, 0.8秒)
         1. 右旋回 (左:80, 右:50, 1.3秒)
-        2. チェーン終了で右端追従モードへ復帰
+        2. 左旋回 (左:50, 右:80, 0.5秒)
+        3. チェーン終了で右端追従モードへ復帰
         """
         state = self._state.setdefault("avoid_obstacle", {
             "phase": 0,
@@ -66,8 +67,15 @@ class ActionChain(object):
             state["phase"] = 2
             state["phase_start_time"] = now
 
-        # 2. チェーン終了でリセット
+        # 2. 左旋回（0.5秒）
         if state["phase"] == 2:
+            if now - state["phase_start_time"] < 0.5:
+                return None, (50, 80), Mode.AVOID_OBSTACLE
+            state["phase"] = 3
+            state["phase_start_time"] = now
+
+        # 3. チェーン終了でリセット
+        if state["phase"] == 3:
             self._state["avoid_obstacle"] = {"phase": 0, "phase_start_time": None}
             return None, None, Mode.FOLLOW_RIGHT_EDGE
 
@@ -695,6 +703,59 @@ class ActionChain(object):
 
         self._left_position_start = None
         return None, None, Mode.PAUSE
+
+    def avoid_obstacle_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+        """
+        avoid_obstacleの位置判定バージョン。
+        以下の順で動作する:
+        0. 左旋回（右モーター350ユニット移動まで, 左:40, 右:70）
+        1. 右旋回（左モーター550ユニット移動まで, 左:80, 右:50）
+        2. チェーン終了で右端追従モードへ復帰
+        """
+        state = self._state.setdefault("avoid_obstacle_relative", {
+            "phase": 0,
+            "right_position_start": None,
+            "left_position_start": None,
+        })
+        status = self.et.get_spike_status()
+
+        # 0. 左旋回（右モーター350ユニット移動まで, 左:40, 右:70）
+        if state["phase"] == 0:
+            if state["right_position_start"] is None:
+                if status is not None and status.motors.get("B") is not None:
+                    state["right_position_start"] = abs(status.motors["B"].relative_position)
+                else:
+                    state["right_position_start"] = None
+            
+            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
+                current_pos = abs(status.motors["B"].relative_position)
+                if abs(current_pos - state["right_position_start"]) < 350:
+                    return None, (40, 70), Mode.AVOID_OBSTACLE
+            
+            state["phase"] = 1
+            # phase1用 左モーター相対位置記録（絶対値）
+            if status is not None and status.motors.get("A") is not None:
+                state["left_position_start"] = abs(status.motors["A"].relative_position)
+            else:
+                state["left_position_start"] = None
+
+        # 1. 右旋回（左モーター550ユニット移動まで, 左:80, 右:50）
+        if state["phase"] == 1:
+            if status is not None and status.motors.get("A") is not None and state["left_position_start"] is not None:
+                current_pos = abs(status.motors["A"].relative_position)
+                if abs(current_pos - state["left_position_start"]) < 550:
+                    return None, (80, 50), Mode.AVOID_OBSTACLE
+            
+            state["phase"] = 2
+
+        # 2. チェーン終了でリセット
+        if state["phase"] == 2:
+            self._state["avoid_obstacle_relative"] = {
+                "phase": 0, 
+                "right_position_start": None,
+                "left_position_start": None,
+            }
+            return None, None, Mode.FOLLOW_RIGHT_EDGE
 
 
 
