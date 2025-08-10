@@ -646,7 +646,8 @@ def find_blue_target_center(
                     ellipse = cv2.fitEllipse(cnt)
                     (cx, cy), (major, minor), angle = ellipse
                     ratio = major/minor if minor > 0 else 0
-                    if 0.2 < ratio < 5.0 and major > 5 and minor > 3:
+                    # 明らかに縦長の形状を除外：縦横比が2.0未満（縦が横の2倍未満）に制限
+                    if 0.2 < ratio < 2.0 and major > 5 and minor > 3:
                         if area > max_blue_area:
                             best_blue_ellipse = ellipse
                             max_blue_area = area
