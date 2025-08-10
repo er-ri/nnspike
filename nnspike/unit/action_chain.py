@@ -42,8 +42,9 @@ class ActionChain(object):
         以下の順で動作する:
         0. 左旋回 (左:40, 右:70, 0.8秒)
         1. 右旋回 (左:80, 右:50, 1.3秒)
-        2. 左旋回 (左:50, 右:80, 0.5秒)
-        3. チェーン終了で右端追従モードへ復帰
+        2. 直進 (左:50, 右:50, 0.3秒)
+        3. 左旋回 (左:50, 右:80, 0.5秒)
+        4. チェーン終了で右端追従モードへ復帰
         """
         state = self._state.setdefault("avoid_obstacle", {
             "phase": 0,
@@ -259,17 +260,17 @@ class ActionChain(object):
         """
         以下の順で動作する:
         0. 右エッジトレース（青ピクセル数が3000を超えたらphase1へ）
-        1. 青ボトル中心追従（3000以上の間center追従、3000以下でphase2へ）
-        2. 3000以下になってから0.3秒間center追従。その後phase3（左旋回is_left_black_line_detected(image) or 3秒）
+        1. 青ボトル中心追従（3000以上の間center追従、3000以下で0.2秒間継続してからphase2へ）
+        2. 0.2秒経過後さらに0.3秒間center追従。その後phase3（左旋回）
         3. 左旋回（is_left_black_line_detected(image)がTrueになるまで、または3秒未満, 左:0, 右:30）
-        4. 直進（2.5秒, 両輪BASE_SPEED, pre_target_xも中央にリセット）
-        5. 左旋回（1.5秒, 左:0, 右:30）
+        4. 直進（2.3秒, 両輪BASE_SPEED, pre_target_xも中央にリセット）
+        5. 左旋回（1.3秒, 左:0, 右:30）
         6. 仮想ライン直進（2.0秒, get_virtual_line_edges_at_y, previous_center_x=pre_target_x）
-        7. 直進（2.0秒, 両輪BASE_SPEED）
-        8. 左旋回（is_x320_on_blue_target(image, x_tolerance=40)がTrueになるまで、または2秒未満, 左:0, 右:30）
-        9. 青検出（青ピクセル数が1000を超えたらphase10へ）
-        10. 青ピクセルが500以下まで減るまでcenter追従（500以下でphase11へ）
-        11. 500以下になってから1秒間center追従、その後BACK_AND_TURN2へ遷移
+        7. 直進（2.3秒, 両輪BASE_SPEED）qqq
+        8. 左旋回（is_x320_on_blue_target検出まで、最低1.2秒旋回後に判定、最大2秒, 左:0, 右:30）
+        9. 青検出（青ピクセル数が1000を超えたらphase10へ、または最大2秒でphase10へ）
+        10. 青ピクセルが500以下まで減るまでcenter追従（500以下でphase11へ、または最大2秒でphase11へ）
+        11. 500以下になってから0.8秒間center追従、その後BACK_AND_TURN2へ遷移
         """
         state = self._state.setdefault("carry_bottle2", {
             "phase": 0,
@@ -278,7 +279,7 @@ class ActionChain(object):
         })
         now = time.time()
 
-        # 0. 青ピクセル数が3000を超える前は単純直進、超えたらphase1へ
+        # 0. 青ピクセル数が3000を超える前は直進、超えたらphase1へ
         if state["phase"] == 0:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             _, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
@@ -420,8 +421,8 @@ class ActionChain(object):
     def back_and_turn2(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         以下の順で動作する:
-        0. 2.0秒間後退（両輪BASE_SPEED）
-        1. 1.5秒右旋回（左:30, 右:0）
+        0. 1.5秒間後退（両輪BASE_SPEED）
+        1. 1.3秒右旋回（左:30, 右:0）
         2. 終了後HEAD_GOALへ遷移（状態リセット）
         """
         state = self._state.setdefault("back_and_turn2", {
@@ -715,9 +716,9 @@ class ActionChain(object):
         """
         avoid_obstacleの位置判定バージョン。
         以下の順で動作する:
-        0. 左旋回（右モーター350ユニット移動まで, 左:40, 右:70）
-        1. 右旋回（右モーター500ユニット移動まで, 左:80, 右:50）
-        2. 左旋回（右モーター200ユニット移動まで, 左:40, 右:80）
+        0. 左旋回（右モーター500ユニット移動まで, 左:40, 右:70）
+        1. 右旋回（右モーター600ユニット移動まで, 左:70, 右:40）
+        2. 左旋回（右モーター300ユニット移動まで, 左:40, 右:70）
         3. チェーン終了で右端追従モードへ復帰
         """
         state = self._state.setdefault("avoid_obstacle_relative", {
@@ -746,11 +747,11 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 1. 右旋回（右モーター600ユニット移動まで, 左:80, 右:50）
+        # 1. 右旋回（右モーター550ユニット移動まで, 左:70, 右:40）
         if state["phase"] == 1:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 600:
+                if abs(current_pos - state["right_position_start"]) < 550:
                     return None, (70, 40), Mode.AVOID_OBSTACLE
             
             state["phase"] = 2
@@ -760,7 +761,7 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 2. 左旋回（右モーター300ユニット移動まで, 左:40, 右:80）
+        # 2. 左旋回（右モーター300ユニット移動まで, 左:40, 右:70）
         if state["phase"] == 2:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
@@ -1058,18 +1059,18 @@ class ActionChain(object):
         """
         carry_bottle2の位置判定バージョン。
         以下の順で動作する:
-        0. 右エッジトレース（青ピクセル数が2000を超えたらphase1へ）
-        1. 青ボトル中心追従（2000以上の間center追従、2000以下で右モーター100ユニット移動まで追従、その後phase2へ）
-        2. 右モーター100ユニット移動まで center追従。その後phase3
+        0. 赤ターゲット中心追従（青ピクセル数が2000を超えたらphase1へ）
+        1. 青ボトル中心追従（2000以上の間center追従、2000以下になった瞬間にphase2へ移行）
+        2. 右モーター200ユニット移動まで center追従。その後phase3
         3. 左旋回（is_left_black_line_detected(image)検出まで、最大右モーター1000ユニット, 左:0, 右:30）
-        4. 直進（右モーター930ユニット移動まで, 両輪BASE_SPEED）
+        4. 直進（右モーター870ユニット移動まで, 両輪BASE_SPEED）
         5. 左旋回（右モーター380ユニット移動まで, 左:0, 右:30）
         6. 仮想ライン直進（右モーター800ユニット移動まで, get_virtual_line_edges_at_y）
-        7. 直進（右モーター1000ユニット移動まで, 両輪BASE_SPEED）
-        8. 左旋回（is_x320_on_blue_target検出まで、最大右モーター500ユニット, 左:0, 右:30）
+        7. 直進（右モーター1100ユニット移動まで, 両輪BASE_SPEED）
+        8. 左旋回（is_x320_on_blue_target検出まで、最低右モーター300ユニット、最大右モーター500ユニット, 左:0, 右:30）
         9. 青検出（青ピクセル数1000超えたらphase10へ、最大右モーター400ユニット）
         10. 青ピクセルが500以下まで減るまでcenter追従（500以下でphase11へ、最大右モーター400ユニット）
-        11. 右モーター100ユニット移動まで center追従、その後BACK_AND_TURN2へ遷移
+        11. 右モーター300ユニット移動まで center追従、その後BACK_AND_TURN2へ遷移
         """
         state = self._state.setdefault("carry_bottle2_relative", {
             "phase": 0,
@@ -1348,11 +1349,11 @@ class ActionChain(object):
         """
         heading_goalの位置判定バージョン（右モーター位置追跡）。
         以下の順で動作する:
-        0. ライン到達前は中央追従（y_hit >= 450）、ただし最長右モーター700ユニットで打ち切り
-        1. 到達直後右モーター100ユニット移動まで直進
+        0. ライン到達前は中央追従（y_hit >= 420）、ただし最長右モーター700ユニットで打ち切り
+        1. 到達直後右モーター50ユニット移動まで直進
         2. 左旋回（右モーター450ユニット移動まで, 左:0, 右:30）
         3. 右エッジトレース（青ライン検出でphase4へ）
-        4. 青ライン検出後、右モーター300ユニット移動まで右エッジトレースしたらPAUSE（状態リセット）
+        4. 青ライン検出後、右モーター600ユニット移動まで右エッジトレースしたらPAUSE（状態リセット）
         """
         state = self._state.setdefault("heading_goal_relative", {
             "phase": 0,
