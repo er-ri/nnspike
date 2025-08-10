@@ -377,9 +377,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     print("Switched to NVIDIA model following mode")
                 else:
                     print("NVIDIA model not available")
-            elif key == "t":
-                mode = Mode.TURN_AT_END
-                print("Switched to Turn at the end mode")
 
             target_x = None  # Default target x position
             offset_y = None  # target_y相当も初期化
@@ -393,10 +390,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.turn_left_relative(frame))
                 case Mode.TURN_RIGHT_RELATIVE:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.turn_right_relative(frame))
-                case Mode.TURN_AT_END:
-                    target_x, (left_speed, right_speed), ret_mode = unpack_action_result(action_chain.turn_at_end(frame))
-                    if ret_mode == Mode.FOLLOW_RIGHT_EDGE:
-                        mode = Mode.FOLLOW_RIGHT_EDGE
                 case Mode.BLUE_BOTTLE_CATCH:
                     target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.blue_bottle_catch(frame))
                 case Mode.FOLLOW_LEFT_EDGE:

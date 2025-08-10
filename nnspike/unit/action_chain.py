@@ -42,7 +42,7 @@ class ActionChain(object):
 
     def turn_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
-        左旋回アクションを実行する（backup/actions.pyのturn_left相当）。
+        左旋回アクション。1.5秒間左:0,右:30で旋回し、その後PAUSE。
         """
         self.start_time = time.time() if self.start_time == 0.0 else self.start_time
         self.current_time = time.time()
@@ -55,7 +55,7 @@ class ActionChain(object):
 
     def trun_right(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
-        右旋回アクションを実行する（backup/actions.pyのturn_right相当）。
+        右旋回アクション。1.5秒間左:30,右:0で旋回し、その後PAUSE。
         """
         self.start_time = time.time() if self.start_time == 0.0 else self.start_time
         self.current_time = time.time()
@@ -68,7 +68,7 @@ class ActionChain(object):
 
     def small_turn_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
-        スモールターンレフト（短時間左旋回）アクション。
+        短時間（0.3秒）左旋回アクション。左:0,右:50で旋回し、その後PAUSE。
         """
         self.start_time = time.time() if self.start_time == 0.0 else self.start_time
         self.current_time = time.time()
@@ -81,7 +81,7 @@ class ActionChain(object):
 
     def small_turn_right(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
-        スモールターンライト（短時間右旋回）アクション。
+        短時間（0.3秒）右旋回アクション。左:50,右:0で旋回し、その後PAUSE。
         """
         self.start_time = time.time() if self.start_time == 0.0 else self.start_time
         self.current_time = time.time()
@@ -94,7 +94,7 @@ class ActionChain(object):
 
     def blue_bottle_catch(self, image: np.ndarray) -> tuple:
         """
-        ブルーボトルキャッチモード: 青重心に向かう。3000ピクセル超で検知、3000未満で0.8秒直進、その後PAUSE。
+        青ボトルキャッチモード。青ピクセル数が3000を超えるまでは青重心追従、超えた後3000未満になったら0.8秒直進し、その後PAUSE。
         戻り値: (target_x, (left_speed, right_speed), mode)
         """
         state = self._state.setdefault("blue_bottle_catch", {"detected": False, "below3000_time": None})
@@ -137,52 +137,10 @@ class ActionChain(object):
                     target_x = (x1 + x2) // 2
                 return target_x, None, mode
 
-    def turn_at_end(self, frame, offset_y_for_turn=400):
-        """
-        以下の順で動作する:
-        0. ライン到達前は中央追従
-        1. 到達直後0.5秒は直進
-        2. 一度だけ左旋回（trun_left, 0.8秒, 左:0, 右:60）
-        3. 以降は右端追従（run_manual.py側の通常ロジックに任せる）
-        汎用状態dict(self._state)で管理。
-        offset_y_for_turn: この動作専用のライン到達判定Y座標（デフォルト400）
-        Returns: (target_x, (left_speed, right_speed), ret_mode)
-        """
-        state = self._state.setdefault("turn_at_end", {"phase": 0, "phase_start_time": None})
-        now = time.time()
-        y_hit = get_line_trace_edges_at_x320(frame)
-
-        # 0. ライン到達前は中央追従
-        if state["phase"] == 0:
-            if y_hit is not None and y_hit >= offset_y_for_turn:
-                state["phase"] = 1
-                state["phase_start_time"] = now
-            else:
-                target_x = (self.x1 + self.x2) // 2
-                return target_x, (None, None), None
-
-        # 1. 到達直後0.5秒は直進
-        if state["phase"] == 1:
-            if now - state["phase_start_time"] < 0.5:
-                target_x = (self.x1 + self.x2) // 2
-                return target_x, (BASE_SPEED, BASE_SPEED), None
-            state["phase"] = 2
-            state["phase_start_time"] = now
-
-        # 2. 一度だけ左旋回（0.8秒, 左:0, 右:60）
-        if state["phase"] == 2:
-            if now - state["phase_start_time"] < 0.8:
-                return None, (0, 60), None
-            state["phase"] = 3
-
-        # 3. 以降は右端追従（run_manual.py側の通常ロジックに任せる）
-        if state["phase"] == 3:
-            return None, None, Mode.FOLLOW_RIGHT_EDGE
 
     def turn_left_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
-        左旋回（右モーターBの相対位置差分で判定、430未満の間は左:0,右:30で継続。430超えたらPAUSE）
-        et.get_spike_status().motors["B"].relative_position, et.get_spike_status().motors["A"].relative_positionを条件として利用
+        左旋回（右モーターBの相対位置差分で判定）。430未満の間は左:0,右:30で継続。430超えたらPAUSE。
         """
         status = self.et.get_spike_status()
         # 右モーターの初期位置を記録
@@ -207,8 +165,7 @@ class ActionChain(object):
 
     def turn_right_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
-        右旋回（左モーターAの相対位置差分で判定、430未満の間は左:30,右:0で継続。430超えたらPAUSE）
-        et.get_spike_status().motors["A"].relative_position, et.get_spike_status().motors["B"].relative_positionを条件として利用
+        右旋回（左モーターAの相対位置差分で判定）。430未満の間は左:30,右:0で継続。430超えたらPAUSE。
         """
         status = self.et.get_spike_status()
         # 左モーターの初期位置を記録
@@ -308,8 +265,6 @@ class ActionChain(object):
                 "right_position_start": None,
             }
             return None, None, Mode.FOLLOW_RIGHT_EDGE
-
-
 
 # --- 以下、*_relativeメソッド（元メソッド完全コピー） ---
 
@@ -533,10 +488,10 @@ class ActionChain(object):
     def back_and_turn1_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         back_and_turn1の位置判定バージョン。
-        以下の順で動作する:
+        フェーズ:
         0. 後退（右モーター600ユニット移動まで, 両輪BASE_SPEED）
-        1. 左旋回（is_x320_on_red_target(image, x_tolerance=20)検出まで、最大右モーター1000ユニット, 左:0, 右:30）
-        2. 終了後CARRY_BOTTLE2へ遷移（状態リセット）
+        1. 左旋回（右モーター450ユニット以上は必ず旋回、450超えた後is_x320_on_red_target(image, x_tolerance=60)検出または950ユニット到達まで左:0,右:30）
+        2. 終了: 状態リセットしCARRY_BOTTLE2へ遷移
         """
         state = self._state.setdefault("back_and_turn1_relative", {
             "phase": 0,

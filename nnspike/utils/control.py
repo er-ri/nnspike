@@ -987,51 +987,6 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
     trajectory_center_x = max(line_width//2, min(image_width - line_width//2 - 1, trajectory_center_x))
     return trajectory_center_x
 
-# ヒットしたy座標（下端）とその左右端x座標を返す関数
-
-def get_line_trace_edges_at_x320(img):
-    """
-    画面を横切る超絶ロング黒ラインを検出し、
-    x=320を通る一番下のライン位置を返す。
-    Returns: target_y or None
-    """
-    center_x = 320
-    
-    # ROI固定値：極近距離検出（y=480直前のライン検出）
-    roi_x_start = 100   # 左端100削る
-    roi_x_end = 540     # 右端100削る（640-100=540）
-    roi_y_start = 450   # y=450以下無視（極近距離）
-    roi_y_end = 540     # 画面最下部まで
-    
-    # ROI抽出
-    roi = img[roi_y_start:roi_y_end, roi_x_start:roi_x_end]
-    
-    # グレースケール変換
-    if len(img.shape) == 3:
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    else:
-        gray = img.copy()
-    
-    # ROI抽出
-    roi = gray[roi_y_start:roi_y_end, roi_x_start:roi_x_end]
-    
-    # 他の関数と同じOTSU自動閾値を使用
-    _, mask = cv2.threshold(roi, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    
-    # シンプル検知：x=320の列で最も下の白いピクセルを探す
-    roi_center_x = center_x - roi_x_start  # 320 - 100 = 220
-    
-    if 0 <= roi_center_x < mask.shape[1]:
-        column_data = mask[:, roi_center_x]  # x=320の列
-        white_positions = np.where(column_data == 255)[0]  # 白いピクセルの行番号
-        
-        if len(white_positions) > 0:
-            # 最も下の白いピクセル位置
-            bottom_roi_y = white_positions[-1]
-            return bottom_roi_y + roi_y_start
-    
-    return None
-
 def get_is_blue_line_at_y(img, target_y, min_run=30):
     """
     指定したy座標（target_y）で、HSV条件に合致する青ピクセルがmin_run個以上連続していればTrue、そうでなければFalseを返す。
