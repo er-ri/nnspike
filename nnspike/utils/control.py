@@ -1245,12 +1245,13 @@ def is_general_horizontal_line_detected(img):
         raise FileNotFoundError("画像がNoneです")
     
     # 一般的な水平ライン検出パラメータ
-    _min_width = 200      # より緩い幅条件
-    _min_height = 10      # より緩い高さ条件
-    _max_aspect = 0.3     # 水平ライン重視（高さ/幅 < 0.3）
-    _min_area = 2000      # より緩い面積条件
+    _min_width = 150      # ノートブック準拠: 幅条件
+    _min_height = 10      # ノートブック準拠: 高さ条件
+    _max_aspect = 0.2     # ノートブック準拠: アスペクト比（高さ/幅）
+    _min_area = 3000      # ノートブック準拠: 面積条件
+    _angle_threshold = 10  # 0度±10または90度±10を許容
     _center_x = 320
-    _roi = (100, 0, 540, 540)  # y0から540まで全体をカバー
+    _roi = (200, 0, 440, 540)  # ノートブック準拠ROI
     
     # グレースケール変換
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -1275,17 +1276,34 @@ def is_general_horizontal_line_detected(img):
         x, y, width, height = cv2.boundingRect(contour)
         area = cv2.contourArea(contour)
         aspect_ratio = height / width if width > 0 else float('inf')
-        
+        # 角度計算
+        angle = None
+        if len(contour) >= 5:
+            rect = cv2.minAreaRect(contour)
+            angle_raw = rect[2]
+            # minAreaRectの仕様: -90〜0度、短辺がx軸方向に近い場合-90、長辺がx軸方向に近い場合0
+            if angle_raw < -45:
+                angle_norm = 90 + angle_raw  # 水平に近い場合0付近、垂直に近い場合90付近
+            else:
+                angle_norm = angle_raw  # 0付近
+            angle_from_0 = abs(angle_norm)
+            angle_from_90 = abs(abs(angle_norm) - 90)
+        else:
+            angle_from_0 = 0
+            angle_from_90 = 90
         # x=320との交差判定（y座標制限なし）
         crosses_center = (x <= _center_x <= x + width)
-        
-        if (width >= _min_width and 
+        # 0度±10または90度±10を許容
+        angle_ok = (angle_from_0 <= _angle_threshold) or (angle_from_90 <= _angle_threshold)
+        if (
+            width >= _min_width and 
             height >= _min_height and 
             aspect_ratio <= _max_aspect and 
             area >= _min_area and 
-            crosses_center):
+            crosses_center and
+            angle_ok
+        ):
             return True
-    
     return False
 
 def is_horizontal_black_line_detected(img, intersection_y=450):
@@ -1351,73 +1369,76 @@ def is_horizontal_black_line_detected(img, intersection_y=450):
 
 def is_vertical_black_line_detected(img):
     """
-    画面下部まで続く垂直な黒いラインが検出されたらTrueを返す関数
-    （上部は途切れていても良い、下部が画面下端まで続いていることが重要）
+    x=320と交差する一般的な水平黒ラインが検出されたらTrueを返す関数
+    ROI: y0から540まで全体、x=320との交差必須、90度に近い角度を重視
     
     Args:
         img: BGR画像 (numpy.ndarray)
     
     Returns:
-        bool: 画面下部まで続く垂直な黒いラインが検出されればTrue、なければFalse
+        bool: x=320と交差し90度に近い水平黒ラインが検出されればTrue、なければFalse
     """
-    _min_width = 3     # 垂直ラインの最小幅（5→3に緩和）
-    _min_height = 80   # 最小高さ（100→80に緩和）
-    _min_aspect = 1.0  # 垂直ラインのアスペクト比下限（1.5→1.0に緩和）
-    _min_area = 200    # 最小面積（500→200に緩和）
-    _center_x = 320    # ロボットの中央線
-    _center_tolerance = 100  # 中央からの許容範囲（±100px）
-    
     if img is None:
         raise FileNotFoundError("画像がNoneです")
     
-    img_height = img.shape[0]  # 画像の高さ取得
+    # 一般的な水平ライン検出パラメータ
+    _min_width = 150      # ノートブック準拠: 幅条件
+    _min_height = 10      # ノートブック準拠: 高さ条件
+    _max_aspect = 0.2     # ノートブック準拠: アスペクト比（高さ/幅）
+    _min_area = 3000      # ノートブック準拠: 面積条件
+    _angle_threshold = 10  # 0度±10または90度±10を許容
+    _center_x = 320
+    _roi = (200, 0, 440, 540)  # ノートブック準拠ROI
     
+    # グレースケール変換
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    _, mask = cv2.threshold(blurred, 50, 255, cv2.THRESH_BINARY_INV)  # 固定閾値50
     
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # OTSU自動閾値
+    _, black_mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     
-    detected_lines = []
-    rejected_lines = []
-    for cnt in contours:
-        x, y, ww, hh = cv2.boundingRect(cnt)
-        area = cv2.contourArea(cnt)
-        aspect = hh / (ww + 1e-5)  # 高さ/幅
-        
-        # 画面下部まで続く垂直ラインの条件
-        line_bottom = y + hh
-        reaches_bottom = line_bottom >= img_height - 200  # 画面下端から200px以内（50→200に大幅緩和）
-        
-        # 各条件チェック
-        width_ok = ww >= _min_width
-        height_ok = hh >= _min_height  
-        aspect_ok = aspect >= _min_aspect
-        area_ok = area >= _min_area
-        bottom_ok = reaches_bottom
-        
-        # 中央線との平行条件：垂直ラインの中央がx=320±100以内
-        line_center_x = x + ww // 2
-        parallel_ok = abs(line_center_x - _center_x) <= _center_tolerance
-        
-        # デバッグ：輪郭詳細を表示
-        # print(f"  Contour: x={x}, center_x={line_center_x}, w={ww}, h={hh}, aspect={aspect:.2f}, area={area:.0f}, bottom={line_bottom}")
-        # print(f"    Checks: width_ok={width_ok}, height_ok={height_ok}, aspect_ok={aspect_ok}, area_ok={area_ok}, bottom_ok={bottom_ok}, parallel_ok={parallel_ok}")
-        
-        if width_ok and height_ok and aspect_ok and area_ok and bottom_ok and parallel_ok:
-            detected_lines.append((x, line_center_x, ww, hh, aspect, area, line_bottom))
+    # ノイズ除去（軽め）
+    black_mask = cv2.medianBlur(black_mask, 5)
+    black_mask = cv2.dilate(black_mask, np.ones((5, 5), np.uint8), iterations=1)
+    black_mask = cv2.morphologyEx(black_mask, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+    
+    # ROI適用
+    x0, y0, x1, y1 = _roi
+    mask_roi = np.zeros_like(black_mask)
+    mask_roi[y0:y1, x0:x1] = black_mask[y0:y1, x0:x1]
+    
+    # 輪郭検出
+    contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    for contour in contours:
+        x, y, width, height = cv2.boundingRect(contour)
+        area = cv2.contourArea(contour)
+        aspect_ratio = height / width if width > 0 else float('inf')
+        # 角度計算
+        angle = None
+        if len(contour) >= 5:
+            rect = cv2.minAreaRect(contour)
+            angle_raw = rect[2]
+            # minAreaRectの仕様: -90〜0度、短辺がx軸方向に近い場合-90、長辺がx軸方向に近い場合0
+            if angle_raw < -45:
+                angle_norm = 90 + angle_raw  # 水平に近い場合0付近、垂直に近い場合90付近
+            else:
+                angle_norm = angle_raw  # 0付近
+            angle_from_0 = abs(angle_norm)
+            angle_from_90 = abs(abs(angle_norm) - 90)
         else:
-            rejected_lines.append((x, line_center_x, ww, hh, aspect, area, line_bottom, width_ok, height_ok, aspect_ok, area_ok, bottom_ok, parallel_ok))
-    
-    # デバッグ出力
-    # total_contours = len(contours)
-    # detected_vertical = len(detected_lines) > 0
-    # print(f"[DEBUG] is_vertical_black_line_detected: total_contours={total_contours}, detected_vertical_lines={len(detected_lines)}, img_height={img_height}")
-    # print(f"  Conditions: min_width={_min_width}, min_height={_min_height}, min_aspect={_min_aspect}, min_area={_min_area}, center_tolerance=±{_center_tolerance}")
-    # for i, (x, center_x, w, h, asp, area, bottom) in enumerate(detected_lines):
-    #     print(f"  ✅ Parallel Line {i+1}: x={x}, center_x={center_x}, width={w}, height={h}, aspect={asp:.2f}, area={area:.0f}, bottom_y={bottom}")
-    # for i, (x, center_x, w, h, asp, area, bottom, w_ok, h_ok, a_ok, ar_ok, b_ok, p_ok) in enumerate(rejected_lines[:3]):  # 最初の3つだけ
-    #     print(f"  ❌ Rejected {i+1}: x={x}, center_x={center_x}, w={w}({w_ok}), h={h}({h_ok}), asp={asp:.2f}({a_ok}), area={area:.0f}({ar_ok}), bottom={bottom}({b_ok}), parallel({p_ok})")
-    
-    detected_vertical = len(detected_lines) > 0
-    return detected_vertical
+            angle_from_0 = 0
+            angle_from_90 = 90
+        # x=320との交差判定（y座標制限なし）
+        crosses_center = (x <= _center_x <= x + width)
+        # 0度±10または90度±10を許容
+        angle_ok = (angle_from_0 <= _angle_threshold) or (angle_from_90 <= _angle_threshold)
+        if (
+            width >= _min_width and 
+            height >= _min_height and 
+            aspect_ratio <= _max_aspect and 
+            area >= _min_area and 
+            crosses_center and
+            angle_ok
+        ):
+            return True
+    return False
