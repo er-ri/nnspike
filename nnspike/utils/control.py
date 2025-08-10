@@ -1217,3 +1217,79 @@ def is_left_black_line_detected(img):
         if ww >= _min_width and hh >= _min_height and aspect >= _min_aspect and area >= _min_area:
             return True
     return False
+
+def is_horizontal_black_line_detected(img):
+    """
+    画面全体を横切る水平な黒いラインが検出されたらTrueを返す関数
+    
+    Args:
+        img: BGR画像 (numpy.ndarray)
+    
+    Returns:
+        bool: 画面全体を横切る水平な黒いラインが検出されればTrue、なければFalse
+    """
+    _min_width = 400   # 画面全体を横切るための最小幅
+    _min_height = 15   # 水平ラインの最小高さ
+    _max_aspect = 0.3  # 水平ラインのアスペクト比上限（高さ/幅 < 0.3）
+    _min_area = 5000   # 最小面積
+    
+    if img is None:
+        raise FileNotFoundError("画像がNoneです")
+    
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    
+    # ノイズ除去と形状の強調
+    mask = cv2.medianBlur(mask, 7)
+    mask = cv2.dilate(mask, np.ones((5,5), np.uint8), iterations=2)
+    
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    for cnt in contours:
+        x, y, ww, hh = cv2.boundingRect(cnt)
+        area = cv2.contourArea(cnt)
+        aspect = hh / (ww + 1e-5)  # 高さ/幅
+        
+        # 画面全体を横切る水平ラインの条件
+        if ww >= _min_width and hh >= _min_height and aspect <= _max_aspect and area >= _min_area:
+            return True
+    
+    return False
+
+def is_vertical_black_line_detected(img):
+    """
+    画面全体を縦断する垂直な黒いラインが検出されたらTrueを返す関数
+    
+    Args:
+        img: BGR画像 (numpy.ndarray)
+    
+    Returns:
+        bool: 画面全体を縦断する垂直な黒いラインが検出されればTrue、なければFalse
+    """
+    _min_width = 15    # 垂直ラインの最小幅
+    _min_height = 300  # 画面全体を縦断するための最小高さ
+    _min_aspect = 3.0  # 垂直ラインのアスペクト比下限（高さ/幅 >= 3.0）
+    _min_area = 5000   # 最小面積
+    
+    if img is None:
+        raise FileNotFoundError("画像がNoneです")
+    
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    
+    # ノイズ除去と形状の強調
+    mask = cv2.medianBlur(mask, 7)
+    mask = cv2.dilate(mask, np.ones((5,5), np.uint8), iterations=2)
+    
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    for cnt in contours:
+        x, y, ww, hh = cv2.boundingRect(cnt)
+        area = cv2.contourArea(cnt)
+        aspect = hh / (ww + 1e-5)  # 高さ/幅
+        
+        # 画面全体を縦断する垂直ラインの条件
+        if ww >= _min_width and hh >= _min_height and aspect >= _min_aspect and area >= _min_area:
+            return True
+    
+    return False

@@ -17,6 +17,8 @@ from nnspike.utils.control import (
     is_x320_on_red_target,
     get_red_target_center_x,
     is_left_black_line_detected,
+    is_horizontal_black_line_detected,
+    is_vertical_black_line_detected,
 )
 
 class ActionChain(object):
@@ -1344,11 +1346,20 @@ class ActionChain(object):
             else:
                 state["left_position_start"] = None
 
-        # 1. 左モーター300ユニット移動まで右旋回（左:30, 右:0）
+        # 1. 左モーター500ユニット移動まで右旋回（左:30, 右:0）
         if state["phase"] == 1:
             if status is not None and status.motors.get("A") is not None and state["left_position_start"] is not None:
                 current_pos = abs(status.motors["A"].relative_position)
-                if abs(current_pos - state["left_position_start"]) < 300:
+                position_diff = abs(current_pos - state["left_position_start"])
+                minimum_position_reached = position_diff >= 300
+                position_limit_reached = position_diff >= 500
+                horizontal_line_detected = is_horizontal_black_line_detected(image)
+            
+                # 最低300ユニットは必ず旋回
+                if not minimum_position_reached:
+                    return None, (30, 0), Mode.BACK_AND_TURN2
+                # 300ユニット超えてから、水平ライン検出または500ユニット到達まで継続
+                if (not horizontal_line_detected) and (not position_limit_reached):
                     return None, (30, 0), Mode.BACK_AND_TURN2
             state["phase"] = 2
 
@@ -1412,11 +1423,20 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 2. 左旋回（右モーター440ユニット移動まで, 左:0, 右:30）
+        # 2. 左旋回（右モーター500ユニット移動まで, 左:0, 右:30）
         if state["phase"] == 2:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 440:
+                position_diff = abs(current_pos - state["right_position_start"])
+                minimum_position_reached = position_diff >= 300
+                position_limit_reached = position_diff >= 500
+                vertical_line_detected = is_vertical_black_line_detected(image)
+            
+                # 最低300ユニットは必ず旋回
+                if not minimum_position_reached:
+                    return None, (0, 30), Mode.HEAD_GOAL
+                # 300ユニット超えてから、垂直ライン検出または500ユニット到達まで継続
+                if (not vertical_line_detected) and (not position_limit_reached):
                     return None, (0, 30), Mode.HEAD_GOAL
             state["phase"] = 3
 
