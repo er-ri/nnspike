@@ -1402,7 +1402,10 @@ class ActionChain(object):
                 current_pos = abs(status.motors["B"].relative_position)
                 position_limit_reached = abs(current_pos - state["right_position_start"]) >= 700
             
-            if (y_hit is not None and y_hit >= 400) or position_limit_reached:
+            # ライン到達チェック：y_hitがNoneでないかつ400以上、または距離制限到達
+            line_reached = y_hit is not None and y_hit >= 400
+            print(f"[DEBUG] heading_goal_relative phase0: y_hit={y_hit}, line_reached={line_reached}, position_limit_reached={position_limit_reached}")
+            if line_reached or position_limit_reached:
                 state["phase"] = 1
                 # phase1用 右モーター相対位置記録（絶対値）
                 if status is not None and status.motors.get("B") is not None:
