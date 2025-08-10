@@ -995,57 +995,49 @@ def get_line_trace_edges_at_x320(img):
     x=320を通る一番下のライン位置を返す。
     Returns: target_y or None
     """
-    import cv2
-    import numpy as np
     center_x = 320
     
-    # ROI固定値：極近距離検出（y=480直前のライン検出）
+    # ROI固定値：超極近距離検出（y=480直前のライン検出）
     roi_x_start = 100   # 左端100削る
     roi_x_end = 540     # 右端100削る（640-100=540）
-    roi_y_start = 450   # y=450以下無視（極近距離）
+    roi_y_start = 470   # y=470以下無視（超極近距離）
     roi_y_end = 540     # 画面最下部まで
     
     # ROI抽出
     roi = img[roi_y_start:roi_y_end, roi_x_start:roi_x_end]
     
-    # グレースケール変換 + 閾値処理（より厳格）
-    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(gray, 25, 255, cv2.THRESH_BINARY_INV)  # 40→25に厳格化
+    # グレースケール変換
+    if len(img.shape) == 3:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = img.copy()
     
-    # 輪郭検出による超絶ロング黒ライン検出
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # ROI抽出
+    roi = gray[roi_y_start:roi_y_end, roi_x_start:roi_x_end]
     
+    # ガウシアンブラーでノイズ除去（get_line_edges_at_y方式）
+    blurred = cv2.GaussianBlur(roi, (5, 5), 0)
+    
+    # 閾値処理（より厳格）
+    _, mask = cv2.threshold(blurred, 25, 255, cv2.THRESH_BINARY_INV)
+    
+    # ROIでx=320に相当する列を取得
+    roi_center_x = center_x - roi_x_start  # 320 - 100 = 220
+    
+    # x=320の列をスキャンして最も下のライン位置を検出
     valid_line_y = None
-    detected_lines = []
     
-    for cnt in contours:
-        x_roi, y_roi, w, h = cv2.boundingRect(cnt)
-        area = cv2.contourArea(cnt)
+    if 0 <= roi_center_x < mask.shape[1]:  # 範囲チェック
+        column_data = mask[:, roi_center_x]  # x=320の列データ
         
-        # ROI座標を元の画像座標に変換
-        x = x_roi + roi_x_start
-        y = y_roi + roi_y_start
+        # 白いピクセル（黒ライン）を検出
+        white_pixels = np.where(column_data == 255)[0]
         
-        # ROI範囲での横ライン条件：ごく近距離の明確な黒いライン検出
-        roi_width = 440  # 540-100=440 固定値
-        min_width = int(roi_width * 0.5)  # ROI幅の50%以上（220px、緩い条件）
-        
-        # デバッグ用緩い条件で検出範囲確認：
-        if (w >= min_width and 
-            h >= 3 and 
-            area >= 300 and 
-            x <= center_x <= x + w):
-            line_bottom = y + h
-            detected_lines.append((w, h, area, line_bottom, x, y))  # x, y も記録
-            # 最も下のライン位置を選択（bottom位置が最大のもの）
-            if valid_line_y is None or line_bottom > valid_line_y:
-                valid_line_y = line_bottom
-    
-    # デバッグ出力無効化
-    # total_contours = len(contours)
-    # if total_contours > 0:
-    #     print(f"[DEBUG] ROI範囲: x=100-540, y=460-540")
-    #     print(f"[DEBUG] 検出された輪郭数: {total_contours}")
+        if len(white_pixels) > 0:
+            # 最も下の白いピクセル（最大のy座標）
+            roi_bottom_y = white_pixels[-1]
+            # 元の画像座標に変換
+            valid_line_y = roi_bottom_y + roi_y_start
     
     return valid_line_y
 
