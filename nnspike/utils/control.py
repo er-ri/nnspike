@@ -1014,6 +1014,13 @@ def get_line_trace_edges_at_x320(img):
     # y座標フィルタリング：min_y_threshold以下は無視
     valid_hit_ys = hit_ys[hit_ys >= min_y_threshold]
     
+    # デバッグ出力：phase0の早期終了を調査
+    all_hits = len(hit_ys)
+    valid_hits = len(valid_hit_ys)
+    result_y = int(valid_hit_ys[-1]) if len(valid_hit_ys) > 0 else None
+    if all_hits > 0 or result_y is not None:
+        print(f"[DEBUG] get_line_trace_edges_at_x320: all_hits={all_hits}, valid_hits={valid_hits}, result_y={result_y}")
+    
     if len(valid_hit_ys) == 0:
         return None
     target_y = int(valid_hit_ys[-1])  # 一番下のヒット点
