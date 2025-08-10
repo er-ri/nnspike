@@ -809,13 +809,13 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                     right_region = dark_sorted[i + 1]
                     left_edge = left_region['x'] + left_region['w']
                     right_edge = right_region['x']
-                    safety_margin = 120  # 適度なマージン（200→120に調整）
+                    safety_margin = 80  # 基本マージン（120→80に縮小）
                     gap_width = right_edge - left_edge - safety_margin
                     if gap_width >= min_safe_gap:
                         candidate_x = (left_edge + right_edge) // 2
-                        # 有効範囲を大幅に拡大して回避ルートを確保
-                        expanded_min = max(20, previous_center_x - 150) if previous_center_x else 20
-                        expanded_max = min(image_width - 20, previous_center_x + 150) if previous_center_x else image_width - 20
+                        # 有効範囲を適度に縮小して過度な回避を防ぐ
+                        expanded_min = max(20, previous_center_x - 80) if previous_center_x else 20
+                        expanded_max = min(image_width - 20, previous_center_x + 80) if previous_center_x else image_width - 20
                         if expanded_min <= candidate_x <= expanded_max:
                             if best_gap is None or gap_width > best_gap['width']:
                                 best_gap = {'width': gap_width, 'center': candidate_x}
@@ -826,12 +826,12 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                 region = dark_sorted[0]
                 contour_center = region['center'][0]
                 image_center = image_width // 2
-                safety_distance = 240  # 複数の場合の倍（120×2）
-                width_margin = region['w'] // 2 + 20  # 幅の半分＋20ピクセル（現実的に調整）
+                safety_distance = 120  # 安全距離を縮小（240→120）
+                width_margin = region['w'] // 2 + 10  # 幅マージンを縮小（20→10）
                 total_safety = safety_distance + width_margin
-                # 有効範囲を適度に拡大
-                expanded_min = max(20, previous_center_x - 100) if previous_center_x else 20
-                expanded_max = min(image_width - 20, previous_center_x + 100) if previous_center_x else image_width - 20
+                # 有効範囲を適度に縮小
+                expanded_min = max(20, previous_center_x - 60) if previous_center_x else 20
+                expanded_max = min(image_width - 20, previous_center_x + 60) if previous_center_x else image_width - 20
                 
                 # 回避方向の決定（安全性を優先）
                 if avoidance_preference == 'left':
@@ -890,11 +890,11 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             right = pair[1]
             left_edge = left['x'] + left['w']
             right_edge = right['x']
-            safety_margin = 80  # 基本安全マージン強化（60→80：黒色障害物対策）
+            safety_margin = 60  # 基本安全マージン縮小（80→60：過度な回避を防ぐ）
             if left['darkness'] > high_priority_threshold:
-                safety_margin += 80  # 暗い障害物：追加で80（合計160）
+                safety_margin += 60  # 暗い障害物：追加で60（合計120）
             if right['darkness'] > high_priority_threshold:
-                safety_margin += 80  # 暗い障害物：追加で80（合計160）
+                safety_margin += 60  # 暗い障害物：追加で60（合計120）
             gap_width = right_edge - left_edge - safety_margin
             # 安全幅を満たす場合のみ中心候補
             if gap_width >= min_safe_gap:
@@ -909,11 +909,11 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                 right_region = regions_sorted[i + 1]
                 left_edge = left_region['x'] + left_region['w']
                 right_edge = right_region['x']
-                safety_margin = 80  # 基本安全マージン強化（60→80：黒色障害物対策）
+                safety_margin = 60  # 基本安全マージン縮小（80→60：過度な回避を防ぐ）
                 if left_region['darkness'] > high_priority_threshold:
-                    safety_margin += 80  # 暗い障害物：追加で80（合計160）
+                    safety_margin += 60  # 暗い障害物：追加で60（合計120）
                 if right_region['darkness'] > high_priority_threshold:
-                    safety_margin += 80  # 暗い障害物：追加で80（合計160）
+                    safety_margin += 60  # 暗い障害物：追加で60（合計120）
                 gap_width = right_edge - left_edge - safety_margin
                 if gap_width >= min_safe_gap:
                     candidate_x = (left_edge + right_edge) // 2
@@ -929,14 +929,14 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             region = detected_regions[0]
             contour_center = region['center'][0]
             image_center = image_width // 2
-            # 安全距離を適度に調整：普通の障害物80、暗い障害物240ピクセル（複数の倍）
-            safety_distance = 240 if region['darkness'] > high_priority_threshold else 80
-            # 障害物の実際の幅も考慮してさらに安全マージンを追加
-            width_margin = region['w'] // 2 + 20  # 幅の半分＋追加20ピクセル
+            # 安全距離を適度に調整：普通の障害物60、暗い障害物120ピクセル
+            safety_distance = 120 if region['darkness'] > high_priority_threshold else 60
+            # 障害物の実際の幅も考慮してマージンを追加
+            width_margin = region['w'] // 2 + 10  # 幅の半分＋10ピクセル（20→10に縮小）
             total_safety = safety_distance + width_margin
-            # 有効範囲を適度に拡大
-            expanded_min = max(20, previous_center_x - 100) if previous_center_x else 20
-            expanded_max = min(image_width - 20, previous_center_x + 100) if previous_center_x else image_width - 20
+            # 有効範囲を適度に縮小
+            expanded_min = max(20, previous_center_x - 60) if previous_center_x else 20
+            expanded_max = min(image_width - 20, previous_center_x + 60) if previous_center_x else image_width - 20
             
             # 回避方向の決定（安全性を優先）
             if avoidance_preference == 'left':
