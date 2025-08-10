@@ -1026,6 +1026,9 @@ def get_line_trace_edges_at_x320(img):
     
     # 各行をスキャンして水平ラインを検出し、x=320を通る最も下のラインを見つける
     valid_line_y = None
+    total_white_rows = 0
+    
+    print(f"[DEBUG] ROI shape: {mask.shape}, roi_center_x: {roi_center_x}")
     
     # 下から上に向かってスキャン（最も下のラインを優先）
     for roi_y in range(mask.shape[0] - 1, -1, -1):
@@ -1035,16 +1038,23 @@ def get_line_trace_edges_at_x320(img):
         white_pixels = np.where(row_data == 255)[0]
         
         if len(white_pixels) > 0:
+            total_white_rows += 1
             # 左端と右端を取得
             left_x = white_pixels[0]
             right_x = white_pixels[-1]
             line_width = right_x - left_x + 1
             
+            actual_y = roi_y + roi_y_start
+            print(f"[DEBUG] Row {actual_y}: left={left_x+roi_x_start}, right={right_x+roi_x_start}, width={line_width}, center_check={left_x <= roi_center_x <= right_x}")
+            
             # x=320（roi_center_x=220）がライン内に含まれているかチェック
             if left_x <= roi_center_x <= right_x and line_width >= 50:  # 最小幅50px
                 # 元の画像座標に変換
                 valid_line_y = roi_y + roi_y_start
+                print(f"[DEBUG] ✅ Found valid line at y={valid_line_y}")
                 break  # 最も下のラインを見つけたので終了
+    
+    print(f"[DEBUG] Total rows with white pixels: {total_white_rows}, Result: {valid_line_y}")
     
     return valid_line_y
 
