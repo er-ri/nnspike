@@ -281,7 +281,7 @@ class ActionChain(object):
 
 # --- 以下、*_relativeメソッド（元メソッド完全コピー） ---
 
-    def (self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    def carry_bottle1_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         carry_bottle1の位置判定バージョン。
         以下の順で動作する:
@@ -395,22 +395,20 @@ class ActionChain(object):
         # 5. 仮想ライン直進（右モーター800ユニット移動まで, get_virtual_line_edges_at_y, previous_center_x=pre_target_x, avoidance_preference='left'）
         if state["phase"] == 5:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                rel_pos = status.motors["B"].relative_position
-                if rel_pos is not None:
-                    current_pos = abs(rel_pos)
-                    if abs(current_pos - state["right_position_start"]) < 800:
-                        pre_target_x = state.get("pre_target_x")
-                        # 右に障害物がある場合は左回避を明示
-                        temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x, avoidance_preference='left')
-                        if temp_x is not None:
-                            target_x = temp_x
-                            state["pre_target_x"] = temp_x
-                        elif pre_target_x is not None:
-                            target_x = pre_target_x
-                        else:
-                            target_x = (self.x1 + self.x2) // 2
-                            state["pre_target_x"] = target_x
-                        return target_x, None, Mode.CARRY_BOTTLE1
+                current_pos = abs(status.motors["B"].relative_position)
+                if abs(current_pos - state["right_position_start"]) < 800:
+                    pre_target_x = state.get("pre_target_x")
+                    # 右に障害物がある場合は左回避を明示
+                    temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x, avoidance_preference='left')
+                    if temp_x is not None:
+                        target_x = temp_x
+                        state["pre_target_x"] = temp_x
+                    elif pre_target_x is not None:
+                        target_x = pre_target_x
+                    else:
+                        target_x = (self.x1 + self.x2) // 2
+                        state["pre_target_x"] = target_x
+                    return target_x, None, Mode.CARRY_BOTTLE1
             # 800超えたら次フェーズへ
             state["phase"] = 6
             # phase6用 右モーター相対位置記録（絶対値）
@@ -931,30 +929,28 @@ class ActionChain(object):
         if state["phase"] == 2:
             if status is not None and status.motors.get("B") is not None:
                 rel_pos = status.motors["B"].relative_position
-                if rel_pos is not None and state["right_position_start"] is not None:
-                    current_pos = abs(rel_pos)
-                    position_diff = abs(current_pos - state["right_position_start"])
-                    minimum_position_reached = position_diff >= 100  # 100未満はライン検出しない
-                    position_limit_reached = position_diff >= 600
-                    if not minimum_position_reached:
-                        # 100未満はis_vertical_black_line_detected呼ばない
-                        print(f"[DEBUG][phase2] <100: 左旋回継続 (is_vertical_black_line_detected呼ばない)")
-                        return None, (0, 30), Mode.HEAD_GOAL
-                    # 100以上で垂直ライン検出
-                    vertical_line_detected = is_vertical_black_line_detected(image)
-                    print(f"[DEBUG][phase2] position_diff={position_diff}, minimum_reached={minimum_position_reached}, limit_reached={position_limit_reached}, vertical_detected={vertical_line_detected}")
-                    if (not vertical_line_detected) and (not position_limit_reached):
-                        # 垂直ライン未検出・600未満は左旋回継続
-                        print(f"[DEBUG][phase2] >=100: 垂直ライン未検出・600未満: 左旋回継続")
-                        return None, (0, 30), Mode.HEAD_GOAL
-                    # 垂直ライン検出または600到達でphase3へ
-                    print(f"[DEBUG][phase2] phase3へ遷移: vertical_detected={vertical_line_detected}, limit_reached={position_limit_reached}")
-                    state["phase"] = 3
-                    return None, (0, 30), Mode.HEAD_GOAL  # phase遷移時も一度速度指令返す
-                else:
-                    # ステータス取得失敗時は左旋回継続
-                    print(f"[DEBUG][phase2] ステータス取得失敗: 左旋回継続")
+                current_pos = abs(rel_pos) if rel_pos is not None else 0
+                position_diff = abs(current_pos - state["right_position_start"]) if state["right_position_start"] is not None else 0
+                minimum_position_reached = position_diff >= 100  # 100未満はライン検出しない
+                position_limit_reached = position_diff >= 600
+                if not minimum_position_reached:
+                    # 100未満はis_vertical_black_line_detected呼ばない
+                    print(f"[DEBUG][phase2] <100: 左旋回継続 (is_vertical_black_line_detected呼ばない)")
                     return None, (0, 30), Mode.HEAD_GOAL
+                # 100以上で垂直ライン検出
+                vertical_line_detected = is_vertical_black_line_detected(image)
+                print(f"[DEBUG][phase2] position_diff={position_diff}, minimum_reached={minimum_position_reached}, limit_reached={position_limit_reached}, vertical_detected={vertical_line_detected}")
+                if (not vertical_line_detected) and (not position_limit_reached):
+                    # 垂直ライン未検出・600未満は左旋回継続
+                    print(f"[DEBUG][phase2] >=100: 垂直ライン未検出・600未満: 左旋回継続")
+                    return None, (0, 30), Mode.HEAD_GOAL
+                # 垂直ライン検出または600到達でphase3へ
+                print(f"[DEBUG][phase2] phase3へ遷移: vertical_detected={vertical_line_detected}, limit_reached={position_limit_reached}")
+                state["phase"] = 3
+            else:
+                # ステータス取得失敗時は左旋回継続
+                print(f"[DEBUG][phase2] ステータス取得失敗: 左旋回継続")
+                return None, (0, 30), Mode.HEAD_GOAL
 
         # 3. 左エッジトレース（青ライン検出でphase4へ。左エッジがなければ中央）
         if state["phase"] == 3:
