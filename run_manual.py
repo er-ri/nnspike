@@ -223,6 +223,18 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     #et.move_arm(2, 0.5)  # アームを止める
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
+    # --- ここから未定義エラー防止のための宣言（関数スコープ） ---
+    target_x = None
+    offset_y = None
+    theta = None
+    steering_correction = None
+    left_speed = None
+    right_speed = None
+    mx = None
+    my = None
+    max_contour = None
+    # --- ここまで ---
+
     try:
         while et.is_running and keyboard.running:
             ret, frame = cap.read()
