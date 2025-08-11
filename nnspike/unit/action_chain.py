@@ -462,7 +462,7 @@ class ActionChain(object):
 
         # 8. 青検出（1000超えたらphase9へ）
         if state["phase"] == 8:
-            center, _, blue_pixel_count = find_blue_target_center(image)
+            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
             if center is not None:
                 target_x = center[0]
             else:
@@ -473,7 +473,7 @@ class ActionChain(object):
 
         # 9. 青1000以上の間center追従、500以下でphase10へ
         if state["phase"] == 9:
-            center, _, blue_pixel_count = find_blue_target_center(image)
+            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
             if center is not None:
                 target_x = center[0]
             else:
@@ -489,7 +489,7 @@ class ActionChain(object):
 
         # 10. 青500以下になってから右モーター300ユニット移動まで center追従、その後BACK_AND_TURN1
         if state["phase"] == 10:
-            center, _, blue_pixel_count = find_blue_target_center(image)
+            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
             if center is not None:
                 target_x = center[0]
             else:
@@ -746,7 +746,7 @@ class ActionChain(object):
 
         # 9. 青検出（青ピクセル数1000超えたらphase10へ、最大右モーター400ユニット）
         if state["phase"] == 9:
-            center, _, blue_pixel_count = find_blue_target_center(image)
+            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
             if center is not None:
                 target_x = center[0]
             else:
@@ -768,7 +768,7 @@ class ActionChain(object):
 
         # 10. 青ピクセルが500以下まで減るまでcenter追従（500以下でphase11へ、最大右モーター400ユニット）
         if state["phase"] == 10:
-            center, _, blue_pixel_count = find_blue_target_center(image)
+            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
             if center is not None:
                 target_x = center[0]
             else:
@@ -790,7 +790,7 @@ class ActionChain(object):
 
         # 11. 右モーター300ユニット移動まで center追従、その後BACK_AND_TURN2へ遷移
         if state["phase"] == 11:
-            center, _, blue_pixel_count = find_blue_target_center(image)
+            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
             
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
