@@ -1332,14 +1332,13 @@ def is_vertical_black_line_detected(img):
         raise FileNotFoundError("画像がNoneです")
     
     # 一般的な垂直ライン検出パラメータ（ノートブックと同期）
-    _min_width = 50      # 幅条件（80px以上）
-    _min_height = 300    # 高さ条件（300px以上）
-    _min_aspect = 4.0    # アスペクト比（4.5以上）
-    _min_area = 20000     # 面積条件（20000px^2以上）
-    _angle_threshold = 20  # 90度±10度のみ許容
+    _min_width = 70      # 幅条件（70px以上に緩和）
+    _min_height = 200    # 高さ条件（200px以上に緩和）
+    _min_aspect = 1.8    # アスペクト比（1.8以上に緩和）
+    _min_area = 14000     # 面積条件（14000px^2以上に緩和）
     _center_x = 320
     _center_tolerance = 60  # x=320±60px
-    _roi = (200, 0, 440, 540)  # ノートブック準拠ROI
+    _roi = (200, 200, 440, 540)  # 画像下側ROI
     
     # グレースケール変換
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -1364,35 +1363,20 @@ def is_vertical_black_line_detected(img):
         x, y, width, height = cv2.boundingRect(contour)
         area = cv2.contourArea(contour)
         aspect_ratio = height / width if width > 0 else float('inf')
-        # 角度計算
-        angle_norm = None
-        angle_ok = False
-        if len(contour) >= 5:
-            rect = cv2.minAreaRect(contour)
-            angle_raw = rect[2]
-            if angle_raw < -45:
-                angle_norm = 90 + angle_raw
-            else:
-                angle_norm = angle_raw
-            angle_from_90 = abs(abs(angle_norm) - 90)
-            angle_ok = (angle_from_90 <= _angle_threshold)
-        else:
-            angle_ok = False
         # x=320±_center_toleranceを通るか
         line_center_x = x + width // 2
         crosses_center = abs(line_center_x - _center_x) <= _center_tolerance
 
-        # デバッグ出力
-        print(f"[DEBUG] VLine: x={x}, y={y}, w={width}, h={height}, area={area}, aspect={aspect_ratio:.2f}, center={crosses_center}, angle_ok={angle_ok}")
-        print(f"         条件: width>={_min_width}={width >= _min_width}, height>={_min_height}={height >= _min_height}, aspect>={_min_aspect}={aspect_ratio >= _min_aspect}, area>={_min_area}={area >= _min_area}, center={crosses_center}, angle_ok={angle_ok}")
+    # デバッグ出力
+    print(f"[DEBUG] VLine: x={x}, y={y}, w={width}, h={height}, area={area:.0f}, aspect={aspect_ratio:.3f}")
+    print(f"         条件: 幅≥{_min_width}={width >= _min_width}, 高さ≥{_min_height}={height >= _min_height}, aspect≥{_min_aspect}={aspect_ratio >= _min_aspect}, 面積≥{_min_area}={area >= _min_area}, x320±{_center_tolerance}交差={crosses_center}")
 
         if (
             width >= _min_width and 
             height >= _min_height and 
             aspect_ratio >= _min_aspect and 
             area >= _min_area and 
-            crosses_center and
-            angle_ok
+            crosses_center
         ):
             print("[DEBUG] → 条件を満たす垂直黒ライン検出")
             return True
