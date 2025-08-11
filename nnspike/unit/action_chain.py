@@ -846,8 +846,8 @@ class ActionChain(object):
             if status is not None and status.motors.get("A") is not None and state["left_position_start"] is not None and status.motors["A"].relative_position is not None:
                 current_pos = abs(status.motors["A"].relative_position)
                 position_diff = abs(current_pos - state["left_position_start"])
-                minimum_position_reached = position_diff >= 300
-                position_limit_reached = position_diff >= 500
+                minimum_position_reached = position_diff >= 200
+                position_limit_reached = position_diff >= 400
                 # 水平ライン検出→一般的な水平黒ライン検出に変更
                 horizontal_line_detected = is_general_horizontal_line_detected(image)
             
