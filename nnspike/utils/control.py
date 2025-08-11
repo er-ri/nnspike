@@ -1299,10 +1299,8 @@ def is_horizontal_black_line_detected(img, intersection_y=450):
     x0, y0, x1, y1 = _roi
     mask_roi = np.zeros_like(black_mask)
     mask_roi[y0:y1, x0:x1] = black_mask[y0:y1, x0:x1]
-    
-    # 輪郭検出
+
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
     for contour in contours:
         x, y, width, height = cv2.boundingRect(contour)
         area = cv2.contourArea(contour)
@@ -1310,20 +1308,13 @@ def is_horizontal_black_line_detected(img, intersection_y=450):
         crosses_center = (x <= _center_x <= x + width)
         crosses_intersection_y = (y <= intersection_y <= y + height)
 
-        # デバッグ出力
-        print(f"[DEBUG] HLine: x={x}, y={y}, w={width}, h={height}, area={area}, aspect={aspect_ratio:.2f}, center={crosses_center}, y_cross={crosses_intersection_y}")
-        print(f"         条件: width>={_min_width}={width >= _min_width}, height>={_min_height}={height >= _min_height}, aspect<={_max_aspect}={aspect_ratio <= _max_aspect}, area>={_min_area}={area >= _min_area}, center={crosses_center}, y_cross={crosses_intersection_y}")
-
         # y_crossがTrueなら無条件で検出
         if crosses_intersection_y:
-            print("[DEBUG] → y_cross無条件: y_cross=Trueで水平黒ライン検出")
             return True
         else:
             # 通常の厳しい条件
             if (width >= _min_width and height >= _min_height and aspect_ratio <= _max_aspect and area >= _min_area and crosses_center):
-                print("[DEBUG] → 条件を満たす水平黒ライン検出")
                 return True
-    print("[DEBUG] → 条件を満たす水平黒ラインなし")
     return False
 
 def is_vertical_black_line_detected(img):
@@ -1390,6 +1381,11 @@ def is_vertical_black_line_detected(img):
         # x=320±_center_toleranceを通るか
         line_center_x = x + width // 2
         crosses_center = abs(line_center_x - _center_x) <= _center_tolerance
+
+        # デバッグ出力
+        print(f"[DEBUG] VLine: x={x}, y={y}, w={width}, h={height}, area={area}, aspect={aspect_ratio:.2f}, center={crosses_center}, angle_ok={angle_ok}")
+        print(f"         条件: width>={_min_width}={width >= _min_width}, height>={_min_height}={height >= _min_height}, aspect>={_min_aspect}={aspect_ratio >= _min_aspect}, area>={_min_area}={area >= _min_area}, center={crosses_center}, angle_ok={angle_ok}")
+
         if (
             width >= _min_width and 
             height >= _min_height and 
@@ -1398,5 +1394,7 @@ def is_vertical_black_line_detected(img):
             crosses_center and
             angle_ok
         ):
+            print("[DEBUG] → 条件を満たす垂直黒ライン検出")
             return True
+    print("[DEBUG] → 条件を満たす垂直黒ラインなし")
     return False
