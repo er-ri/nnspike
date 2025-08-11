@@ -935,21 +935,16 @@ class ActionChain(object):
                 position_limit_reached = position_diff >= 600
                 if not minimum_position_reached:
                     # 100未満はis_vertical_black_line_detected呼ばない
-                    print(f"[DEBUG][phase2] <100: 左旋回継続 (is_vertical_black_line_detected呼ばない)")
                     return None, (0, 30), Mode.HEAD_GOAL
                 # 100以上で垂直ライン検出
                 vertical_line_detected = is_vertical_black_line_detected(image)
-                print(f"[DEBUG][phase2] position_diff={position_diff}, minimum_reached={minimum_position_reached}, limit_reached={position_limit_reached}, vertical_detected={vertical_line_detected}")
                 if (not vertical_line_detected) and (not position_limit_reached):
                     # 垂直ライン未検出・600未満は左旋回継続
-                    print(f"[DEBUG][phase2] >=100: 垂直ライン未検出・600未満: 左旋回継続")
                     return None, (0, 30), Mode.HEAD_GOAL
                 # 垂直ライン検出または600到達でphase3へ
-                print(f"[DEBUG][phase2] phase3へ遷移: vertical_detected={vertical_line_detected}, limit_reached={position_limit_reached}")
                 state["phase"] = 3
             else:
                 # ステータス取得失敗時は左旋回継続
-                print(f"[DEBUG][phase2] ステータス取得失敗: 左旋回継続")
                 return None, (0, 30), Mode.HEAD_GOAL
 
         # 3. 左エッジトレース（青ライン検出でphase4へ。左エッジがなければ中央）
