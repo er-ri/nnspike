@@ -1332,11 +1332,11 @@ def is_vertical_black_line_detected(img):
         raise FileNotFoundError("画像がNoneです")
     
     # 一般的な垂直ライン検出パラメータ（ノートブックと同期）
-    _min_width = 80      # 幅条件（80px以上）
+    _min_width = 50      # 幅条件（80px以上）
     _min_height = 300    # 高さ条件（300px以上）
-    _min_aspect = 4.5    # アスペクト比（4.5以上）
+    _min_aspect = 4.0    # アスペクト比（4.5以上）
     _min_area = 20000     # 面積条件（20000px^2以上）
-    _angle_threshold = 10  # 90度±10度のみ許容
+    _angle_threshold = 20  # 90度±10度のみ許容
     _center_x = 320
     _center_tolerance = 60  # x=320±60px
     _roi = (200, 0, 440, 540)  # ノートブック準拠ROI
