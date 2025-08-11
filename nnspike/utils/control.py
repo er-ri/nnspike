@@ -612,7 +612,8 @@ def find_blue_target_center(
     blue_hsv_upper=(140, 255, 255),
     gray_hsv_lower=(0, 0, 60),
     gray_hsv_upper=(180, 60, 140),
-    blur_kernel=5
+    blur_kernel=5,
+    gray_ellipse_enable=True
 ):
     """
     青い的（楕円）またはグレー線の中心座標・形状情報を返す統合検出関数（グレーライン補完含む）。
@@ -657,25 +658,26 @@ def find_blue_target_center(
     blue_pixel_count = cv2.countNonZero(mask_blue)
     if best_blue_ellipse is not None:
         return best_center, max_blue_area, blue_pixel_count
-    # グレー楕円もblue_pixel_count=0で返す
-    mask_gray = cv2.inRange(hsv, np.array(gray_hsv_lower), np.array(gray_hsv_upper))
-    mask_gray = cv2.morphologyEx(mask_gray, cv2.MORPH_CLOSE, np.ones((7,7), np.uint8))
-    mask_gray = cv2.dilate(mask_gray, np.ones((5,5), np.uint8), iterations=1)
-    contours_gray, _ = cv2.findContours(mask_gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    ellipses = []
-    for c in contours_gray:
-        if len(c) < 10 or c.shape[0] < 5:
-            continue
-        ellipse_cv = cv2.fitEllipse(c)
-        center = (int(np.round(ellipse_cv[0][0])), int(np.round(ellipse_cv[0][1])))
-        axes_ = (int(ellipse_cv[1][0]//2), int(ellipse_cv[1][1]//2))
-        area = np.pi * axes_[0] * axes_[1]
-        if area >= 40000:
-            ellipses.append({'center': center, 'area': area})
-    if ellipses:
-        gray_center = max(ellipses, key=lambda e: e['area'])['center']
-        gray_area = max(ellipses, key=lambda e: e['area'])['area']
-        return gray_center, gray_area, 0
+    if gray_ellipse_enable:
+        # グレー楕円もblue_pixel_count=0で返す
+        mask_gray = cv2.inRange(hsv, np.array(gray_hsv_lower), np.array(gray_hsv_upper))
+        mask_gray = cv2.morphologyEx(mask_gray, cv2.MORPH_CLOSE, np.ones((7,7), np.uint8))
+        mask_gray = cv2.dilate(mask_gray, np.ones((5,5), np.uint8), iterations=1)
+        contours_gray, _ = cv2.findContours(mask_gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        ellipses = []
+        for c in contours_gray:
+            if len(c) < 10 or c.shape[0] < 5:
+                continue
+            ellipse_cv = cv2.fitEllipse(c)
+            center = (int(np.round(ellipse_cv[0][0])), int(np.round(ellipse_cv[0][1])))
+            axes_ = (int(ellipse_cv[1][0]//2), int(ellipse_cv[1][1]//2))
+            area = np.pi * axes_[0] * axes_[1]
+            if area >= 40000:
+                ellipses.append({'center': center, 'area': area})
+        if ellipses:
+            gray_center = max(ellipses, key=lambda e: e['area'])['center']
+            gray_area = max(ellipses, key=lambda e: e['area'])['area']
+            return gray_center, gray_area, 0
     return None, None, 0
 
 def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, fallback_center_x=None, previous_center_x=None, avoidance_preference=None):
