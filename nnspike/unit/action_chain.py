@@ -904,26 +904,27 @@ class ActionChain(object):
                 minimum_position_reached = position_diff >= 300
                 position_limit_reached = position_diff >= 500
                 vertical_line_detected = is_vertical_black_line_detected(image)
-                # print(f"[DEBUG] heading_goal_relative phase2: position_diff={position_diff}, minimum_reached={minimum_position_reached}, vertical_detected={vertical_line_detected}, limit_reached={position_limit_reached}")
-            
+                print(f"[DEBUG][phase2] position_diff={position_diff}, minimum_reached={minimum_position_reached}, limit_reached={position_limit_reached}, vertical_detected={vertical_line_detected}")
                 # 最低300ユニットは必ず旋回
                 if not minimum_position_reached:
+                    print(f"[DEBUG][phase2] <300: 左旋回継続")
                     return None, (0, 30), Mode.HEAD_GOAL
                 # 300ユニット超えてから、垂直ライン検出または500ユニット到達まで継続
                 if (not vertical_line_detected) and (not position_limit_reached):
+                    print(f"[DEBUG][phase2] >=300: 垂直ライン未検出・500未満: 左旋回継続")
                     return None, (0, 30), Mode.HEAD_GOAL
                 # 条件を満たしたので次のフェーズへ
-                # print(f"[DEBUG] heading_goal_relative phase2 → phase3: vertical_detected={vertical_line_detected}, limit_reached={position_limit_reached}")
+                print(f"[DEBUG][phase2] phase3へ遷移: vertical_detected={vertical_line_detected}, limit_reached={position_limit_reached}")
                 state["phase"] = 3
             else:
-                # ステータス取得失敗時は継続
+                print(f"[DEBUG][phase2] ステータス取得失敗: 左旋回継続")
                 return None, (0, 30), Mode.HEAD_GOAL
 
-        # 3. 右エッジトレース（青ライン検出でphase4へ）
+        # 3. 左エッジトレース（青ライン検出でphase4へ）
         if state["phase"] == 3:
             left_x, right_x, mask = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
-            if right_x is not None:
-                target_x = right_x
+            if left_x is not None:
+                target_x = left_x
             else:
                 target_x = (self.x1 + self.x2) // 2
             blue_line = get_is_blue_line_at_y(image, target_y=OFFSET_Y)
