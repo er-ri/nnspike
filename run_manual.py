@@ -261,15 +261,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if send_video_stream and client_socket is not None:
 
                 info = dict()
-                # target_x, offset_yがNoneでない場合のみint変換（通常はint変換で例外は起きない想定）
-                if target_x is not None and offset_y is not None:
-                    info["target_x"] = int(target_x) if isinstance(target_x, (int, float)) else None
-                    info["offset_y"] = int(offset_y) if isinstance(offset_y, (int, float)) else None
-                else:
-                    info["target_x"], info["offset_y"] = None, None
-                # draw_driving_infoでint()エラーを防ぐため、Noneなら0に変換
-                info["target_x"] = info["target_x"] if info["target_x"] is not None else 0
-                info["offset_y"] = info["offset_y"] if info["offset_y"] is not None else 0
+                # target_x, offset_yがNoneの場合は0にして送信（video/可視化側でNoneを扱わない）
+                safe_target_x = int(target_x) if isinstance(target_x, (int, float)) and target_x is not None else 0
+                safe_offset_y = int(offset_y) if isinstance(offset_y, (int, float)) and offset_y is not None else 0
+                info["target_x"] = safe_target_x
+                info["offset_y"] = safe_offset_y
                 info["text"] = {
                     "mode": mode.name,
                     "left_relative_position": int(left_pos) if left_pos is not None else 0,
