@@ -1278,7 +1278,7 @@ def is_horizontal_black_line_detected(img, intersection_y=450):
     
     # バランス調整されたパラメータ
     _min_width = 400      
-    _min_height = 80     # frame_1909(136)と1910(149)の間に設定
+    _min_height = 50     # ★75以下に下げて「h=75」もTrueになるよう調整
     _max_aspect = 0.4     
     _min_area = 23000     # frame_1909(22684)と1910(23996)の間に設定
     _center_x = 320
