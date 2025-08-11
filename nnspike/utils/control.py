@@ -1314,11 +1314,10 @@ def is_horizontal_black_line_detected(img, intersection_y=450):
         print(f"[DEBUG] HLine: x={x}, y={y}, w={width}, h={height}, area={area}, aspect={aspect_ratio:.2f}, center={crosses_center}, y_cross={crosses_intersection_y}")
         print(f"         条件: width>={_min_width}={width >= _min_width}, height>={_min_height}={height >= _min_height}, aspect<={_max_aspect}={aspect_ratio <= _max_aspect}, area>={_min_area}={area >= _min_area}, center={crosses_center}, y_cross={crosses_intersection_y}")
 
-        # y_crossがTrueなら幅・面積のみでOK
+        # y_crossがTrueなら無条件で検出
         if crosses_intersection_y:
-            if width >= _min_width and area >= _min_area:
-                print("[DEBUG] → y_cross緩和: 幅・面積のみで水平黒ライン検出")
-                return True
+            print("[DEBUG] → y_cross無条件: y_cross=Trueで水平黒ライン検出")
+            return True
         else:
             # 通常の厳しい条件
             if (width >= _min_width and height >= _min_height and aspect_ratio <= _max_aspect and area >= _min_area and crosses_center):
