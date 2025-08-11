@@ -930,8 +930,8 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             # 黒色障害物からの安全距離（普通の障害物140px、暗い障害物200px）
             safe_distance_from_obstacle = 220 if region['darkness'] > high_priority_threshold else 160
             # 前回中心から±60ピクセルの範囲で回避先を制限（過度な移動を防ぐ）
-            expanded_min = max(20, previous_center_x - 60) if previous_center_x else 20
-            expanded_max = min(image_width - 20, previous_center_x + 60) if previous_center_x else image_width - 20
+            expanded_min = max(20, previous_center_x - 80) if previous_center_x else 20
+            expanded_max = min(image_width - 20, previous_center_x + 80) if previous_center_x else image_width - 20
             
             # 回避方向の決定（安全性を優先）
             if avoidance_preference == 'left':
