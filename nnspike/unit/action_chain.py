@@ -887,7 +887,7 @@ class ActionChain(object):
                 current_pos = abs(rel_pos) if rel_pos is not None else 0
                 position_diff = abs(current_pos - state["right_position_start"])
                 target_x = (self.x1 + self.x2) // 2
-                if position_diff < 100:
+                if position_diff < 300:
                     return target_x, None, Mode.HEAD_GOAL
                 else:
                     state["phase"] = 2
