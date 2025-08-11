@@ -472,7 +472,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         target_x = (x1 + x2) // 2
                 case Mode.GATE_PASS:
                     # ゲートを潜る: 仮想ラインエッジを使う
-                    temp_x = get_virtual_line_edges_at_y(frame, OFFSET_Y, previous_center_x=pre_target_x)
+                    temp_x = get_virtual_line_edges_at_y(frame, OFFSET_Y, previous_center_x=pre_target_x, avoidance_preference='left')
                     if temp_x is not None:
                         target_x = temp_x
                         pre_target_x = temp_x

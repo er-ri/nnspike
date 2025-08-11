@@ -831,7 +831,7 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                 region = dark_sorted[0]
                 contour_center = region['center'][0]
                 image_center = image_width // 2
-                safe_distance_from_obstacle = 220  # 黒色障害物からの安全距離（220ピクセル）
+                safe_distance_from_obstacle = 140  # 黒色障害物からの安全距離（140ピクセル）
                 # 前回中心から±60ピクセルの範囲で回避先を制限（過度な移動を防ぐ）
                 expanded_min = max(20, previous_center_x - 60) if previous_center_x else 20
                 expanded_max = min(image_width - 20, previous_center_x + 60) if previous_center_x else image_width - 20
