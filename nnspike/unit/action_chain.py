@@ -366,7 +366,7 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 3. 左旋回（右モーター相対位置差分が390未満の間 左:0, 右:30）
+        # 3. 左旋回（右モーター相対位置差分が400未満の間 左:0, 右:30）
         if state["phase"] == 3:
             status = self.et.get_spike_status()
             if "right_position_start" not in state or state["right_position_start"] is None:
@@ -376,9 +376,9 @@ class ActionChain(object):
                     state["right_position_start"] = None
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 390:
+                if abs(current_pos - state["right_position_start"]) < 400:
                     return None, (0, 30), Mode.CARRY_BOTTLE1
-            # 390超えたら次フェーズへ
+            # 400超えたら次フェーズへ
             state["phase"] = 4
             # phase4用 右モーター相対位置記録（絶対値）
             if status is not None and status.motors.get("B") is not None:
