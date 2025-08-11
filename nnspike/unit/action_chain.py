@@ -386,11 +386,11 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 4. 直進（右モーター200ユニット移動まで）
+        # 4. 直進（右モーター100ユニット移動まで）
         if state["phase"] == 4:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 200:
+                if abs(current_pos - state["right_position_start"]) < 100:
                     return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE1
             # 300超えたら次フェーズへ
             state["phase"] = 5
@@ -401,11 +401,11 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 5. 仮想ライン直進（右モーター900ユニット移動まで, get_virtual_line_edges_at_y, previous_center_x=pre_target_x, avoidance_preference='left'）
+        # 5. 仮想ライン直進（右モーター1000ユニット移動まで, get_virtual_line_edges_at_y, previous_center_x=pre_target_x, avoidance_preference='left'）
         if state["phase"] == 5:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 900:
+                if abs(current_pos - state["right_position_start"]) < 1000:
                     pre_target_x = state.get("pre_target_x")
                     # 右に障害物がある場合は左回避を明示
                     temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x, avoidance_preference='left')
@@ -418,7 +418,7 @@ class ActionChain(object):
                         target_x = (self.x1 + self.x2) // 2
                         state["pre_target_x"] = target_x
                     return target_x, None, Mode.CARRY_BOTTLE1
-            # 900超えたら次フェーズへ
+            # 1000超えたら次フェーズへ
             state["phase"] = 6
             # phase6用 右モーター相対位置記録（絶対値）
             if status is not None and status.motors.get("B") is not None:
