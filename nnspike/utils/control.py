@@ -754,7 +754,7 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
     # --- 小領域のマージ処理 ---
     merged = []
     processed = set()
-    x_merge_threshold = 50  # x座標が50px未満の差なら同一障害物とみなす
+    x_merge_threshold = 100  # x座標が100px未満の差なら同一障害物とみなす
     for i, region in enumerate(detected_regions):
         if i in processed:
             continue
