@@ -244,7 +244,7 @@ class ActionChain(object):
         if state["phase"] == 1:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 700:
+                if abs(current_pos - state["right_position_start"]) < 600:
                     return None, (70, 40), Mode.AVOID_OBSTACLE
                 else:
                     # 650ユニット到達したので次のフェーズへ
