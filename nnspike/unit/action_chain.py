@@ -872,8 +872,8 @@ class ActionChain(object):
                 state["phase"] = 1
                 # phase1用 右モーター相対位置記録（絶対値）
                 if status is not None and status.motors.get("B") is not None:
-                    rel_pos = status.motors["B"].relative_position
-                    state["right_position_start"] = abs(rel_pos) if rel_pos is not None else None
+                    right_position = status.motors["B"].relative_position
+                    state["right_position_start"] = abs(right_position) if right_position is not None else None
                 else:
                     state["right_position_start"] = None
             else:
@@ -883,14 +883,20 @@ class ActionChain(object):
     # 1. 右モーターの移動距離が50未満なら直進、50以上でphase2へ遷移
         if state["phase"] == 1:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                rel_pos = status.motors["B"].relative_position
-                current_pos = abs(rel_pos) if rel_pos is not None else 0
+                right_position = status.motors["B"].relative_position
+                current_pos = abs(right_position) if right_position is not None else 0
                 position_diff = abs(current_pos - state["right_position_start"])
                 target_x = (self.x1 + self.x2) // 2
                 if position_diff < 300:
                     return target_x, None, Mode.HEAD_GOAL
                 else:
                     state["phase"] = 2
+                    # phase2用 右モーター相対位置記録（絶対値）
+                    if status is not None and status.motors.get("B") is not None:
+                        rel_pos = status.motors["B"].relative_position
+                        state["right_position_start"] = abs(rel_pos) if rel_pos is not None else None
+                    else:
+                        state["right_position_start"] = None
             else:
                 target_x = (self.x1 + self.x2) // 2
                 return target_x, None, Mode.HEAD_GOAL
@@ -931,8 +937,8 @@ class ActionChain(object):
                 state["phase"] = 4
                 # phase4用 右モーター相対位置記録（絶対値）
                 if status is not None and status.motors.get("B") is not None:
-                    rel_pos = status.motors["B"].relative_position
-                    state["right_position_start"] = abs(rel_pos) if rel_pos is not None else None
+                    right_position = status.motors["B"].relative_position
+                    state["right_position_start"] = abs(right_position) if right_position is not None else None
                 else:
                     state["right_position_start"] = None
                 return target_x, None, Mode.HEAD_GOAL
@@ -942,8 +948,8 @@ class ActionChain(object):
         if state["phase"] == 4:
             position_limit_reached = False
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                rel_pos = status.motors["B"].relative_position
-                current_pos = abs(rel_pos) if rel_pos is not None else 0
+                right_position = status.motors["B"].relative_position
+                current_pos = abs(right_position) if right_position is not None else 0
                 position_limit_reached = abs(current_pos - state["right_position_start"]) >= 600
             
             if position_limit_reached:
