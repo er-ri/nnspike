@@ -374,12 +374,17 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 else:
                     print("NVIDIA model not available")
 
-            target_x = None  # Default target x position
-            offset_y = None  # target_y相当も初期化
-            left_speed, right_speed = None, None  # Initialize speeds
-            # Initialize visualization variables
-            mx = my = theta = steering_correction = None
+            # --- ここから未定義エラー防止のための初期化 ---
+            target_x = None
+            offset_y = None
+            theta = None
+            steering_correction = None
+            left_speed = None
+            right_speed = None
+            mx = None
+            my = None
             max_contour = None
+            # --- ここまで ---
 
             match mode:
                 case Mode.TURN_LEFT_RELATIVE:
@@ -418,7 +423,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.AVOID_OBSTACLE:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.avoid_obstacle_relative(frame))
                 case Mode.TURN_LEFT:
-                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.trun_left())
+                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.turn_left())
                 case Mode.SMALL_TURN_LEFT:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.small_turn_left())
                 case Mode.TURN_RIGHT:
