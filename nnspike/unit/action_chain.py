@@ -9,7 +9,6 @@ from nnspike.unit.etrobot import ETRobot
 from nnspike.utils.control import (
     find_bottle_center,
     get_line_edges_at_y,
-    get_line_trace_edges_at_x320,
     get_virtual_line_edges_at_y,
     find_blue_target_center,
     get_is_blue_line_at_y,
