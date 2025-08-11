@@ -366,7 +366,7 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 3. 左旋回（右モーター相対位置差分が390未満の間 左:0, 右:30）
+        # 3. 左旋回（右モーター相対位置差分が400未満の間 左:0, 右:30）
         if state["phase"] == 3:
             status = self.et.get_spike_status()
             if "right_position_start" not in state or state["right_position_start"] is None:
@@ -376,9 +376,9 @@ class ActionChain(object):
                     state["right_position_start"] = None
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 390:
+                if abs(current_pos - state["right_position_start"]) < 400:
                     return None, (0, 30), Mode.CARRY_BOTTLE1
-            # 390超えたら次フェーズへ
+            # 400超えたら次フェーズへ
             state["phase"] = 4
             # phase4用 右モーター相対位置記録（絶対値）
             if status is not None and status.motors.get("B") is not None:
@@ -386,11 +386,11 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 4. 直進（右モーター300ユニット移動まで）
+        # 4. 直進（右モーター200ユニット移動まで）
         if state["phase"] == 4:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 300:
+                if abs(current_pos - state["right_position_start"]) < 200:
                     return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE1
             # 300超えたら次フェーズへ
             state["phase"] = 5
@@ -401,11 +401,11 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 5. 仮想ライン直進（右モーター800ユニット移動まで, get_virtual_line_edges_at_y, previous_center_x=pre_target_x, avoidance_preference='left'）
+        # 5. 仮想ライン直進（右モーター900ユニット移動まで, get_virtual_line_edges_at_y, previous_center_x=pre_target_x, avoidance_preference='left'）
         if state["phase"] == 5:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 800:
+                if abs(current_pos - state["right_position_start"]) < 900:
                     pre_target_x = state.get("pre_target_x")
                     # 右に障害物がある場合は左回避を明示
                     temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x, avoidance_preference='left')
@@ -418,7 +418,7 @@ class ActionChain(object):
                         target_x = (self.x1 + self.x2) // 2
                         state["pre_target_x"] = target_x
                     return target_x, None, Mode.CARRY_BOTTLE1
-            # 800超えたら次フェーズへ
+            # 900超えたら次フェーズへ
             state["phase"] = 6
             # phase6用 右モーター相対位置記録（絶対値）
             if status is not None and status.motors.get("B") is not None:
