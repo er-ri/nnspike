@@ -267,7 +267,7 @@ class ActionChain(object):
                 if distance < 200:
                     return None, (40, 70), Mode.AVOID_OBSTACLE
                 # 300以上450未満の間はis_vertical_black_line_detected(image)がTrueなら即フェーズ3へ
-                elif distance < 450:
+                elif distance < 500:
                     if is_vertical_black_line_detected(image):
                         state["phase"] = 3
                         # すぐ次の処理でphase3に入る
