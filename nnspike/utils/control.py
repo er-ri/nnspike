@@ -1308,18 +1308,21 @@ def is_horizontal_black_line_detected(img, intersection_y=450):
         area = cv2.contourArea(contour)
         aspect_ratio = height / width if width > 0 else float('inf')
         crosses_center = (x <= _center_x <= x + width)
-        
-        # 指定されたy座標との交差判定
         crosses_intersection_y = (y <= intersection_y <= y + height)
-        
+
+        # デバッグ出力
+        print(f"[DEBUG] HLine: x={x}, y={y}, w={width}, h={height}, area={area}, aspect={aspect_ratio:.2f}, center={crosses_center}, y_cross={crosses_intersection_y}")
+        print(f"         条件: width>={_min_width}={width >= _min_width}, height>={_min_height}={height >= _min_height}, aspect<={_max_aspect}={aspect_ratio <= _max_aspect}, area>={_min_area}={area >= _min_area}, center={crosses_center}, y_cross={crosses_intersection_y}")
+
         if (width >= _min_width and 
             height >= _min_height and 
             aspect_ratio <= _max_aspect and 
             area >= _min_area and 
             crosses_center and
             crosses_intersection_y):
+            print("[DEBUG] → 条件を満たす水平黒ライン検出")
             return True
-    
+    print("[DEBUG] → 条件を満たす水平黒ラインなし")
     return False
 
 def is_vertical_black_line_detected(img):
