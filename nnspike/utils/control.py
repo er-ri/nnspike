@@ -641,7 +641,7 @@ def find_blue_target_center(
     for cnt in contours_blue:
         if len(cnt) >= 5:
             area = cv2.contourArea(cnt)
-            if area > 5:
+            if area > 20:
                 try:
                     ellipse = cv2.fitEllipse(cnt)
                     (cx, cy), (major, minor), angle = ellipse
