@@ -1368,8 +1368,6 @@ def is_vertical_black_line_detected(img):
         crosses_center = abs(line_center_x - _center_x) <= _center_tolerance
 
         # デバッグ出力
-        print(f"[DEBUG] VLine: x={x}, y={y}, w={width}, h={height}, area={area:.0f}, aspect={aspect_ratio:.3f}")
-        print(f"         条件: 幅≥{_min_width}={width >= _min_width}, 高さ≥{_min_height}={height >= _min_height}, aspect≥{_min_aspect}={aspect_ratio >= _min_aspect}, 面積≥{_min_area}={area >= _min_area}, x320±{_center_tolerance}交差={crosses_center}")
 
         if (
             width >= _min_width and 
@@ -1378,7 +1376,5 @@ def is_vertical_black_line_detected(img):
             area >= _min_area and 
             crosses_center
         ):
-            print("[DEBUG] → 条件を満たす垂直黒ライン検出")
             return True
-    print("[DEBUG] → 条件を満たす垂直黒ラインなし")
     return False
