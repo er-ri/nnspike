@@ -240,11 +240,11 @@ class ActionChain(object):
                 # ステータス取得失敗時は継続
                 return None, (40, 70), Mode.AVOID_OBSTACLE
 
-        # 1. 右旋回（右モーター750ユニット移動まで, 左:80, 右:50）
+        # 1. 右旋回（右モーター700ユニット移動まで, 左:80, 右:50）
         if state["phase"] == 1:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 750:
+                if abs(current_pos - state["right_position_start"]) < 700:
                     return None, (80, 50), Mode.AVOID_OBSTACLE
                 else:
                     # 650ユニット到達したので次のフェーズへ
@@ -264,10 +264,10 @@ class ActionChain(object):
                 current_pos = abs(status.motors["B"].relative_position)
                 distance = abs(current_pos - state["right_position_start"])
                 # 走行距離が200未満なら常に(40,70)で走行
-                if distance < 200:
+                if distance < 250:
                     return None, (40, 70), Mode.AVOID_OBSTACLE
-                # 300以上450未満の間はis_vertical_black_line_detected(image)がTrueなら即フェーズ3へ
-                elif distance < 500:
+                # 250以上350未満の間はis_vertical_black_line_detected(image)がTrueなら即フェーズ3へ
+                elif distance < 350:
                     if is_vertical_black_line_detected(image):
                         state["phase"] = 3
                         # すぐ次の処理でphase3に入る
