@@ -845,14 +845,14 @@ class ActionChain(object):
             return None, None, Mode.HEAD_GOAL
 
     def heading_goal_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
-    """
-    heading_goalの位置判定バージョン（右モーター位置追跡）。
-    以下の順で動作する:
-    0. ライン到達前は中央追従（y_hit >= 420で遷移）、ただし最長右モーター500ユニットで打ち切り
-    1. 左旋回（右モーター400ユニット移動まで, 左:0, 右:30）または垂直ライン検出で最低200, 最大400ユニット
-    2. 左エッジトレース（青ライン検出でphase3へ）
-    3. 青ライン検出後、右モーター600ユニット移動まで左エッジトレースしたらPAUSE（状態リセット）
-    """
+        """
+        heading_goalの位置判定バージョン（右モーター位置追跡）。
+        以下の順で動作する:
+        0. ライン到達前は中央追従（y_hit >= 420で遷移）、ただし最長右モーター500ユニットで打ち切り
+        1. 左旋回（右モーター400ユニット移動まで, 左:0, 右:30）または垂直ライン検出で最低200, 最大400ユニット
+        2. 左エッジトレース（青ライン検出でphase3へ）
+        3. 青ライン検出後、右モーター600ユニット移動まで左エッジトレースしたらPAUSE（状態リセット）
+        """
         state = self._state.setdefault("heading_goal_relative", {
             "phase": 0,
             "right_position_start": None,
