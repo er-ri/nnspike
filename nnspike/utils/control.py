@@ -787,7 +787,7 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
 
     # --- 進路中心計算ロジック（黒色障害物回避優先） ---
     trajectory_center_x = None
-    min_safe_gap = 80  # 最小安全幅（60→80に拡大：黒色障害物対策）
+    min_safe_gap = 100  # 最小安全幅（80→100に拡大：黒色障害物対策）
     if not detected_regions:
         # 領域がなければ前回値または中央
         trajectory_center_x = previous_center_x if previous_center_x is not None else fallback_center_x
@@ -809,7 +809,7 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                     right_region = dark_sorted[i + 1]
                     left_edge = left_region['x'] + left_region['w']
                     right_edge = right_region['x']
-                    safety_margin = 80  # 基本マージン（120→80に縮小）
+                    safety_margin = 100  # 基本マージン（80→100に拡大）
                     gap_width = right_edge - left_edge - safety_margin
                     if gap_width >= min_safe_gap:
                         candidate_x = (left_edge + right_edge) // 2
@@ -826,7 +826,7 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                 region = dark_sorted[0]
                 contour_center = region['center'][0]
                 image_center = image_width // 2
-                safe_distance_from_obstacle = 200  # 黒色障害物からの安全距離（200ピクセル）
+                safe_distance_from_obstacle = 220  # 黒色障害物からの安全距離（220ピクセル）
                 # 前回中心から±60ピクセルの範囲で回避先を制限（過度な移動を防ぐ）
                 expanded_min = max(20, previous_center_x - 60) if previous_center_x else 20
                 expanded_max = min(image_width - 20, previous_center_x + 60) if previous_center_x else image_width - 20
@@ -888,11 +888,11 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             right = pair[1]
             left_edge = left['x'] + left['w']
             right_edge = right['x']
-            safety_margin = 60  # 基本安全マージン縮小（80→60：過度な回避を防ぐ）
+            safety_margin = 80  # 基本安全マージン拡大（60→80：黒色障害物対策）
             if left['darkness'] > high_priority_threshold:
-                safety_margin += 60  # 暗い障害物：追加で60（合計120）
+                safety_margin += 60  # 暗い障害物：追加で60（合計140）
             if right['darkness'] > high_priority_threshold:
-                safety_margin += 60  # 暗い障害物：追加で60（合計120）
+                safety_margin += 60  # 暗い障害物：追加で60（合計140）
             gap_width = right_edge - left_edge - safety_margin
             # 安全幅を満たす場合のみ中心候補
             if gap_width >= min_safe_gap:
@@ -907,11 +907,11 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
                 right_region = regions_sorted[i + 1]
                 left_edge = left_region['x'] + left_region['w']
                 right_edge = right_region['x']
-                safety_margin = 60  # 基本安全マージン縮小（80→60：過度な回避を防ぐ）
+                safety_margin = 80  # 基本安全マージン拡大（60→80：黒色障害物対策）
                 if left_region['darkness'] > high_priority_threshold:
-                    safety_margin += 60  # 暗い障害物：追加で60（合計120）
+                    safety_margin += 60  # 暗い障害物：追加で60（合計140）
                 if right_region['darkness'] > high_priority_threshold:
-                    safety_margin += 60  # 暗い障害物：追加で60（合計120）
+                    safety_margin += 60  # 暗い障害物：追加で60（合計140）
                 gap_width = right_edge - left_edge - safety_margin
                 if gap_width >= min_safe_gap:
                     candidate_x = (left_edge + right_edge) // 2
@@ -928,7 +928,7 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
             contour_center = region['center'][0]
             image_center = image_width // 2
             # 黒色障害物からの安全距離（普通の障害物140px、暗い障害物200px）
-            safe_distance_from_obstacle = 200 if region['darkness'] > high_priority_threshold else 140
+            safe_distance_from_obstacle = 220 if region['darkness'] > high_priority_threshold else 160
             # 前回中心から±60ピクセルの範囲で回避先を制限（過度な移動を防ぐ）
             expanded_min = max(20, previous_center_x - 60) if previous_center_x else 20
             expanded_max = min(image_width - 20, previous_center_x + 60) if previous_center_x else image_width - 20
