@@ -938,7 +938,7 @@ class ActionChain(object):
                 return target_x, None, Mode.HEAD_GOAL
             return target_x, None, Mode.HEAD_GOAL
 
-        # 4. 青ライン検出後、右モーター600ユニット移動まで右エッジトレースしたらPAUSE（状態リセット）
+        # 4. 青ライン検出後、右モーター600ユニット移動まで左エッジトレースしたらPAUSE（状態リセット）
         if state["phase"] == 4:
             position_limit_reached = False
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
@@ -951,8 +951,8 @@ class ActionChain(object):
                 return None, None, Mode.PAUSE
             
             left_x, right_x, mask = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
-            if right_x is not None:
-                target_x = right_x
+            if left_x is not None:
+                target_x = left_x
             else:
                 target_x = (self.x1 + self.x2) // 2
             return target_x, None, Mode.HEAD_GOAL
