@@ -262,10 +262,19 @@ class ActionChain(object):
         if state["phase"] == 2:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 350:
+                distance = abs(current_pos - state["right_position_start"])
+                # 走行距離が200未満なら常に(40,70)で走行
+                if distance < 200:
                     return None, (40, 70), Mode.AVOID_OBSTACLE
+                # 300以上450未満の間はis_vertical_black_line_detected(image)がTrueなら即フェーズ3へ
+                elif distance < 450:
+                    if is_vertical_black_line_detected(image):
+                        state["phase"] = 3
+                        # すぐ次の処理でphase3に入る
+                    else:
+                        return None, (40, 70), Mode.AVOID_OBSTACLE
+                # 450以上なら強制的にフェーズ3へ
                 else:
-                    # 350ユニット到達したので次のフェーズへ
                     state["phase"] = 3
             else:
                 # ステータス取得失敗時は継続
