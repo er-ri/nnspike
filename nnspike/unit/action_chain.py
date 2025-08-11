@@ -859,7 +859,7 @@ class ActionChain(object):
             self._state["back_and_turn2_relative"] = {"phase": 0, "left_position_start": None}
             return None, None, Mode.HEAD_GOAL
 
-        def heading_goal_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    def heading_goal_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
           """
           heading_goalの位置判定バージョン（右モーターBの相対位置追跡）。
           フェーズ:
