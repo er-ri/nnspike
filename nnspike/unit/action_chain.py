@@ -908,7 +908,7 @@ class ActionChain(object):
                 current_pos = abs(rel_pos) if rel_pos is not None else 0
                 position_diff = abs(current_pos - state["right_position_start"]) if state["right_position_start"] is not None else 0
                 minimum_position_reached = position_diff >= 100
-                position_limit_reached = position_diff >= 500
+                position_limit_reached = position_diff >= 600
                 if not minimum_position_reached:
                     print(f"[DEBUG][phase2] <200: 左旋回継続 (is_vertical_black_line_detected呼ばない)")
                     return None, (0, 30), Mode.HEAD_GOAL
