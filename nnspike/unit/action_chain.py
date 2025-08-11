@@ -845,14 +845,14 @@ class ActionChain(object):
             return None, None, Mode.HEAD_GOAL
 
     def heading_goal_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
-        """
-        heading_goalの位置判定バージョン（右モーター位置追跡）。
-        以下の順で動作する:
-        0. ライン到達前は中央追従（y_hit >= 420で遷移）、ただし最長右モーター500ユニットで打ち切り
-        1. 左旋回（右モーター500ユニット移動まで, 左:0, 右:30）または垂直ライン検出で最低300, 最大500ユニット
-        2. 右エッジトレース（青ライン検出でphase3へ）
-        3. 青ライン検出後、右モーター600ユニット移動まで右エッジトレースしたらPAUSE（状態リセット）
-        """
+    """
+    heading_goalの位置判定バージョン（右モーター位置追跡）。
+    以下の順で動作する:
+    0. ライン到達前は中央追従（y_hit >= 420で遷移）、ただし最長右モーター500ユニットで打ち切り
+    1. 左旋回（右モーター400ユニット移動まで, 左:0, 右:30）または垂直ライン検出で最低200, 最大400ユニット
+    2. 左エッジトレース（青ライン検出でphase3へ）
+    3. 青ライン検出後、右モーター600ユニット移動まで左エッジトレースしたらPAUSE（状態リセット）
+    """
         state = self._state.setdefault("heading_goal_relative", {
             "phase": 0,
             "right_position_start": None,
@@ -901,17 +901,16 @@ class ActionChain(object):
                 rel_pos = status.motors["B"].relative_position
                 current_pos = abs(rel_pos) if rel_pos is not None else 0
                 position_diff = abs(current_pos - state["right_position_start"]) if state["right_position_start"] is not None else 0
-                minimum_position_reached = position_diff >= 300
-                position_limit_reached = position_diff >= 500
+                minimum_position_reached = position_diff >= 200
+                position_limit_reached = position_diff >= 400
+                if not minimum_position_reached:
+                    print(f"[DEBUG][phase2] <200: 左旋回継続 (is_vertical_black_line_detected呼ばない)")
+                    return None, (0, 30), Mode.HEAD_GOAL
+                # 200ユニット超えてからのみ垂直ライン検出
                 vertical_line_detected = is_vertical_black_line_detected(image)
                 print(f"[DEBUG][phase2] position_diff={position_diff}, minimum_reached={minimum_position_reached}, limit_reached={position_limit_reached}, vertical_detected={vertical_line_detected}")
-                # 最低300ユニットは必ず旋回
-                if not minimum_position_reached:
-                    print(f"[DEBUG][phase2] <300: 左旋回継続")
-                    return None, (0, 30), Mode.HEAD_GOAL
-                # 300ユニット超えてから、垂直ライン検出または500ユニット到達まで継続
                 if (not vertical_line_detected) and (not position_limit_reached):
-                    print(f"[DEBUG][phase2] >=300: 垂直ライン未検出・500未満: 左旋回継続")
+                    print(f"[DEBUG][phase2] >=200: 垂直ライン未検出・400未満: 左旋回継続")
                     return None, (0, 30), Mode.HEAD_GOAL
                 # 条件を満たしたので次のフェーズへ
                 print(f"[DEBUG][phase2] phase3へ遷移: vertical_detected={vertical_line_detected}, limit_reached={position_limit_reached}")
