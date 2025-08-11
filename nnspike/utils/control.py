@@ -752,6 +752,7 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
     # --- 小領域のマージ処理 ---
     merged = []
     processed = set()
+    x_merge_threshold = 50  # x座標が50px未満の差なら同一障害物とみなす
     for i, region in enumerate(detected_regions):
         if i in processed:
             continue
@@ -760,11 +761,15 @@ def get_virtual_line_edges_at_y(img, target_y, line_width=10, image_width=640, f
         for j, other in enumerate(detected_regions):
             if j in processed or j <= i:
                 continue
-            dx = region['center'][0] - other['center'][0]
+            dx = abs(region['center'][0] - other['center'][0])
             dy = region['center'][1] - other['center'][1]
             distance = (dx*dx + dy*dy) ** 0.5
-            # 近接かつ小面積同士は1つの領域にまとめる
-            if distance < 100 and (region['area'] < 1000 or other['area'] < 1000):
+            # x座標が近いものは同一障害物としてまとめる
+            if dx < x_merge_threshold:
+                current_group.append(other)
+                processed.add(j)
+            # 近接かつ小面積同士もまとめる（従来ロジック）
+            elif distance < 100 and (region['area'] < 1000 or other['area'] < 1000):
                 current_group.append(other)
                 processed.add(j)
         if len(current_group) == 1:
