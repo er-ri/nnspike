@@ -6,11 +6,11 @@ import sys
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, parent_dir)
 
+
 import cv2
 import pandas as pd
-
 from nnspike.constants import OFFSET_Y, ROI_CNN, Mode
-from nnspike.utils import draw_driving_info, find_bottle_center
+from nnspike.utils import draw_driving_info, find_bottle_center, find_blue_target_center
 
 
 def read_label_data(label_path: str, image_path: str | None = None):
@@ -52,10 +52,8 @@ def main():
         # interval = row["interval"]
         image_path = row["image_path"].replace("../", "./")
         image = cv2.imread(image_path)
-        from nnspike.utils import get_virtual_line_edges_at_y, find_blue_target_center
-        target_v = get_virtual_line_edges_at_y(image, OFFSET_Y)
-        target_w, _, _ = find_blue_target_center(image)
 
+        target_w, _, _ = find_blue_target_center(image)
         offset_y = OFFSET_Y  # Constant value for y-offset in ROI_CNN (new: 350)
 
         _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow")
@@ -64,7 +62,6 @@ def main():
 
         info = dict()
         info["target_x"] = target_x
-        info["target_v"] = target_v
         info["target_w"] = target_w
         info["offset_y"] = offset_y
 
@@ -74,7 +71,7 @@ def main():
             "image path": filename,
             "mode": mode,
             "target_x": int(target_x),
-            "target_v": int(target_v),
+            # "target_v": int(target_v),
             "target_w": target_w,
             "yellow_pixel_count": yellow_pixel_count,
             "blue_pixel_count": blue_pixel_count,
@@ -91,8 +88,24 @@ def main():
         x_center = image_with_line.shape[1] // 2
         # 水平線（黄色）
         cv2.line(image_with_line, (0, y_line), (image_with_line.shape[1], y_line), (0, 255, 255), 2)
+        # 水平線の横にy座標値を小さく描画
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.5
+        font_thickness = 1
+        text_y = f"y={y_line}"
+        text_y_size, _ = cv2.getTextSize(text_y, font, font_scale, font_thickness)
+        text_y_x = 5
+        text_y_y = y_line - 7 if y_line - 7 > text_y_size[1] else y_line + text_y_size[1] + 7
+        cv2.putText(image_with_line, text_y, (text_y_x, text_y_y), font, font_scale, (0, 255, 255), font_thickness, cv2.LINE_AA)
         # 垂直線（黄色）
         cv2.line(image_with_line, (x_center, 0), (x_center, image_with_line.shape[0]), (0, 255, 255), 2)
+        # 垂直線の横にx座標値を小さく描画
+        text_x_label = f"x={x_center}"
+        text_x_size, _ = cv2.getTextSize(text_x_label, font, font_scale, font_thickness)
+        text_x_x = x_center + 7 if x_center + 7 + text_x_size[0] < image_with_line.shape[1] else x_center - text_x_size[0] - 7
+        text_x_y = 20
+        cv2.putText(image_with_line, text_x_label, (text_x_x, text_x_y), font, font_scale, (0, 255, 255), font_thickness, cv2.LINE_AA)
+        
         image = draw_driving_info(image_with_line, info, ROI_CNN)
 
         cv2.imshow(f"ETRobot: {dir_path}", image)
