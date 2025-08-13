@@ -1385,3 +1385,101 @@ def is_vertical_black_line_detected(img):
         ):
             return True
     return False
+
+def get_virtual_line_target_x(img):
+    # ROI座標（仮想ライン検出範囲）
+    x1, y1, x2, y2 = 100, 150, 540, 330
+    roi_w, roi_h = x2 - x1, y2 - y1
+    # グレースケール＋CLAHE（コントラスト強調）
+    img_gray_full = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    clahe_full = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    img_clahe_full = clahe_full.apply(img_gray_full)
+    # OTSUで2値化
+    _, mask_full = cv2.threshold(img_clahe_full, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    # ノイズ除去＋領域強調
+    mask_blur = cv2.medianBlur(mask_full, 5)
+    mask_dilate = cv2.dilate(mask_blur, np.ones((5, 5), np.uint8), iterations=1)
+    mask_close = cv2.morphologyEx(mask_dilate, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+
+    # ROI抽出
+    mask = mask_close[y1:y2, x1:x2]
+    # 輪郭抽出
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    min_area = 50
+    max_aspect = 5.0
+    filtered_contours = []
+    rect_centers_x = []
+    rect_centers_y = []
+    rects = []
+    # 面積・アスペクト比・最大面積でフィルタ
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        area = w * h
+        aspect = w / h if h > 0 else 0
+        if area < min_area:
+            continue
+        if aspect > max_aspect:
+            continue
+        if area >= 8000:
+            continue
+        cx = x + w // 2
+        cy = y + h // 2
+        filtered_contours.append(cnt)
+        rect_centers_x.append(cx)
+        rect_centers_y.append(cy)
+        rects.append((x, y, w, h))
+    # x座標でグループ化
+    x_merge_threshold = 150
+    merged_groups = []
+    used = set()
+    for i, cx in enumerate(rect_centers_x):
+        if i in used:
+            continue
+        group = [i]
+        used.add(i)
+        for j, cx2 in enumerate(rect_centers_x):
+            if j in used or j == i:
+                continue
+            if abs(cx - cx2) < x_merge_threshold:
+                group.append(j)
+                used.add(j)
+        merged_groups.append(group)
+    # グループごとに外接矩形と面積計算
+    merged_rects = []
+    merged_areas = []
+    for group in merged_groups:
+        xs, ys, ws, hs = [], [], [], []
+        total_area = 0
+        for idx in group:
+            x, y, w, h = cv2.boundingRect(filtered_contours[idx])
+            xs.append(x)
+            ys.append(y)
+            ws.append(x+w)
+            hs.append(y+h)
+            total_area += w * h
+        if xs:
+            min_x = min(xs)
+            min_y = min(ys)
+            max_x = max(ws)
+            max_y = max(hs)
+            merged_rects.append((min_x, min_y, max_x-min_x, max_y-min_y))
+            merged_areas.append(total_area)
+    # 最大面積グループの端点からtarget_x算出
+    if merged_rects:
+        max_idx = np.argmax(merged_areas)
+        rect = merged_rects[max_idx]
+        min_x, min_y, w, h = rect
+        max_x = min_x + w
+        left_edge_x = x1 + min_x
+        right_edge_x = x1 + max_x
+        group_center_x = x1 + min_x + w // 2
+        group_center_y = y1 + min_y + h // 2
+        if group_center_x < 320:
+            edge_x = right_edge_x
+            target_x = edge_x + 150
+        else:
+            edge_x = left_edge_x
+            target_x = edge_x - 150
+    else:
+        target_x = 320  # 障害物なし時は中央
+    return target_x
