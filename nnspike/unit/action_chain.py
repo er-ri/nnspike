@@ -220,7 +220,10 @@ class ActionChain(object):
         if state["phase"] == 0:
             if state["right_position_start"] is None:
                 if status is not None and status.motors.get("B") is not None:
-                    state["right_position_start"] = abs(status.motors["B"].relative_position)
+                    if status.motors["B"].relative_position is not None:
+                        state["right_position_start"] = abs(status.motors["B"].relative_position)
+                    else:
+                        state["right_position_start"] = None
                 else:
                     state["right_position_start"] = None
             
