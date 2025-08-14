@@ -158,22 +158,22 @@ class ActionChain(object):
         status = self.et.get_spike_status()
         # 右モーターの初期位置を記録
         if not hasattr(self, '_right_position_start') or self._right_position_start is None:
-            if status is not None and status.motors.get("B") is not None:
+            if status is not None and status.motors.get("B") is not None and status.motors.get("B").relative_position is not None:
                 self._right_position_start = status.motors.get("B").relative_position
             else:
-                self._right_position_start = None
+                self._right_position_start = 0
 
         if status is not None:
-            right_position = status.motors.get("B").relative_position if status.motors.get("B") is not None else None
+            right_position = status.motors.get("B").relative_position if status.motors.get("B") is not None and status.motors.get("B").relative_position is not None else 0
             # 右(B)の開始～現在の差分が430を超えたら停止
             if self._right_position_start is not None and right_position is not None:
                 if abs(right_position - self._right_position_start) > 430:
-                    self._right_position_start = None
+                    self._right_position_start = 0
                     return None, None, Mode.PAUSE
                 else:
                     return None, (0, 30), Mode.TURN_LEFT_RELATIVE
 
-        self._right_position_start = None
+    self._right_position_start = 0
         return None, None, Mode.PAUSE
 
     def turn_right_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
@@ -183,17 +183,17 @@ class ActionChain(object):
         status = self.et.get_spike_status()
         # 左モーターの初期位置を記録
         if not hasattr(self, '_left_position_start') or self._left_position_start is None:
-            if status is not None and status.motors.get("A") is not None:
+            if status is not None and status.motors.get("A") is not None and status.motors.get("A").relative_position is not None:
                 self._left_position_start = status.motors.get("A").relative_position
             else:
-                self._left_position_start = None
+                self._left_position_start = 0
 
         if status is not None:
-            left_position = status.motors.get("A").relative_position if status.motors.get("A") is not None else None
+            left_position = status.motors.get("A").relative_position if status.motors.get("A") is not None and status.motors.get("A").relative_position is not None else 0
             # 左(A)の開始～現在の差分が430を超えたら停止
             if self._left_position_start is not None and left_position is not None:
                 if abs(left_position - self._left_position_start) > 430:
-                    self._left_position_start = None
+                    self._left_position_start = 0
                     return None, None, Mode.PAUSE
                 else:
                     return None, (30, 0), Mode.TURN_RIGHT_RELATIVE
@@ -539,7 +539,7 @@ class ActionChain(object):
                 else:
                     state["right_position_start"] = None
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                current_pos = abs(status.motors["B"].relative_position)
+                current_pos = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
                 if abs(current_pos - state["right_position_start"]) < 600:
                     return None, (BASE_SPEED, BASE_SPEED), Mode.BACK_AND_TURN1
             state["phase"] = 1
@@ -547,7 +547,7 @@ class ActionChain(object):
             if status is not None and status.motors.get("B") is not None:
                 state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
             else:
-                state["right_position_start"] = None
+                state["right_position_start"] = 0
 
         # 1. 左旋回（is_x320_on_red_target(image, x_tolerance=50)検出まで、最低右モーター450ユニット、最大右モーター950ユニット, 左:0, 右:30）
         if state["phase"] == 1:
@@ -557,7 +557,7 @@ class ActionChain(object):
             position_limit_reached = False
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 if status.motors["B"].relative_position is not None:
-                    current_pos = abs(status.motors["B"].relative_position)
+                    current_pos = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
                     position_diff = abs(current_pos - state["right_position_start"])
                     minimum_position_reached = position_diff >= 450
                     position_limit_reached = position_diff >= 940
