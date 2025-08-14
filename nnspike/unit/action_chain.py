@@ -173,7 +173,7 @@ class ActionChain(object):
                 else:
                     return None, (0, 30), Mode.TURN_LEFT_RELATIVE
 
-    self._right_position_start = 0
+        self._right_position_start = 0
         return None, None, Mode.PAUSE
 
     def turn_right_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
