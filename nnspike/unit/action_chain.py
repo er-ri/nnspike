@@ -604,6 +604,7 @@ class ActionChain(object):
                 return target_x, None, Mode.CARRY_BOTTLE2
             # 赤ターゲット中心追従：赤ターゲットの中心x座標に向かって進路制御
             red_center_x = get_red_target_center_x(image)
+            print(f"[DEBUG] get_red_target_center_x (action_chain): returned {red_center_x}")
             target_x = red_center_x if red_center_x is not None else (self.x1 + self.x2) // 2
             return target_x, None, Mode.CARRY_BOTTLE2
 
