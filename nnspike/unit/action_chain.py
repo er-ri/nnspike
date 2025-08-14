@@ -12,7 +12,7 @@ from nnspike.unit.etrobot import ETRobot
 from nnspike.utils.control import (
     find_bottle_center,  # ボトル中心座標・ピクセル数検出
     get_line_edges_at_y,  # 指定Y座標でのライン左右端検出
-    get_virtual_line_edges_at_y,  # 仮想ライン左右端検出
+    get_virtual_line_target_x,  # 仮想ライン左右端検出
     find_blue_target_center,  # 青ターゲット中心座標・ピクセル数検出
     get_is_blue_line_at_y,  # 指定Y座標での青ライン有無判定
     is_x320_on_blue_target,  # 画像中央x=320付近で青ターゲット検出
@@ -299,7 +299,7 @@ class ActionChain(object):
         2. 左エッジトレース（右モーター300ユニット移動まで）
         3. 左旋回（右モーター400ユニット移動まで, 左:0, 右:30）
         4. 直進（右モーター300ユニット移動まで）
-        5. 仮想ライン直進（右モーター800ユニット移動まで, get_virtual_line_edges_at_y, previous_center_x=pre_target_x）
+        5. 仮想ライン直進（右モーター800ユニット移動まで, get_virtual_line_target_x, previous_center_x=pre_target_x）
         6. 直進（右モーター1900ユニット移動まで）
         7. 左旋回（is_x320_on_blue_targetがTrueになるまで左:0, 右:30で旋回、最低300・最大右モーター500ユニット）
         8. 青検出（1000超えたらphase9へ）
@@ -401,14 +401,14 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 5. 仮想ライン直進（右モーター1000ユニット移動まで, get_virtual_line_edges_at_y, previous_center_x=pre_target_x, avoidance_preference='left'）
+        # 5. 仮想ライン直進（右モーター1000ユニット移動まで, get_virtual_line_target_x, previous_center_x=pre_target_x）
         if state["phase"] == 5:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
                 if abs(current_pos - state["right_position_start"]) < 1000:
                     pre_target_x = state.get("pre_target_x")
                     # 右に障害物がある場合は左回避を明示
-                    temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x, avoidance_preference='left')
+                    temp_x = get_virtual_line_target_x(image, previous_center_x=pre_target_x)
                     if temp_x is not None:
                         target_x = temp_x
                         state["pre_target_x"] = temp_x
@@ -574,7 +574,7 @@ class ActionChain(object):
         3. 左旋回（is_left_black_line_detected(image)検出まで、最大右モーター1000ユニット, 左:0, 右:30）
         4. 直進（右モーター870ユニット移動まで, 両輪BASE_SPEED）
         5. 左旋回（右モーター380ユニット移動まで, 左:0, 右:30）
-        6. 仮想ライン直進（右モーター800ユニット移動まで, get_virtual_line_edges_at_y）
+        6. 仮想ライン直進（右モーター800ユニット移動まで, get_virtual_line_target_x）
         7. 直進（右モーター1100ユニット移動まで, 両輪BASE_SPEED）
         8. 左旋回（is_x320_on_blue_target検出まで、最低右モーター300ユニット、最大右モーター500ユニット, 左:0, 右:30）
         9. 青検出（青ピクセル数1000超えたらphase10へ、最大右モーター400ユニット）
@@ -684,13 +684,13 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 6. 仮想ライン直進（右モーター800ユニット移動まで, get_virtual_line_edges_at_y）
+        # 6. 仮想ライン直進（右モーター800ユニット移動まで, get_virtual_line_target_x）
         if state["phase"] == 6:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
                 if abs(current_pos - state["right_position_start"]) < 800:
                     pre_target_x = state.get("pre_target_x")
-                    temp_x = get_virtual_line_edges_at_y(image, OFFSET_Y, previous_center_x=pre_target_x, avoidance_preference='right')
+                    temp_x = get_virtual_line_target_x(image, previous_center_x=pre_target_x)
                     if temp_x is not None:
                         target_x = temp_x
                         state["pre_target_x"] = temp_x
