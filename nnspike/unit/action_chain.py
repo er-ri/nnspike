@@ -534,18 +534,21 @@ class ActionChain(object):
         # 0. 後退（右モーター600ユニット移動まで）
         if state["phase"] == 0:
             if state["right_position_start"] is None:
-                if status is not None and status.motors.get("B") is not None:
+                if status is not None and status.motors.get("B") is not None and status.motors["B"].relative_position is not None:
                     state["right_position_start"] = abs(status.motors["B"].relative_position)
                 else:
-                    state["right_position_start"] = None
+                    state["right_position_start"] = 0
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                current_pos = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
+                if status.motors["B"].relative_position is not None:
+                    current_pos = abs(status.motors["B"].relative_position)
+                else:
+                    current_pos = 0
                 if abs(current_pos - state["right_position_start"]) < 600:
                     return None, (BASE_SPEED, BASE_SPEED), Mode.BACK_AND_TURN1
             state["phase"] = 1
             # phase1用 右モーター相対位置記録（絶対値）
-            if status is not None and status.motors.get("B") is not None:
-                state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
+            if status is not None and status.motors.get("B") is not None and status.motors["B"].relative_position is not None:
+                state["right_position_start"] = abs(status.motors["B"].relative_position)
             else:
                 state["right_position_start"] = 0
 
@@ -557,13 +560,12 @@ class ActionChain(object):
             position_limit_reached = False
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 if status.motors["B"].relative_position is not None:
-                    current_pos = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-                    position_diff = abs(current_pos - state["right_position_start"])
-                    minimum_position_reached = position_diff >= 450
-                    position_limit_reached = position_diff >= 940
-                    #position_limit_reached = position_diff >= 1000
+                    current_pos = abs(status.motors["B"].relative_position)
                 else:
-                    position_limit_reached = False
+                    current_pos = 0
+                position_diff = abs(current_pos - state["right_position_start"])
+                minimum_position_reached = position_diff >= 450
+                position_limit_reached = position_diff >= 940
             
             # 最低450ユニットは必ず旋回
             if not minimum_position_reached:
