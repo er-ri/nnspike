@@ -593,7 +593,7 @@ class ActionChain(object):
         # 0. 青ピクセル数が2000を超える前は赤ターゲット中心追従、超えたらphase1へ
         if state["phase"] == 0:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
-            if blue_pixel_count > 2000:
+            if blue_pixel_count > 5000:
                 state["phase"] = 1
                 # phase1用 右モーター相対位置記録（絶対値）
                 if status is not None and status.motors.get("B") is not None:
@@ -614,7 +614,7 @@ class ActionChain(object):
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
 
-            if blue_pixel_count >= 2000:
+            if blue_pixel_count >= 5000:
                 # 2000以上の間はcenter追従
                 return target_x, None, Mode.CARRY_BOTTLE2
             else:
