@@ -584,7 +584,7 @@ class ActionChain(object):
         11. 右モーター300ユニット移動まで center追従、その後BACK_AND_TURN2へ遷移
         """
         state = self._state.setdefault("carry_bottle2_relative", {
-            "phase": 0,
+            "phase": -1,
             "pre_target_x": None,
             "right_position_start": None,
         })
@@ -593,9 +593,9 @@ class ActionChain(object):
         # -1. 赤ターゲット中心追従：赤ターゲットの中心x座標に向かって進路制御。blue_pixel_count > 5000でphase0へ
         if state["phase"] == -1:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
-            if blue_pixel_count > 5000:
+            if blue_pixel_count > 14000:
                 state["phase"] = 0
-                print("[DEBUG] phase -1→0: blue_pixel_count > 5000")
+                print("[DEBUG] phase -1→0: blue_pixel_count > 14000")
             # 赤ターゲット中心追従
             red_center_x = get_red_target_center_x(image)
             print(f"[DEBUG] get_red_target_center_x (action_chain): returned {red_center_x}")
@@ -605,7 +605,7 @@ class ActionChain(object):
         # 0. 青ピクセル数が2000を超える前は赤ターゲット中心追従、超えたらphase1へ
         if state["phase"] == 0:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
-            if blue_pixel_count > 5000:
+            if blue_pixel_count > 14000:
                 state["phase"] = 1
                 # phase1用 右モーター相対位置記録（絶対値）
                 if status is not None and status.motors.get("B") is not None:
