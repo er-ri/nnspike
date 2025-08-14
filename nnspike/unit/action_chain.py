@@ -614,23 +614,24 @@ class ActionChain(object):
                 red_center_x = get_red_target_center_x(image)
                 target_x = red_center_x if red_center_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.CARRY_BOTTLE2
-            else:
-                state["phase"] = 1
-
-        # 1. 青ボトル中心追従（2000以上の間center追従、2000以下になった瞬間にphase2へ移行）
-        if state["phase"] == 1:
-            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
-            target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
-
-            if blue_pixel_count >= 2000:
-                # 2000以上の間はcenter追従
-                return target_x, None, Mode.CARRY_BOTTLE2
-            else:
-                # 2000以下になった瞬間、即座にphase2へ移行
-                state["phase"] = 2
-                # phase2用 右モーター相対位置記録（絶対値）
-                if status is not None and status.motors.get("B") is not None:
-                    state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
+        """
+        carry_bottle2の位置判定バージョン。
+        現在のフェーズ構成:
+        0. 赤ターゲット中心追従（青ピクセル数が14000を超えたらphase1へ）
+        1. 青ボトル中心追従（青ピクセル数が2000以上の間center追従、2000未満でphase2へ）
+        2. 右モーター200ユニット移動までcenter追従。その後phase3
+        3. 左旋回（is_left_black_line_detected(image)検出まで、最大右モーター1000ユニット, 左:0, 右:30）
+        4. 直進（右モーター870ユニット移動まで, 両輪BASE_SPEED）
+        5. 左旋回（右モーター380ユニット移動まで, 左:0, 右:30）
+        6. 直進（右モーター200ユニット移動まで, 両輪BASE_SPEED）
+        61. 仮想ライン直進（右モーター1000ユニット移動まで, get_virtual_line_target_x）
+        7. 直進（右モーター1100ユニット移動まで, 両輪BASE_SPEED）
+        8. 左旋回（is_x320_on_blue_target検出まで、最低右モーター300ユニット、最大右モーター500ユニット, 左:0, 右:30）
+        9. 青検出（青ピクセル数1000超えたらphase10へ、最大右モーター400ユニット）
+        10. 青ピクセルが500以下まで減るまでcenter追従（500以下でphase11へ、最大右モーター400ユニット）
+        11. 右モーター300ユニット移動までcenter追従、その後BACK_AND_TURN2へ遷移
+        ※処理本体は一切変更しない
+        """
                 else:
                     state["right_position_start"] = None
 
