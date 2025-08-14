@@ -613,10 +613,10 @@ class ActionChain(object):
         if state["phase"] == 0:
             debug_print("phase = 0")
             _, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
-            if blue_pixel_count < 14000:
+            if blue_pixel_count < 20000:
                 # 赤ターゲット中心追従
                 red_center_x = get_red_target_center_x(image)
-                debug_print(f"phase 0: get_red_target_center_x (action_chain): returned {red_center_x}")
+                debug_print(f"phase 0: get_red_target_center_x ={red_center_x} blue_pixel_count={blue_pixel_count} ")
                 target_x = red_center_x if red_center_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.CARRY_BOTTLE2
             else:
