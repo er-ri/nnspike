@@ -1118,7 +1118,6 @@ def is_x320_on_red_target(img, x_tolerance=40):
         return False
     cx, cy = best_center
     if abs(cx - 320) <= x_tolerance:
-        print(f"[DEBUG] is_x320_on_red_target: True returned (cx={cx}, cy={cy}, x_tolerance={x_tolerance})")
         return True
     return False
 
@@ -1163,6 +1162,7 @@ def get_red_target_center_x(img):
                             best_center_x = int(cx)
                 except:
                     continue
+    print(f"[DEBUG] get_red_target_center_x: returned {best_center_x}")
     return best_center_x
 
 # 黒ラインの長さや位置で判定する関数（画像直接渡し、条件はプライベート変数）
