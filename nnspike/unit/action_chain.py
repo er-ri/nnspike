@@ -558,8 +558,7 @@ class ActionChain(object):
             # 450ユニット超えてから、ターゲット検出または940ユニット到達まで継続
             if (not red_target_detected) and (not position_limit_reached):
                 return None, (0, 30), Mode.BACK_AND_TURN1
-            else:
-                state["phase"] = 2
+            state["phase"] = 2
 
         # 2. 終了: 状態リセット
         if state["phase"] == 2:
