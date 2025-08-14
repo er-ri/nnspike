@@ -584,14 +584,15 @@ class ActionChain(object):
         """
         carry_bottle2の位置判定バージョン。
         以下の順で動作する:
-        0. 赤ターゲット中心追従（青ピクセル数が2000を超えたらphase1へ）
+        0. 赤ターゲット中心追従（青ピクセル数が20000を超えたらphase1へ）
         1. 青ボトル中心追従（2000以上の間center追従、2000以下になった瞬間にphase2へ移行）
         2. 右モーター200ユニット移動まで center追従。その後phase3
         3. 左旋回（is_left_black_line_detected(image)検出まで、最大右モーター1000ユニット, 左:0, 右:30）
         4. 直進（右モーター870ユニット移動まで, 両輪BASE_SPEED）
         5. 左旋回（右モーター380ユニット移動まで, 左:0, 右:30）
-        6. 仮想ライン直進（右モーター800ユニット移動まで, get_virtual_line_target_x）
-        7. 直進（右モーター1100ユニット移動まで, 両輪BASE_SPEED）
+        6. 直進（右モーター200ユニット移動まで, 両輪BASE_SPEED）
+        61. 仮想ライン直進（右モーター800ユニット移動まで, get_virtual_line_target_x）
+        7. 直進（右モーター900ユニット移動まで, 両輪BASE_SPEED）
         8. 左旋回（is_x320_on_blue_target検出まで、最低右モーター300ユニット、最大右モーター500ユニット, 左:0, 右:30）
         9. 青検出（青ピクセル数1000超えたらphase10へ、最大右モーター400ユニット）
         10. 青ピクセルが500以下まで減るまでcenter追従（500以下でphase11へ、最大右モーター400ユニット）
@@ -606,7 +607,7 @@ class ActionChain(object):
         if not hasattr(self, "_debug_start_time"):
             self._debug_start_time = time.time()
 
-        # 0. 赤ターゲット中心追従：赤ターゲットの中心x座標に向かって進路制御。blue_pixel_count > 14000でphase1へ
+    # 0. 赤ターゲット中心追従（青ピクセル数20000未満の間は赤中心追従、20000以上でphase1へ）
         if state["phase"] == 0:
             _, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if blue_pixel_count < 20000:
@@ -614,28 +615,29 @@ class ActionChain(object):
                 red_center_x = get_red_target_center_x(image)
                 target_x = red_center_x if red_center_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.CARRY_BOTTLE2
-        """
-        carry_bottle2の位置判定バージョン。
-        現在のフェーズ構成:
-        0. 赤ターゲット中心追従（青ピクセル数が14000を超えたらphase1へ）
-        1. 青ボトル中心追従（青ピクセル数が2000以上の間center追従、2000未満でphase2へ）
-        2. 右モーター200ユニット移動までcenter追従。その後phase3
-        3. 左旋回（is_left_black_line_detected(image)検出まで、最大右モーター1000ユニット, 左:0, 右:30）
-        4. 直進（右モーター870ユニット移動まで, 両輪BASE_SPEED）
-        5. 左旋回（右モーター380ユニット移動まで, 左:0, 右:30）
-        6. 直進（右モーター200ユニット移動まで, 両輪BASE_SPEED）
-        61. 仮想ライン直進（右モーター1000ユニット移動まで, get_virtual_line_target_x）
-        7. 直進（右モーター1100ユニット移動まで, 両輪BASE_SPEED）
-        8. 左旋回（is_x320_on_blue_target検出まで、最低右モーター300ユニット、最大右モーター500ユニット, 左:0, 右:30）
-        9. 青検出（青ピクセル数1000超えたらphase10へ、最大右モーター400ユニット）
-        10. 青ピクセルが500以下まで減るまでcenter追従（500以下でphase11へ、最大右モーター400ユニット）
-        11. 右モーター300ユニット移動までcenter追従、その後BACK_AND_TURN2へ遷移
-        ※処理本体は一切変更しない
-        """
+            else:
+                state["phase"] = 1
+
+        # 1. 青ボトル中心追従（2000以上の間center追従、2000以下になった瞬間にphase2へ移行）
+    # 1. 青ボトル中心追従（青ピクセル数2000以上の間center追従、2000未満でphase2へ）
+        if state["phase"] == 1:
+            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
+            target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
+
+            if blue_pixel_count >= 2000:
+                # 青ボトル中心x座標へ追従
+                return target_x, None, Mode.CARRY_BOTTLE2
+            else:
+                # 青ピクセル数が2000未満になった瞬間phase2へ
+                state["phase"] = 2
+                # phase2用 右モーター相対位置記録（絶対値）
+                if status is not None and status.motors.get("B") is not None:
+                    state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
                 else:
                     state["right_position_start"] = None
 
         # 2. 右モーター200ユニット移動まで center追従。その後phase3
+    # 2. 右モーター200ユニット移動までcenter追従。200超えたらphase3へ
         if state["phase"] == 2:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
@@ -654,6 +656,7 @@ class ActionChain(object):
                 state["right_position_start"] = None
 
         # 3. 左旋回（is_left_black_line_detected(image)検出まで、最大右モーター1000ユニット, 左:0, 右:30）
+    # 3. 左旋回（左黒ライン検出まで、最大右モーター1000ユニット、左:0,右:30）
         if state["phase"] == 3:
             line_detected = is_left_black_line_detected(image)
             position_limit_reached = False
@@ -671,6 +674,7 @@ class ActionChain(object):
                 state["right_position_start"] = None
 
         # 4. 直進（右モーター870ユニット移動まで, 両輪BASE_SPEED）
+    # 4. 直進（右モーター870ユニット移動まで、両輪BASE_SPEED）
         if state["phase"] == 4:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
@@ -685,6 +689,7 @@ class ActionChain(object):
                 state["right_position_start"] = None
 
         # 5. 左旋回（右モーター380ユニット移動まで, 左:0, 右:30）
+    # 5. 左旋回（右モーター380ユニット移動まで、左:0,右:30）
         if state["phase"] == 5:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
@@ -698,6 +703,7 @@ class ActionChain(object):
                 state["right_position_start"] = None
 
         # 6. 直進（右モーター200ユニット移動まで, 両輪BASE_SPEED）
+    # 6. 直進（右モーター200ユニット移動まで、両輪BASE_SPEED）
         if state["phase"] == 6:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
@@ -711,6 +717,7 @@ class ActionChain(object):
                 state["right_position_start"] = None
 
         # 61. 仮想ライン直進（右モーター800ユニット移動まで, get_virtual_line_target_x）
+    # 61. 仮想ライン直進（右モーター800ユニット移動まで、get_virtual_line_target_xで中心追従）
         if state["phase"] == 7:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
@@ -734,6 +741,7 @@ class ActionChain(object):
                 state["right_position_start"] = None
 
         # 7. 直進（右モーター900ユニット移動まで, 両輪BASE_SPEED）
+    # 7. 直進（右モーター900ユニット移動まで、両輪BASE_SPEED）
         if state["phase"] == 8:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
@@ -747,6 +755,7 @@ class ActionChain(object):
                 state["right_position_start"] = None
 
         # 8. 左旋回（is_x320_on_blue_target検出まで、最低右モーター300ユニット、最大右モーター500ユニット, 左:0, 右:30）
+    # 8. 左旋回（青ターゲット検出まで、最低右モーター300、最大500ユニット、左:0,右:30）
         if state["phase"] == 9:
             blue_target_detected = is_x320_on_blue_target(image, x_tolerance=60)
             position_limit_reached = False
