@@ -592,19 +592,20 @@ class ActionChain(object):
 
         # -1. 赤ターゲット中心追従：赤ターゲットの中心x座標に向かって進路制御。blue_pixel_count > 5000でphase0へ
         if state["phase"] == -1:
-            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
+            _, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if blue_pixel_count > 14000:
                 state["phase"] = 0
                 print("[DEBUG] phase -1→0: blue_pixel_count > 14000")
-            # 赤ターゲット中心追従
-            red_center_x = get_red_target_center_x(image)
-            print(f"[DEBUG] get_red_target_center_x (action_chain): returned {red_center_x}")
-            target_x = red_center_x if red_center_x is not None else (self.x1 + self.x2) // 2
-            return target_x, None, Mode.CARRY_BOTTLE2
+            else:
+                # 赤ターゲット中心追従
+                red_center_x = get_red_target_center_x(image)
+                print(f"[DEBUG] get_red_target_center_x (action_chain): returned {red_center_x}")
+                target_x = red_center_x if red_center_x is not None else (self.x1 + self.x2) // 2
+                return target_x, None, Mode.CARRY_BOTTLE2
 
         # 0. 青ピクセル数が2000を超える前は赤ターゲット中心追従、超えたらphase1へ
         if state["phase"] == 0:
-            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
+            _, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if blue_pixel_count > 14000:
                 state["phase"] = 1
                 # phase1用 右モーター相対位置記録（絶対値）
@@ -612,8 +613,6 @@ class ActionChain(object):
                     state["right_position_start"] = abs(status.motors["B"].relative_position)
                 else:
                     state["right_position_start"] = None
-                target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
-                return target_x, None, Mode.CARRY_BOTTLE2
 
         # 1. 青ボトル中心追従（2000以上の間center追従、2000以下になった瞬間にphase2へ移行）
         if state["phase"] == 1:
@@ -631,7 +630,6 @@ class ActionChain(object):
                     state["right_position_start"] = abs(status.motors["B"].relative_position)
                 else:
                     state["right_position_start"] = None
-                return target_x, None, Mode.CARRY_BOTTLE2
 
         # 2. 右モーター200ユニット移動まで center追従。その後phase3
         if state["phase"] == 2:
