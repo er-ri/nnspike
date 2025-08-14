@@ -598,7 +598,7 @@ class ActionChain(object):
         11. 右モーター300ユニット移動まで center追従、その後BACK_AND_TURN2へ遷移
         """
         state = self._state.setdefault("carry_bottle2_relative", {
-            "phase": -1,
+            "phase": 0,
             "pre_target_x": None,
             "right_position_start": None,
         })
@@ -609,30 +609,19 @@ class ActionChain(object):
             elapsed_ms = int((time.time() - self._debug_start_time) * 1000)
             print(f"[DEBUG][{elapsed_ms}ms] {msg}")
 
-        # -1. 赤ターゲット中心追従：赤ターゲットの中心x座標に向かって進路制御。blue_pixel_count > 5000でphase0へ
-        if state["phase"] == -1:
-            debug_print("phase = -1")
+        # 0. 赤ターゲット中心追従：赤ターゲットの中心x座標に向かって進路制御。blue_pixel_count > 14000でphase1へ
+        if state["phase"] == 0:
+            debug_print("phase = 0")
             _, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if blue_pixel_count < 14000:
                 # 赤ターゲット中心追従
                 red_center_x = get_red_target_center_x(image)
-                debug_print(f"phase -1: get_red_target_center_x (action_chain): returned {red_center_x}")
+                debug_print(f"phase 0: get_red_target_center_x (action_chain): returned {red_center_x}")
                 target_x = red_center_x if red_center_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.CARRY_BOTTLE2
             else:
-                state["phase"] = 0
-                debug_print(f"phase -1→0: blue_pixel_count={blue_pixel_count} > 14000")
-
-        if state["phase"] == 0:
-            debug_print("phase = 0")
-            _, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
-            if blue_pixel_count > 14000:
                 state["phase"] = 1
-                # phase1用 右モーター相対位置記録（絶対値）
-                if status is not None and status.motors.get("B") is not None:
-                    state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-                else:
-                    state["right_position_start"] = None
+                debug_print(f"phase 0→1: blue_pixel_count={blue_pixel_count} > 14000")
 
         # 1. 青ボトル中心追従（2000以上の間center追従、2000以下になった瞬間にphase2へ移行）
         if state["phase"] == 1:
