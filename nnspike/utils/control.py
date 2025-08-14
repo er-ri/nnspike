@@ -1163,7 +1163,6 @@ def get_red_target_center_x(img):
                             best_center_x = int(cx)
                 except Exception:
                     continue
-    print(f"[DEBUG] get_red_target_center_x: returned {best_center_x}")
     return best_center_x
 
 # 黒ラインの長さや位置で判定する関数（画像直接渡し、条件はプライベート変数）
