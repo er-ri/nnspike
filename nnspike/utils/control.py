@@ -1386,7 +1386,7 @@ def is_vertical_black_line_detected(img):
             return True
     return False
 
-def get_virtual_line_target_x(img):
+def get_virtual_line_target_x(img, previous_center_x=None):
     # ROI座標（仮想ライン検出範囲）
     x1, y1, x2, y2 = 100, 150, 540, 330
     roi_w, roi_h = x2 - x1, y2 - y1
@@ -1482,4 +1482,13 @@ def get_virtual_line_target_x(img):
             target_x = edge_x - 150
     else:
         target_x = 320  # 障害物なし時は中央
+    
+    # previous_center_xによる極端なジャンプ制限
+    if previous_center_x is not None:
+        max_delta = 30  # 許容する最大変化量
+        if abs(target_x - previous_center_x) > max_delta:
+            if target_x > previous_center_x:
+                target_x = previous_center_x + max_delta
+            else:
+                target_x = previous_center_x - max_delta
     return target_x
