@@ -542,15 +542,15 @@ class ActionChain(object):
 
         # 1. 左旋回（is_x320_on_red_target(image, x_tolerance=50)検出まで、最低右モーター450ユニット、最大右モーター950ユニット, 左:0, 右:30）
         if state["phase"] == 1:
-            red_target_detected = is_x320_on_red_target(image, x_tolerance=50)
+            red_target_detected = is_x320_on_red_target(image, x_tolerance=60)
             position_limit_reached = False
             minimum_position_reached = False
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
                 position_diff = abs(current_pos - state["right_position_start"])
                 minimum_position_reached = position_diff >= 450
-                #position_limit_reached = position_diff >= 940
-                position_limit_reached = position_diff >= 1000
+                position_limit_reached = position_diff >= 940
+                #position_limit_reached = position_diff >= 1000
             
             # 最低450ユニットは必ず旋回
             if not minimum_position_reached:

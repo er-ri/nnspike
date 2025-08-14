@@ -1118,6 +1118,7 @@ def is_x320_on_red_target(img, x_tolerance=40):
         return False
     cx, cy = best_center
     if abs(cx - 320) <= x_tolerance:
+        print(f"[DEBUG] is_x320_on_red_target: True returned (cx={cx}, cy={cy}, x_tolerance={x_tolerance})")
         return True
     return False
 
