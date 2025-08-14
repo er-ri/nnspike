@@ -607,15 +607,15 @@ class ActionChain(object):
         # -1. 赤ターゲット中心追従：赤ターゲットの中心x座標に向かって進路制御。blue_pixel_count > 5000でphase0へ
         if state["phase"] == -1:
             _, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
-            if blue_pixel_count > 14000:
-                state["phase"] = 0
-                print("[DEBUG] phase -1→0: blue_pixel_count > 14000")
-            else:
+            if blue_pixel_count < 14000:
                 # 赤ターゲット中心追従
                 red_center_x = get_red_target_center_x(image)
                 print(f"[DEBUG] get_red_target_center_x (action_chain): returned {red_center_x}")
                 target_x = red_center_x if red_center_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.CARRY_BOTTLE2
+            else:
+                state["phase"] = 0
+                print("[DEBUG] phase -1→0: blue_pixel_count > 14000")
 
         # 0. 青ピクセル数が2000を超える前は赤ターゲット中心追従、超えたらphase1へ
         if state["phase"] == 0:
