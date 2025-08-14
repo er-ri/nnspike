@@ -549,7 +549,8 @@ class ActionChain(object):
                 current_pos = abs(status.motors["B"].relative_position)
                 position_diff = abs(current_pos - state["right_position_start"])
                 minimum_position_reached = position_diff >= 450
-                position_limit_reached = position_diff >= 940
+                #position_limit_reached = position_diff >= 940
+                position_limit_reached = position_diff >= 1200
             
             # 最低450ユニットは必ず旋回
             if not minimum_position_reached:
