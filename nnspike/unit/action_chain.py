@@ -696,11 +696,11 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 6. 仮想ライン直進（右モーター800ユニット移動まで, get_virtual_line_target_x）
+        # 6. 仮想ライン直進（右モーター1000ユニット移動まで, get_virtual_line_target_x）
         if state["phase"] == 6:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 800:
+                if abs(current_pos - state["right_position_start"]) < 1000:
                     pre_target_x = state.get("pre_target_x")
                     temp_x = get_virtual_line_target_x(image, previous_center_x=pre_target_x)
                     if temp_x is not None:
@@ -719,11 +719,11 @@ class ActionChain(object):
             else:
                 state["right_position_start"] = None
 
-        # 7. 直進（右モーター1100ユニット移動まで, 両輪BASE_SPEED）
+        # 7. 直進（右モーター900ユニット移動まで, 両輪BASE_SPEED）
         if state["phase"] == 7:
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
-                if abs(current_pos - state["right_position_start"]) < 1100:
+                if abs(current_pos - state["right_position_start"]) < 900:
                     return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
             state["phase"] = 8
             # phase8用 右モーター相対位置記録（絶対値）
