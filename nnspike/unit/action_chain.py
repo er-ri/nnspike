@@ -603,22 +603,28 @@ class ActionChain(object):
             "right_position_start": None,
         })
         status = self.et.get_spike_status()
+        if not hasattr(self, "_debug_start_time"):
+            self._debug_start_time = time.time()
+        def debug_print(msg):
+            elapsed_ms = int((time.time() - self._debug_start_time) * 1000)
+            print(f"[DEBUG][{elapsed_ms}ms] {msg}")
 
         # -1. 赤ターゲット中心追従：赤ターゲットの中心x座標に向かって進路制御。blue_pixel_count > 5000でphase0へ
         if state["phase"] == -1:
+            debug_print("phase = -1")
             _, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if blue_pixel_count < 14000:
                 # 赤ターゲット中心追従
                 red_center_x = get_red_target_center_x(image)
-                print(f"[DEBUG] get_red_target_center_x (action_chain): returned {red_center_x}")
+                debug_print(f"phase -1: get_red_target_center_x (action_chain): returned {red_center_x}")
                 target_x = red_center_x if red_center_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.CARRY_BOTTLE2
             else:
                 state["phase"] = 0
-                print("[DEBUG] phase -1→0: blue_pixel_count > 14000")
+                debug_print(f"phase -1→0: blue_pixel_count={blue_pixel_count} > 14000")
 
-        # 0. 青ピクセル数が2000を超える前は赤ターゲット中心追従、超えたらphase1へ
         if state["phase"] == 0:
+            debug_print("phase = 0")
             _, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if blue_pixel_count > 14000:
                 state["phase"] = 1
@@ -630,6 +636,7 @@ class ActionChain(object):
 
         # 1. 青ボトル中心追従（2000以上の間center追従、2000以下になった瞬間にphase2へ移行）
         if state["phase"] == 1:
+            debug_print("phase = 1")
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
 
@@ -647,6 +654,7 @@ class ActionChain(object):
 
         # 2. 右モーター200ユニット移動まで center追従。その後phase3
         if state["phase"] == 2:
+            debug_print("phase = 2")
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
                 current_pos = abs(status.motors["B"].relative_position)
@@ -665,6 +673,7 @@ class ActionChain(object):
 
         # 3. 左旋回（is_left_black_line_detected(image)検出まで、最大右モーター1000ユニット, 左:0, 右:30）
         if state["phase"] == 3:
+            debug_print("phase = 3")
             line_detected = is_left_black_line_detected(image)
             position_limit_reached = False
             if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:

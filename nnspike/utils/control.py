@@ -1156,11 +1156,12 @@ def get_red_target_center_x(img):
                     ellipse = cv2.fitEllipse(cnt)
                     (cx, cy), (major, minor), angle = ellipse
                     ratio = major/minor if minor > 0 else 0
+                    # is_x320_on_red_targetと同じ条件
                     if 0.2 < ratio < 5.0 and major > 5 and minor > 3:
                         if area > max_red_area:
                             max_red_area = area
                             best_center_x = int(cx)
-                except:
+                except Exception:
                     continue
     print(f"[DEBUG] get_red_target_center_x: returned {best_center_x}")
     return best_center_x
