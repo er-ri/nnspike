@@ -124,6 +124,8 @@ class ActionChain(object):
                     return 0
             print(f"[get_motor_position] status or motor_key invalid (return 0)")
             return 0
+        
+        print("[get_motor_position] Unexpected state reached.")
         return 0
 
     def turn_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
