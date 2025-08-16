@@ -71,7 +71,7 @@ class ActionChain(object):
         self.current_time = 0.0  # 現在時刻
         self._state = {}  # 各アクションの状態管理dict
         self.x1, self.y1, self.x2, self.y2 = ROI_CNN  # ROI座標
-        self._init = False  # avoid_obstacle_relative用初期化フラグ
+        self._init = False  
         
     def get_motor_position(self, side: str = "right", mode: str = "position", status=None) -> int:
         """
