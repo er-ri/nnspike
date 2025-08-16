@@ -41,6 +41,23 @@ class ActionChain(object):
         self._state = {}  # 各アクションの状態管理dict
         self.x1, self.y1, self.x2, self.y2 = ROI_CNN  # ROI座標
 
+    def get_motor_position(self, side: str = "right", mode: str = "position", status=None):
+        """
+        side='right'で右モータ(B)、'left'で左モータ(A)のrelative_positionを返す。
+        mode='position'なら該当モータのrelative_position（絶対値, Noneなら0）、'status'ならstatusオブジェクト。
+        status引数を指定すればそれを使い、未指定時のみ内部で取得する。
+        負荷軽減のため、複数回呼び出し時はstatusを外部で取得・使い回すこと。
+        """
+        if status is None:
+            status = self.et.get_spike_status()
+        if mode == "status":
+            return status
+        if mode == "position":
+            motor_key = "B" if side == "right" else "A"
+            if status is not None and status.motors.get(motor_key) is not None and status.motors[motor_key].relative_position is not None:
+                return abs(status.motors[motor_key].relative_position)
+            return 0
+
     def turn_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         左旋回アクション。
@@ -154,51 +171,33 @@ class ActionChain(object):
         """
         左旋回（右モーターBの相対位置差分で判定）。430未満の間は左:0,右:30で継続。430超えたらPAUSE。
         """
-        status = self.et.get_spike_status()
+        status = self.get_motor_position(mode="status")
         # 右モーターの初期位置を記録
         if not hasattr(self, '_right_position_start') or self._right_position_start is None:
-            if status is not None and status.motors.get("B") is not None and status.motors.get("B").relative_position is not None:
-                self._right_position_start = status.motors.get("B").relative_position
-            else:
-                self._right_position_start = 0
+            self._right_position_start = self.get_motor_position('right', status=status)
 
-        if status is not None:
-            right_position = status.motors.get("B").relative_position if status.motors.get("B") is not None and status.motors.get("B").relative_position is not None else 0
-            # 右(B)の開始～現在の差分が430を超えたら停止
-            if self._right_position_start is not None and right_position is not None:
-                if abs(right_position - self._right_position_start) > 430:
-                    self._right_position_start = 0
-                    return None, None, Mode.PAUSE
-                else:
-                    return None, (0, 30), Mode.TURN_LEFT_RELATIVE
-
-        self._right_position_start = 0
-        return None, None, Mode.PAUSE
+        right_position = self.get_motor_position('right', status=status)
+        # 右(B)の開始～現在の差分が430を超えたら停止
+        if abs(right_position - self._right_position_start) > 430:
+            self._right_position_start = 0
+            return None, None, Mode.PAUSE
+        return None, (0, 30), Mode.TURN_LEFT_RELATIVE
 
     def turn_right_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         右旋回（左モーターAの相対位置差分で判定）。430未満の間は左:30,右:0で継続。430超えたらPAUSE。
         """
-        status = self.et.get_spike_status()
+        status = self.get_motor_position(mode="status")
         # 左モーターの初期位置を記録
         if not hasattr(self, '_left_position_start') or self._left_position_start is None:
-            if status is not None and status.motors.get("A") is not None and status.motors.get("A").relative_position is not None:
-                self._left_position_start = status.motors.get("A").relative_position
-            else:
-                self._left_position_start = 0
+            self._left_position_start = self.get_motor_position('left', status=status)
 
-        if status is not None:
-            left_position = status.motors.get("A").relative_position if status.motors.get("A") is not None and status.motors.get("A").relative_position is not None else 0
-            # 左(A)の開始～現在の差分が430を超えたら停止
-            if self._left_position_start is not None and left_position is not None:
-                if abs(left_position - self._left_position_start) > 430:
-                    self._left_position_start = 0
-                    return None, None, Mode.PAUSE
-                else:
-                    return None, (30, 0), Mode.TURN_RIGHT_RELATIVE
-
-        self._left_position_start = None
-        return None, None, Mode.PAUSE
+        left_position = self.get_motor_position('left', status=status)
+        # 左(A)の開始～現在の差分が430を超えたら停止
+        if abs(left_position - self._left_position_start) > 430:
+            self._left_position_start = 0
+            return None, None, Mode.PAUSE
+        return None, (30, 0), Mode.TURN_RIGHT_RELATIVE
 
     def avoid_obstacle_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
