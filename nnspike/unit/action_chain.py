@@ -711,19 +711,16 @@ class ActionChain(object):
             
             if blue_pixel_count <= 500 or position_limit_reached:
                 state["phase"] = 12
-                # phase11用 右モーター相対位置記録（絶対値）
-                if status is not None and status.motors.get("B") is not None:
-                    state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-                else:
-                    state["right_position_start"] = None
+                # phase12用 右モーター相対位置記録（get_motor_positionで統一）
+                state["right_position_start"] = self.get_motor_position('right', status=status)
             return target_x, None, Mode.CARRY_BOTTLE2
 
         # phase 12: 右モーター300ユニット移動までcenter追従、その後BACK_AND_TURN2へ遷移
         if state["phase"] == 12:
             center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
             
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                current_pos = abs(status.motors["B"].relative_position)
+            if state["right_position_start"] is not None:
+                current_pos = self.get_motor_position('right', status=status)
                 if abs(current_pos - state["right_position_start"]) < 300:
                     if center is not None:
                         target_x = center[0]
@@ -750,41 +747,35 @@ class ActionChain(object):
             "phase": 0,
             "left_position_start": None,
         })
-        status = self.et.get_spike_status()
+        status = self.get_motor_position(mode="status")
 
         # 0. 左モーター570ユニット移動まで後退
         if state["phase"] == 0:
             if state["left_position_start"] is None:
-                if status is not None and status.motors.get("A") is not None and status.motors["A"].relative_position is not None:
-                    state["left_position_start"] = abs(status.motors["A"].relative_position)
-                else:
-                    state["left_position_start"] = None
+                state["left_position_start"] = self.get_motor_position('left', status=status)
 
-            if status is not None and status.motors.get("A") is not None and state["left_position_start"] is not None and status.motors["A"].relative_position is not None:
-                current_pos = abs(status.motors["A"].relative_position)
+            if state["left_position_start"] is not None:
+                current_pos = self.get_motor_position('left', status=status)
                 if abs(current_pos - state["left_position_start"]) < 570:
                     return None, (BASE_SPEED, BASE_SPEED), Mode.BACK_AND_TURN2
             state["phase"] = 1
-            # phase1用 左モーター相対位置記録（絶対値）
-            if status is not None and status.motors.get("A") is not None and status.motors["A"].relative_position is not None:
-                state["left_position_start"] = abs(status.motors["A"].relative_position)
-            else:
-                state["left_position_start"] = None
+            # phase1用 左モーター相対位置記録（get_motor_positionで統一）
+            state["left_position_start"] = self.get_motor_position('left', status=status)
 
-        # 1. 左モーター500ユニット移動まで右旋回（左:30, 右:0）
+        # 1. 左モーター200～400ユニット移動まで右旋回（左:30, 右:0）
         if state["phase"] == 1:
-            if status is not None and status.motors.get("A") is not None and state["left_position_start"] is not None and status.motors["A"].relative_position is not None:
-                current_pos = abs(status.motors["A"].relative_position)
+            if state["left_position_start"] is not None:
+                current_pos = self.get_motor_position('left', status=status)
                 position_diff = abs(current_pos - state["left_position_start"])
                 minimum_position_reached = position_diff >= 200
                 position_limit_reached = position_diff >= 400
                 # 水平ライン検出→一般的な水平黒ライン検出に変更
                 horizontal_line_detected = is_general_horizontal_line_detected(image)
             
-                # 最低300ユニットは必ず旋回
+                # 最低200ユニットは必ず旋回
                 if not minimum_position_reached:
                     return None, (30, 0), Mode.BACK_AND_TURN2
-                # 300ユニット超えてから、水平ライン検出または500ユニット到達まで継続
+                # 200ユニット超えてから、水平ライン検出または400ユニット到達まで継続
                 if (not horizontal_line_detected) and (not position_limit_reached):
                     return None, (30, 0), Mode.BACK_AND_TURN2
                 # 条件を満たしたので次のフェーズへ
