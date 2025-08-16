@@ -514,47 +514,49 @@ class ActionChain(object):
         1. 左旋回（右モーター450ユニット以上は必ず旋回、450超えた後is_x320_on_red_target(image, x_tolerance=60)検出または950ユニット到達まで左:0,右:30）
         2. 終了: 状態リセットしCARRY_BOTTLE2へ遷移
         """
-        state = self._state.setdefault("back_and_turn1_relative", {
-            "phase": 0,
-            "position_start": None,
-        })
-        status = self.get_motor_position(mode="status") 
+        # 初回呼び出し時のみ初期化
+        if not self._init:
+            self._phase = PhaseManager()
+            self._status = self.get_motor_position(mode="status")
+            # 初期位置記録を初回初期化時に実施
+            self._phase.set_position_start("position_start", self.get_motor_position('right', status=self._status))
+            self._init = True
+        phase = self._phase
+        status = self._status
 
         # 0. 後退（右モーター600ユニット移動まで）
-        if state["phase"] == 0:
-            if state["position_start"] is None:
-                state["position_start"] = self.get_motor_position('right', status=status)
-            if state["position_start"] is not None:
-                current_pos = self.get_motor_position('right', status=status)
-                if abs(current_pos - state["position_start"]) < 600:
-                    return None, (BASE_SPEED, BASE_SPEED), Mode.BACK_AND_TURN1
-            state["phase"] = 1
+        if phase.get_phase() == 0:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right', status=status)
+            if abs(current_pos - position_start) < 600:
+                return None, (BASE_SPEED, BASE_SPEED), Mode.BACK_AND_TURN1
+            phase.next_phase()
             # phase1用 右モーター相対位置記録（get_motor_positionで統一）
-            state["position_start"] = self.get_motor_position('right', status=status)
+            phase.set_position_start("position_start", self.get_motor_position('right', status=status))
 
         # 1. 左旋回（is_x320_on_red_target(image, x_tolerance=50)検出まで、最低右モーター450ユニット、最大右モーター950ユニット, 左:0, 右:30）
-        if state["phase"] == 1:
+        if phase.get_phase() == 1:
             red_target_detected = is_x320_on_red_target(image, x_tolerance=60)
             position_limit_reached = False
             minimum_position_reached = False
             position_limit_reached = False
-            if state["position_start"] is not None:
-                current_pos = self.get_motor_position('right', status=status)
-                position_diff = abs(current_pos - state["position_start"])
-                minimum_position_reached = position_diff >= 450
-                position_limit_reached = position_diff >= 940
-            
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right', status=status)
+            position_diff = abs(current_pos - position_start)
+            minimum_position_reached = position_diff >= 450
+            position_limit_reached = position_diff >= 940
+        
             # 最低450ユニットは必ず旋回
             if not minimum_position_reached:
                 return None, (0, 30), Mode.BACK_AND_TURN1
             # 450ユニット超えてから、ターゲット検出または940ユニット到達まで継続
             if (not red_target_detected) and (not position_limit_reached):
                 return None, (0, 30), Mode.BACK_AND_TURN1
-            state["phase"] = 2
+            phase.next_phase()
 
         # 2. 終了: 状態リセット
-        if state["phase"] == 2:
-            self._state["back_and_turn1_relative"] = {"phase": 0, "position_start": None}
+        if phase.get_phase() == 2:
+            self._init = False
             return None, None, Mode.CARRY_BOTTLE2
 
     def carry_bottle2_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
