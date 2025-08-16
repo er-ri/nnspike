@@ -1,3 +1,10 @@
+"""nnspike/unit/action_chain.py.
+
+ETRobotのためのアクションシーケンス管理クラスとPhaseManagerを定義。
+各アクション（左旋回・右旋回・短時間旋回・青ボトルキャッチ等）を、
+指定時間またはモーター相対位置・画像認識条件で状態遷移しながら実行する。
+"""
+
 import time  # 時間計測用
 from typing import Optional, Tuple  # 型ヒント用
 
@@ -24,47 +31,43 @@ from nnspike.utils.control import (
 )
 
 class PhaseManager:
+    """フェーズ管理クラス。"""
 
     def __init__(self):
+        """PhaseManagerの初期化処理."""
         self._state = {}
         self._state["phase"] = 0
         self._state["position_start"] = None
 
     def get_phase(self) -> int:
+        """現在のphase値を取得する."""
         return self._state.get("phase", 0)
 
     def next_phase(self) -> None:
+        """phase値を1進める."""
         self._state["phase"] = self._state.get("phase", 0) + 1
 
     def set_position_start(self, key: str, value) -> None:
-        """
-        指定したkey（例: 'right_position_start'）にvalue（例: モーター位置）をセット。
-        valueがint型以外の場合は0に変換してセット。
+        """指定したkey（例: 'right_position_start'）にvalue（例: モーター位置）をセットする。
+
+        valueがint型以外の場合は0に変換してセットする。
         """
         if not isinstance(value, int):
             value = 0
         self._state[key] = value
 
     def get_position_start(self, key: str) -> int:
-        """
-        指定したkeyのposition_start値を取得。未設定やint型以外なら0を返す。
-        """
+        """指定したkeyのposition_start値を取得する."""
         value = self._state.get(key, None)
         if not isinstance(value, int):
             return 0
         return value
 
 class ActionChain(object):
-    """
-    ETRobotのためのアクションシーケンス管理クラス。
-
-    各アクション（左旋回・右旋回・短時間旋回・青ボトルキャッチ等）を、
-    指定時間またはモーター相対位置・画像認識条件で状態遷移しながら実行する。
-    状態管理はself._stateのdictで行い、各アクションはフェーズごとに分岐。
-    コメント・docstringは必ず実装内容と一致させること。
-    """
+    """ETRobotのためのアクションシーケンス管理クラス."""
 
     def __init__(self, et: ETRobot, course: str) -> None:
+        """ActionChainの初期化処理."""
         self.et = et  # ロボット本体
         self.course = course  # コース種別
         self.start_time = 0.0  # アクション開始時刻
@@ -73,8 +76,25 @@ class ActionChain(object):
         self._init = False
         self.pre_target_x = (self.x1 + self.x2) // 2
 
-    def get_motor_position(self, side: str = "right", mode: str = "position", status=None) -> int:
+    def initialize_action(self, motor_side: str = "right"):
+        """アクション開始時の状態初期化処理.
+
+        motor_side: "right"または"left"で初期位置記録対象を指定する。
         """
+        self._phase = PhaseManager()
+        self._status = self.get_motor_position(mode="status")
+        self._phase.set_position_start("position_start", self.get_motor_position(motor_side, status=self._status))
+        self._init = True
+
+    def reset_action(self):
+        """アクション終了時の状態リセット処理."""
+        self._init = False
+        self._phase = None
+        self._status = None
+
+    def get_motor_position(self, side: str = "right", mode: str = "position", status=None) -> int:
+        """モーター位置・status取得メソッド.
+
         side='right'で右モータ(B)、'left'で左モータ(A)のrelative_positionを返す。
         mode='position'なら該当モータのrelative_position（絶対値, Noneなら0）、'status'ならstatusオブジェクト。
         status引数を指定すればそれを使い、未指定時のみ内部で取得する。
@@ -107,8 +127,8 @@ class ActionChain(object):
             return 0
 
     def turn_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
-        """
-        左旋回アクション。
+        """左旋回アクション.
+
         1.5秒間、左モータ:0・右モータ:30で旋回し、1.5秒経過後にPAUSEへ遷移。
         戻り値: (None, (左速度, 右速度), モード)
         """
@@ -122,8 +142,8 @@ class ActionChain(object):
         return None, None, Mode.PAUSE
 
     def trun_right(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
-        """
-        右旋回アクション。
+        """右旋回アクション.
+
         1.5秒間、左モータ:30・右モータ:0で旋回し、1.5秒経過後にPAUSEへ遷移。
         戻り値: (None, (左速度, 右速度), モード)
         """
@@ -137,8 +157,8 @@ class ActionChain(object):
         return None, None, Mode.PAUSE
 
     def small_turn_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
-        """
-        短時間（0.3秒）左旋回アクション。
+        """短時間（0.3秒）左旋回アクション.
+
         0.3秒間、左モータ:0・右モータ:50で旋回し、0.3秒経過後にPAUSEへ遷移。
         戻り値: (None, (左速度, 右速度), モード)
         """
@@ -152,8 +172,8 @@ class ActionChain(object):
         return None, None, Mode.PAUSE
 
     def small_turn_right(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
-        """
-        短時間（0.3秒）右旋回アクション。
+        """短時間（0.3秒）右旋回アクション.
+
         0.3秒間、左モータ:50・右モータ:0で旋回し、0.3秒経過後にPAUSEへ遷移。
         戻り値: (None, (左速度, 右速度), モード)
         """
@@ -167,8 +187,8 @@ class ActionChain(object):
         return None, None, Mode.PAUSE
 
     def blue_bottle_catch(self, image: np.ndarray) -> tuple:
-        """
-        青ボトルキャッチモード。
+        """青ボトルキャッチモード.
+
         ・phase0: 青ターゲット中心x座標へ追従（青ピクセル数1000超えたらphase1へ）
         ・phase1: 青ピクセル数1000以上の間は中心x座標へ追従、500以下でphase2へ（右モーター位置記録）
         ・phase2: 青ピクセル数500以下になってから右モーター300ユニット移動まで中心x座標へ追従、300到達でphase3へ
@@ -176,12 +196,8 @@ class ActionChain(object):
         戻り値: (target_x, (左速度, 右速度), モード)
         """
         # 初回呼び出し時のみ初期化
-        # phase0: 初期化（PhaseManager生成、右モーター初期位置記録）
         if not self._init:
-            self._phase = PhaseManager()
-            self._status = self.get_motor_position(mode="status")
-            self._phase.set_position_start("position_start", self.get_motor_position('right', status=self._status))
-            self._init = True
+            self.initialize_action(motor_side="right")
         phase = self._phase
         status = self._status
 
@@ -224,7 +240,7 @@ class ActionChain(object):
                 phase.next_phase()
         # phase3: 状態リセットしPAUSEへ遷移
         if phase.get_phase() == 3:
-            self._init = False
+            self.reset_action()
             return None, None, Mode.PAUSE
 
     def turn_left_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
@@ -268,12 +284,9 @@ class ActionChain(object):
         ・phase3: 状態リセットし右端追従モード(FOLLOW_RIGHT_EDGE)へ復帰
         戻り値: (None, (左速度, 右速度), モード)
         """
-        # 初回呼び出し時のみ初期化（PhaseManager生成、右モーター初期位置記録）
+        # 初回呼び出し時のみ初期化
         if not self._init:
-            self._phase = PhaseManager()
-            self._status = self.get_motor_position(mode="status")
-            self._phase.set_position_start("position_start", self.get_motor_position('right', status=self._status))
-            self._init = True
+            self.initialize_action(motor_side="right")
         phase = self._phase
         status = self._status
 
@@ -315,7 +328,7 @@ class ActionChain(object):
 
         # phase3: 状態リセットし右端追従モード(FOLLOW_RIGHT_EDGE)へ復帰
         if phase.get_phase() == 3:
-            self._init = False
+            self.reset_action()
             return None, None, Mode.FOLLOW_RIGHT_EDGE
 
 # --- 以下、*_relativeメソッド（元メソッド完全コピー） ---
@@ -340,12 +353,8 @@ class ActionChain(object):
         """
         # 初回呼び出し時のみ初期化
         if not self._init:
-            self._phase = PhaseManager()
-            self._status = self.get_motor_position(mode="status")
-            # 初期位置記録を初回初期化時に実施
-            self._phase.set_position_start("position_start", self.get_motor_position('right', status=self._status))
+            self.initialize_action(motor_side="right")
             pre_target_x = self.pre_target_x
-            self._init = True
         phase = self._phase
         status = self._status
 
@@ -506,7 +515,7 @@ class ActionChain(object):
             
         # 11. 状態リセットしBACK_AND_TURN1へ遷移
         if phase.get_phase() == 11:
-            self._init = False
+            self.reset_action()
             return None, None, Mode.BACK_AND_TURN1
 
     def back_and_turn1_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
@@ -520,11 +529,7 @@ class ActionChain(object):
         """
         # 初回呼び出し時のみ初期化
         if not self._init:
-            self._phase = PhaseManager()
-            self._status = self.get_motor_position(mode="status")
-            # 初期位置記録を初回初期化時に実施
-            self._phase.set_position_start("position_start", self.get_motor_position('right', status=self._status))
-            self._init = True
+            self.initialize_action(motor_side="right")
         phase = self._phase
         status = self._status
 
@@ -560,7 +565,7 @@ class ActionChain(object):
 
         # 2. 終了: 状態リセットしCARRY_BOTTLE2へ遷移
         if phase.get_phase() == 2:
-            self._init = False
+            self.reset_action()
             return None, None, Mode.CARRY_BOTTLE2
 
     def carry_bottle2_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
@@ -585,12 +590,8 @@ class ActionChain(object):
         """
         # 初回呼び出し時のみ初期化
         if not self._init:
-            self._phase = PhaseManager()
-            self._status = self.get_motor_position(mode="status")
-            # 初期位置記録を初回初期化時に実施
-            self._phase.set_position_start("position_start", self.get_motor_position('right', status=self._status))
+            self.initialize_action(motor_side="right")
             pre_target_x = self.pre_target_x
-            self._init = True
         phase = self._phase
         status = self._status
 
@@ -778,7 +779,7 @@ class ActionChain(object):
 
         # 13. 状態リセットしBACK_AND_TURN2へ遷移
         if phase.get_phase() == 13:
-            self._init = False
+            self.reset_action()
             return None, None, Mode.BACK_AND_TURN2
 
     def back_and_turn2_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
@@ -792,11 +793,7 @@ class ActionChain(object):
         """
         # 初回呼び出し時のみ初期化
         if not self._init:
-            self._phase = PhaseManager()
-            self._status = self.get_motor_position(mode="status")
-            # 初期位置記録を初回初期化時に実施
-            self._phase.set_position_start("position_start", self.get_motor_position('left', status=self._status))
-            self._init = True
+            self.initialize_action(motor_side="left")
         phase = self._phase
         status = self._status
 
@@ -829,7 +826,7 @@ class ActionChain(object):
 
         # 2. 終了: 状態リセットしHEAD_GOALへ遷移
         if phase.get_phase() == 2:
-            self._init = False
+            self.reset_action()
             return None, None, Mode.HEAD_GOAL
 
     def heading_goal_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
@@ -846,11 +843,7 @@ class ActionChain(object):
         """
         # 初回呼び出し時のみ初期化
         if not self._init:
-            self._phase = PhaseManager()
-            self._status = self.get_motor_position(mode="status")
-            # 初期位置記録を初回初期化時に実施
-            self._phase.set_position_start("position_start", self.get_motor_position('right', status=self._status))
-            self._init = True
+            self.initialize_action(motor_side="right")
         phase = self._phase
         status = self._status
 
@@ -918,5 +911,5 @@ class ActionChain(object):
 
         # 5. 600到達で状態リセットしPAUSE
         if phase.get_phase() == 5:
-            self._init = False
+            self.reset_action()
             return None, None, Mode.PAUSE
