@@ -23,37 +23,6 @@ from nnspike.utils.control import (
     is_general_horizontal_line_detected,  # 一般的な水平黒ライン検出
 )
 
-class PhaseManager:
-
-    def __init__(self):
-        self._state = {}
-        self._state["phase"] = 0
-        self._state["position_start"] = None
-
-    def get_phase(self) -> int:
-        return self._state.get("phase", 0)
-
-    def next_phase(self) -> None:
-        self._state["phase"] = self._state.get("phase", 0) + 1
-
-    def set_position_start(self, key: str, value) -> None:
-        """
-        指定したkey（例: 'right_position_start'）にvalue（例: モーター位置）をセット。
-        valueがint型以外の場合は0に変換してセット。
-        """
-        if not isinstance(value, int):
-            value = 0
-        self._state[key] = value
-
-    def get_position_start(self, key: str) -> int:
-        """
-        指定したkeyのposition_start値を取得。未設定やint型以外なら0を返す。
-        """
-        value = self._state.get(key, None)
-        if not isinstance(value, int):
-            return 0
-        return value
-
 class ActionChain(object):
     """
     ETRobotのためのアクションシーケンス管理クラス。
@@ -71,9 +40,8 @@ class ActionChain(object):
         self.current_time = 0.0  # 現在時刻
         self._state = {}  # 各アクションの状態管理dict
         self.x1, self.y1, self.x2, self.y2 = ROI_CNN  # ROI座標
-        self._init = False  # avoid_obstacle_relative用初期化フラグ
-        
-    def get_motor_position(self, side: str = "right", mode: str = "position", status=None) -> int:
+
+    def get_motor_position(self, side: str = "right", mode: str = "position", status=None):
         """
         side='right'で右モータ(B)、'left'で左モータ(A)のrelative_positionを返す。
         mode='position'なら該当モータのrelative_position（絶対値, Noneなら0）、'status'ならstatusオブジェクト。
@@ -86,9 +54,8 @@ class ActionChain(object):
             status = self.et.get_spike_status()
             if status is None:
                 print("[get_motor_position] get_spike_status() returned None")
-                return 0
-            # status型はint型ではないので、mode='status'時は0を返す
-            return 0
+                return None
+            return status
         if status is None:
             status = self.et.get_spike_status()
             if status is None:
@@ -256,64 +223,72 @@ class ActionChain(object):
         2. 左旋回（右モーター350ユニット移動まで, 左:40, 右:70）
         3. チェーン終了で右端追従モードへ復帰
         """
-        # 初回呼び出し時のみ初期化
-        if not self._init:
-            self._phase = PhaseManager()
-            self._status = self.get_motor_position(mode="status")
-            # 初期位置記録を初回初期化時に実施
-            self._phase.set_position_start("position_start", self.get_motor_position('right', status=self._status))
-            self._init = True
-        phase_manager = self._phase
-        status = self._status
+        state = self._state.setdefault("avoid_obstacle_relative", {
+            "phase": 0,
+            "right_position_start": None,
+        })
+        status = self.get_motor_position(mode="status")
 
         # 0. 左旋回（右モーター500ユニット移動まで, 左:40, 右:70）
-        if phase_manager.get_phase() == 0:
-            position_start = phase_manager.get_position_start("position_start")
+        if state["phase"] == 0:
+            if state["right_position_start"] is None:
+                state["right_position_start"] = self.get_motor_position('right', status=status)
+
             current_pos = self.get_motor_position('right', status=status)
-            if abs(current_pos - position_start) < 500:
+            if state["right_position_start"] is not None:
+                if abs(current_pos - state["right_position_start"]) < 500:
+                    return None, (40, 70), Mode.AVOID_OBSTACLE
+                else:
+                    # 500ユニット到達したので次のフェーズへ
+                    state["phase"] = 1
+                    # phase1用も右モーター相対位置記録（絶対値）
+                    state["right_position_start"] = self.get_motor_position('right', status=status)
+                # ステータス取得失敗時は継続
                 return None, (40, 70), Mode.AVOID_OBSTACLE
-            else:
-                # 500ユニット到達したので次のフェーズへ
-                phase_manager.next_phase()
-                # phase1用も右モーター相対位置記録（絶対値）
-                phase_manager.set_position_start("position_start", self.get_motor_position('right', status=status))
-            return None, (40, 70), Mode.AVOID_OBSTACLE
 
         # 1. 右旋回（右モーター700ユニット移動まで, 左:80, 右:50）
-        if phase_manager.get_phase() == 1:
-            position_start = phase_manager.get_position_start("position_start")
-            current_pos = self.get_motor_position('right', status=status)
-            if abs(current_pos - position_start) < 550:
-                return None, (70, 40), Mode.AVOID_OBSTACLE
+        if state["phase"] == 1:
+            if state["right_position_start"] is not None:
+                current_pos = self.get_motor_position('right', status=status)
+                if abs(current_pos - state["right_position_start"]) < 550:
+                    return None, (70, 40), Mode.AVOID_OBSTACLE
+                else:
+                    # 650ユニット到達したので次のフェーズへ
+                    state["phase"] = 2
+                    # phase2用も右モーター相対位置記録（絶対値）
+                    state["right_position_start"] = self.get_motor_position('right', status=status)
             else:
-                # 650ユニット到達したので次のフェーズへ
-                phase_manager.next_phase()
-                # phase2用も右モーター相対位置記録（絶対値）
-                phase_manager.set_position_start("position_start", self.get_motor_position('right', status=status))
+                # ステータス取得失敗時は継続
+                return None, (70, 40), Mode.AVOID_OBSTACLE
 
         # 2. 左旋回（右モーター350ユニット移動まで, 左:40, 右:70）
-        if phase_manager.get_phase() == 2:
-            position_start = phase_manager.get_position_start("position_start")
-            current_pos = self.get_motor_position('right', status=status)
-            distance = abs(current_pos - position_start)
-            # 走行距離が200未満なら常に(40,70)で走行
-            if distance < 250:
-                return None, (40, 70), Mode.AVOID_OBSTACLE
-            # 250以上350未満の間はis_vertical_black_line_detected(image)がTrueなら即フェーズ3へ
-            elif distance < 350:
-                if is_vertical_black_line_detected(image):
-                    phase_manager.next_phase()
-                    # すぐ次の処理でphase3に入る
-                else:
+        if state["phase"] == 2:
+            if state["right_position_start"] is not None:
+                current_pos = self.get_motor_position('right', status=status)
+                distance = abs(current_pos - state["right_position_start"])
+                # 走行距離が200未満なら常に(40,70)で走行
+                if distance < 250:
                     return None, (40, 70), Mode.AVOID_OBSTACLE
-            # 450以上なら強制的にフェーズ3へ
+                # 250以上350未満の間はis_vertical_black_line_detected(image)がTrueなら即フェーズ3へ
+                elif distance < 350:
+                    if is_vertical_black_line_detected(image):
+                        state["phase"] = 3
+                        # すぐ次の処理でphase3に入る
+                    else:
+                        return None, (40, 70), Mode.AVOID_OBSTACLE
+                # 450以上なら強制的にフェーズ3へ
+                else:
+                    state["phase"] = 3
             else:
-                phase_manager.next_phase()
+                # ステータス取得失敗時は継続
+                return None, (40, 70), Mode.AVOID_OBSTACLE
 
-        # 3. チェーン終了
-        if phase_manager.get_phase() == 3:
-            # 状態リセット
-            self._init = False
+        # 3. チェーン終了でリセット
+        if state["phase"] == 3:
+            self._state["avoid_obstacle_relative"] = {
+                "phase": 0, 
+                "right_position_start": None,
+            }
             return None, None, Mode.FOLLOW_RIGHT_EDGE
 
 # --- 以下、*_relativeメソッド（元メソッド完全コピー） ---
@@ -887,7 +862,7 @@ class ActionChain(object):
                     # 垂直ライン未検出・600未満は左旋回継続
                     return None, (0, 30), Mode.HEAD_GOAL
                 # 垂直ライン検出または600到達でphase3へ
-                state["phase"] = 3  # phase3へ遷移
+                state["phase"] = 3
             else:
                 # ステータス取得失敗時は左旋回継続
                 return None, (0, 30), Mode.HEAD_GOAL
