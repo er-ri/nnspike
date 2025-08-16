@@ -305,7 +305,7 @@ class ActionChain(object):
             "pre_target_x": None,
             "right_position_start": None,
         })
-        status = self.et.get_spike_status()
+        status = self.get_motor_position(mode="status")
 
         # 0. 右エッジトレース→赤3000超でphase1へ
         if state["phase"] == 0:
@@ -315,13 +315,7 @@ class ActionChain(object):
             if red_pixel_count > 3000:
                 state["phase"] = 1
                 # phase1用 右モーター相対位置記録（絶対値）
-                if status is not None and status.motors.get("B") is not None:
-                    if status.motors["B"].relative_position is not None:
-                        state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-                    else:
-                        state["right_position_start"] = None
-                else:
-                    state["right_position_start"] = None
+                state["right_position_start"] = self.get_motor_position('right', status=status)
             else:
                 return target_x, None, Mode.CARRY_BOTTLE1
 
@@ -330,8 +324,8 @@ class ActionChain(object):
             center, _, red_px = find_bottle_center(image=image, color="red")
             # None チェックは不要 - find_bottle_center は常に3つの値を返す（centerがNoneの場合もあるが）
             # 右モーター相対位置差分で継続判定
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                current_pos = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
+            if state["right_position_start"] is not None:
+                current_pos = self.get_motor_position('right', status=status)
                 if abs(current_pos - state["right_position_start"]) < 1000:
                     if center is not None and red_px is not None and red_px >= 500:
                         target_x = center[0]
@@ -341,15 +335,12 @@ class ActionChain(object):
             # 1000超えたら次フェーズへ
             state["phase"] = 2
             # phase2用 右モーター相対位置記録（絶対値）
-            if status is not None and status.motors.get("B") is not None:
-                state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-            else:
-                state["right_position_start"] = None
+            state["right_position_start"] = self.get_motor_position('right', status=status)
 
         # 2. 左エッジトレース（右モーター相対位置差分が1200未満の間）
         if state["phase"] == 2:
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                current_pos = abs(status.motors["B"].relative_position)
+            if state["right_position_start"] is not None:
+                current_pos = self.get_motor_position('right', status=status)
                 if abs(current_pos - state["right_position_start"]) < 1200:
                     left_x, _, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=300, threshold_value=80)
                     target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
@@ -358,50 +349,37 @@ class ActionChain(object):
             state["phase"] = 3
             state["pre_target_x"] = (self.x1 + self.x2) // 2
             # phase3用 右モーター相対位置記録（絶対値）
-            if status is not None and status.motors.get("B") is not None:
-                state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-            else:
-                state["right_position_start"] = None
+            state["right_position_start"] = self.get_motor_position('right', status=status)
 
         # 3. 左旋回（右モーター相対位置差分が390未満の間 左:0, 右:30）
         if state["phase"] == 3:
-            status = self.et.get_spike_status()
-            if "right_position_start" not in state or state["right_position_start"] is None:
-                if status is not None and status.motors.get("B") is not None:
-                    state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-                else:
-                    state["right_position_start"] = None
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                current_pos = abs(status.motors["B"].relative_position)
+            if state["right_position_start"] is None:
+                state["right_position_start"] = self.get_motor_position('right', status=status)
+            if state["right_position_start"] is not None:
+                current_pos = self.get_motor_position('right', status=status)
                 if abs(current_pos - state["right_position_start"]) < 390:
                     return None, (0, 30), Mode.CARRY_BOTTLE1
             # 390超えたら次フェーズへ
             state["phase"] = 4
             # phase4用 右モーター相対位置記録（絶対値）
-            if status is not None and status.motors.get("B") is not None:
-                state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-            else:
-                state["right_position_start"] = None
+            state["right_position_start"] = self.get_motor_position('right', status=status)
 
         # 4. 直進（右モーター100ユニット移動まで）
         if state["phase"] == 4:
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                current_pos = abs(status.motors["B"].relative_position)
+            if state["right_position_start"] is not None:
+                current_pos = self.get_motor_position('right', status=status)
                 if abs(current_pos - state["right_position_start"]) < 100:
                     return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE1
             # 300超えたら次フェーズへ
             state["phase"] = 5
             state["pre_target_x"] = (self.x1 + self.x2) // 2
             # phase5用 右モーター相対位置記録（絶対値）
-            if status is not None and status.motors.get("B") is not None:
-                state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-            else:
-                state["right_position_start"] = None
+            state["right_position_start"] = self.get_motor_position('right', status=status)
 
         # 5. 仮想ライン直進（右モーター1000ユニット移動まで, get_virtual_line_target_x, previous_center_x=pre_target_x）
         if state["phase"] == 5:
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                current_pos = abs(status.motors["B"].relative_position)
+            if state["right_position_start"] is not None:
+                current_pos = self.get_motor_position('right', status=status)
                 if abs(current_pos - state["right_position_start"]) < 1000:
                     pre_target_x = state.get("pre_target_x")
                     # 右に障害物がある場合は左回避を明示
@@ -418,32 +396,26 @@ class ActionChain(object):
             # 1000超えたら次フェーズへ
             state["phase"] = 6
             # phase6用 右モーター相対位置記録（絶対値）
-            if status is not None and status.motors.get("B") is not None:
-                state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-            else:
-                state["right_position_start"] = None
+            state["right_position_start"] = self.get_motor_position('right', status=status)
 
         # 6. 直進（右モーター1900ユニット移動まで）
         if state["phase"] == 6:
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                current_pos = abs(status.motors["B"].relative_position)
+            if state["right_position_start"] is not None:
+                current_pos = self.get_motor_position('right', status=status)
                 if abs(current_pos - state["right_position_start"]) < 1900:
                     return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE1
             # 1900超えたら次フェーズへ
             state["phase"] = 7
             # phase7用 右モーター相対位置記録（絶対値）
-            if status is not None and status.motors.get("B") is not None:
-                state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-            else:
-                state["right_position_start"] = None
+            state["right_position_start"] = self.get_motor_position('right', status=status)
 
         # 7. 左旋回（is_x320_on_blue_targetがTrueになるまで左:0, 右:30で旋回、最大右モーター500ユニット、最低300ユニット旋回）
         if state["phase"] == 7:
             blue_target_detected = is_x320_on_blue_target(image, x_tolerance=60)
             position_limit_reached = False
             minimum_rotation_done = False
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                current_pos = abs(status.motors["B"].relative_position)
+            if state["right_position_start"] is not None:
+                current_pos = self.get_motor_position('right', status=status)
                 position_diff = abs(current_pos - state["right_position_start"])
                 minimum_rotation_done = position_diff >= 300
                 position_limit_reached = position_diff >= 500
@@ -477,11 +449,8 @@ class ActionChain(object):
                 target_x = (self.x1 + self.x2) // 2
             if blue_pixel_count <= 500:
                 state["phase"] = 10
-                # phase10用 右モーター相対位置記録（絶対値）
-                if status is not None and status.motors.get("B") is not None:
-                    state["right_position_start"] = abs(status.motors["B"].relative_position)
-                else:
-                    state["right_position_start"] = None
+                # phase10用 右モーター相対位置記録（get_motor_positionで統一）
+                state["right_position_start"] = self.get_motor_position('right', status=status)
             return target_x, None, Mode.CARRY_BOTTLE1
 
         # 10. 青500以下になってから右モーター300ユニット移動まで center追従、その後BACK_AND_TURN1
@@ -493,8 +462,8 @@ class ActionChain(object):
                 target_x = (self.x1 + self.x2) // 2
             
             # 右モーター位置差分で継続判定
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                current_pos = abs(status.motors["B"].relative_position)
+            if state["right_position_start"] is not None:
+                current_pos = self.get_motor_position('right', status=status)
                 if abs(current_pos - state["right_position_start"]) < 300:
                     return target_x, None, Mode.CARRY_BOTTLE1
             # 状態リセット
