@@ -248,8 +248,8 @@ class ActionChain(object):
 
         # 1. 右旋回（右モーター700ユニット移動まで, 左:80, 右:50）
         if state["phase"] == 1:
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                current_pos = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
+            if state["right_position_start"] is not None:
+                current_pos = self.get_motor_position('right', status=status)
                 if abs(current_pos - state["right_position_start"]) < 550:
                     return None, (70, 40), Mode.AVOID_OBSTACLE
                 else:
@@ -808,25 +808,19 @@ class ActionChain(object):
             "phase": 0,  # 現在のフェーズ
             "right_position_start": None,  # 右モーターBの基準位置
         })
-        status = self.et.get_spike_status()  # ロボットの現在ステータス取得
+        status = self.get_motor_position(mode="status")  # get_motor_positionで最新status取得に統一
 
         # 0. intersection_y=450で黒水平ライン検出まで中央追従（距離制限なし）
         if state["phase"] == 0:
             # 右モーター基準位置未設定なら記録
             if state["right_position_start"] is None:
-                if status is not None and status.motors.get("B") is not None and status.motors["B"].relative_position is not None:
-                    state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-                else:
-                    state["right_position_start"] = None
+                # get_motor_positionで完全統一（status/motors判定不要）
+                state["right_position_start"] = self.get_motor_position('right', status=status)
             # intersection_y=450で黒水平ライン検出
             if is_horizontal_black_line_detected(image, intersection_y=450):
                 state["phase"] = 1  # phase1へ遷移
-                # phase1用 右モーター相対位置記録（絶対値）
-                if status is not None and status.motors.get("B") is not None:
-                    right_position = status.motors["B"].relative_position
-                    state["right_position_start"] = abs(right_position) if right_position is not None else None
-                else:
-                    state["right_position_start"] = None
+                # phase1用 右モーター相対位置記録（get_motor_positionで完全統一）
+                state["right_position_start"] = self.get_motor_position('right', status=status)
             else:
                 # ライン未検出時は中央追従
                 target_x = (self.x1 + self.x2) // 2
@@ -834,9 +828,9 @@ class ActionChain(object):
 
         # 1. 右モーターBの移動距離が300未満なら中央追従、300以上でphase2へ遷移
         if state["phase"] == 1:
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                right_position = status.motors["B"].relative_position
-                current_pos = abs(right_position) if right_position is not None else 0
+            if state["right_position_start"] is not None:
+                # get_motor_positionで完全統一（status/motors判定不要）
+                current_pos = self.get_motor_position('right', status=status)
                 position_diff = abs(current_pos - state["right_position_start"])
                 target_x = (self.x1 + self.x2) // 2
                 if position_diff < 300:
@@ -844,12 +838,8 @@ class ActionChain(object):
                     return target_x, None, Mode.HEAD_GOAL
                 else:
                     state["phase"] = 2  # phase2へ遷移
-                    # phase2用 右モーター相対位置記録（絶対値）
-                    if status is not None and status.motors.get("B") is not None:
-                        rel_pos = status.motors["B"].relative_position
-                        state["right_position_start"] = abs(rel_pos) if rel_pos is not None else None
-                    else:
-                        state["right_position_start"] = None
+                    # phase2用 右モーター相対位置記録（get_motor_positionで完全統一）
+                    state["right_position_start"] = self.get_motor_position('right', status=status)
             else:
                 # ステータス取得失敗時も中央追従
                 target_x = (self.x1 + self.x2) // 2
@@ -857,9 +847,9 @@ class ActionChain(object):
 
         # 2. 左旋回（右モーターBの移動距離100未満は常に左旋回。100以上で垂直黒ライン検出開始。600未満の間は左:0,右:30で継続。垂直ライン検出または600到達でphase3へ）
         if state["phase"] == 2:
-            if status is not None and status.motors.get("B") is not None:
-                rel_pos = status.motors["B"].relative_position
-                current_pos = abs(rel_pos) if rel_pos is not None else 0
+            if state["right_position_start"] is not None:
+                # get_motor_positionで完全統一
+                current_pos = self.get_motor_position('right', status=status)
                 position_diff = abs(current_pos - state["right_position_start"]) if state["right_position_start"] is not None else 0
                 minimum_position_reached = position_diff >= 100  # 100未満はライン検出しない
                 position_limit_reached = position_diff >= 600
@@ -887,22 +877,16 @@ class ActionChain(object):
             blue_line = get_is_blue_line_at_y(image, target_y=OFFSET_Y)
             if blue_line:
                 state["phase"] = 4  # phase4へ遷移
-                # phase4用 右モーター相対位置記録（絶対値）
-                if status is not None and status.motors.get("B") is not None:
-                    right_position = status.motors["B"].relative_position
-                    state["right_position_start"] = abs(right_position) if right_position is not None else None
-                else:
-                    state["right_position_start"] = None
-                return target_x, None, Mode.HEAD_GOAL
+                # phase4用 右モーター相対位置記録（get_motor_positionで完全統一）
+                state["right_position_start"] = self.get_motor_position('right', status=status)
             # 青ライン未検出時も左エッジ追従
             return target_x, None, Mode.HEAD_GOAL
 
         # 4. 青ライン検出後、右モーターBの移動距離600未満の間は左エッジトレース、600到達でPAUSE（状態リセット）
         if state["phase"] == 4:
             position_limit_reached = False
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                right_position = status.motors["B"].relative_position
-                current_pos = abs(right_position) if right_position is not None else 0
+            if state["right_position_start"] is not None:
+                current_pos = self.get_motor_position('right', status=status)
                 position_limit_reached = abs(current_pos - state["right_position_start"]) >= 600
             if position_limit_reached:
                 # 600到達で状態リセットしPAUSE
