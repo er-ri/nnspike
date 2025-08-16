@@ -69,7 +69,6 @@ class ActionChain(object):
         self.course = course  # コース種別
         self.start_time = 0.0  # アクション開始時刻
         self.current_time = 0.0  # 現在時刻
-        self._state = {}  # 各アクションの状態管理dict
         self.x1, self.y1, self.x2, self.y2 = ROI_CNN  # ROI座標
         self._init = False  
         
@@ -169,51 +168,63 @@ class ActionChain(object):
     def blue_bottle_catch(self, image: np.ndarray) -> tuple:
         """
         青ボトルキャッチモード。
-        ・青ピクセル数が3000を超えるまでは青重心追従（target_xに重心x座標、速度指令はNone）
-        ・一度3000超えた後、3000未満になったら0.8秒間直進（左右45）
-        ・0.8秒経過後にPAUSEへ遷移
+        ・phase0: 青ターゲット中心x座標へ追従（青ピクセル数1000超えたらphase1へ）
+        ・phase1: 青ピクセル数1000以上の間は中心x座標へ追従、500以下でphase2へ（右モーター位置記録）
+        ・phase2: 青ピクセル数500以下になってから右モーター300ユニット移動まで中心x座標へ追従、300到達でphase3へ
+        ・phase3: 状態リセットしPAUSEへ遷移
         戻り値: (target_x, (左速度, 右速度), モード)
         """
-        state = self._state.setdefault("blue_bottle_catch", {"detected": False, "below3000_time": None})
-        blue_cx, _, blue_pixel_count = find_bottle_center(image, color="blue")
-        now = time.time()
-        x1, y1, x2, y2 = self.x1, self.y1, self.x2, self.y2
-        BASE_SPEED = 45  # run_manual.pyと合わせる
-        target_x = None
-        left_speed = right_speed = None
-        mode = Mode.BLUE_BOTTLE_CATCH
-        if not state["detected"]:
-            if blue_pixel_count > 3000:
-                state["detected"] = True
-            state["below3000_time"] = None
-            if blue_cx is not None:
-                target_x = blue_cx[0]
-            else:
-                target_x = (x1 + x2) // 2
-            return target_x, None, mode
-        else:
-            if blue_pixel_count < 3000:
-                if state.get("below3000_time") is None:
-                    state["below3000_time"] = now
-                # 0.8秒間直進
-                if now - state["below3000_time"] < 0.8:
-                    target_x = (x1 + x2) // 2
-                    left_speed = right_speed = BASE_SPEED
-                    return target_x, (left_speed, right_speed), mode
-                else:
-                    # 状態リセットしPAUSEへ
-                    state["detected"] = False
-                    state["below3000_time"] = None
-                    target_x = (x1 + x2) // 2
-                    return target_x, (0, 0), Mode.PAUSE
-            else:
-                state["below3000_time"] = None
-                if blue_cx is not None:
-                    target_x = blue_cx[0]
-                else:
-                    target_x = (x1 + x2) // 2
-                return target_x, None, mode
+        # 初回呼び出し時のみ初期化
+        # phase0: 初期化（PhaseManager生成、右モーター初期位置記録）
+        if not self._init:
+            self._phase = PhaseManager()
+            self._status = self.get_motor_position(mode="status")
+            self._phase.set_position_start("position_start", self.get_motor_position('right', status=self._status))
+            self._init = True
+        phase = self._phase
+        status = self._status
 
+        # phase0: 青ターゲット中心x座標へ追従（青ピクセル数1000超えたらphase1へ）
+        if phase.get_phase() == 0:
+            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
+            if center is not None:
+                target_x = center[0]
+            else:
+                target_x = (self.x1 + self.x2) // 2
+            if blue_pixel_count > 1000:
+                phase.next_phase()
+            return target_x, None, Mode.BLUE_BOTTLE_CATCH
+
+        # phase1: 青ピクセル数1000以上の間は中心x座標へ追従、500以下でphase2へ（右モーター位置記録）
+        if phase.get_phase() == 1:
+            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
+            if center is not None:
+                target_x = center[0]
+            else:
+                target_x = (self.x1 + self.x2) // 2
+            if blue_pixel_count <= 500:
+                phase.next_phase()
+                # phase2用 右モーター相対位置記録
+                phase.set_position_start("position_start", self.get_motor_position('right', status=status))
+            return target_x, None, Mode.BLUE_BOTTLE_CATCH
+
+        # phase2: 青ピクセル数500以下になってから右モーター300ユニット移動まで中心x座標へ追従、300到達でphase3へ
+        if phase.get_phase() == 2:
+            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
+            if center is not None:
+                target_x = center[0]
+            else:
+                target_x = (self.x1 + self.x2) // 2
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right', status=status)
+            if abs(current_pos - position_start) < 300:
+                return target_x, None, Mode.BLUE_BOTTLE_CATCH
+            else:
+                phase.next_phase()
+        # phase3: 状態リセットしPAUSEへ遷移
+        if phase.get_phase() == 3:
+            self._init = False
+            return None, None, Mode.PAUSE
 
     def turn_left_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
@@ -406,9 +417,9 @@ class ActionChain(object):
                 return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE1
             # 300超えたら次フェーズへ
             phase.next_phase()
-            pre_target_x = (self.x1 + self.x2) // 2
             # phase5用 右モーター相対位置記録（絶対値）
             phase.set_position_start("position_start", self.get_motor_position('right', status=status))
+            pre_target_x = (self.x1 + self.x2) // 2
 
         # 5. 仮想ライン直進（右モーター1000ユニット移動まで, get_virtual_line_target_x, previous_center_x=pre_target_x）
         if phase.get_phase() == 5:
@@ -419,12 +430,10 @@ class ActionChain(object):
                 temp_x = get_virtual_line_target_x(image, previous_center_x=pre_target_x)
                 if temp_x is not None:
                     target_x = temp_x
-                    state["pre_target_x"] = temp_x
-                elif pre_target_x is not None:
-                    target_x = pre_target_x
+                    pre_target_x = temp_x
                 else:
                     target_x = (self.x1 + self.x2) // 2
-                    state["pre_target_x"] = target_x
+                    pre_target_x = target_x
                 return target_x, None, Mode.CARRY_BOTTLE1
             # 1000超えたら次フェーズへ
             phase.next_phase()
@@ -561,15 +570,19 @@ class ActionChain(object):
 
     def carry_bottle2_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
 
-        state = self._state.setdefault("carry_bottle2_relative", {
-            "phase": 0,
-            "pre_target_x": None,
-            "position_start": None,
-        })
-        status = self.get_motor_position(mode="status")
+        # 初回呼び出し時のみ初期化
+        if not self._init:
+            self._phase = PhaseManager()
+            self._status = self.get_motor_position(mode="status")
+            # 初期位置記録を初回初期化時に実施
+            self._phase.set_position_start("position_start", self.get_motor_position('right', status=self._status))
+            pre_target_x = (self.x1 + self.x2) // 2
+            self._init = True
+        phase = self._phase
+        status = self._status
 
         # phase 0: 赤ターゲット中心追従（青ピクセル数20000未満の間は赤中心追従、20000以上でphase1へ）
-        if state["phase"] == 0:
+        if phase.get_phase() == 0:
             _, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             if blue_pixel_count < 20000:
                 # 赤ターゲット中心追従
@@ -577,10 +590,10 @@ class ActionChain(object):
                 target_x = red_center_x if red_center_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.CARRY_BOTTLE2
             else:
-                state["phase"] = 1
+                phase.next_phase()
 
         # phase 1: 青ボトル中心追従（青ピクセル数2000以上の間center追従、2000未満でphase2へ）
-        if state["phase"] == 1:
+        if phase.get_phase() == 1:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
             if blue_pixel_count >= 2000:
@@ -588,122 +601,119 @@ class ActionChain(object):
                 return target_x, None, Mode.CARRY_BOTTLE2
             else:
                 # 青ピクセル数が2000未満になった瞬間phase2へ
-                state["phase"] = 2
+                phase.next_phase()
                 # phase2用 右モーター相対位置記録（get_motor_positionで統一）
-                state["position_start"] = self.get_motor_position('right', status=status)
+                phase.set_position_start("position_start", self.get_motor_position('right', status=status))
 
         # phase 2: 右モーター200ユニット移動までcenter追従。200超えたらphase3へ
-        if state["phase"] == 2:
+        if phase.get_phase() == 2:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
-            if state["position_start"] is not None:
-                current_pos = self.get_motor_position('right', status=status)
-                if abs(current_pos - state["position_start"]) < 200:
-                    if center is not None:
-                        target_x = center[0]
-                    else:
-                        target_x = (self.x1 + self.x2) // 2
-                    return target_x, None, Mode.CARRY_BOTTLE2
-            state["phase"] = 3
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right', status=status)
+            if abs(current_pos - position_start) < 200:
+                if center is not None:
+                    target_x = center[0]
+                else:
+                    target_x = (self.x1 + self.x2) // 2
+                return target_x, None, Mode.CARRY_BOTTLE2
+            phase.next_phase()
             # phase3用 右モーター相対位置記録（get_motor_positionで統一）
-            state["position_start"] = self.get_motor_position('right', status=status)
+            phase.set_position_start("position_start", self.get_motor_position('right', status=status))
 
         # phase 3: 左黒ライン検出まで左旋回。最大右モーター1000ユニット
-        if state["phase"] == 3:
+        if phase.get_phase() == 3:
             line_detected = is_left_black_line_detected(image)
             position_limit_reached = False
-            if state["position_start"] is not None:
-                current_pos = self.get_motor_position('right', status=status)
-                position_limit_reached = abs(current_pos - state["position_start"]) >= 1000
-            
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right', status=status)
+            position_limit_reached = abs(current_pos - position_start) >= 1000
+
             if (not line_detected) and (not position_limit_reached):
                 return None, (0, 30), Mode.CARRY_BOTTLE2
-            state["phase"] = 4
+            phase.next_phase()
             # phase4用 右モーター相対位置記録（get_motor_positionで統一）
-            state["position_start"] = self.get_motor_position('right', status=status)
+            phase.set_position_start("position_start", self.get_motor_position('right', status=status))
 
         # phase 4: 直進（右モーター870ユニット移動まで、両輪BASE_SPEED）
-        if state["phase"] == 4:
-            if state["position_start"] is not None:
-                current_pos = self.get_motor_position('right', status=status)
-                if abs(current_pos - state["position_start"]) < 870:
-                    state["pre_target_x"] = (self.x1 + self.x2) // 2
-                    return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
-            state["phase"] = 5
+        if phase.get_phase() == 4:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right', status=status)
+            if abs(current_pos - position_start) < 870:
+                return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
+            phase.next_phase()
             # phase5用 右モーター相対位置記録（get_motor_positionで統一）
-            state["position_start"] = self.get_motor_position('right', status=status)
+            phase.set_position_start("position_start", self.get_motor_position('right', status=status))
 
         # phase 5: 左旋回（右モーター380ユニット移動まで、左:0,右:30）
-        if state["phase"] == 5:
-            if state["position_start"] is not None:
-                current_pos = self.get_motor_position('right', status=status)
-                if abs(current_pos - state["position_start"]) < 380:
-                    return None, (0, 30), Mode.CARRY_BOTTLE2
-            state["phase"] = 6
+        if phase.get_phase() == 5:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right', status=status)
+            if abs(current_pos - position_start) < 380:
+                return None, (0, 30), Mode.CARRY_BOTTLE2
+            phase.next_phase()
             # phase6用 右モーター相対位置記録（絶対値）
-            state["position_start"] = self.get_motor_position('right', status=status)
+            phase.set_position_start("position_start", self.get_motor_position('right', status=status))
 
         # phase 6: 直進（右モーター200ユニット移動まで、両輪BASE_SPEED）
-        if state["phase"] == 6:
-            if state["position_start"] is not None:
-                current_pos = self.get_motor_position('right', status=status)
-                if abs(current_pos - state["position_start"]) < 200:
-                    return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
-            state["phase"] = 7
+        if phase.get_phase() == 6:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right', status=status)
+            if abs(current_pos - position_start) < 200:
+                return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
+            phase.next_phase()
             # phase7用 右モーター相対位置記録（get_motor_positionで統一）
-            state["position_start"] = self.get_motor_position('right', status=status)
+            phase.set_position_start("position_start", self.get_motor_position('right', status=status))
+            pre_target_x = (self.x1 + self.x2) // 2
 
         # phase 7: 仮想ライン直進（右モーター800ユニット移動まで、get_virtual_line_target_xで中心追従）
-        if state["phase"] == 7:
-            if state["position_start"] is not None:
-                current_pos = self.get_motor_position('right', status=status)
-                if abs(current_pos - state["position_start"]) < 800:
-                    pre_target_x = state.get("pre_target_x")
-                    temp_x = get_virtual_line_target_x(image, previous_center_x=pre_target_x)
-                    if temp_x is not None:
-                        target_x = temp_x
-                        state["pre_target_x"] = temp_x
-                    elif pre_target_x is not None:
-                        target_x = pre_target_x
-                    else:
-                        target_x = (self.x1 + self.x2) // 2
-                        state["pre_target_x"] = target_x
-                    return target_x, None, Mode.CARRY_BOTTLE2
-            state["phase"] = 8
+        if phase.get_phase() == 7:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right', status=status)
+            if abs(current_pos - position_start) < 800:
+                temp_x = get_virtual_line_target_x(image, previous_center_x=pre_target_x)
+                if temp_x is not None:
+                    target_x = temp_x
+                    pre_target_x = temp_x
+                else:
+                    target_x = (self.x1 + self.x2) // 2
+                    pre_target_x = target_x
+                return target_x, None, Mode.CARRY_BOTTLE2
+            phase.next_phase()
             # phase8用 右モーター相対位置記録（get_motor_positionで統一）
-            state["position_start"] = self.get_motor_position('right', status=status)
+            phase.set_position_start("position_start", self.get_motor_position('right', status=status))
 
         # phase 8: 直進（右モーター900ユニット移動まで、両輪BASE_SPEED）
-        if state["phase"] == 8:
-            if state["position_start"] is not None:
-                current_pos = self.get_motor_position('right', status=status)
-                if abs(current_pos - state["position_start"]) < 900:
-                    return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
-            state["phase"] = 9
+        if phase.get_phase() == 8:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right', status=status)
+            if abs(current_pos - position_start) < 900:
+                return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
+            phase.next_phase()
             # phase9用 右モーター相対位置記録（get_motor_positionで統一）
-            state["position_start"] = self.get_motor_position('right', status=status)
+            phase.set_position_start("position_start", self.get_motor_position('right', status=status))
 
         # phase 9: 左旋回（青ターゲット検出まで、最低右モーター300、最大500ユニット、左:0,右:30）
-        if state["phase"] == 9:
+        if phase.get_phase() == 9:
             blue_target_detected = is_x320_on_blue_target(image, x_tolerance=60)
             position_limit_reached = False
             minimum_position_reached = False
-            if state["position_start"] is not None:
-                current_pos = self.get_motor_position('right', status=status)
-                position_diff = abs(current_pos - state["position_start"])
-                minimum_position_reached = position_diff >= 300
-                position_limit_reached = position_diff >= 500
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right', status=status)
+            position_diff = abs(current_pos - position_start)
+            minimum_position_reached = position_diff >= 300
+            position_limit_reached = position_diff >= 500
             # 最低300ユニットは必ず旋回
             if not minimum_position_reached:
                 return None, (0, 30), Mode.CARRY_BOTTLE2
             # 300ユニット超えてから、ターゲット検出または500ユニット到達まで継続
             if (not blue_target_detected) and (not position_limit_reached):
                 return None, (0, 30), Mode.CARRY_BOTTLE2
-            state["phase"] = 10
+            phase.next_phase()
             # phase10用 右モーター相対位置記録（get_motor_positionで統一）
-            state["position_start"] = self.get_motor_position('right', status=status)
+            phase.set_position_start("position_start", self.get_motor_position('right', status=status))
 
         # phase 10: 青検出（青ピクセル数1000超えたら次フェーズ、最大右モーター400ユニット）
-        if state["phase"] == 10:
+        if phase.get_phase() == 10:
             center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
             if center is not None:
                 target_x = center[0]
@@ -711,18 +721,18 @@ class ActionChain(object):
                 target_x = (self.x1 + self.x2) // 2
             
             position_limit_reached = False
-            if state["position_start"] is not None:
-                current_pos = self.get_motor_position('right', status=status)
-                position_limit_reached = abs(current_pos - state["position_start"]) >= 400
-            
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right', status=status)
+            position_limit_reached = abs(current_pos - position_start) >= 400
+
             if blue_pixel_count > 1000 or position_limit_reached:
-                state["phase"] = 11
+                phase.next_phase()
                 # phase11用 右モーター相対位置記録（get_motor_positionで統一）
-                state["position_start"] = self.get_motor_position('right', status=status)
+                phase.set_position_start("position_start", self.get_motor_position('right', status=status))
             return target_x, None, Mode.CARRY_BOTTLE2
 
         # phase 11: 青ピクセルが500以下まで減るまでcenter追従（500以下で次フェーズ、最大右モーター400ユニット）
-        if state["phase"] == 11:
+        if phase.get_phase() == 11:
             center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
             if center is not None:
                 target_x = center[0]
@@ -730,34 +740,31 @@ class ActionChain(object):
                 target_x = (self.x1 + self.x2) // 2
             
             position_limit_reached = False
-            if state["position_start"] is not None:
-                current_pos = self.get_motor_position('right', status=status)
-                position_limit_reached = abs(current_pos - state["position_start"]) >= 400
-            
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right', status=status)
+            position_limit_reached = abs(current_pos - position_start) >= 400
+
             if blue_pixel_count <= 500 or position_limit_reached:
-                state["phase"] = 12
+                phase.next_phase()
                 # phase12用 右モーター相対位置記録（get_motor_positionで統一）
-                state["position_start"] = self.get_motor_position('right', status=status)
+                phase.set_position_start("position_start", self.get_motor_position('right', status=status))
             return target_x, None, Mode.CARRY_BOTTLE2
 
         # phase 12: 右モーター300ユニット移動までcenter追従、その後BACK_AND_TURN2へ遷移
-        if state["phase"] == 12:
+        if phase.get_phase() == 12:
             center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
-            
-            if state["position_start"] is not None:
-                current_pos = self.get_motor_position('right', status=status)
-                if abs(current_pos - state["position_start"]) < 300:
-                    if center is not None:
-                        target_x = center[0]
-                    else:
-                        target_x = (self.x1 + self.x2) // 2
-                    return target_x, None, Mode.CARRY_BOTTLE2
-            # 状態リセット
-            self._state["carry_bottle2_relative"] = {
-                "phase": 0, 
-                "pre_target_x": None,
-                "position_start": None,
-            }
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right', status=status)
+            if abs(current_pos - position_start) < 300:
+                if center is not None:
+                    target_x = center[0]
+                else:
+                    target_x = (self.x1 + self.x2) // 2
+                return target_x, None, Mode.CARRY_BOTTLE2            
+            phase.next_phase()
+
+        if phase.get_phase() == 13:
+            self._init = False
             return None, None, Mode.BACK_AND_TURN2
 
     def back_and_turn2_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
@@ -768,50 +775,49 @@ class ActionChain(object):
         1. 左モーター370ユニット移動まで右旋回（左:30, 右:0）
         2. 終了後HEAD_GOALへ遷移（状態リセット）
         """
-        state = self._state.setdefault("back_and_turn2_relative", {
-            "phase": 0,
-            "position_start": None,
-        })
-        status = self.get_motor_position(mode="status")
+
+        # 初回呼び出し時のみ初期化
+        if not self._init:
+            self._phase = PhaseManager()
+            self._status = self.get_motor_position(mode="status")
+            # 初期位置記録を初回初期化時に実施
+            self._phase.set_position_start("position_start", self.get_motor_position('left', status=self._status))
+            self._init = True
+        phase = self._phase
+        status = self._status
 
         # 0. 左モーター570ユニット移動まで後退
-        if state["phase"] == 0:
-            if state["position_start"] is None:
-                state["position_start"] = self.get_motor_position('left', status=status)
-
-            if state["position_start"] is not None:
-                current_pos = self.get_motor_position('left', status=status)
-                if abs(current_pos - state["position_start"]) < 570:
-                    return None, (BASE_SPEED, BASE_SPEED), Mode.BACK_AND_TURN2
-            state["phase"] = 1
+        if phase.get_phase() == 0:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('left', status=status)
+            if abs(current_pos - position_start) < 570:
+                return None, (BASE_SPEED, BASE_SPEED), Mode.BACK_AND_TURN2
+            phase.next_phase()
             # phase1用 左モーター相対位置記録（get_motor_positionで統一）
-            state["position_start"] = self.get_motor_position('left', status=status)
+            phase.set_position_start("position_start", self.get_motor_position('left', status=status))
 
         # 1. 左モーター200～400ユニット移動まで右旋回（左:30, 右:0）
-        if state["phase"] == 1:
-            if state["position_start"] is not None:
-                current_pos = self.get_motor_position('left', status=status)
-                position_diff = abs(current_pos - state["position_start"])
-                minimum_position_reached = position_diff >= 200
-                position_limit_reached = position_diff >= 400
-                # 水平ライン検出→一般的な水平黒ライン検出に変更
-                horizontal_line_detected = is_general_horizontal_line_detected(image)
-            
-                # 最低200ユニットは必ず旋回
-                if not minimum_position_reached:
-                    return None, (30, 0), Mode.BACK_AND_TURN2
-                # 200ユニット超えてから、水平ライン検出または400ユニット到達まで継続
-                if (not horizontal_line_detected) and (not position_limit_reached):
-                    return None, (30, 0), Mode.BACK_AND_TURN2
-                # 条件を満たしたので次のフェーズへ
-                state["phase"] = 2
-            else:
-                # ステータス取得失敗時は継続
+        if phase.get_phase() == 1:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('left', status=status)
+            position_diff = abs(current_pos - position_start)
+            minimum_position_reached = position_diff >= 200
+            position_limit_reached = position_diff >= 400
+            # 水平ライン検出→一般的な水平黒ライン検出に変更
+            horizontal_line_detected = is_general_horizontal_line_detected(image)
+        
+            # 最低200ユニットは必ず旋回
+            if not minimum_position_reached:
                 return None, (30, 0), Mode.BACK_AND_TURN2
+            # 200ユニット超えてから、水平ライン検出または400ユニット到達まで継続
+            if (not horizontal_line_detected) and (not position_limit_reached):
+                return None, (30, 0), Mode.BACK_AND_TURN2
+            # 条件を満たしたので次のフェーズへ
+            phase.next_phase()
 
         # 2. 終了: 状態リセット
-        if state["phase"] == 2:
-            self._state["back_and_turn2_relative"] = {"phase": 0, "position_start": None}
+        if phase.get_phase() == 2:
+            self._init = False
             return None, None, Mode.HEAD_GOAL
 
     def heading_goal_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
@@ -829,71 +835,64 @@ class ActionChain(object):
         4. 青ライン検出後、右モーターBの移動距離600未満の間は左エッジトレース、600到達でPAUSE（状態リセット）
         各行コメントも実装内容と完全一致させること。
         """
-        state = self._state.setdefault("heading_goal_relative", {
-            "phase": 0,  # 現在のフェーズ
-            "position_start": None,  # 右モーターBの基準位置
-        })
-        status = self.get_motor_position(mode="status")  # get_motor_positionで最新status取得に統一
+
+        # 初回呼び出し時のみ初期化
+        if not self._init:
+            self._phase = PhaseManager()
+            self._status = self.get_motor_position(mode="status")
+            # 初期位置記録を初回初期化時に実施
+            self._phase.set_position_start("position_start", self.get_motor_position('right', status=self._status))
+            self._init = True
+        phase = self._phase
+        status = self._status
 
         # 0. intersection_y=450で黒水平ライン検出まで中央追従（距離制限なし）
-        if state["phase"] == 0:
-            # 右モーター基準位置未設定なら記録
-            if state["position_start"] is None:
-                # get_motor_positionで完全統一（status/motors判定不要）
-                state["position_start"] = self.get_motor_position('right', status=status)
+        if phase.get_phase() == 0:
             # intersection_y=450で黒水平ライン検出
             if is_horizontal_black_line_detected(image, intersection_y=450):
-                state["phase"] = 1  # phase1へ遷移
+                phase.next_phase()
                 # phase1用 右モーター相対位置記録（get_motor_positionで完全統一）
-                state["position_start"] = self.get_motor_position('right', status=status)
+                phase.set_position_start("position_start", self.get_motor_position('right', status=status))
             else:
                 # ライン未検出時は中央追従
                 target_x = (self.x1 + self.x2) // 2
                 return target_x, None, Mode.HEAD_GOAL
 
         # 1. 右モーターBの移動距離が300未満なら中央追従、300以上でphase2へ遷移
-        if state["phase"] == 1:
-            if state["position_start"] is not None:
-                # get_motor_positionで完全統一（status/motors判定不要）
-                current_pos = self.get_motor_position('right', status=status)
-                position_diff = abs(current_pos - state["position_start"])
-                target_x = (self.x1 + self.x2) // 2
-                if position_diff < 300:
-                    # 300未満は中央追従
-                    return target_x, None, Mode.HEAD_GOAL
-                else:
-                    state["phase"] = 2  # phase2へ遷移
-                    # phase2用 右モーター相対位置記録（get_motor_positionで完全統一）
-                    state["position_start"] = self.get_motor_position('right', status=status)
-            else:
-                # ステータス取得失敗時も中央追従
-                target_x = (self.x1 + self.x2) // 2
+        if phase.get_phase() == 1:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right', status=status)
+            position_diff = abs(current_pos - position_start)
+            target_x = (self.x1 + self.x2) // 2
+            if position_diff < 300:
+                # 300未満は中央追従
                 return target_x, None, Mode.HEAD_GOAL
+            else:
+                phase.next_phase()  # phase2へ遷移
+                # phase2用 右モーター相対位置記録（get_motor_positionで完全統一）
+                phase.set_position_start("position_start", self.get_motor_position('right', status=status))
 
         # 2. 左旋回（右モーターBの移動距離100未満は常に左旋回。100以上で垂直黒ライン検出開始。600未満の間は左:0,右:30で継続。垂直ライン検出または600到達でphase3へ）
-        if state["phase"] == 2:
-            if state["position_start"] is not None:
-                # get_motor_positionで完全統一
-                current_pos = self.get_motor_position('right', status=status)
-                position_diff = abs(current_pos - state["position_start"]) if state["position_start"] is not None else 0
-                minimum_position_reached = position_diff >= 100  # 100未満はライン検出しない
-                position_limit_reached = position_diff >= 600
-                if not minimum_position_reached:
-                    # 100未満はis_vertical_black_line_detected呼ばない
-                    return None, (0, 30), Mode.HEAD_GOAL
-                # 100以上で垂直ライン検出
-                vertical_line_detected = is_vertical_black_line_detected(image)
-                if (not vertical_line_detected) and (not position_limit_reached):
-                    # 垂直ライン未検出・600未満は左旋回継続
-                    return None, (0, 30), Mode.HEAD_GOAL
-                # 垂直ライン検出または600到達でphase3へ
-                state["phase"] = 3  # phase3へ遷移
-            else:
-                # ステータス取得失敗時は左旋回継続
+        if phase.get_phase() == 2:
+            position_start = phase.get_position_start("position_start")
+            # get_motor_positionで完全統一
+            current_pos = self.get_motor_position('right', status=status)
+            position_diff = abs(current_pos - position_start)
+            minimum_position_reached = position_diff >= 100  # 100未満はライン検出しない
+            position_limit_reached = position_diff >= 600
+            if not minimum_position_reached:
+                # 100未満はis_vertical_black_line_detected呼ばない
                 return None, (0, 30), Mode.HEAD_GOAL
+            # 100以上で垂直ライン検出
+            vertical_line_detected = is_vertical_black_line_detected(image)
+            if (not vertical_line_detected) and (not position_limit_reached):
+                # 垂直ライン未検出・600未満は左旋回継続
+                return None, (0, 30), Mode.HEAD_GOAL
+            # 垂直ライン検出または600到達でphase3へ
+            phase.next_phase()  # phase3へ遷移
 
         # 3. 左エッジトレース（青ライン検出でphase4へ。左エッジがなければ中央）
-        if state["phase"] == 3:
+        if phase.get_phase() == 3:
             left_x, right_x, mask = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
             if left_x is not None:
                 target_x = left_x
@@ -901,22 +900,20 @@ class ActionChain(object):
                 target_x = (self.x1 + self.x2) // 2
             blue_line = get_is_blue_line_at_y(image, target_y=OFFSET_Y)
             if blue_line:
-                state["phase"] = 4  # phase4へ遷移
+                phase.next_phase()  # phase4へ遷移
                 # phase4用 右モーター相対位置記録（get_motor_positionで完全統一）
-                state["position_start"] = self.get_motor_position('right', status=status)
+                phase.set_position_start("position_start", self.get_motor_position('right', status=status))
             # 青ライン未検出時も左エッジ追従
             return target_x, None, Mode.HEAD_GOAL
 
         # 4. 青ライン検出後、右モーターBの移動距離600未満の間は左エッジトレース、600到達でPAUSE（状態リセット）
-        if state["phase"] == 4:
+        if phase.get_phase() == 4:
             position_limit_reached = False
-            if state["position_start"] is not None:
-                current_pos = self.get_motor_position('right', status=status)
-                position_limit_reached = abs(current_pos - state["position_start"]) >= 600
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right', status=status)
+            position_limit_reached = abs(current_pos - position_start) >= 600
             if position_limit_reached:
-                # 600到達で状態リセットしPAUSE
-                self._state["heading_goal_relative"] = {"phase": 0, "position_start": None}
-                return None, None, Mode.PAUSE
+                phase.next_phase()
             # 600未満は左エッジ追従
             left_x, right_x, mask = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
             if left_x is not None:
@@ -924,3 +921,8 @@ class ActionChain(object):
             else:
                 target_x = (self.x1 + self.x2) // 2
             return target_x, None, Mode.HEAD_GOAL
+
+        if phase.get_phase() == 5:
+            # 600到達で状態リセットしPAUSE
+            self._init = False
+            return None, None, Mode.PAUSE
