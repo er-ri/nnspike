@@ -246,7 +246,7 @@ class ActionChain(object):
             return None, None, Mode.PAUSE
 
         print("[blue_bottle_catch] Unexpected state reached.")
-        return None, None, Mode.BLUE_BOTTLE_CATCH
+        return None, None, Mode.PAUSE
 
     def turn_left_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
