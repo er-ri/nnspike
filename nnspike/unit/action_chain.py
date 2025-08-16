@@ -89,7 +89,6 @@ class ActionChain(object):
     def reset_action(self):
         """アクション終了時の状態リセット処理."""
         self._init = False
-        self._phase = None
         self._status = None
 
     def get_motor_position(self, side: str = "right", mode: str = "position", status=None) -> int:
@@ -125,6 +124,7 @@ class ActionChain(object):
                     return 0
             print(f"[get_motor_position] status or motor_key invalid (return 0)")
             return 0
+        return 0
 
     def turn_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """左旋回アクション.
@@ -243,6 +243,9 @@ class ActionChain(object):
             self.reset_action()
             return None, None, Mode.PAUSE
 
+        print("[blue_bottle_catch] Unexpected state reached.")
+        return None, None, Mode.BLUE_BOTTLE_CATCH
+
     def turn_left_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         左旋回（右モーターBの相対位置差分で判定）。430未満の間は左:0,右:30で継続。430超えたらPAUSE。
@@ -331,7 +334,8 @@ class ActionChain(object):
             self.reset_action()
             return None, None, Mode.FOLLOW_RIGHT_EDGE
 
-# --- 以下、*_relativeメソッド（元メソッド完全コピー） ---
+        print("[avoid_obstacle_relative] Unexpected state reached.")
+        return None, None, Mode.AVOID_OBSTACLE
 
     def carry_bottle1_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
@@ -354,7 +358,6 @@ class ActionChain(object):
         # 初回呼び出し時のみ初期化
         if not self._init:
             self.initialize_action(motor_side="right")
-            pre_target_x = self.pre_target_x
         phase = self._phase
         status = self._status
 
@@ -421,7 +424,7 @@ class ActionChain(object):
             phase.next_phase()
             # phase5用 右モーター相対位置記録（絶対値）
             phase.set_position_start("position_start", self.get_motor_position('right', status=status))
-            pre_target_x = (self.x1 + self.x2) // 2
+            self.pre_target_x = (self.x1 + self.x2) // 2
 
         # 5. 仮想ライン直進（右モーター1000ユニット移動まで、get_virtual_line_target_xで中心追従、pre_target_x更新。1000超えたらphase6へ、右モーター位置記録）
         if phase.get_phase() == 5:
@@ -429,13 +432,13 @@ class ActionChain(object):
             current_pos = self.get_motor_position('right', status=status)
             if abs(current_pos - position_start) < 1000:
                 # 右に障害物がある場合は左回避を明示
-                temp_x = get_virtual_line_target_x(image, previous_center_x=pre_target_x)
+                temp_x = get_virtual_line_target_x(image, previous_center_x=self.pre_target_x)
                 if temp_x is not None:
                     target_x = temp_x
-                    pre_target_x = temp_x
+                    self.pre_target_x = temp_x
                 else:
                     target_x = (self.x1 + self.x2) // 2
-                    pre_target_x = target_x
+                    self.pre_target_x = target_x
                 return target_x, None, Mode.CARRY_BOTTLE1
             # 1000超えたら次フェーズへ
             phase.next_phase()
@@ -518,6 +521,9 @@ class ActionChain(object):
             self.reset_action()
             return None, None, Mode.BACK_AND_TURN1
 
+        print("[carry_bottle1_relative] Unexpected state reached.")
+        return None, None, Mode.CARRY_BOTTLE1
+
     def back_and_turn1_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         back_and_turn1の位置判定バージョン。
@@ -568,6 +574,9 @@ class ActionChain(object):
             self.reset_action()
             return None, None, Mode.CARRY_BOTTLE2
 
+        print("[back_and_turn1_relative] Unexpected state reached.")
+        return None, None, Mode.BACK_AND_TURN1
+
     def carry_bottle2_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         carry_bottle2の位置判定バージョン。
@@ -591,7 +600,6 @@ class ActionChain(object):
         # 初回呼び出し時のみ初期化
         if not self._init:
             self.initialize_action(motor_side="right")
-            pre_target_x = self.pre_target_x
         phase = self._phase
         status = self._status
 
@@ -677,20 +685,20 @@ class ActionChain(object):
             phase.next_phase()
             # phase7用 右モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position('right', status=status))
-            pre_target_x = (self.x1 + self.x2) // 2
+            self.pre_target_x = (self.x1 + self.x2) // 2
 
         # 7. 仮想ライン直進（右モーター800ユニット移動まで、get_virtual_line_target_xで中心追従、pre_target_x更新。800超えたらphase8へ、右モーター位置記録）
         if phase.get_phase() == 7:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position('right', status=status)
             if abs(current_pos - position_start) < 800:
-                temp_x = get_virtual_line_target_x(image, previous_center_x=pre_target_x)
+                temp_x = get_virtual_line_target_x(image, previous_center_x=self.pre_target_x)
                 if temp_x is not None:
                     target_x = temp_x
-                    pre_target_x = temp_x
+                    self.pre_target_x = temp_x
                 else:
                     target_x = (self.x1 + self.x2) // 2
-                    pre_target_x = target_x
+                    self.pre_target_x = target_x
                 return target_x, None, Mode.CARRY_BOTTLE2
             phase.next_phase()
             # phase8用 右モーター相対位置記録（get_motor_positionで統一）
@@ -782,6 +790,9 @@ class ActionChain(object):
             self.reset_action()
             return None, None, Mode.BACK_AND_TURN2
 
+        print("[carry_bottle2_relative] Unexpected state reached.")
+        return None, None, Mode.CARRY_BOTTLE2
+
     def back_and_turn2_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         back_and_turn2の位置判定バージョン。
@@ -828,6 +839,9 @@ class ActionChain(object):
         if phase.get_phase() == 2:
             self.reset_action()
             return None, None, Mode.HEAD_GOAL
+
+        print("[back_and_turn2_relative] Unexpected state reached.")
+        return None, None, Mode.BACK_AND_TURN2
 
     def heading_goal_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
@@ -913,3 +927,6 @@ class ActionChain(object):
         if phase.get_phase() == 5:
             self.reset_action()
             return None, None, Mode.PAUSE
+
+        print("[heading_goal_relative] Unexpected state reached.")
+        return None, None, Mode.HEAD_GOAL
