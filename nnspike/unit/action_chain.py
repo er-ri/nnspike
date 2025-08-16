@@ -54,8 +54,14 @@ class ActionChain(object):
             return status
         if mode == "position":
             motor_key = "B" if side == "right" else "A"
-            if status is not None and status.motors.get(motor_key) is not None and status.motors[motor_key].relative_position is not None:
-                return abs(status.motors[motor_key].relative_position)
+            if status is not None and status.motors.get(motor_key) is not None:
+                pos = status.motors[motor_key].relative_position
+                if isinstance(pos, int):
+                    return abs(pos)
+                else:
+                    print(f"[get_motor_position] {motor_key} position invalid: {pos} (return 0)")
+                    return 0
+            print(f"[get_motor_position] status or motor_key invalid (return 0)")
             return 0
 
     def turn_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
@@ -212,35 +218,22 @@ class ActionChain(object):
             "phase": 0,
             "right_position_start": None,
         })
-        status = self.et.get_spike_status()
+        status = self.get_motor_position(mode="status")
 
         # 0. 左旋回（右モーター500ユニット移動まで, 左:40, 右:70）
         if state["phase"] == 0:
             if state["right_position_start"] is None:
-                if status is not None and status.motors.get("B") is not None:
-                    if status.motors["B"].relative_position is not None:
-                        state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-                    else:
-                        state["right_position_start"] = None
-                else:
-                    state["right_position_start"] = None
-            
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                if status.motors["B"].relative_position is not None:
-                    current_pos = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-                else:
-                    current_pos = 0
+                state["right_position_start"] = self.get_motor_position('right', status=status)
+
+            current_pos = self.get_motor_position('right', status=status)
+            if state["right_position_start"] is not None:
                 if abs(current_pos - state["right_position_start"]) < 500:
                     return None, (40, 70), Mode.AVOID_OBSTACLE
                 else:
                     # 500ユニット到達したので次のフェーズへ
                     state["phase"] = 1
                     # phase1用も右モーター相対位置記録（絶対値）
-                    if status is not None and status.motors.get("B") is not None:
-                        state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-                    else:
-                        state["right_position_start"] = None
-            else:
+                    state["right_position_start"] = self.get_motor_position('right', status=status)
                 # ステータス取得失敗時は継続
                 return None, (40, 70), Mode.AVOID_OBSTACLE
 
@@ -254,18 +247,15 @@ class ActionChain(object):
                     # 650ユニット到達したので次のフェーズへ
                     state["phase"] = 2
                     # phase2用も右モーター相対位置記録（絶対値）
-                    if status is not None and status.motors.get("B") is not None:
-                        state["right_position_start"] = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-                    else:
-                        state["right_position_start"] = None
+                    state["right_position_start"] = self.get_motor_position('right', status=status)
             else:
                 # ステータス取得失敗時は継続
                 return None, (70, 40), Mode.AVOID_OBSTACLE
 
         # 2. 左旋回（右モーター350ユニット移動まで, 左:40, 右:70）
         if state["phase"] == 2:
-            if status is not None and status.motors.get("B") is not None and state["right_position_start"] is not None:
-                current_pos = abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
+            if state["right_position_start"] is not None:
+                current_pos = self.get_motor_position('right', status=status)
                 distance = abs(current_pos - state["right_position_start"])
                 # 走行距離が200未満なら常に(40,70)で走行
                 if distance < 250:
