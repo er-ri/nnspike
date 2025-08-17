@@ -215,7 +215,8 @@ class ActionChain(object):
                 target_x = (self.x1 + self.x2) // 2
             if blue_pixel_count > 1000:
                 phase.next_phase()
-            return target_x, None, Mode.BLUE_BOTTLE_CATCH
+            else:
+                return target_x, None, Mode.BLUE_BOTTLE_CATCH
 
         # phase1: 青ピクセル数1000以上の間は中心x座標へ追従、500以下でphase2へ（右モーター位置記録）
         if phase.get_phase() == 1:
@@ -228,7 +229,8 @@ class ActionChain(object):
                 phase.next_phase()
                 # phase2用 右モーター相対位置記録
                 phase.set_position_start("position_start", self.get_motor_position('right', status=status))
-            return target_x, None, Mode.BLUE_BOTTLE_CATCH
+            else:
+                return target_x, None, Mode.BLUE_BOTTLE_CATCH
 
         # phase2: 青ピクセル数500以下になってから右モーター300ユニット移動まで中心x座標へ追従、300到達でphase3へ
         if phase.get_phase() == 2:
@@ -489,7 +491,8 @@ class ActionChain(object):
                 target_x = (self.x1 + self.x2) // 2
             if blue_pixel_count > 1000:
                 phase.next_phase()
-            return target_x, None, Mode.CARRY_BOTTLE1
+            else:
+                return target_x, None, Mode.CARRY_BOTTLE1
 
         # 9. 青1000以上の間center追従、500以下でphase10へ、右モーター位置記録
         if phase.get_phase() == 9:
@@ -502,7 +505,8 @@ class ActionChain(object):
                 phase.next_phase()
                 # phase10用 右モーター相対位置記録（get_motor_positionで統一）
                 phase.set_position_start("position_start", self.get_motor_position('right', status=status))
-            return target_x, None, Mode.CARRY_BOTTLE1
+            else:
+                return target_x, None, Mode.CARRY_BOTTLE1
 
         # 10. 青500以下になってから右モーター300ユニット移動までcenter追従。300超えたらphase11へ
         if phase.get_phase() == 10:
@@ -755,7 +759,8 @@ class ActionChain(object):
                 phase.next_phase()
                 # phase11用 右モーター相対位置記録（get_motor_positionで統一）
                 phase.set_position_start("position_start", self.get_motor_position('right', status=status))
-            return target_x, None, Mode.CARRY_BOTTLE2
+            else:
+                return target_x, None, Mode.CARRY_BOTTLE2
 
         # 11. 青ピクセルが500以下まで減るまでcenter追従（500以下でphase12へ、最大右モーター400ユニット。条件満たせば右モーター位置記録）
         if phase.get_phase() == 11:
@@ -774,7 +779,8 @@ class ActionChain(object):
                 phase.next_phase()
                 # phase12用 右モーター相対位置記録（get_motor_positionで統一）
                 phase.set_position_start("position_start", self.get_motor_position('right', status=status))
-            return target_x, None, Mode.CARRY_BOTTLE2
+            else:
+                return target_x, None, Mode.CARRY_BOTTLE2
 
         # 12. 右モーター300ユニット移動までcenter追従。300超えたらphase13へ
         if phase.get_phase() == 12:
@@ -911,7 +917,8 @@ class ActionChain(object):
             if blue_line:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position('right', status=status))
-            return target_x, None, Mode.HEAD_GOAL
+            else:
+                return target_x, None, Mode.HEAD_GOAL
 
         # 4. 青ライン検出後、右モーターBの移動距離600未満の間は左エッジトレース、600到達でPAUSE（状態リセット）
         if phase.get_phase() == 4:
@@ -920,12 +927,13 @@ class ActionChain(object):
             position_limit_reached = abs(current_pos - position_start) >= 600
             if position_limit_reached:
                 phase.next_phase()
-            left_x, right_x, mask = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
-            if left_x is not None:
-                target_x = left_x
             else:
-                target_x = (self.x1 + self.x2) // 2
-            return target_x, None, Mode.HEAD_GOAL
+                left_x, right_x, mask = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
+                if left_x is not None:
+                    target_x = left_x
+                else:
+                    target_x = (self.x1 + self.x2) // 2
+                return target_x, None, Mode.HEAD_GOAL
 
         # 5. 600到達で状態リセットしPAUSE
         if phase.get_phase() == 5:
