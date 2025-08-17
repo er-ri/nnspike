@@ -90,7 +90,7 @@ class KeyboardController:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)  # type: ignore
 
 
-def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="left", model_path=None):
+def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", model_path=None):
     def nvidia_model_predict(frame, model, et: ETRobot):
         """NVIDIAモデルによる予測を行う。ノートブックテスト結果を反映した安定版"""
         try:
@@ -589,7 +589,7 @@ if __name__ == "__main__":
     parser.add_argument("--record-sensor", action="store_true", help="Record sensor data to file")
     parser.add_argument("--save-video", action="store_true", help="Save camera video to file")
     parser.add_argument("--send-video", action="store_true", help="Send video stream to host PC")
-    parser.add_argument("--course", choices=["left", "right"], default="left", help="Initial course to follow: 'left' for left edge, 'right' for right edge (default: left)")
+    parser.add_argument("--course", choices=["left", "right"], default="right", help="Initial course to follow: 'left' for left edge, 'right' for right edge (default: right)")
     parser.add_argument("--model-path", help="Path to the trained NVIDIA model file (enables NVIDIA model)")
 
     args = parser.parse_args()
