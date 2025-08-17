@@ -100,6 +100,9 @@ class ActionChain(object):
         負荷軽減のため、複数回呼び出し時はstatusを外部で取得・使い回すこと。
         ただしmode='status'時は必ず最新statusを再取得する。
         """
+        # statusがint型の場合はNoneに置き換え
+        if isinstance(status, int):
+            status = None
         if mode == "status":
             # 必ず最新statusを取得
             status = self.et.get_spike_status()
@@ -304,7 +307,6 @@ class ActionChain(object):
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position('right', status=status))
-            return None, (40, 70), Mode.AVOID_OBSTACLE
 
         # phase1: 右旋回（右モーター550ユニット移動まで, 左:70, 右:40。到達でphase2へ、右モーター位置記録）
         if phase.get_phase() == 1:
