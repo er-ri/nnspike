@@ -6,6 +6,7 @@ ETRobotのためのアクションシーケンス管理クラスとPhaseManager�
 """
 
 import time  # 時間計測用
+from turtle import left
 from typing import Optional, Tuple  # 型ヒント用
 
 import numpy as np  # 画像処理用
@@ -389,8 +390,10 @@ class ActionChain(object):
 
         # 0. 右エッジトレース（赤ピクセル数が3000を超えたらphase1へ、右モーター初期位置記録）
         if phase.get_phase() == 0:
-            _, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
-            target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
+            left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
+            target_x = right_x if self.course == "right" else left_x
+            if target_x is None:
+                target_x = (self.x1 + self.x2) // 2
             _, _, red_pixel_count = find_bottle_center(image=image, color="red")
             if red_pixel_count > 3000:
                 phase.next_phase()
@@ -421,8 +424,10 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 1200:
-                left_x, _, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=300, threshold_value=80)
-                target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
+                left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=300, threshold_value=80)
+                target_x = left_x if self.course == "right" else right_x
+                if target_x is None:
+                    target_x = (self.x1 + self.x2) // 2
                 return target_x, None, Mode.CARRY_BOTTLE1
             # 1200超えたら次フェーズへ
             phase.next_phase()
@@ -684,7 +689,7 @@ class ActionChain(object):
 
         # 3. 左黒ライン検出まで左旋回。最大右モーター1000ユニット。検出または1000超えたらphase4へ、右モーター位置記録
         if phase.get_phase() == 3:
-            line_detected = is_left_black_line_detected(image)
+            line_detected = is_left_black_line_detected(image, self.course)
             position_limit_reached = False
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
@@ -961,10 +966,9 @@ class ActionChain(object):
 
         # 3. 左エッジトレース（青ライン検出でphase4へ。左エッジがなければ中央。青ライン検出時に右モーター位置記録）
         if phase.get_phase() == 3:
-            left_x, right_x, mask = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
-            if left_x is not None:
-                target_x = left_x
-            else:
+            left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
+            target_x = left_x if self.course == "right" else right_x
+            if target_x is None:
                 target_x = (self.x1 + self.x2) // 2
             blue_line = get_is_blue_line_at_y(image, target_y=OFFSET_Y)
             if blue_line:
@@ -981,10 +985,9 @@ class ActionChain(object):
             if position_limit_reached:
                 phase.next_phase()
             else:
-                left_x, right_x, mask = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
-                if left_x is not None:
-                    target_x = left_x
-                else:
+                left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
+                target_x = left_x if self.course == "right" else right_x
+                if target_x is None:
                     target_x = (self.x1 + self.x2) // 2
                 return target_x, None, Mode.HEAD_GOAL
 

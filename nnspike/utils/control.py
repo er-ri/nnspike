@@ -1166,7 +1166,7 @@ def get_red_target_center_x(img):
     return best_center_x
 
 # 黒ラインの長さや位置で判定する関数（画像直接渡し、条件はプライベート変数）
-def is_left_black_line_detected(img):
+def is_left_black_line_detected(img, course):
     _min_width = 60
     _min_height = 150
     _min_aspect = 2
@@ -1182,7 +1182,11 @@ def is_left_black_line_detected(img):
     mask = cv2.dilate(mask, np.ones((7,7), np.uint8), iterations=3)
     x0, y0, x1, y1 = _roi
     mask_roi = np.zeros_like(mask)
-    mask_roi[y0:y1, x0:x1] = mask[y0:y1, x0:x1]
+    if course == 'left':
+        # ROIを左右反転
+        mask_roi[y0:y1, w-x1:w-x0] = mask[y0:y1, w-x1:w-x0]
+    else:
+        mask_roi[y0:y1, x0:x1] = mask[y0:y1, x0:x1]
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     for cnt in contours:
         x, y, ww, hh = cv2.boundingRect(cnt)
