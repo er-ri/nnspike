@@ -67,7 +67,7 @@ class PhaseManager:
 class ActionChain(object):
     """ETRobotのためのアクションシーケンス管理クラス."""
 
-    def __init__(self, et: ETRobot, course: str) -> None:
+    def __init__(self, et: ETRobot, course: str, course_type: str) -> None:
         """ActionChainの初期化処理."""
         self.et = et  # ロボット本体
         self.course = course  # コース種別
@@ -76,6 +76,7 @@ class ActionChain(object):
             self.opposite_course = "left"
         else:
             self.opposite_course = "right"
+        self.course_type = course_type  # 上段/下段コース（デフォルトupper）
         self.start_time = 0.0  # アクション開始時刻
         self.current_time = 0.0  # 現在時刻
         self.x1, self.y1, self.x2, self.y2 = ROI_CNN  # ROI座標
@@ -423,7 +424,8 @@ class ActionChain(object):
         if phase.get_phase() == 2:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            if abs(current_pos - position_start) < 1200:
+            threshold = 1200 if self.course_type == "upper" else 600
+            if abs(current_pos - position_start) < threshold:
                 left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=300, threshold_value=80)
                 target_x = left_x if self.course == "right" else right_x
                 if target_x is None:
@@ -705,7 +707,8 @@ class ActionChain(object):
         if phase.get_phase() == 4:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            if abs(current_pos - position_start) < 870:
+            threshold = 870 if self.course_type == "upper" else 1370
+            if abs(current_pos - position_start) < threshold:
                 return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
             phase.next_phase()
             # phase5用 右モーター相対位置記録（get_motor_positionで統一）
@@ -799,6 +802,7 @@ class ActionChain(object):
             position_limit_reached = False
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
+
             position_limit_reached = abs(current_pos - position_start) >= 400
 
             if blue_pixel_count > 1000 or position_limit_reached:
@@ -819,7 +823,8 @@ class ActionChain(object):
             position_limit_reached = False
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            position_limit_reached = abs(current_pos - position_start) >= 400
+            threshold = 400 if self.course_type == "upper" else 1000
+            position_limit_reached = abs(current_pos - position_start) >= threshold
 
             if blue_pixel_count <= 500 or position_limit_reached:
                 phase.next_phase()
