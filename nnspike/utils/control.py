@@ -1178,8 +1178,14 @@ def is_left_black_line_detected(img, course):
     # courseがleftの時はimgを左右反転
     if course == 'left':
         img = cv2.flip(img, 1)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    # --- 元のグレースケール処理 ---
+    # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    # --- CLAHEコントラスト強調方式（get_virtual_line_target_xと同じ） ---
+    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    img_clahe = clahe.apply(img_gray)
+    _, mask = cv2.threshold(img_clahe, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     h, w = mask.shape
     mask[:, w//2:] = 0
     # --- 強めノイズ除去（元の処理） ---

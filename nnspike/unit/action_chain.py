@@ -42,7 +42,6 @@ class PhaseManager:
     def get_phase(self) -> int:
         """現在のphase値を取得する."""
         phase = self._state.get("phase", 0)
-        print(f"[DEBUG] get_phase: {phase}")
         return phase
 
     def next_phase(self) -> None:
