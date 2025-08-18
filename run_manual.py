@@ -174,7 +174,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             model.eval()
             print("SUCCESS: NVIDIA model loaded successfully")
             total_params = sum(p.numel() for p in model.parameters())
-            print(f"Model parameters: {total_params:,}, Classes: {NUM_MODES}")
+            # 実際のクラス数をmode_classifier.weight.shape[0]から取得
+            if hasattr(model, 'mode_classifier') and hasattr(model.mode_classifier, 'weight'):
+                actual_classes = model.mode_classifier.weight.shape[0]
+            else:
+                actual_classes = 'Unknown'
+            print(f"Model parameters: {total_params:,}, Classes: {actual_classes}")
         except Exception as e:
             print(f"ERROR: Error loading NVIDIA model: {e}")
             print("Continuing without NVIDIA model...")
