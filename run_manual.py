@@ -166,7 +166,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     # Initialize NVIDIA model if enabled
     model = None
-    NUM_MODES = 6  # 固定値（モデルファイルに合わせて手動で変更してください）
     if model_path:
         print(f"Loading NVIDIA model from: {model_path}")
         try:
