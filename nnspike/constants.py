@@ -11,8 +11,8 @@ BASE_SPEED = 45
 
 # Behavior Mode
 class Mode(Enum):
-    FOLLOW_LEFT_EDGE = 1
-    FOLLOW_RIGHT_EDGE = 0
+    FOLLOW_LEFT_EDGE = 0
+    FOLLOW_RIGHT_EDGE = 1
     AVOID_OBSTACLE = 2
     CARRY_BOTTLE1 = 3
     BACK_AND_TURN1 = 4
