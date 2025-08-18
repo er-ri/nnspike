@@ -1183,10 +1183,8 @@ def is_left_black_line_detected(img, course):
         grayscale=True,
         blur_type="median",
         blur_ksize=9,
-        threshold=None,
         threshold_type="otsu",
-        noise_removal=["dilate"],
-        roi=None,
+        noise_removal="dilate",
         right_half_zero=False
     )
     h, w = mask.shape
