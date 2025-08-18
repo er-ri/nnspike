@@ -63,7 +63,6 @@ class PhaseManager:
     def get_position_start(self, key: str) -> int:
         """指定したkeyのposition_start値を取得する."""
         value = self._state.get(key, None)
-        print(f"[DEBUG] get_position_start('{key}'): {value}")
         if not isinstance(value, int):
             return 0
         return value
@@ -695,11 +694,22 @@ class ActionChain(object):
 
         # 3. 左黒ライン検出まで左旋回。最大右モーター1000ユニット。検出または1000超えたらphase4へ、右モーター位置記録
         if phase.get_phase() == 3:
-            line_detected = is_left_black_line_detected(image, self.course)
-            position_limit_reached = False
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            position_limit_reached = abs(current_pos - position_start) >= 1000
+            min_limit = 500
+            max_limit = 1000
+            position_delta = abs(current_pos - position_start)
+            position_limit_reached = position_delta >= max_limit
+
+            # 500未満は検知開始しない
+            if position_delta < min_limit and not position_limit_reached:
+                if self.course == "right":
+                    return None, (0, 30), Mode.CARRY_BOTTLE2
+                else:
+                    return None, (30, 0), Mode.CARRY_BOTTLE2
+
+            # 500以上になったら判定開始
+            line_detected = is_left_black_line_detected(image, self.course)
 
             if (not line_detected) and (not position_limit_reached):
                 if self.course == "right":
