@@ -508,7 +508,7 @@ class ActionChain(object):
             # 最低300ユニット旋回後にblue_target検出、または500ユニット到達で次へ
             if (minimum_rotation_done and blue_target_detected) or position_limit_reached:
                 if self.course_type == "lower":
-                    phase.next_phase(skip=3)  # 7→10へスキップ
+                    phase.next_phase(skip=2)  # スキップ
                 else:
                     phase.next_phase()
             else:
