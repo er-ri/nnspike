@@ -449,11 +449,11 @@ class ActionChain(object):
             # phase4用 右モーター相対位置記録（絶対値）
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
-        # 4. 直進（右モーター100ユニット移動まで。100超えたらphase5へ、右モーター位置記録、pre_target_x初期化）
+        # 4. 直進（右モーター200ユニット移動まで。200超えたらphase5へ、右モーター位置記録、pre_target_x初期化）
         if phase.get_phase() == 4:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            if abs(current_pos - position_start) < 100:
+            if abs(current_pos - position_start) < 200:
                 return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE1
             # 300超えたら次フェーズへ
             phase.next_phase()
@@ -461,11 +461,11 @@ class ActionChain(object):
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             self.pre_target_x = (self.x1 + self.x2) // 2
 
-        # 5. 仮想ライン直進（右モーター1000ユニット移動まで、get_virtual_line_target_xで中心追従、pre_target_x更新。1000超えたらphase6へ、右モーター位置記録）
+        # 5. 仮想ライン直進（右モーター900ユニット移動まで、get_virtual_line_target_xで中心追従、pre_target_x更新。1000超えたらphase6へ、右モーター位置記録）
         if phase.get_phase() == 5:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            if abs(current_pos - position_start) < 1000:
+            if abs(current_pos - position_start) < 900:
                 # 右に障害物がある場合は左回避を明示
                 temp_x = get_virtual_line_target_x(image, previous_center_x=self.pre_target_x)
                 if temp_x is not None:
