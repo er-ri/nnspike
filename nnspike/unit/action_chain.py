@@ -44,10 +44,10 @@ class PhaseManager:
         phase = self._state.get("phase", 0)
         return phase
 
-    def next_phase(self) -> None:
-        """phase値を1進める."""
-        self._state["phase"] = self._state.get("phase", 0) + 1
-        print(f"[DEBUG] next_phase: {self._state['phase']}")
+    def next_phase(self, skip: int = 1) -> None:
+        """phase値をskip分進める（デフォルト1）。"""
+        self._state["phase"] = self._state.get("phase", 0) + skip
+        print(f"[DEBUG] next_phase(+{skip}): {self._state['phase']}")
 
     def set_position_start(self, key: str, value) -> None:
         """指定したkey（例: 'right_position_start'）にvalue（例: モーター位置）をセットする。
@@ -505,17 +505,17 @@ class ActionChain(object):
             minimum_rotation_done = position_diff >= 300
             position_limit_reached = position_diff >= 500
             
-            # 最低300ユニット旋回後にblue_target検出を確認、500ユニット上限
-            if minimum_rotation_done and blue_target_detected:
-                phase.next_phase()
-            elif not position_limit_reached:
+            # 最低300ユニット旋回後にblue_target検出、または500ユニット到達で次へ
+            if (minimum_rotation_done and blue_target_detected) or position_limit_reached:
+                if self.course_type == "lower":
+                    phase.next_phase(skip=3)  # 7→10へスキップ
+                else:
+                    phase.next_phase()
+            else:
                 if self.course == "right":
                     return None, (0, 30), Mode.CARRY_BOTTLE1
                 else:
                     return None, (30, 0), Mode.CARRY_BOTTLE1
-            else:
-                # 500ユニット到達したが青が見つからない場合も次へ
-                phase.next_phase()
 
         # 8. 青検出（青ピクセル数1000超えたらphase9へ）
         if phase.get_phase() == 8:
