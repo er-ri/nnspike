@@ -166,27 +166,15 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     # Initialize NVIDIA model if enabled
     model = None
-    NUM_MODES = 6  # デフォルト値（モデル未使用時）
+    NUM_MODES = 6  # 固定値（モデルファイルに合わせて手動で変更してください）
     if model_path:
         print(f"Loading NVIDIA model from: {model_path}")
         try:
-            # 正しいクラス数でモデル読み込み
             model = load_optimized_model(model_path, device)
             model.eval()
             print("SUCCESS: NVIDIA model loaded successfully")
-            # モデル情報の表示
             total_params = sum(p.numel() for p in model.parameters())
-            # mode_classifierのクラス数でNUM_MODESを動的に設定
-            if hasattr(model, 'mode_classifier'):
-                classifier = getattr(model, 'mode_classifier')
-                if hasattr(classifier, 'out_features'):
-                    actual_classes: int = classifier.out_features
-                    NUM_MODES = actual_classes
-                    print(f"Model parameters: {total_params:,}, Classes: {actual_classes} (NUM_MODES set to {NUM_MODES})")
-                else:
-                    print(f"Model parameters: {total_params:,}")
-            else:
-                print(f"Model parameters: {total_params:,}")
+            print(f"Model parameters: {total_params:,}, Classes: {NUM_MODES}")
         except Exception as e:
             print(f"ERROR: Error loading NVIDIA model: {e}")
             print("Continuing without NVIDIA model...")

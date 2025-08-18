@@ -34,7 +34,7 @@ class Mode(Enum):
     NVIDIA_FOLLOW = 21
 
 # One-Hot Encoding for Modes
-NUM_MODES = 6  # 保存されたモデルは6クラス分類用
+NUM_MODES = 5  # クラス分類用
 # NUM_MODES = len(Mode)  # 将来的には動的計算に戻す予定
 # Scale for relative position in motor control
 RELATIVE_POSITION_SCALE = 80000
