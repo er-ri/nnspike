@@ -673,12 +673,12 @@ class ActionChain(object):
                 # phase2用 右モーター相対位置記録（get_motor_positionで統一）
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
-        # 2. 右モーター100ユニット移動までcenter追従。100超えたらphase3へ、右モーター位置記録
+        # 2. 右モーター150ユニット移動までcenter追従。150超えたらphase3へ、右モーター位置記録
         if phase.get_phase() == 2:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            if abs(current_pos - position_start) < 100:
+            if abs(current_pos - position_start) < 150:
                 if center is not None:
                     target_x = center[0]
                 else:
