@@ -6,7 +6,6 @@ ETRobotのためのアクションシーケンス管理クラスとPhaseManager�
 """
 
 import time  # 時間計測用
-from turtle import left
 from typing import Optional, Tuple  # 型ヒント用
 
 import numpy as np  # 画像処理用
