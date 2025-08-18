@@ -1178,32 +1178,15 @@ def is_left_black_line_detected(img, course):
     # courseがleftの時はimgを左右反転
     if course == 'left':
         img = cv2.flip(img, 1)
-    # --- 元のグレースケール処理 ---
-    # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    # _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    # --- CLAHEコントラスト強調方式（get_virtual_line_target_xと同じ） ---
-    # img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    # clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-    # img_clahe = clahe.apply(img_gray)
-    # _, mask = cv2.threshold(img_clahe, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    # h, w = mask.shape
-    # mask[:, w//2:] = 0
-    # --- 強めノイズ除去（元の処理） ---
-    # mask = cv2.medianBlur(mask, 9)
-    # mask = cv2.dilate(mask, np.ones((7,7), np.uint8), iterations=3)
-    # --- 弱め＋穴埋め（小さいカーネル・回数少なめ＋クロージング） ---
-    # mask = cv2.medianBlur(mask, 5)
-    # mask = cv2.dilate(mask, np.ones((5, 5), np.uint8), iterations=1)
-    # mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
-    # --- get_line_edges_at_y方式（control_preprocess_image利用）---
     mask = control_preprocess_image(
         img,
         grayscale=True,
-        blur_type="gaussian",
-        blur_ksize=5,
-        threshold=80,
-        threshold_type="binary_inv",
-        noise_removal="none"
+        blur_type="median",
+        blur_ksize=9,
+        threshold=None,
+        threshold_type="otsu",
+        noise_removal=["dilate"],
+        roi=None
     )
     h, w = mask.shape
     x0, y0, x1, y1 = _roi
@@ -1563,15 +1546,34 @@ def control_preprocess_image(
             _, img = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY)
         else:
             _, img = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY_INV)
+    # 画像右半分を0にする（mask[:, w//2:] = 0）
+    if hasattr(img, 'shape') and img.ndim == 2 and mask is None:
+        h, w = img.shape
+        img[:, w//2:] = 0
     if mask is not None:
         img = cv2.bitwise_and(img, mask)
     if roi is not None:
         x, y, w, h = roi
         img = img[y : y + h, x : x + w]
-    if noise_removal == "dilate":
-        img = cv2.dilate(img, np.ones((5, 5), np.uint8), iterations=1)
-    elif noise_removal == "close":
-        img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+    # noise_removal: strなら1種、listなら複数順番に適用
+    if noise_removal is not None:
+        if isinstance(noise_removal, str):
+            nrs = [noise_removal]
+        elif isinstance(noise_removal, (list, tuple)):
+            nrs = noise_removal
+        else:
+            nrs = [str(noise_removal)]
+        for nr in nrs:
+            if nr == "none" or nr is None:
+                continue
+            elif nr == "median9":
+                img = cv2.medianBlur(img, 9)
+            elif nr == "dilate7x3":
+                img = cv2.dilate(img, np.ones((7, 7), np.uint8), iterations=3)
+            elif nr == "dilate":
+                img = cv2.dilate(img, np.ones((5, 5), np.uint8), iterations=1)
+            elif nr == "close":
+                img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
     return img
 
 def get_color_mask(image, color, pattern=None):
