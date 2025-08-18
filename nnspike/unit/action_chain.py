@@ -41,11 +41,14 @@ class PhaseManager:
 
     def get_phase(self) -> int:
         """現在のphase値を取得する."""
-        return self._state.get("phase", 0)
+        phase = self._state.get("phase", 0)
+        print(f"[DEBUG] get_phase: {phase}")
+        return phase
 
     def next_phase(self) -> None:
         """phase値を1進める."""
         self._state["phase"] = self._state.get("phase", 0) + 1
+        print(f"[DEBUG] next_phase: {self._state['phase']}")
 
     def set_position_start(self, key: str, value) -> None:
         """指定したkey（例: 'right_position_start'）にvalue（例: モーター位置）をセットする。
@@ -55,10 +58,12 @@ class PhaseManager:
         if not isinstance(value, int):
             value = 0
         self._state[key] = value
+        print(f"[DEBUG] set_position_start('{key}', {value})")
 
     def get_position_start(self, key: str) -> int:
         """指定したkeyのposition_start値を取得する."""
         value = self._state.get(key, None)
+        print(f"[DEBUG] get_position_start('{key}'): {value}")
         if not isinstance(value, int):
             return 0
         return value
