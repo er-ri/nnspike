@@ -1182,8 +1182,13 @@ def is_left_black_line_detected(img, course):
     _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     h, w = mask.shape
     mask[:, w//2:] = 0
-    mask = cv2.medianBlur(mask, 9)
-    mask = cv2.dilate(mask, np.ones((7,7), np.uint8), iterations=3)
+    # --- 強めノイズ除去（元の処理） ---
+    # mask = cv2.medianBlur(mask, 9)
+    # mask = cv2.dilate(mask, np.ones((7,7), np.uint8), iterations=3)
+    # --- 弱め＋穴埋め（小さいカーネル・回数少なめ＋クロージング） ---
+    mask = cv2.medianBlur(mask, 5)
+    mask = cv2.dilate(mask, np.ones((5, 5), np.uint8), iterations=1)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
     x0, y0, x1, y1 = _roi
     mask_roi = np.zeros_like(mask)
     mask_roi[y0:y1, x0:x1] = mask[y0:y1, x0:x1]
