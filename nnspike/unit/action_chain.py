@@ -543,7 +543,7 @@ class ActionChain(object):
             else:
                 return target_x, None, Mode.CARRY_BOTTLE1
 
-        # 10. 青500以下になってから右モーター300ユニット移動までcenter追従。300超えたらphase11へ
+        # 10. 青が一定値以下になってから右モーターが所定の移動量に達するまでcenter追従。条件を満たしたら次のphaseへ
         if phase.get_phase() == 10:
             center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
             if center is not None:
@@ -551,10 +551,11 @@ class ActionChain(object):
             else:
                 target_x = (self.x1 + self.x2) // 2
             
-            # 右モーター位置差分で継続判定
+            # 右モーター位置差分で継続判定（upper:300, lower:100）
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            if abs(current_pos - position_start) < 300:
+            threshold = 300 if self.course_type == "upper" else 100
+            if abs(current_pos - position_start) < threshold:
                 return target_x, None, Mode.CARRY_BOTTLE1
             else:
                 phase.next_phase()
