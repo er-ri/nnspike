@@ -697,7 +697,10 @@ class ActionChain(object):
             position_limit_reached = abs(current_pos - position_start) >= 1000
 
             if (not line_detected) and (not position_limit_reached):
-                return None, (0, 30), Mode.CARRY_BOTTLE2
+                if self.course == "right":
+                    return None, (0, 30), Mode.CARRY_BOTTLE2
+                else:
+                    return None, (30, 0), Mode.CARRY_BOTTLE2
             phase.next_phase()
             # phase4用 右モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
