@@ -503,7 +503,8 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             minimum_rotation_done = position_diff >= 300
-            position_limit_reached = position_diff >= 500
+            max_limit = 400 if self.course_type == "lower" else 500
+            position_limit_reached = position_diff >= max_limit
             
             # 最低300ユニット旋回後にblue_target検出、または500ユニット到達で次へ
             if (minimum_rotation_done and blue_target_detected) or position_limit_reached:
