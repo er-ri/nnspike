@@ -1186,7 +1186,8 @@ def is_left_black_line_detected(img, course):
         threshold=None,
         threshold_type="otsu",
         noise_removal=["dilate"],
-        roi=None
+        roi=None,
+        right_half_zero=False
     )
     h, w = mask.shape
     x0, y0, x1, y1 = _roi
@@ -1505,7 +1506,6 @@ def get_virtual_line_target_x(img, previous_center_x=None):
 
 def control_preprocess_image(
     image,
-    roi=None,
     grayscale=True,
     colorspace=None, # None, 'HSV', 'GRAY' など
     blur_type="gaussian",
@@ -1514,7 +1514,8 @@ def control_preprocess_image(
     threshold_type="binary_inv",
     mask=None,
     noise_removal="none",
-    clahe=False
+    clahe=False,
+    right_half_zero=False
 ):
     """
     画像前処理（get_line_edges_at_yと完全同一仕様）
@@ -1547,14 +1548,12 @@ def control_preprocess_image(
         else:
             _, img = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY_INV)
     # 画像右半分を0にする（mask[:, w//2:] = 0）
-    if hasattr(img, 'shape') and img.ndim == 2 and mask is None:
+    if right_half_zero and hasattr(img, 'shape') and img.ndim == 2 and mask is None:
         h, w = img.shape
         img[:, w//2:] = 0
     if mask is not None:
         img = cv2.bitwise_and(img, mask)
-    if roi is not None:
-        x, y, w, h = roi
-        img = img[y : y + h, x : x + w]
+    # roiによる画像切り出し機能は廃止
     # noise_removal: strなら1種、listなら複数順番に適用
     if noise_removal is not None:
         if isinstance(noise_removal, str):
