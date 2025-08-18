@@ -1172,6 +1172,7 @@ def is_left_black_line_detected(img, course):
     _min_aspect = 2
     _min_area = 8000
     _roi = (0, 80, 140, 420)
+    _roi_left = (500, 80, 640, 420)  # 画像幅640前提
     if img is None:
         raise FileNotFoundError("画像がNoneです")
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -1180,13 +1181,12 @@ def is_left_black_line_detected(img, course):
     mask[:, w//2:] = 0
     mask = cv2.medianBlur(mask, 9)
     mask = cv2.dilate(mask, np.ones((7,7), np.uint8), iterations=3)
-    x0, y0, x1, y1 = _roi
-    mask_roi = np.zeros_like(mask)
-    if course == 'left':
-        # ROIを左右反転
-        mask_roi[y0:y1, w-x1:w-x0] = mask[y0:y1, w-x1:w-x0]
+    if course == 'right':
+        x0, y0, x1, y1 = _roi
     else:
-        mask_roi[y0:y1, x0:x1] = mask[y0:y1, x0:x1]
+        x0, y0, x1, y1 = _roi_left
+    mask_roi = np.zeros_like(mask)
+    mask_roi[y0:y1, x0:x1] = mask[y0:y1, x0:x1]
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     for cnt in contours:
         x, y, ww, hh = cv2.boundingRect(cnt)
