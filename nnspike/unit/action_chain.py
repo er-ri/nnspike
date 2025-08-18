@@ -695,7 +695,7 @@ class ActionChain(object):
         if phase.get_phase() == 3:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            min_limit = 500
+            min_limit = 800
             max_limit = 1500
             position_delta = abs(current_pos - position_start)
             position_limit_reached = position_delta >= max_limit
