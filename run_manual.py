@@ -406,8 +406,21 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.BLUE_BOTTLE_CATCH:
                     target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.blue_bottle_catch(frame))
                 case Mode.FOLLOW_LEFT_EDGE:
+                    yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, color="yellow")
                     left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                    if left_x is not None:
+                    # left_posが7000を超えたらNVIDIA_FOLLOWに切り替え
+                    if left_pos is not None and abs(left_pos) >= 7000:
+                        if model is not None:
+                            mode = Mode.NVIDIA_FOLLOW
+                            # NVIDIA_FOLLOWの処理は次のループで実行される
+                        else:
+                            print("NVIDIA model not available, continuing with FOLLOW_LEFT_EDGE")
+                    elif yellow_pixel_count > 16000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
+                        mode = Mode.AVOID_OBSTACLE
+                        target_x = (x1 + x2) // 2
+                    elif yellow_pixel_count > 3000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
+                        target_x = yellow_cx[0]  # X座標のみを取得
+                    elif left_x is not None:
                         target_x = left_x
                     else:
                         target_x = (x1 + x2) // 2
