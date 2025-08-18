@@ -426,7 +426,7 @@ class ActionChain(object):
         if phase.get_phase() == 2:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            threshold = 1200 if self.course_type == "upper" else 600
+            threshold = 1200 if self.course_type == "upper" else 650
             if abs(current_pos - position_start) < threshold:
                 left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=300, threshold_value=80)
                 target_x = left_x if self.course == "right" else right_x
