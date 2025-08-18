@@ -319,11 +319,11 @@ class ActionChain(object):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
-        # phase1: 右旋回（右モーター550ユニット移動まで, 左:70, 右:40。到達でphase2へ、右モーター位置記録）
+        # phase1: 右旋回（右モーター600ユニット移動まで, 左:70, 右:40。到達でphase2へ、右モーター位置記録）
         if phase.get_phase() == 1:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            if abs(current_pos - position_start) < 550:
+            if abs(current_pos - position_start) < 600:
                 if self.course == "right":
                     return None, (70, 40), Mode.AVOID_OBSTACLE
                 else:
@@ -888,13 +888,13 @@ class ActionChain(object):
             horizontal_line_detected = is_general_horizontal_line_detected(image)
             # 最低200ユニットは必ず旋回
             if not minimum_position_reached:
-                if self.opposite_course == "right":
+                if self.course == "right":
                     return None, (30, 0), Mode.BACK_AND_TURN2
                 else:
                     return None, (0, 30), Mode.BACK_AND_TURN2
             # 200ユニット超えてから、水平ライン検出または400ユニット到達まで継続
             if (not horizontal_line_detected) and (not position_limit_reached):
-                if self.opposite_course == "right":
+                if self.course == "right":
                     return None, (30, 0), Mode.BACK_AND_TURN2
                 else:
                     return None, (0, 30), Mode.BACK_AND_TURN2
