@@ -1182,19 +1182,30 @@ def is_left_black_line_detected(img, course):
     # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     # _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     # --- CLAHEコントラスト強調方式（get_virtual_line_target_xと同じ） ---
-    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-    img_clahe = clahe.apply(img_gray)
-    _, mask = cv2.threshold(img_clahe, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    h, w = mask.shape
-    mask[:, w//2:] = 0
+    # img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    # img_clahe = clahe.apply(img_gray)
+    # _, mask = cv2.threshold(img_clahe, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    # h, w = mask.shape
+    # mask[:, w//2:] = 0
     # --- 強めノイズ除去（元の処理） ---
     # mask = cv2.medianBlur(mask, 9)
     # mask = cv2.dilate(mask, np.ones((7,7), np.uint8), iterations=3)
     # --- 弱め＋穴埋め（小さいカーネル・回数少なめ＋クロージング） ---
-    mask = cv2.medianBlur(mask, 5)
-    mask = cv2.dilate(mask, np.ones((5, 5), np.uint8), iterations=1)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+    # mask = cv2.medianBlur(mask, 5)
+    # mask = cv2.dilate(mask, np.ones((5, 5), np.uint8), iterations=1)
+    # mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+    # --- get_line_edges_at_y方式（control_preprocess_image利用）---
+    mask = control_preprocess_image(
+        img,
+        grayscale=True,
+        blur_type="gaussian",
+        blur_ksize=5,
+        threshold=80,
+        threshold_type="binary_inv",
+        noise_removal="none"
+    )
+    h, w = mask.shape
     x0, y0, x1, y1 = _roi
     mask_roi = np.zeros_like(mask)
     mask_roi[y0:y1, x0:x1] = mask[y0:y1, x0:x1]
@@ -1508,3 +1519,101 @@ def get_virtual_line_target_x(img, previous_center_x=None):
             else:
                 target_x = previous_center_x - max_delta
     return target_x
+
+def control_preprocess_image(
+    image,
+    roi=None,
+    grayscale=True,
+    colorspace=None, # None, 'HSV', 'GRAY' など
+    blur_type="gaussian",
+    blur_ksize=5,
+    threshold=80,
+    threshold_type="binary_inv",
+    mask=None,
+    noise_removal="none",
+    clahe=False
+):
+    """
+    画像前処理（get_line_edges_at_yと完全同一仕様）
+    - グレースケール化（grayscale=True）
+    - GaussianBlur（blur_type='gaussian', blur_ksize=5）
+    - 二値化（threshold_type='binary_inv', threshold=80）
+    - ノイズ除去はデフォルトでなし（noise_removal='none'）
+    - ROI抽出（roi指定時のみ）
+    - その他用途でパラメータ調整可
+    """
+    img = image.copy()
+    if colorspace == "HSV":
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    elif colorspace == "GRAY":
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    if grayscale and len(img.shape) == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    if clahe:
+        clahe_obj = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        img = clahe_obj.apply(img)
+    if blur_type == "gaussian":
+        img = cv2.GaussianBlur(img, (blur_ksize, blur_ksize), 0)
+    elif blur_type == "median":
+        img = cv2.medianBlur(img, blur_ksize)
+    if threshold is not None:
+        if threshold_type == "otsu":
+            _, img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        elif threshold_type == "binary":
+            _, img = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY)
+        else:
+            _, img = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY_INV)
+    if mask is not None:
+        img = cv2.bitwise_and(img, mask)
+    if roi is not None:
+        x, y, w, h = roi
+        img = img[y : y + h, x : x + w]
+    if noise_removal == "dilate":
+        img = cv2.dilate(img, np.ones((5, 5), np.uint8), iterations=1)
+    elif noise_removal == "close":
+        img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+    return img
+
+def get_color_mask(image, color, pattern=None):
+    """
+    指定色のHSVマスクを返す（yellow, blue, red対応）。
+    patternはbottle/line/targetのみ。未指定時はbottle。
+    """
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    if color == "yellow":
+        lower = np.array([15, 100, 100], dtype=np.uint8)
+        upper = np.array([35, 255, 255], dtype=np.uint8)
+        mask = cv2.inRange(hsv, lower, upper)
+    elif color == "blue":
+        if pattern == "target":
+            lower = np.array([100, 80, 80])
+            upper = np.array([140, 255, 255])
+        elif pattern == "line":
+            lower = np.array([105, 80, 80])
+            upper = np.array([135, 255, 255])
+        else: # bottle or 未指定
+            lower = np.array([90, 60, 40])
+            upper = np.array([130, 255, 255])
+        mask = cv2.inRange(hsv, lower, upper)
+    elif color == "red":
+        if pattern == "line":
+            lower1 = np.array([0, 120, 70], dtype=np.uint8)
+            upper1 = np.array([10, 255, 255], dtype=np.uint8)
+            lower2 = np.array([170, 120, 70], dtype=np.uint8)
+            upper2 = np.array([180, 255, 255], dtype=np.uint8)
+        elif pattern == "target":
+            lower1 = np.array([0, 90, 60], dtype=np.uint8)
+            upper1 = np.array([15, 255, 210], dtype=np.uint8)
+            lower2 = np.array([175, 90, 60], dtype=np.uint8)
+            upper2 = np.array([180, 255, 210], dtype=np.uint8)
+        else: # bottle or 未指定
+            lower1 = np.array([0, 100, 100], dtype=np.uint8)
+            upper1 = np.array([10, 255, 255], dtype=np.uint8)
+            lower2 = np.array([170, 100, 100], dtype=np.uint8)
+            upper2 = np.array([180, 255, 255], dtype=np.uint8)
+        mask1 = cv2.inRange(hsv, lower1, upper1)
+        mask2 = cv2.inRange(hsv, lower2, upper2)
+        mask = cv2.bitwise_or(mask1, mask2)
+    else:
+        mask = np.zeros(image.shape[:2], dtype=np.uint8)
+    return mask
