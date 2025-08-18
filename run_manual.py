@@ -404,6 +404,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     if left_pos is not None and abs(left_pos) >= 7000:
                         if model is not None:
                             mode = Mode.NVIDIA_FOLLOW
+                            print("Switched to NVIDIA_FOLLOW mode")
                             # NVIDIA_FOLLOWの処理は次のループで実行される
                         else:
                             print("NVIDIA model not available, continuing with FOLLOW_LEFT_EDGE")
@@ -425,6 +426,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     if right_pos is not None and abs(right_pos) >= 7000:
                         if model is not None:
                             mode = Mode.NVIDIA_FOLLOW
+                            print("Switched to NVIDIA_FOLLOW mode")
                             # NVIDIA_FOLLOWの処理は次のループで実行される
                         else:
                             print("NVIDIA model not available, continuing with FOLLOW_RIGHT_EDGE")
