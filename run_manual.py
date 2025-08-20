@@ -263,7 +263,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             # Save video frame if enabled
             if save_camera_video and video_writer is not None:
-                video_writer.write(frame)
+                if course == "left":
+                    video_writer.write(model_input_frame)
+                else:
+                    video_writer.write(frame)
 
             # Send video stream and driving info if enabled (must be after frame, target_x, etc. are set)
             if send_video_stream and client_socket is not None:
@@ -515,6 +518,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     else:
                         # courseによって左右判定を反転
                         if course == "left":
+                            print(f"[DEBUG] left_pos={abs(left_pos)}, nvidia_mode_prediction={nvidia_mode_prediction}")
                             if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:  # 左エッジ
                                 _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                                 target_x = right_x if right_x is not None else (x1 + x2) // 2
