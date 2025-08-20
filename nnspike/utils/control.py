@@ -593,13 +593,13 @@ def is_left_black_line_detected(img, course):
     mask = control_preprocess_image(
         img,
         grayscale=True,
-        clahe=True,
-        clahe_clipLimit=4.0,
-        blur_type="median",
-        blur_ksize=9,
-        threshold=120,
-        threshold_type="binary_inv",
-        noise_removal="dilate"
+        clahe=True, # clahe=True（変更なし）
+        clahe_clipLimit=3.0, # clahe_clipLimit=4.0 → 3.0
+        blur_type="median", # blur_type="median"（変更なし）
+        blur_ksize=7, # blur_ksize=9 → 7
+        threshold=120, # threshold=120（変更なし）
+        threshold_type="binary_inv", # threshold_type="binary_inv"（変更なし）
+        noise_removal=["dilate", "close"] # noise_removal="dilate" → ["dilate", "close"]
     )
     h, w = mask.shape
     x0, y0, x1, y1 = _roi
@@ -638,17 +638,18 @@ def is_general_horizontal_line_detected(img):
     _center_x = 320
     _roi = (200, 0, 440, 540)  # ノートブック準拠ROI
     
-    # グレースケール変換
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    
-    # OTSU自動閾値
-    _, black_mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    
-    # ノイズ除去（軽め）
-    black_mask = cv2.medianBlur(black_mask, 5)
-    black_mask = cv2.dilate(black_mask, np.ones((5, 5), np.uint8), iterations=1)
-    black_mask = cv2.morphologyEx(black_mask, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
-    
+    # control_preprocess_imageで前処理を完全再現
+    black_mask = control_preprocess_image(
+        img,
+        grayscale=True,
+        clahe=True, # clahe=False → True
+        clahe_clipLimit=3.0, # 新規追加
+        blur_type="median", # blur_type="median"（変更なし）
+        blur_ksize=7, # blur_ksize=5 → 7
+        threshold=120, # threshold=None → 120
+        threshold_type="binary_inv", # threshold_type="otsu" → "binary_inv"
+        noise_removal=["dilate", "close"] # noise_removal=["dilate", "close"]（変更なし）
+    )
     # ROI適用
     x0, y0, x1, y1 = _roi
     mask_roi = np.zeros_like(black_mask)
@@ -714,17 +715,18 @@ def is_horizontal_black_line_detected(img, intersection_y=450):
     _center_x = 320
     _roi = (100, 300, 540, 540)
     
-    # グレースケール変換
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    
-    # OTSU自動閾値
-    _, black_mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    
-    # ノイズ除去
-    black_mask = cv2.medianBlur(black_mask, 9)
-    black_mask = cv2.dilate(black_mask, np.ones((7, 7), np.uint8), iterations=2)
-    black_mask = cv2.morphologyEx(black_mask, cv2.MORPH_CLOSE, np.ones((11, 11), np.uint8))
-    
+    # control_preprocess_imageで前処理を完全再現
+    black_mask = control_preprocess_image(
+        img,
+        grayscale=True,
+        clahe=True, # clahe=False → True
+        clahe_clipLimit=3.0, # 新規追加
+        blur_type="median", # blur_type="median"（変更なし）
+        blur_ksize=7, # blur_ksize=9 → 7
+        threshold=120, # threshold=None → 120
+        threshold_type="binary_inv", # threshold_type="otsu" → "binary_inv"
+        noise_removal=["dilate", "close"] # noise_removal=["dilate7x2", "close11x11"] → ["dilate", "close"]
+    )
     # ROI適用
     x0, y0, x1, y1 = _roi
     mask_roi = np.zeros_like(black_mask)
@@ -770,17 +772,18 @@ def is_vertical_black_line_detected(img):
     _center_tolerance = 60  # x=320±60px
     _roi = (200, 200, 440, 540)  # 画像下側ROI
     
-    # グレースケール変換
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    
-    # OTSU自動閾値
-    _, black_mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    
-    # ノイズ除去（軽め）
-    black_mask = cv2.medianBlur(black_mask, 5)
-    black_mask = cv2.dilate(black_mask, np.ones((5, 5), np.uint8), iterations=1)
-    black_mask = cv2.morphologyEx(black_mask, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
-    
+    # control_preprocess_imageで前処理を完全再現
+    black_mask = control_preprocess_image(
+        img,
+        grayscale=True,
+        clahe=True, # clahe=False → True
+        clahe_clipLimit=3.0, # 新規追加
+        blur_type="median", # blur_type="median"（変更なし）
+        blur_ksize=7, # blur_ksize=5 → 7
+        threshold=120, # threshold=None → 120
+        threshold_type="binary_inv", # threshold_type="otsu" → "binary_inv"
+        noise_removal=["dilate", "close"] # noise_removal=["dilate", "close"]（変更なし）
+    )
     # ROI適用
     x0, y0, x1, y1 = _roi
     mask_roi = np.zeros_like(black_mask)
@@ -813,29 +816,16 @@ def get_virtual_line_target_x(img, previous_center_x=None):
     # ROI座標（仮想ライン検出範囲）
     x1, y1, x2, y2 = 100, 150, 540, 330
     roi_w, roi_h = x2 - x1, y2 - y1
-    # --- 旧統一前処理（コメントアウト） ---
-    # mask_full = control_preprocess_image(
-    #     img,
-    #     grayscale=True,
-    #     clahe=True,
-    #     clahe_clipLimit=2.0,
-    #     blur_type="median",
-    #     blur_ksize=5,
-    #     threshold=None,
-    #     threshold_type="otsu",
-    #     noise_removal=["dilate", "close"]
-    # )
-    # --- 新前処理（is_left_black_line_detectedと同じパラメータ） ---
     mask_full = control_preprocess_image(
         img,
         grayscale=True,
-        clahe=True,
-        clahe_clipLimit=4.0,
-        blur_type="median",
-        blur_ksize=9,
-        threshold=120,
-        threshold_type="binary_inv",
-        noise_removal="dilate"
+        clahe=True, # clahe=True（変更なし）
+        clahe_clipLimit=4.0, # clahe_clipLimit=4.0 → 3.0
+        blur_type="median", # blur_type="median"（変更なし）
+        blur_ksize=9, # blur_ksize=9 → 7
+        threshold=120, # threshold=120（変更なし）
+        threshold_type="binary_inv", # threshold_type="binary_inv"（変更なし）
+        noise_removal=["dilate", "close"] # noise_removal="dilate" → ["dilate", "close"]
     )
     # ROI抽出
     mask = mask_full[y1:y2, x1:x2]
@@ -934,13 +924,13 @@ def control_preprocess_image(
     grayscale=True,
     colorspace=None, # None, 'HSV', 'GRAY' など
     blur_type="gaussian",
-    blur_ksize=5,
-    threshold: Optional[int]=80,
+    blur_ksize=7,
+    threshold: Optional[int]=120,
     threshold_type="binary_inv",
     mask=None,
     noise_removal=None,
     clahe=False,
-    clahe_clipLimit=2.0
+    clahe_clipLimit=3.0
     ):
     """
     画像前処理（get_line_edges_at_yと完全同一仕様）
@@ -992,10 +982,16 @@ def control_preprocess_image(
                 img = cv2.medianBlur(img, 9)
             elif nr == "dilate7x3":
                 img = cv2.dilate(img, np.ones((7, 7), np.uint8), iterations=3)
+            elif nr == "dilate7x2":
+                img = cv2.dilate(img, np.ones((7, 7), np.uint8), iterations=2)
             elif nr == "dilate":
                 img = cv2.dilate(img, np.ones((5, 5), np.uint8), iterations=1)
             elif nr == "close":
                 img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+            elif nr == "close11x11":
+                img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((11, 11), np.uint8))
+            elif nr == "close11x11":
+                img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((11, 11), np.uint8))
     return img
 
 def get_color_mask(image, color, pattern=None):
