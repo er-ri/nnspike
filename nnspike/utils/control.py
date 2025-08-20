@@ -813,19 +813,32 @@ def get_virtual_line_target_x(img, previous_center_x=None):
     # ROI座標（仮想ライン検出範囲）
     x1, y1, x2, y2 = 100, 150, 540, 330
     roi_w, roi_h = x2 - x1, y2 - y1
-    # グレースケール＋CLAHE（コントラスト強調）
-    img_gray_full = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    clahe_full = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-    img_clahe_full = clahe_full.apply(img_gray_full)
-    # OTSUで2値化
-    _, mask_full = cv2.threshold(img_clahe_full, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    # ノイズ除去＋領域強調
-    mask_blur = cv2.medianBlur(mask_full, 5)
-    mask_dilate = cv2.dilate(mask_blur, np.ones((5, 5), np.uint8), iterations=1)
-    mask_close = cv2.morphologyEx(mask_dilate, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
-
+    # --- 旧統一前処理（コメントアウト） ---
+    # mask_full = control_preprocess_image(
+    #     img,
+    #     grayscale=True,
+    #     clahe=True,
+    #     clahe_clipLimit=2.0,
+    #     blur_type="median",
+    #     blur_ksize=5,
+    #     threshold=None,
+    #     threshold_type="otsu",
+    #     noise_removal=["dilate", "close"]
+    # )
+    # --- 新前処理（is_left_black_line_detectedと同じパラメータ） ---
+    mask_full = control_preprocess_image(
+        img,
+        grayscale=True,
+        clahe=True,
+        clahe_clipLimit=4.0,
+        blur_type="median",
+        blur_ksize=9,
+        threshold=120,
+        threshold_type="binary_inv",
+        noise_removal="dilate"
+    )
     # ROI抽出
-    mask = mask_close[y1:y2, x1:x2]
+    mask = mask_full[y1:y2, x1:x2]
     # 輪郭抽出
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     min_area = 50
@@ -922,13 +935,13 @@ def control_preprocess_image(
     colorspace=None, # None, 'HSV', 'GRAY' など
     blur_type="gaussian",
     blur_ksize=5,
-    threshold=80,
+    threshold: Optional[int]=80,
     threshold_type="binary_inv",
     mask=None,
-    noise_removal="none",
+    noise_removal=None,
     clahe=False,
     clahe_clipLimit=2.0
-):
+    ):
     """
     画像前処理（get_line_edges_at_yと完全同一仕様）
     - グレースケール化（grayscale=True）
