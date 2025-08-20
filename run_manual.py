@@ -521,11 +521,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         else:
                             # courseによって左右判定を反転
                             # abs(left_pos)が16000～19000のときは強制的にleft_xをtarget_xにする
-                            if left_pos is not None and 16000 <= abs(left_pos) < 19000:
+                            if left_pos is not None and 15000 <= abs(left_pos) < 18000:
                                 left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                                 target_x = left_x if left_x is not None else (x1 + x2) // 2
                             # abs(left_pos)が19000～21000のときは強制的にright_xをtarget_xにする
-                            elif left_pos is not None and 19000 <= abs(left_pos) <= 21000:
+                            elif left_pos is not None and 18000 <= abs(left_pos) <= 21000:
                                 _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                                 target_x = right_x if right_x is not None else (x1 + x2) // 2
                             # abs(left_pos)が21000より大きい場合は左
