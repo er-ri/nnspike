@@ -515,12 +515,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     else:
                         # courseによって左右判定を反転
                         if course == "left":
-                            if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:  # 左エッジ
-                                _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                                target_x = right_x if right_x is not None else (x1 + x2) // 2
-                            else:  # 左モード以外はすべて右エッジ
+                            if nvidia_mode_prediction == Mode.FOLLOW_RIGHT_EDGE.value:  # 左エッジ
                                 left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                                 target_x = left_x if left_x is not None else (x1 + x2) // 2
+                            else:  # 左モード以外はすべて右エッジ
+                                _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+                                target_x = right_x if right_x is not None else (x1 + x2) // 2
                         else:
                             if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:  # 左エッジ
                                 left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
