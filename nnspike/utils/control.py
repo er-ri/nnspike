@@ -593,9 +593,12 @@ def is_left_black_line_detected(img, course):
     mask = control_preprocess_image(
         img,
         grayscale=True,
+        clahe=True,
+        clahe_clipLimit=4.0,
         blur_type="median",
         blur_ksize=9,
-        threshold_type="otsu",
+        threshold=120,
+        threshold_type="binary_inv",
         noise_removal="dilate"
     )
     h, w = mask.shape
@@ -923,7 +926,8 @@ def control_preprocess_image(
     threshold_type="binary_inv",
     mask=None,
     noise_removal="none",
-    clahe=False
+    clahe=False,
+    clahe_clipLimit=2.0
 ):
     """
     画像前処理（get_line_edges_at_yと完全同一仕様）
@@ -942,7 +946,7 @@ def control_preprocess_image(
     if grayscale and len(img.shape) == 3:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     if clahe:
-        clahe_obj = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        clahe_obj = cv2.createCLAHE(clipLimit=clahe_clipLimit, tileGridSize=(8,8))
         img = clahe_obj.apply(img)
     if blur_type == "gaussian":
         img = cv2.GaussianBlur(img, (blur_ksize, blur_ksize), 0)
