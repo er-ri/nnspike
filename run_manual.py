@@ -263,10 +263,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             # Save video frame if enabled
             if save_camera_video and video_writer is not None:
-                if course == "left":
-                    video_writer.write(model_input_frame)
-                else:
-                    video_writer.write(frame)
+                video_writer.write(frame)
 
             # Send video stream and driving info if enabled (must be after frame, target_x, etc. are set)
             if send_video_stream and client_socket is not None:
