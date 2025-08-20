@@ -91,10 +91,10 @@ class KeyboardController:
 
 
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", course_type="upper", model_path=None):
-    def nvidia_model_predict(frame, model, et: ETRobot):
+    def nvidia_model_predict(model, et: ETRobot):
         """NVIDIAモデルによる予測を行う。ノートブックテスト結果を反映した安定版"""
         try:
-            roi_area = process_image(image=frame.copy(), device=device, roi=(x1, y1, x2, y2))
+            roi_area = process_image(image=model_input_frame, device=device, roi=(x1, y1, x2, y2))
             
             # ETRobot.retrieve_motors_relative_position()は1つの値（int）を返す
             # 両モーターの絶対値の合計: motor_a_position + motor_b_position
@@ -250,7 +250,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             
             # 3フレームに1回だけモデル予測を実行（負荷軽減）
             if model is not None and (right_pos is None or abs(right_pos) <= 22000) and frame_counter % 3 == 0:
-                last_nvidia_prediction, last_nvidia_mode_prediction, last_nvidia_prob = nvidia_model_predict(model_input_frame, model, et)
+                last_nvidia_prediction, last_nvidia_mode_prediction, last_nvidia_prob = nvidia_model_predict(model, et)
             
             # 最新の予測結果を使用
             nvidia_prediction = last_nvidia_prediction
