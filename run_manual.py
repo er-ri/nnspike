@@ -511,21 +511,37 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
                 case Mode.NVIDIA_FOLLOW:
-                    # right_posが22000を超えたらCARRY_BOTTLE1に切り替え
-                    if right_pos is not None and abs(right_pos) > 22000:
-                        mode = Mode.CARRY_BOTTLE1
-                        print(f"Right position {abs(right_pos)} > 22000, switching to CARRY_BOTTLE1")
-                    else:
-                        # courseによって左右判定を反転
-                        if course == "left":
-                            print(f"[DEBUG] left_pos={abs(left_pos)}, nvidia_mode_prediction={nvidia_mode_prediction}")
-                            if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:  # 左エッジ
+                    # courseによってCARRY_BOTTLE1への切り替え判定を分岐
+                    if course == "left":
+                        if left_pos is not None and abs(left_pos) > 22000:
+                            mode = Mode.CARRY_BOTTLE1
+                            print(f"Left position {abs(left_pos)} > 22000, switching to CARRY_BOTTLE1")
+                        else:
+                            # courseによって左右判定を反転
+                            # abs(left_pos)が16000～19000のときは強制的にleft_xをtarget_xにする
+                            if left_pos is not None and 16000 <= abs(left_pos) < 19000:
+                                left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+                                target_x = left_x if left_x is not None else (x1 + x2) // 2
+                            # abs(left_pos)が19000～21000のときは強制的にright_xをtarget_xにする
+                            elif left_pos is not None and 19000 <= abs(left_pos) <= 21000:
+                                _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+                                target_x = right_x if right_x is not None else (x1 + x2) // 2
+                            # abs(left_pos)が21000より大きい場合は左
+                            elif left_pos is not None and abs(left_pos) > 21000:
+                                left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+                                target_x = left_x if left_x is not None else (x1 + x2) // 2
+                            elif nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:  # 左エッジ
                                 _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                                 target_x = right_x if right_x is not None else (x1 + x2) // 2
                             else:  # 左モード以外はすべて右エッジ
                                 left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                                 target_x = left_x if left_x is not None else (x1 + x2) // 2
+                    else:
+                        if right_pos is not None and abs(right_pos) > 22000:
+                            mode = Mode.CARRY_BOTTLE1
+                            print(f"Right position {abs(right_pos)} > 22000, switching to CARRY_BOTTLE1")
                         else:
+                            # ...existing code...
                             if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:  # 左エッジ
                                 left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                                 target_x = left_x if left_x is not None else (x1 + x2) // 2
