@@ -46,7 +46,7 @@ import nnspike
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode, NUM_MODES
 from nnspike.unit import ETRobot
 from nnspike.unit.action_chain import ActionChain
-from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x
+from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, get_virtual_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x
 from scripts.utils import process_image, model_inference, load_optimized_model
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -479,6 +479,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         target_x = (x1 + x2) // 2
                 case Mode.GATE_PASS:
                     # ゲートを潜る: 仮想ラインエッジを使う
+                    # temp_x = get_virtual_line_edges_at_y(frame, OFFSET_Y, previous_center_x=pre_target_x, avoidance_preference='left')
                     temp_x = get_virtual_line_target_x(frame, previous_center_x=pre_target_x)
                     if temp_x is not None:
                         target_x = temp_x
