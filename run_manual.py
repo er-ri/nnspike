@@ -233,6 +233,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
+            # course leftのときはmodel入力用画像を左右反転
+            model_input_frame = frame.copy()
+            if course == "left":
+                model_input_frame = cv2.flip(model_input_frame, 1)
             # 毎ループ1回だけstatusを取得
             status = et.get_spike_status()
             left_pos = status.motors["A"].relative_position
@@ -246,7 +250,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             
             # 3フレームに1回だけモデル予測を実行（負荷軽減）
             if model is not None and (right_pos is None or abs(right_pos) <= 22000) and frame_counter % 3 == 0:
-                last_nvidia_prediction, last_nvidia_mode_prediction, last_nvidia_prob = nvidia_model_predict(frame, model, et)
+                last_nvidia_prediction, last_nvidia_mode_prediction, last_nvidia_prob = nvidia_model_predict(model_input_frame, model, et)
             
             # 最新の予測結果を使用
             nvidia_prediction = last_nvidia_prediction
@@ -509,14 +513,14 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         mode = Mode.CARRY_BOTTLE1
                         print(f"Right position {abs(right_pos)} > 22000, switching to CARRY_BOTTLE1")
                     else:
-                        # courseによって左右判定・座標を反転
+                        # courseによって左右判定を反転
                         if course == "left":
                             if nvidia_mode_prediction == Mode.FOLLOW_RIGHT_EDGE.value:  # 右エッジ
-                                _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                                target_x = right_x if right_x is not None else (x1 + x2) // 2
-                            else:  # 左モード以外はすべて左エッジ
                                 left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                                 target_x = left_x if left_x is not None else (x1 + x2) // 2
+                            else:  # 右モード以外はすべて左エッジ
+                                _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+                                target_x = right_x if right_x is not None else (x1 + x2) // 2
                         else:
                             if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:  # 左エッジ
                                 left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
