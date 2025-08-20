@@ -249,8 +249,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             frame_counter += 1
             
             # 3フレームに1回だけモデル予測を実行（負荷軽減）
-            if model is not None and (right_pos is None or abs(right_pos) <= 22000) and frame_counter % 3 == 0:
-                last_nvidia_prediction, last_nvidia_mode_prediction, last_nvidia_prob = nvidia_model_predict(model, et)
+            if model is not None:
+                if course == "left":
+                    pos_check = left_pos
+                else:
+                    pos_check = right_pos
+                if (pos_check is None or abs(pos_check) <= 22000) and frame_counter % 3 == 0:
+                    last_nvidia_prediction, last_nvidia_mode_prediction, last_nvidia_prob = nvidia_model_predict(model, et)
             
             # 最新の予測結果を使用
             nvidia_prediction = last_nvidia_prediction
