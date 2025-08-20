@@ -520,11 +520,15 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                             print(f"Left position {abs(left_pos)} > 22000, switching to CARRY_BOTTLE1")
                         else:
                             # courseによって左右判定を反転
-                            # abs(left_pos)が15000～19000のときは強制的にleft_xをtarget_xにする
-                            if left_pos is not None and 15000 <= abs(left_pos) < 19000:
+                            # abs(left_pos)が12000～15000は右、15000～19000は左、19000～21000は右、21000以上は左
+                            if left_pos is not None and 12000 <= abs(left_pos) < 15000:
+                                _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+                                target_x = right_x if right_x is not None else (x1 + x2) // 2
+                                print(f"[DEBUG] left_pos={left_pos}, trace=right (12000-15000)")
+                            elif left_pos is not None and 15000 <= abs(left_pos) < 19000:
                                 left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                                 target_x = left_x if left_x is not None else (x1 + x2) // 2
-                                print(f"[DEBUG] left_pos={left_pos}, trace=left")
+                                print(f"[DEBUG] left_pos={left_pos}, trace=left (15000-19000)")
                             # abs(left_pos)が19000～21000のときは強制的にright_xをtarget_xにする
                             elif left_pos is not None and 19000 <= abs(left_pos) <= 21000:
                                 _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
