@@ -6,21 +6,23 @@ import numpy as np
 def get_line_edges_at_y(image, roi, target_y, threshold=80) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """
     指定Y座標で黒ラインの左右端点（X座標）と幅を検出する。
-    前処理は「グレースケール化→ガウシアンブラー→二値化（binary_inv）→ノイズ除去→ROI抽出」を厳守。
-    必ず control_preprocess_image を使用すること。
-    二値化は cv2.THRESH_BINARY_INV（白=ライン）で行う。
-    Args:
-        image: 入力画像（BGRまたはグレースケール）
-        roi: (x1, y1, x2, y2) ROI座標（画像全体基準）
-        target_y: 検出するY座標（画像全体基準）
-        threshold: 二値化閾値（デフォルト: 80）
-    Returns:
-        left_x: 左端X座標（見つからなければNone）
-        right_x: 右端X座標（見つからなければNone）
-        line_width: ライン幅（見つからなければNone）
+    
+    パラメータ:
+        image (np.ndarray): 入力画像（BGRまたはグレースケール）
+        roi (tuple): ROI（x1, y1, x2, y2）画像全体基準
+        target_y (int): 検出するY座標（画像全体基準）
+        threshold (int): 二値化閾値（デフォルト: 80）
+    前処理:
+        グレースケール化→ガウシアンブラー→二値化（binary_inv）→ノイズ除去→ROI抽出
+    戻り値:
+        left_x (float or None): 左端X座標
+        right_x (float or None): 右端X座標
+        line_width (float or None): ライン幅
     """
 
-    x1, y1, x2, y2 = roi  # ROI座標展開
+    # パラメータ（画像・ROI・Y座標・閾値）
+    x1, y1, x2, y2 = roi  # ROI（x1, y1, x2, y2）
+    # 前処理（グレースケール化→ガウシアンブラー→二値化→ノイズ除去→ROI抽出）
     if target_y < y1 or target_y >= y2:
         return None, None, None  # ROI外はNone返却
     mask_full = control_preprocess_image(
@@ -51,18 +53,23 @@ def get_line_edges_at_y(image, roi, target_y, threshold=80) -> Tuple[Optional[fl
 def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
     """
     指定色（yellow, blue, red）の物体中心座標・面積・色ピクセル数を返す。
-    最大輪郭を検出し、面積・アスペクト比でノイズ除去。
-    物体が見つからなければ (None, None, 0) を返す。
-    Args:
-        image (numpy.ndarray): 入力画像（BGR）
+    
+    パラメータ:
+        image (np.ndarray): 入力画像（BGR）
         color (str): 検出色（'yellow', 'blue', 'red'）
-        min_area (int, optional): 輪郭面積の最小値（デフォルト500）
-    Returns:
-        ((x, y), 面積, 色ピクセル数)。見つからなければ (None, None, 0)
-    Raises:
+        min_area (int): 輪郭面積の最小値（デフォルト500）
+    前処理:
+        グレースケール化→adaptiveThreshold→ノイズ除去
+    戻り値:
+        center (tuple or None): 物体中心座標 (x, y)
+        area (float or None): 面積
+        color_pixel_count (int): 色ピクセル数
+    例外:
         ValueError: colorが未対応の場合
     """
 
+    # パラメータ（画像・色・最小面積）
+    # 前処理（グレースケール化→adaptiveThreshold→ノイズ除去）
     if color not in ["yellow", "blue", "red"]:
         raise ValueError("Color must be 'yellow', 'blue' or 'red'")  # 色パラメータ確認
     if image is None or image.size == 0:
@@ -115,12 +122,12 @@ def calculate_attitude_angle(
     """
     ピクセルオフセットからカメラ幾何で姿勢角（theta）を算出。
     画像中心からの横方向オフセットを実世界の角度に変換。
-    Args:
+    パラメータ:
         offset_pixels (float): 画像中心からの横方向オフセット（ピクセル）
         roi_bottom_y (int): ROI下端y座標
         camera_height (float, optional): カメラ高さ[m]（デフォルト0.20）
         focal_length_pixels (float, optional): 焦点距離[px]（デフォルト640）
-    Returns:
+    戻り値:
         float: 姿勢角（theta, ラジアン）。右が正、左が負。
     備考:
         カメラパラメータはロボットごとに要調整。
@@ -135,15 +142,16 @@ def calculate_attitude_angle(
 def find_blue_target_center(img):
     """
     青い的（楕円）の中心座標・面積・青ピクセル数を返す。
-    Args:
-        img: BGR画像 (numpy.ndarray)
-    Returns:
-        center: (x, y) or None
-        area: float or None
-        blue_pixel_count: int
+    パラメータ:
+        img (np.ndarray): BGR画像
+    戻り値:
+        center (tuple or None): (x, y)またはNone
+        area (float or None): 面積
+        blue_pixel_count (int): 青ピクセル数
     """
+    # エラー処理（画像None/空）
     if img is None or img.size == 0:
-        return None, None, 0  # 画像データ確認
+        return None, None, 0
     mask_blue = get_color_mask(img, "blue", pattern="target")  # 青色抽出
     mask_blue = control_preprocess_image(
         mask_blue,
@@ -184,14 +192,17 @@ def get_is_blue_line_at_y(img, target_y, min_run=30):
     指定したy座標（target_y）で、HSV条件に合致する青ピクセルがmin_run個以上連続していればTrue、そうでなければFalseを返す。
     画像全体のx方向を横断して判定する。ノイズ除去や細いラインの検出に有効。
 
-    Args:
+    パラメータ:
         img (np.ndarray): BGR画像
         target_y (int): 判定するy座標（画像全体基準）
         min_run (int, optional): 青ピクセルの最小連続数（デフォルト30）。
 
-    Returns:
+    戻り値:
         bool: min_run個以上連続した青ピクセルがあればTrue、なければFalse
     """
+    # エラー処理（画像None/空）
+    if img is None or img.size == 0:
+        return False
     if not (0 <= target_y < img.shape[0]):
         return False
     # 青色ラインマスク生成（get_color_maskでHSV抽出）
@@ -211,14 +222,20 @@ def get_is_blue_line_at_y(img, target_y, min_run=30):
 
 def get_blue_line_pixel(img):
     """
-    ノートブックの青物体検知・面積判定・ROIクロップ・最大面積物体のみ返す。
-    Args:
-        img (np.ndarray): BGR画像
-    Returns:
-        float: 最大面積物体の面積（なければ0）
+    青物体検知・面積判定・ROIクロップ・最大面積物体のみ返す。
+    
+    パラメータ:
+        img (np.ndarray): 入力画像（BGR）
+    前処理:
+        青色マスク→メディアンブラー→ノイズ除去→ROI抽出
+    戻り値:
+        max_area (float): 最大面積物体の面積（なければ0）
     """
-    _roi = (100, 200, 540, 480)  # ROI座標（x1, y1, x2, y2）
+    # パラメータ（画像・ROI）
+    _roi = (100, 200, 540, 480)  # ROI（x1, y1, x2, y2）
+    # 前処理（青色マスク→メディアンブラー→ノイズ除去→ROI抽出）
     x1, y1, x2, y2 = _roi
+    # エラー処理（画像None/空）
     if img is None or img.size == 0:
         return 0
     # 青色ラインマスク生成（get_color_maskでHSV抽出）
@@ -251,12 +268,13 @@ def is_x320_on_blue_target(img, x_tolerance=40):
     """
     画像内の青的（楕円）の中心がx=320±x_toleranceの範囲にあればTrueを返す。
     青的が見つからなければFalse。
-    Args:
-        img: BGR画像 (numpy.ndarray)
-        x_tolerance: 許容するx方向の誤差幅（ピクセル）
-    Returns:
+    パラメータ:
+        img (np.ndarray): BGR画像
+        x_tolerance (int): 許容するx方向の誤差幅（ピクセル）
+    戻り値:
         bool: x=320付近に青的があればTrue、なければFalse
     """
+    # エラー処理（画像None/空）
     if img is None or img.size == 0:
         return False
     # 色抽出（HSV変換＋マスク生成）はget_color_maskで一元化
@@ -302,12 +320,13 @@ def is_x320_on_red_target(img, x_tolerance=40):
     """
     画像内の赤的（楕円）の中心がx=320±x_toleranceの範囲にあればTrueを返す。
     赤的が見つからなければFalse。
-    Args:
-        img: BGR画像 (numpy.ndarray)
-        x_tolerance: 許容するx方向の誤差幅（ピクセル）
-    Returns:
+    パラメータ:
+        img (np.ndarray): BGR画像
+        x_tolerance (int): 許容するx方向の誤差幅（ピクセル）
+    戻り値:
         bool: x=320付近に赤的があればTrue、なければFalse
     """
+    # エラー処理（画像None/空）
     if img is None or img.size == 0:
         return False
     # 色抽出（HSV変換＋マスク生成）はget_color_maskで一元化
@@ -352,11 +371,12 @@ def get_red_target_center_x(img):
     """
     画像内の赤的（楕円）の中心x座標を返す。
     赤的が見つからなければNoneを返す。
-    Args:
-        img: BGR画像 (numpy.ndarray)
-    Returns:
+    パラメータ:
+        img (np.ndarray): BGR画像
+    戻り値:
         int or None: 赤的の中心x座標、見つからなければNone
     """
+    # エラー処理（画像None/空）
     if img is None or img.size == 0:
         return None
     # 色抽出（HSV変換＋マスク生成）はget_color_maskで一元化
@@ -395,18 +415,31 @@ def get_red_target_center_x(img):
 
 # 黒ラインの長さや位置で判定する関数（画像直接渡し、条件はプライベート変数）
 def is_left_black_line_detected(img, course):
+    """
+    左側黒ラインの長さ・位置で検出する。
+    パラメータ:
+        img (np.ndarray): 入力画像（BGR）
+        course (str): 'left'の場合は左右反転
+    前処理:
+        グレースケール化→CLAHE→メディアンブラー→二値化（binary_inv）→ノイズ除去→ROI抽出
+    戻り値:
+        bool: 条件を満たす黒ラインが検出されればTrue、なければFalse
+    例外:
+        FileNotFoundError: 画像がNoneの場合
+    """
     _min_width = 60
     _min_height = 150
     _min_aspect = 2
     _min_area = 8000
     _roi = (0, 80, 140, 420)
     x1, y1, x2, y2 = _roi
-    if img is None:
-        raise FileNotFoundError("画像がNoneです")
+    # エラー処理（画像None/空）
+    if img is None or (hasattr(img, 'size') and img.size == 0):
+        return False
     # courseがleftの時はimgを左右反転
     if course == 'left':
         img = cv2.flip(img, 1)
-    # グレースケール化→CLAHE→メディアンブラー→二値化（binary_inv）→ノイズ除去
+    # 前処理（グレースケール化→CLAHE→メディアンブラー→二値化→ノイズ除去）
     mask_full = control_preprocess_image(
         img,
         use_hsv=False,
@@ -436,27 +469,28 @@ def is_general_horizontal_line_detected(img):
     """
     x=320と交差する一般的な水平黒ラインが検出されたらTrueを返す関数
     ROI: y0から540まで全体、x=320との交差必須、90度に近い角度を重視
-    
-    Args:
-        img: BGR画像 (numpy.ndarray)
-    
-    Returns:
+
+    パラメータ:
+        img (np.ndarray): BGR画像
+
+    戻り値:
         bool: x=320と交差し90度に近い水平黒ラインが検出されればTrue、なければFalse
     """
-    if img is None:
-        raise FileNotFoundError("画像がNoneです")
+    # エラー処理（画像None/空）
+    if img is None or (hasattr(img, 'size') and img.size == 0):
+        return False
     
-    # 一般的な水平ライン検出パラメータ
-    _min_width = 150      # ノートブック準拠: 幅条件
-    _min_height = 10      # ノートブック準拠: 高さ条件
-    _max_aspect = 0.2     # ノートブック準拠: アスペクト比（高さ/幅）
-    _min_area = 3000      # ノートブック準拠: 面積条件
-    _angle_binarize_value = 10  # 0度±10または90度±10を許容
-    _center_x = 320
-    _roi = (200, 0, 440, 540)  # ノートブック準拠ROI
+    # パラメータ（幅・高さ・アスペクト比・面積・角度・中心座標・ROI）
+    _min_width = 150      # 幅条件
+    _min_height = 10      # 高さ条件
+    _max_aspect = 0.2     # アスペクト比（高さ/幅）
+    _min_area = 3000      # 面積条件
+    _angle_binarize_value = 10  # 角度許容範囲（0度±10または90度±10）
+    _center_x = 320       # 画像中心x座標
+    _roi = (200, 0, 440, 540)  # ROI（x1, y1, x2, y2）
     x1, y1, x2, y2 = _roi
-    
-    # 前処理: グレースケール化→CLAHE→メディアンブラー→二値化（binary_inv）→ノイズ除去
+
+    # 前処理（グレースケール化→CLAHE→メディアンブラー→二値化→ノイズ除去）
     mask_full = control_preprocess_image(
         img,
         use_hsv=False,
@@ -514,27 +548,28 @@ def is_horizontal_black_line_detected(img, intersection_y=450):
     """
     x=320を通り、指定されたy座標と交差する水平黒ラインが検出されたらTrueを返す関数
     frame_1909を未検出、frame_1910を検出するようにバランス調整された実装
-    
-    Args:
-        img: BGR画像 (numpy.ndarray)
-        intersection_y: 交差判定するy座標 (int, default=450)
-    
-    Returns:
+
+    パラメータ:
+        img (np.ndarray): BGR画像
+        intersection_y (int): 交差判定するy座標（デフォルト450）
+
+    戻り値:
         bool: x=320を通り、指定されたy座標と交差する水平黒ラインが検出されればTrue、なければFalse
     """
-    if img is None:
-        raise FileNotFoundError("画像がNoneです")
+    # エラー処理（画像None/空）
+    if img is None or (hasattr(img, 'size') and img.size == 0):
+        return False
     
-    # バランス調整されたパラメータ
-    _min_width = 400      
-    _min_height = 50     # ★75以下に下げて「h=75」もTrueになるよう調整
-    _max_aspect = 0.4     
-    _min_area = 23000     # frame_1909(22684)と1910(23996)の間に設定
-    _center_x = 320
-    _roi = (100, 300, 540, 540)
+    # パラメータ（幅・高さ・アスペクト比・面積・中心座標・ROI）
+    _min_width = 400      # 幅条件
+    _min_height = 50     # 高さ条件
+    _max_aspect = 0.4    # アスペクト比
+    _min_area = 23000    # 面積条件
+    _center_x = 320      # 画像中心x座標
+    _roi = (100, 300, 540, 540)  # ROI（x1, y1, x2, y2）
     x1, y1, x2, y2 = _roi
-    
-    # グレースケール化→CLAHE→メディアンブラー→二値化（binary_inv）→ノイズ除去
+
+    # 前処理（グレースケール化→CLAHE→メディアンブラー→二値化→ノイズ除去）
     mask_full = control_preprocess_image(
         img,
         use_hsv=False,
@@ -572,27 +607,28 @@ def is_vertical_black_line_detected(img):
     """
     x=320と交差する一般的な水平黒ラインが検出されたらTrueを返す関数
     ROI: y0から540まで全体、x=320との交差必須、90度に近い角度を重視
-    
-    Args:
-        img: BGR画像 (numpy.ndarray)
-    
-    Returns:
+
+    パラメータ:
+        img (np.ndarray): BGR画像
+
+    戻り値:
         bool: x=320と交差し90度に近い水平黒ラインが検出されればTrue、なければFalse
     """
-    if img is None:
-        raise FileNotFoundError("画像がNoneです")
+    # エラー処理（画像None/空）
+    if img is None or (hasattr(img, 'size') and img.size == 0):
+        return False
     
-    # 一般的な垂直ライン検出パラメータ（ノートブックと同期）
-    _min_width = 70      # 幅条件（70px以上に緩和）
-    _min_height = 200    # 高さ条件（200px以上に緩和）
-    _min_aspect = 1.8    # アスペクト比（1.8以上に緩和）
-    _min_area = 14000     # 面積条件（14000px^2以上に緩和）
-    _center_x = 320
-    _center_tolerance = 60  # x=320±60px
-    _roi = (200, 200, 440, 540)  # 画像下側ROI
+    # パラメータ（幅・高さ・アスペクト比・面積・中心座標・許容範囲・ROI）
+    _min_width = 70      # 幅条件
+    _min_height = 200   # 高さ条件
+    _min_aspect = 1.8   # アスペクト比
+    _min_area = 14000   # 面積条件
+    _center_x = 320     # 画像中心x座標
+    _center_tolerance = 60  # 中心許容範囲（x=320±60px）
+    _roi = (200, 200, 440, 540)  # ROI（x1, y1, x2, y2）
     x1, y1, x2, y2 = _roi
-    
-    # グレースケール化→CLAHE→メディアンブラー→二値化（binary_inv）→ノイズ除去
+
+    # 前処理（グレースケール化→CLAHE→メディアンブラー→二値化→ノイズ除去）
     mask_full = control_preprocess_image(
         img,
         use_hsv=False,
@@ -619,9 +655,6 @@ def is_vertical_black_line_detected(img):
         # x=320±_center_toleranceを通るか
         line_center_x = x + width // 2
         crosses_center = abs(line_center_x - _center_x) <= _center_tolerance
-
-        # デバッグ出力
-
         if (
             width >= _min_width and 
             height >= _min_height and 
