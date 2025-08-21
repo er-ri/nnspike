@@ -1,56 +1,28 @@
-"""
-Line Follower Control Module
-
-This module contains implementations of line-following algorithms using camera-based
-and color sensor-based methods. These implementations are used for training data
-collection and real-time robot control. By sending input data such as a camera image
-or sensor status, the functions return the necessary adjustments.
-
-Functions:
-
-    calculate_attitude_angle(offset_pixels: float, roi_bottom_y: int,
-                           camera_height: float, focal_length_pixels: float) -> float:
-        Calculates attitude angle (theta) from pixel offset using camera geometry
-        for more accurate steering control.
-"""
-
 import math
 from typing import Optional, Tuple
-
 import cv2
 import numpy as np
 
-
 def get_line_edges_at_y(image, roi, target_y, threshold=80) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """
-    指定Y座標で黒ラインの左右端点を検出する。
-
-    前処理は「グレースケール化→ブラー→二値化（binary_inv）→ノイズ除去→ROI抽出」を厳守し、
-    必ず control_preprocess_image で統一する。
+    指定Y座標で黒ラインの左右端点（X座標）と幅を検出する。
+    前処理は「グレースケール化→ガウシアンブラー→二値化（binary_inv）→ノイズ除去→ROI抽出」を厳守。
+    必ず control_preprocess_image を使用すること。
     二値化は cv2.THRESH_BINARY_INV（白=ライン）で行う。
-
-    Parameters:
+    Args:
         image: 入力画像（BGRまたはグレースケール）
-        roi: (x, y, w, h) ROI座標（画像全体基準）
+        roi: (x1, y1, x2, y2) ROI座標（画像全体基準）
         target_y: 検出するY座標（画像全体基準）
-        binarize_value_value: 二値化閾値（デフォルト: 80）
-
+        threshold: 二値化閾値（デフォルト: 80）
     Returns:
         left_x: 左端X座標（見つからなければNone）
         right_x: 右端X座標（見つからなければNone）
         line_width: ライン幅（見つからなければNone）
     """
 
-    # Extract ROI coordinates (x1, y1, x2, y2)
-    x1, y1, x2, y2 = roi
-
-    # Check if target_y is within ROI
+    x1, y1, x2, y2 = roi  # ROI座標展開
     if target_y < y1 or target_y >= y2:
-        return None, None, None
-
-    # 「グレースケール化→ブラー→二値化→ノイズ除去→ROI抽出」を厳守
-    # グレースケール化→ガウシアンブラー→二値化（binary_inv）→ノイズ除去
-    # 変数名はmask_fullで統一
+        return None, None, None  # ROI外はNone返却
     mask_full = control_preprocess_image(
         image,
         use_hsv=False,
@@ -62,72 +34,49 @@ def get_line_edges_at_y(image, roi, target_y, threshold=80) -> Tuple[Optional[fl
         binarize_value=threshold,
         noise_removal=None
     )
-    binary = mask_full[y1 : y2, x1 : x2]
-
-    # Calculate the row within the ROI
-    roi_row = target_y - y1
-
-    # Get the binary row at target Y
-    if roi_row >= 0 and roi_row < h:
+    binary = mask_full[y1 : y2, x1 : x2]  # ROI抽出
+    roi_row = target_y - y1  # ROI内Y座標
+    if roi_row >= 0 and roi_row < y2:
         row_data = binary[roi_row, :]
-
-        # Find all white pixels (line pixels) in this row
-        white_pixels = np.where(row_data == 255)[0]
-
+        white_pixels = np.where(row_data == 255)[0]  # 白ピクセル抽出
         if len(white_pixels) > 0:
-            # Find leftmost and rightmost white pixels
             left_x_roi = white_pixels[0]
             right_x_roi = white_pixels[-1]
-
-            # Convert back to original image coordinates
             left_x = x1 + left_x_roi
             right_x = x1 + right_x_roi
             line_width = right_x - left_x + 1
-
             return left_x, right_x, line_width
-
-    return None, None, None
+    return None, None, None  # ライン未検出
 
 def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
     """
     指定色（yellow, blue, red）の物体中心座標・面積・色ピクセル数を返す。
-    OpenCVで最大輪郭を検出し、面積・アスペクト比でノイズ除去。
+    最大輪郭を検出し、面積・アスペクト比でノイズ除去。
     物体が見つからなければ (None, None, 0) を返す。
     Args:
         image (numpy.ndarray): 入力画像（BGR）
         color (str): 検出色（'yellow', 'blue', 'red'）
         min_area (int, optional): 輪郭面積の最小値（デフォルト500）
     Returns:
-        tuple: ((x, y), 面積, 色ピクセル数)。見つからなければ (None, None, 0)
+        ((x, y), 面積, 色ピクセル数)。見つからなければ (None, None, 0)
     Raises:
         ValueError: colorが未対応の場合
     """
 
-    # Validate color parameter
     if color not in ["yellow", "blue", "red"]:
-        raise ValueError("Color must be 'yellow', 'blue' or 'red'")
-
-    # Check if image is valid
+        raise ValueError("Color must be 'yellow', 'blue' or 'red'")  # 色パラメータ確認
     if image is None or image.size == 0:
         print("Error: Invalid image data")
-        return None, None, 0
-
-
-    # 色抽出（HSV変換＋マスク生成）はget_color_maskで一元化
-    color_mask = get_color_mask(image, color, pattern="bottle")
+        return None, None, 0  # 画像データ確認
+    color_mask = get_color_mask(image, color, pattern="bottle")  # 色抽出
     color_pixel_count = cv2.countNonZero(color_mask)
-
-    # Method 2: Edge detection for bottle contours
     mask_full = control_preprocess_image(
         image,
         grayscale=True
     )
     edges = cv2.adaptiveThreshold(mask_full, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-    edges = cv2.bitwise_not(edges)  # Invert to make edges white
+    edges = cv2.bitwise_not(edges)
     combined_mask = cv2.bitwise_or(color_mask, edges)
-
-    # 画像前処理を control_preprocess_image で統一（現行処理内容を完全維持）
-    # ブラー→ノイズ除去（グレースケール・二値化なし）
     combined_mask = control_preprocess_image(
         combined_mask,
         use_hsv=False,
@@ -138,40 +87,23 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
         binarize_mode=None,
         noise_removal=["close3x3", "open3x3"]
     )
-
-    # Find contours
     contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
     if not contours:
         return None, None, color_pixel_count
-
-    # Filter contours by area to remove noise (adjustable minimum area)
     valid_contours = [c for c in contours if cv2.contourArea(c) >= min_area]
-
     if not valid_contours:
         return None, None, color_pixel_count
-
-    # Find the largest contour (assume it's the bottle)
     largest_contour = max(valid_contours, key=cv2.contourArea)
-
-    # Calculate the size (area) of the largest contour
     contour_size = cv2.contourArea(largest_contour)
-
-    # Additional validation: Check aspect ratio of contour to ensure bottle-like shape
     x, y, w, h = cv2.boundingRect(largest_contour)
     aspect_ratio = h / w if w > 0 else 0
-
-    # Bottles are typically taller than they are wide (aspect ratio > 1)
-    if aspect_ratio < 0.8:  # Adjust binarize_value as needed
-        return None, None, color_pixel_count
-
-    # Calculate center using moments
+    if aspect_ratio < 0.8:
+        return None, None, color_pixel_count  # アスペクト比でノイズ除去
     M = cv2.moments(largest_contour)
     if M["m00"] != 0:
         cx = int(M["m10"] / M["m00"])
         cy = int(M["m01"] / M["m00"])
-        return (cx, cy), contour_size, color_pixel_count
-
+        return (cx, cy), contour_size, color_pixel_count  # 中心座標・面積・色ピクセル数
     return None, None, color_pixel_count
 
 def calculate_attitude_angle(
@@ -181,7 +113,7 @@ def calculate_attitude_angle(
     focal_length_pixels: float = 640,
 ) -> float:
     """
-    ピクセルオフセットからカメラ幾何を用いて姿勢角（theta）を算出。
+    ピクセルオフセットからカメラ幾何で姿勢角（theta）を算出。
     画像中心からの横方向オフセットを実世界の角度に変換。
     Args:
         offset_pixels (float): 画像中心からの横方向オフセット（ピクセル）
@@ -193,40 +125,26 @@ def calculate_attitude_angle(
     備考:
         カメラパラメータはロボットごとに要調整。
     """
-    # Calculate ground distance from camera to the line detection point
-    # Using similar triangles: ground_distance / camera_height = focal_length / (image_height - roi_bottom_y)
-    image_height = 480  # Assuming standard camera resolution
+    image_height = 480  # 標準カメラ解像度
     ground_distance = camera_height * focal_length_pixels / (image_height - roi_bottom_y)
-
-    # Calculate lateral offset in meters
-    # Using similar triangles: lateral_offset / ground_distance = offset_pixels / focal_length
     lateral_offset_meters = offset_pixels * ground_distance / focal_length_pixels
-
-    # Calculate attitude angle (theta) using arctangent
     theta = math.atan2(lateral_offset_meters, ground_distance)
-
     return theta
 
 # --- backup/20250724/control.pyより ---
 def find_blue_target_center(img):
     """
-    青い的（楕円）の中心座標・形状情報を返す統合検出関数。
+    青い的（楕円）の中心座標・面積・青ピクセル数を返す。
     Args:
         img: BGR画像 (numpy.ndarray)
-        blue_hsv_lower, blue_hsv_upper: 青色範囲 (HSV)
-        gray_hsv_lower, gray_hsv_upper: グレー色範囲 (HSV)
     Returns:
         center: (x, y) or None
         area: float or None
         blue_pixel_count: int
     """
     if img is None or img.size == 0:
-        return None, None, 0
-    # 色抽出（HSV変換＋マスク生成）はget_color_maskで一元化
-    mask_blue = get_color_mask(img, "blue", pattern="target")
-    # 画像前処理を control_preprocess_image で統一（現行処理内容を完全維持）
-    # morph__ellipse(5,5)を厳密に再現
-    # メディアンブラー→ノイズ除去（グレースケール・二値化なし）
+        return None, None, 0  # 画像データ確認
+    mask_blue = get_color_mask(img, "blue", pattern="target")  # 青色抽出
     mask_blue = control_preprocess_image(
         mask_blue,
         use_hsv=False,
@@ -249,7 +167,6 @@ def find_blue_target_center(img):
                     ellipse = cv2.fitEllipse(cnt)
                     (cx, cy), (major, minor), angle = ellipse
                     ratio = major/minor if minor > 0 else 0
-                    # 明らかに縦長の形状を除外：縦横比が2.0未満（縦が横の2倍未満）に制限
                     if 0.2 < ratio < 2.0 and major > 5 and minor > 3:
                         if area > max_blue_area:
                             best_blue_ellipse = ellipse
@@ -259,7 +176,7 @@ def find_blue_target_center(img):
                     continue
     blue_pixel_count = cv2.countNonZero(mask_blue)
     if best_blue_ellipse is not None:
-        return best_center, max_blue_area, blue_pixel_count
+        return best_center, max_blue_area, blue_pixel_count  # 中心座標・面積・青ピクセル数
     return None, None, 0
 
 def get_is_blue_line_at_y(img, target_y, min_run=30):
@@ -277,16 +194,7 @@ def get_is_blue_line_at_y(img, target_y, min_run=30):
     """
     if not (0 <= target_y < img.shape[0]):
         return False
-    # 旧ロジック（コメントアウトで保存）
-    # img_hsv = control_preprocess_image(
-    #     img,
-    #     use_hsv=True
-    # )
-    # blue_hsv_lower = (100, 80, 80)
-    # blue_hsv_upper = (140, 255, 255)
-    # line_hsv = img_hsv[target_y, :]
-    # blue_mask = np.all([(blue_hsv_lower[i] <= line_hsv[:,i]) & (line_hsv[:,i] <= blue_hsv_upper[i]) for i in range(3)], axis=0)
-    # 新ロジック（get_color_mask使用）
+    # 青色ラインマスク生成（get_color_maskでHSV抽出）
     mask = get_color_mask(img, "blue", pattern="line")
     line_mask = mask[target_y, :]
     # 連続する青ピクセル数がmin_run以上あるか判定
@@ -309,25 +217,13 @@ def get_blue_line_pixel(img):
     Returns:
         float: 最大面積物体の面積（なければ0）
     """
-    _roi = (100, 200, 540, 480)  # y1を200に変更
+    _roi = (100, 200, 540, 480)  # ROI座標（x1, y1, x2, y2）
     x1, y1, x2, y2 = _roi
     if img is None or img.size == 0:
         return 0
-    # 旧ロジック（コメントアウトで保存）
-    # img_hsv = control_preprocess_image(
-    #     img,
-    #     use_hsv=True
-    # )
-    # blue_hsv_lower = (95, 100, 50)
-    # blue_hsv_upper = (145, 255, 255)
-    # blue_mask_raw = np.all([
-    #     (blue_hsv_lower[i] <= img_hsv[:, :, i]) & (img_hsv[:, :, i] <= blue_hsv_upper[i])
-    #     for i in range(3)
-    # ], axis=0)
-    # mask_uint8 = blue_mask_raw.astype(np.uint8) * 255
-    # 新ロジック（get_color_mask使用）
+    # 青色ラインマスク生成（get_color_maskでHSV抽出）
     mask_full = get_color_mask(img, "blue", pattern="line")
-    # メディアンブラー→ノイズ除去（グレースケール・二値化なし）
+    # メディアンブラー＋ノイズ除去（グレースケール・二値化なし）
     mask_full = control_preprocess_image(
         mask_full,
         use_hsv=False,
@@ -338,11 +234,14 @@ def get_blue_line_pixel(img):
         binarize_mode=None,
         noise_removal=["close7x7"]
     )
+    # ROI抽出
     mask_full = mask_full[y1:y2, x1:x2]
+    # 輪郭抽出
     contours, _ = cv2.findContours(mask_full, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     max_area = 0
     for contour in contours:
         area = cv2.contourArea(contour)
+        # 面積300以上かつ最大面積のみ返す
         if area > 300 and area > max_area:
             max_area = area
     return int(max_area)
@@ -557,8 +456,7 @@ def is_general_horizontal_line_detected(img):
     _roi = (200, 0, 440, 540)  # ノートブック準拠ROI
     x1, y1, x2, y2 = _roi
     
-    # control_preprocess_imageで前処理を完全再現
-    # グレースケール化→CLAHE→メディアンブラー→二値化（binary_inv）→ノイズ除去
+    # 前処理: グレースケール化→CLAHE→メディアンブラー→二値化（binary_inv）→ノイズ除去
     mask_full = control_preprocess_image(
         img,
         use_hsv=False,
@@ -636,7 +534,6 @@ def is_horizontal_black_line_detected(img, intersection_y=450):
     _roi = (100, 300, 540, 540)
     x1, y1, x2, y2 = _roi
     
-    # control_preprocess_imageで前処理を完全再現
     # グレースケール化→CLAHE→メディアンブラー→二値化（binary_inv）→ノイズ除去
     mask_full = control_preprocess_image(
         img,
@@ -695,7 +592,6 @@ def is_vertical_black_line_detected(img):
     _roi = (200, 200, 440, 540)  # 画像下側ROI
     x1, y1, x2, y2 = _roi
     
-    # control_preprocess_imageで前処理を完全再現
     # グレースケール化→CLAHE→メディアンブラー→二値化（binary_inv）→ノイズ除去
     mask_full = control_preprocess_image(
         img,
