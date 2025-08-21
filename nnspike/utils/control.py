@@ -21,20 +21,24 @@ import cv2
 import numpy as np
 
 
-def get_line_edges_at_y(image, roi, target_y, threshold_value=50) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def get_line_edges_at_y(image, roi, target_y, threshold=80) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """
-    Get the left and right edge points of a black line at a specific Y coordinate.
+    指定Y座標で黒ラインの左右端点を検出する。
+
+    前処理は「グレースケール化→ブラー→二値化（binary_inv）→ノイズ除去→ROI抽出」を厳守し、
+    必ず control_preprocess_image で統一する。
+    二値化は cv2.THRESH_BINARY_INV（白=ライン）で行う。
 
     Parameters:
-    - image: Input image (BGR or grayscale)
-    - roi_coords: Tuple (x, y, width, height) defining the ROI
-    - target_y: The Y coordinate where to detect line edges (in original image coordinates)
-    - threshold_value: Threshold for binary conversion (default: 50)
+        image: 入力画像（BGRまたはグレースケール）
+        roi: (x, y, w, h) ROI座標（画像全体基準）
+        target_y: 検出するY座標（画像全体基準）
+        binarize_value_value: 二値化閾値（デフォルト: 80）
 
     Returns:
-    - left_x: X coordinate of left edge (None if not found)
-    - right_x: X coordinate of right edge (None if not found)
-    - line_width: Width of the line at this Y position (None if not found)
+        left_x: 左端X座標（見つからなければNone）
+        right_x: 右端X座標（見つからなければNone）
+        line_width: ライン幅（見つからなければNone）
     """
 
     # Extract ROI coordinates
@@ -44,20 +48,20 @@ def get_line_edges_at_y(image, roi, target_y, threshold_value=50) -> Tuple[Optio
     if target_y < y or target_y >= y + h:
         return None, None, None
 
-    # Convert to grayscale if needed
-    if len(image.shape) == 3:
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    else:
-        gray = image.copy()
-
-    # Extract ROI
-    roi = gray[y : y + h, x : x + w]
-
-    # Apply Gaussian blur to reduce noise
-    blurred = cv2.GaussianBlur(roi, (5, 5), 0)
-
-    # Binary threshold to isolate black line
-    _, binary = cv2.threshold(blurred, threshold_value, 255, cv2.THRESH_BINARY_INV)
+    # 「グレースケール化→ブラー→二値化→ノイズ除去→ROI抽出」を厳守
+    # グレースケール化→ガウシアンブラー→二値化（binary_inv）→ノイズ除去
+    preprocessed = control_preprocess_image(
+        image,
+        use_hsv=False,
+        grayscale=True,
+        clahe=False,
+        blur_type="gaussian",
+        blur_ksize=5,
+        binarize_mode="binary_inv",
+        binarize_value=threshold,
+        noise_removal=None
+    )
+    binary = preprocessed[y : y + h, x : x + w]
 
     # Calculate the row within the ROI
     roi_row = target_y - y
@@ -93,7 +97,7 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
 
     This function is optimized for real-time applications with the following improvements:
     - Accepts numpy array input instead of file paths for real-time processing
-    - Uses adaptive thresholding for better edge detection under various lighting conditions
+    - Uses adaptive binarize_valueing for better edge detection under various lighting conditions
     - Applies contour area filtering to reduce noise and false detections
     - Includes aspect ratio validation to filter out non-object-like shapes
     - Uses smaller morphological kernels for better performance
@@ -102,7 +106,7 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
     Args:
         image (numpy.ndarray): Input image as numpy array (BGR format)
         color (str): Color to detect ('yellow' or 'blue')
-        min_area (int, optional): Minimum contour area threshold for filtering noise. Defaults to 500.
+        min_area (int, optional): Minimum contour area binarize_value for filtering noise. Defaults to 500.
 
     Returns:
         tuple: ((x, y), size, color_pixel_count) where (x, y) is the center coordinates,
@@ -151,20 +155,23 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
     color_pixel_count = cv2.countNonZero(color_mask)
 
     # Method 2: Edge detection for bottle contours
-    # Use adaptive thresholding for better edge detection under various lighting
-    edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    # Use adaptive binarize_valueing for better edge detection under various lighting
+    edges = cv2.adaptivebinarize_value(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     edges = cv2.bitwise_not(edges)  # Invert to make edges white
 
     # Combine color and edge information
     combined_mask = cv2.bitwise_or(color_mask, edges)
 
     # 画像前処理を control_preprocess_image で統一（現行処理内容を完全維持）
+    # ブラー→ノイズ除去（グレースケール・二値化なし）
     combined_mask = control_preprocess_image(
         combined_mask,
+        use_hsv=False,
         grayscale=False,
+        clahe=False,
         blur_type="gaussian",
         blur_ksize=3,
-        threshold=None,
+        binarize_mode=None,
         noise_removal=["close3x3", "open3x3"]
     )
 
@@ -191,7 +198,7 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
     aspect_ratio = h / w if w > 0 else 0
 
     # Bottles are typically taller than they are wide (aspect ratio > 1)
-    if aspect_ratio < 0.8:  # Adjust threshold as needed
+    if aspect_ratio < 0.8:  # Adjust binarize_value as needed
         return None, None, color_pixel_count
 
     # Calculate center using moments
@@ -266,12 +273,15 @@ def find_blue_target_center(img):
     mask_blue = cv2.inRange(hsv, np.array(blue_hsv_lower), np.array(blue_hsv_upper))
     # 画像前処理を control_preprocess_image で統一（現行処理内容を完全維持）
     # morph__ellipse(5,5)を厳密に再現
+    # メディアンブラー→ノイズ除去（グレースケール・二値化なし）
     mask_blue = control_preprocess_image(
         mask_blue,
+        use_hsv=False,
         grayscale=False,
+        clahe=False,
         blur_type="median",
         blur_ksize=5,
-        threshold=None,
+        binarize_mode=None,
         noise_removal=["close5x5_ellipse"]
     )
     contours_blue, _ = cv2.findContours(mask_blue, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -353,13 +363,16 @@ def get_blue_line_pixel(img):
         for i in range(3)
     ], axis=0)
     mask_uint8 = blue_mask_raw.astype(np.uint8) * 255
+    # メディアンブラー→ノイズ除去（グレースケール・二値化なし）
     mask_uint8 = control_preprocess_image(
         mask_uint8,
+        use_hsv=False,
         grayscale=False,
-        blur_type='median',
+        clahe=False,
+        blur_type="median",
         blur_ksize=7,
-        threshold=None,
-        noise_removal=['close7x7']
+        binarize_mode=None,
+        noise_removal=["close7x7"]
     )
     mask_uint8 = mask_uint8[y1:y2, x1:x2]
     contours, _ = cv2.findContours(mask_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -388,12 +401,15 @@ def is_x320_on_blue_target(img, x_tolerance=40):
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     mask_blue = cv2.inRange(hsv, np.array(blue_hsv_lower), np.array(blue_hsv_upper))
     # 5x5楕円カーネルでクロージング
+    # メディアンブラー→ノイズ除去（グレースケール・二値化なし）
     mask_blue = control_preprocess_image(
         mask_blue,
+        use_hsv=False,
         grayscale=False,
+        clahe=False,
         blur_type="median",
         blur_ksize=5,
-        threshold=None,
+        binarize_mode=None,
         noise_removal=["close5x5_ellipse"]
     )
     contours_blue, _ = cv2.findContours(mask_blue, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -443,12 +459,15 @@ def is_x320_on_red_target(img, x_tolerance=40):
     mask2 = cv2.inRange(hsv, np.array(red_hsv_lower2), np.array(red_hsv_upper2))
     mask_red = cv2.bitwise_or(mask1, mask2)
     # 5x5楕円カーネルでクロージング
+    # メディアンブラー→ノイズ除去（グレースケール・二値化なし）
     mask_red = control_preprocess_image(
         mask_red,
+        use_hsv=False,
         grayscale=False,
+        clahe=False,
         blur_type="median",
         blur_ksize=5,
-        threshold=None,
+        binarize_mode=None,
         noise_removal=["close5x5_ellipse"]
     )
     contours_red, _ = cv2.findContours(mask_red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -496,12 +515,15 @@ def get_red_target_center_x(img):
     mask2 = cv2.inRange(hsv, np.array(red_hsv_lower2), np.array(red_hsv_upper2))
     mask_red = cv2.bitwise_or(mask1, mask2)
     # 5x5楕円カーネルでクロージング
+    # メディアンブラー→ノイズ除去（グレースケール・二値化なし）
     mask_red = control_preprocess_image(
         mask_red,
+        use_hsv=False,
         grayscale=False,
+        clahe=False,
         blur_type="median",
         blur_ksize=5,
-        threshold=None,
+        binarize_mode=None,
         noise_removal=["close5x5_ellipse"]
     )
     contours_red, _ = cv2.findContours(mask_red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -537,16 +559,18 @@ def is_left_black_line_detected(img, course):
     # courseがleftの時はimgを左右反転
     if course == 'left':
         img = cv2.flip(img, 1)
+    # グレースケール化→CLAHE→メディアンブラー→二値化（binary_inv）→ノイズ除去
     mask = control_preprocess_image(
         img,
+        use_hsv=False,
         grayscale=True,
-        clahe=True, # clahe=True（変更なし）
-        clahe_clipLimit=3.0, # clahe_clipLimit=4.0 → 3.0
-        blur_type="median", # blur_type="median"（変更なし）
-        blur_ksize=7, # blur_ksize=9 → 7
-        threshold=120, # threshold=120（変更なし）
-        threshold_type="binary_inv", # threshold_type="binary_inv"（変更なし）
-        noise_removal=["dilate", "close7x7"] # "close" を "close7x7" に修正
+        clahe=True,
+        clahe_clipLimit=3.0,
+        blur_type="median",
+        blur_ksize=7,
+        binarize_mode="binary_inv",
+        binarize_value=120,
+        noise_removal=["dilate", "close7x7"]
     )
     h, w = mask.shape
     x0, y0, x1, y1 = _roi
@@ -581,21 +605,23 @@ def is_general_horizontal_line_detected(img):
     _min_height = 10      # ノートブック準拠: 高さ条件
     _max_aspect = 0.2     # ノートブック準拠: アスペクト比（高さ/幅）
     _min_area = 3000      # ノートブック準拠: 面積条件
-    _angle_threshold = 10  # 0度±10または90度±10を許容
+    _angle_binarize_value = 10  # 0度±10または90度±10を許容
     _center_x = 320
     _roi = (200, 0, 440, 540)  # ノートブック準拠ROI
     
     # control_preprocess_imageで前処理を完全再現
+    # グレースケール化→CLAHE→メディアンブラー→二値化（binary_inv）→ノイズ除去
     black_mask = control_preprocess_image(
         img,
+        use_hsv=False,
         grayscale=True,
-        clahe=True, # clahe=False → True
-        clahe_clipLimit=3.0, # 新規追加
-        blur_type="median", # blur_type="median"（変更なし）
-        blur_ksize=7, # blur_ksize=5 → 7
-        threshold=120, # threshold=None → 120
-        threshold_type="binary_inv", # threshold_type="otsu" → "binary_inv"
-        noise_removal=["dilate", "close7x7"] # "close" を "close7x7" に修正
+        clahe=True,
+        clahe_clipLimit=3.0,
+        blur_type="median",
+        blur_ksize=7,
+        binarize_mode="binary_inv",
+        binarize_value=120,
+        noise_removal=["dilate", "close7x7"]
     )
     # ROI適用
     x0, y0, x1, y1 = _roi
@@ -627,7 +653,7 @@ def is_general_horizontal_line_detected(img):
         # x=320との交差判定（y座標制限なし）
         crosses_center = (x <= _center_x <= x + width)
         # 0度±10または90度±10を許容
-        angle_ok = (angle_from_0 <= _angle_threshold) or (angle_from_90 <= _angle_threshold)
+        angle_ok = (angle_from_0 <= _angle_binarize_value) or (angle_from_90 <= _angle_binarize_value)
         if (
             width >= _min_width and 
             height >= _min_height and 
@@ -663,16 +689,18 @@ def is_horizontal_black_line_detected(img, intersection_y=450):
     _roi = (100, 300, 540, 540)
     
     # control_preprocess_imageで前処理を完全再現
+    # グレースケール化→CLAHE→メディアンブラー→二値化（binary_inv）→ノイズ除去
     black_mask = control_preprocess_image(
         img,
+        use_hsv=False,
         grayscale=True,
-        clahe=True, # clahe=False → True
-        clahe_clipLimit=3.0, # 新規追加
-        blur_type="median", # blur_type="median"（変更なし）
-        blur_ksize=7, # blur_ksize=9 → 7
-        threshold=120, # threshold=None → 120
-        threshold_type="binary_inv", # threshold_type="otsu" → "binary_inv"
-        noise_removal=["dilate", "close7x7"] # "close" を "close7x7" に修正
+        clahe=True,
+        clahe_clipLimit=3.0,
+        blur_type="median",
+        blur_ksize=7,
+        binarize_mode="binary_inv",
+        binarize_value=120,
+        noise_removal=["dilate", "close7x7"]
     )
     # ROI適用
     x0, y0, x1, y1 = _roi
@@ -720,16 +748,18 @@ def is_vertical_black_line_detected(img):
     _roi = (200, 200, 440, 540)  # 画像下側ROI
     
     # control_preprocess_imageで前処理を完全再現
+    # グレースケール化→CLAHE→メディアンブラー→二値化（binary_inv）→ノイズ除去
     black_mask = control_preprocess_image(
         img,
+        use_hsv=False,
         grayscale=True,
-        clahe=True, # clahe=False → True
-        clahe_clipLimit=3.0, # 新規追加
-        blur_type="median", # blur_type="median"（変更なし）
-        blur_ksize=7, # blur_ksize=5 → 7
-        threshold=120, # threshold=None → 120
-        threshold_type="binary_inv", # threshold_type="otsu" → "binary_inv"
-        noise_removal=["dilate", "close7x7"] # "close" を "close7x7" に修正
+        clahe=True,
+        clahe_clipLimit=3.0,
+        blur_type="median",
+        blur_ksize=7,
+        binarize_mode="binary_inv",
+        binarize_value=120,
+        noise_removal=["dilate", "close7x7"]
     )
     # ROI適用
     x0, y0, x1, y1 = _roi
@@ -763,16 +793,18 @@ def get_virtual_line_target_x(img, previous_center_x=None):
     # ROI座標（仮想ライン検出範囲）
     x1, y1, x2, y2 = 100, 150, 540, 330
     roi_w, roi_h = x2 - x1, y2 - y1
+    # グレースケール化→CLAHE→メディアンブラー→二値化（binary_inv）→ノイズ除去
     mask_full = control_preprocess_image(
         img,
+        use_hsv=False,
         grayscale=True,
-        clahe=True, # clahe=True（変更なし）
-        clahe_clipLimit=4.0, # clahe_clipLimit=4.0 → 3.0
-        blur_type="median", # blur_type="median"（変更なし）
-        blur_ksize=9, # blur_ksize=9 → 7
-        threshold=120, # threshold=120（変更なし）
-        threshold_type="binary_inv", # threshold_type="binary_inv"（変更なし）
-        noise_removal=["dilate", "close7x7"] # "close" を "close7x7" に修正
+        clahe=True,
+        clahe_clipLimit=4.0,
+        blur_type="median",
+        blur_ksize=9,
+        binarize_mode="binary_inv",
+        binarize_value=120,
+        noise_removal=["dilate", "close7x7"]
     )
     # ROI抽出
     mask = mask_full[y1:y2, x1:x2]
@@ -802,7 +834,7 @@ def get_virtual_line_target_x(img, previous_center_x=None):
         rect_centers_y.append(cy)
         rects.append((x, y, w, h))
     # x座標でグループ化
-    x_merge_threshold = 150
+    x_merge_binarize_value = 150
     merged_groups = []
     used = set()
     for i, cx in enumerate(rect_centers_x):
@@ -813,7 +845,7 @@ def get_virtual_line_target_x(img, previous_center_x=None):
         for j, cx2 in enumerate(rect_centers_x):
             if j in used or j == i:
                 continue
-            if abs(cx - cx2) < x_merge_threshold:
+            if abs(cx - cx2) < x_merge_binarize_value:
                 group.append(j)
                 used.add(j)
         merged_groups.append(group)
@@ -868,53 +900,62 @@ def get_virtual_line_target_x(img, previous_center_x=None):
 
 def control_preprocess_image(
     image,
-    grayscale=True,
-    colorspace=None, # None, 'HSV', 'GRAY' など
-    blur_type="gaussian",
-    blur_ksize=7,
-    threshold: Optional[int]=120,
-    threshold_type="binary_inv",
-    mask=None,
-    noise_removal=None,
-    clahe=False,
-    clahe_clipLimit=3.0
+    use_hsv=False,         # 色空間変換（BGR→HSV）
+    grayscale=False,       # グレースケール化
+    clahe=False,           # コントラスト強調（CLAHE）
+    clahe_clipLimit=3.0,   # CLAHEパラメータ
+    blur_type=None,        # フィルター（平滑化）
+    blur_ksize=7,          # フィルターサイズ
+    binarize_mode=None,   # 二値化タイプ（Noneで二値化なし）
+    binarize_value: Optional[int]=120, # 二値化閾値（デフォルト: 120）
+    noise_removal=None     # ノイズ除去
     ):
     """
     画像前処理（get_line_edges_at_yと完全同一仕様）
     - グレースケール化（grayscale=True）
     - GaussianBlur（blur_type='gaussian', blur_ksize=5）
-    - 二値化（threshold_type='binary_inv', threshold=80）
+    - 二値化（binarize_mode='binary_inv', binarize_value=80）
     - ノイズ除去はデフォルトでなし（noise_removal='none'）
-    - 画面エリア切り取り・右半分無効化・ROI抽出は全面禁止
-    - その他用途でパラメータ調整可
     """
-    img = image.copy()
-    if colorspace == "HSV":
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    elif colorspace == "GRAY":
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    if grayscale and len(img.shape) == 3:
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # --- 色空間変換 ---
+    if use_hsv:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+    # --- グレースケール化 ---
+    if grayscale:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # --- コントラスト強調（CLAHE） ---
     if clahe:
         clahe_obj = cv2.createCLAHE(clipLimit=clahe_clipLimit, tileGridSize=(8,8))
-        img = clahe_obj.apply(img)
+        image = clahe_obj.apply(image)
+
+    # --- フィルター（平滑化） ---
     if blur_type == "gaussian":
-        img = cv2.GaussianBlur(img, (blur_ksize, blur_ksize), 0)
+        image = cv2.GaussianBlur(image, (blur_ksize, blur_ksize), 0)
     elif blur_type == "median":
-        img = cv2.medianBlur(img, blur_ksize)
-    if threshold is not None:
-        if threshold_type == "otsu":
-            _, img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        elif threshold_type == "binary":
-            _, img = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY)
-        else:
-            _, img = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY_INV)
-    # 画面のエリアを切り取る処理（右半分無効化・ROI抽出など）は全面禁止
-    if mask is not None:
-        img = cv2.bitwise_and(img, mask)
-    # roiによる画像切り出し機能は廃止
-    # right_half_zero機能は廃止
-    # noise_removal: strなら1種、listなら複数順番に適用
+        image = cv2.medianBlur(image, blur_ksize)
+    # blur_type==Noneなら何もしない
+
+    # --- 二値化 ---
+    if binarize_mode is not None:
+        if binarize_mode == "otsu":
+            # Otsu + binary_inv
+            _, image = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        elif binarize_mode == "binary":
+            # binary
+            if binarize_value is None:
+                raise ValueError("binarize_value must be specified for binary mode")
+            _, image = cv2.threshold(image, binarize_value, 255, cv2.THRESH_BINARY)
+        elif binarize_mode == "binary_inv":
+            # binary_inv（明示）
+            if binarize_value is None:
+                raise ValueError("binarize_value must be specified for binary_inv mode")
+            _, image = cv2.threshold(image, binarize_value, 255, cv2.THRESH_BINARY_INV)
+        # binarize_mode==Noneなら何もしない
+
+    # --- ノイズ除去（モルフォロジー処理） ---
     if noise_removal is not None:
         if isinstance(noise_removal, str):
             nrs = [noise_removal]
@@ -925,25 +966,23 @@ def control_preprocess_image(
         for nr in nrs:
             if nr == "none" or nr is None:
                 continue
-            elif nr == "median9":
-                img = cv2.medianBlur(img, 9)
             elif nr == "dilate":
-                img = cv2.dilate(img, np.ones((5, 5), np.uint8), iterations=1)
+                image = cv2.dilate(image, np.ones((5, 5), np.uint8), iterations=1)
             elif nr == "dilate7x2":
-                img = cv2.dilate(img, np.ones((7, 7), np.uint8), iterations=2)
+                image = cv2.dilate(image, np.ones((7, 7), np.uint8), iterations=2)
             elif nr == "dilate7x3":
-                img = cv2.dilate(img, np.ones((7, 7), np.uint8), iterations=3)
+                image = cv2.dilate(image, np.ones((7, 7), np.uint8), iterations=3)
             elif nr == "close3x3":
-                img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+                image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
             elif nr == "close5x5_ellipse":
-                img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+                image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
             elif nr == "close7x7":
-                img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+                image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
             elif nr == "close11x11":
-                img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((11, 11), np.uint8))
+                image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, np.ones((11, 11), np.uint8))
             elif nr == "open3x3":
-                img = cv2.morphologyEx(img, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
-    return img
+                image = cv2.morphologyEx(image, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    return image
 
 def get_color_mask(image, color, pattern=None):
     """

@@ -1,10 +1,3 @@
-"""nnspike/unit/action_chain.py.
-
-ETRobotのためのアクションシーケンス管理クラスとPhaseManagerを定義。
-各アクション（左旋回・右旋回・短時間旋回・青ボトルキャッチ等）を、
-指定時間またはモーター相対位置・画像認識条件で状態遷移しながら実行する。
-"""
-
 import time  # 時間計測用
 from typing import Optional, Tuple  # 型ヒント用
 
@@ -12,6 +5,16 @@ import numpy as np  # 画像処理用
 
 # 定数・モード・ROI設定
 from nnspike.constants import OFFSET_Y, ROI_CNN, Mode, BASE_SPEED
+
+# --- 閾値定数（全体で統一管理） ---
+BLUE_AREA_MAX_THRESHOLD = 18000
+BLUE_AREA_MIN_THRESHOLD = 3000
+LEFT_POS_THRESHOLD_PHASE0 = 12000
+LEFT_POS_THRESHOLD_PHASE2 = 15000
+LEFT_POS_THRESHOLD_PHASE4 = 19000
+LEFT_POS_THRESHOLD_PHASE6 = 21000
+LEFT_POS_THRESHOLD_PHASE8 = 22000
+
 # ロボット本体クラス
 from nnspike.unit.etrobot import ETRobot
 # 画像処理・ライン/ターゲット検出関数群
@@ -30,6 +33,9 @@ from nnspike.utils.control import (
     is_general_horizontal_line_detected,  # 一般的な水平黒ライン検出
     get_blue_line_pixel,  # 青オブジェクト面積検出
 )
+
+
+
 
 class PhaseManager:
     """フェーズ管理クラス。"""
@@ -1024,131 +1030,131 @@ class ActionChain(object):
         return None, None, Mode.HEAD_GOAL
 
     def execute_double_loop(self, image: np.ndarray) -> tuple:
+
         if not self._init:
             self.initialize_action(motor_side="left")
         phase = self._phase.get_phase()
         left_pos = self.get_motor_position(motor_side="left")
         target_x = None
 
-
-        # phase0: get_blue_line_pixelで18000超えたら即phase1へ
+        # phase0: get_blue_line_pixelでBLUE_AREA_THRESHOLD超えたら即phase1へ
         if phase == 0:
             blue_area = get_blue_line_pixel(image)
-            if blue_area > 18000:
+            if blue_area > BLUE_AREA_MAX_THRESHOLD:
                 self._phase.next_phase()
-            elif abs(left_pos) < 12000:
+            elif abs(left_pos) < LEFT_POS_THRESHOLD_PHASE0:
                 left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
-            elif abs(left_pos) >= 12000:
+            elif abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE0:
                 self._phase.next_phase(2)
 
         # phase1: 青ピクセルが3000未満になったらphase2へ
         if phase == 1:
             blue_area = get_blue_line_pixel(image)
-            if blue_area < 3000:
+            if blue_area < BLUE_AREA_MIN_THRESHOLD:
                 self._phase.next_phase()
-            elif abs(left_pos) < 12000:
+            elif abs(left_pos) < LEFT_POS_THRESHOLD_PHASE0:
                 left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
-            elif abs(left_pos) >= 12000:
+            elif abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE0:
                 self._phase.next_phase()
 
-        # phase2: get_blue_line_pixelで18000超えたら即phase3へ（left_pos閾値15000, 左→右エッジ、right_x使用）
+        # phase2: get_blue_line_pixelでBLUE_AREA_THRESHOLD超えたら即phase3へ（left_pos閾値15000, 左→右エッジ、right_x使用）
         if phase == 2:
-            if abs(left_pos) < 12000:
+            if abs(left_pos) < LEFT_POS_THRESHOLD_PHASE0:
                 _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
 
             blue_area = get_blue_line_pixel(image)
-            if blue_area > 18000:
+            if blue_area > BLUE_AREA_MAX_THRESHOLD:
                 self._phase.next_phase()
-            elif abs(left_pos) < 15000:
+            elif abs(left_pos) < LEFT_POS_THRESHOLD_PHASE2:
                 _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
-            elif abs(left_pos) >= 15000:
+            elif abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE2:
                 self._phase.next_phase(2)
 
         # phase3: 青ピクセルが3000未満になったらphase4へ（left_pos閾値15000, 左→右エッジ、right_x使用）
         if phase == 3:
             blue_area = get_blue_line_pixel(image)
-            if blue_area < 3000:
+            if blue_area < BLUE_AREA_MIN_THRESHOLD:
                 self._phase.next_phase()
-            elif abs(left_pos) < 15000:
+            elif abs(left_pos) < LEFT_POS_THRESHOLD_PHASE2:
                 _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
-            elif abs(left_pos) >= 15000:
+            elif abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE2:
                 self._phase.next_phase()
 
         # phase4: get_blue_line_pixelで18000超えたら即phase5へ（left_pos閾値18000, 左→右エッジ、right_x使用）
         if phase == 4:
-            if abs(left_pos) < 15000:
+            if abs(left_pos) < LEFT_POS_THRESHOLD_PHASE2:
                 left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
 
             blue_area = get_blue_line_pixel(image)
-            if blue_area > 18000:
+            if blue_area > BLUE_AREA_MAX_THRESHOLD:
                 self._phase.next_phase()
-            elif abs(left_pos) < 19000:
+            elif abs(left_pos) < LEFT_POS_THRESHOLD_PHASE4:
                 left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
-            elif abs(left_pos) >= 19000:
+            elif abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE4:
                 self._phase.next_phase(2)
 
         # phase5: 青ピクセルが3000未満になったらphase6へ（left_pos閾値18000, 左→右エッジ、right_x使用）
         if phase == 5:
             blue_area = get_blue_line_pixel(image)
-            if blue_area < 3000:
+            if blue_area < BLUE_AREA_MIN_THRESHOLD:
                 self._phase.next_phase()
-            elif abs(left_pos) < 19000:
+            elif abs(left_pos) < LEFT_POS_THRESHOLD_PHASE4:
                 left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
-            elif abs(left_pos) >= 19000:
+            elif abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE4:
                 self._phase.next_phase()
 
         # phase6: get_blue_line_pixelで18000超えたら即phase7へ（left_pos閾値21000, 左→右エッジ、right_x使用）
         if phase == 6:
-            if abs(left_pos) < 19000:
+            if abs(left_pos) < LEFT_POS_THRESHOLD_PHASE4:
                 _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
 
             blue_area = get_blue_line_pixel(image)
-            if blue_area > 18000:
+            if blue_area > BLUE_AREA_MAX_THRESHOLD:
                 self._phase.next_phase()
-            elif abs(left_pos) < 21000:
+            elif abs(left_pos) < LEFT_POS_THRESHOLD_PHASE6:
                 _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
-            elif abs(left_pos) >= 21000:
+            elif abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE6:
                 self._phase.next_phase(2)
 
         # phase7: get_blue_line_pixelで3000未満になったらphase8へ（left_pos閾値21000, 左→右エッジ）
         if phase == 7:
             blue_area = get_blue_line_pixel(image)
-            if blue_area < 3000:
+            if blue_area < BLUE_AREA_MIN_THRESHOLD:
                 self._phase.next_phase()
-            elif abs(left_pos) < 21000:
+            elif abs(left_pos) < LEFT_POS_THRESHOLD_PHASE6:
                 _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
-            elif abs(left_pos) >= 21000:
+            elif abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE6:
                 self._phase.next_phase()
 
         # phase8: 22000到達でCARRY_BOTTLE1へ
         if phase == 8:
-            if abs(left_pos) < 22000:
+            if abs(left_pos) < LEFT_POS_THRESHOLD_PHASE8:
                 left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
-            if abs(left_pos) >= 22000:
+            if abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE8:
                 self.reset_action()
                 return None, None, Mode.CARRY_BOTTLE1
 
