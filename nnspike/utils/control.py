@@ -143,7 +143,7 @@ def calculate_attitude_angle(
     return theta
 
 # --- backup/20250724/control.pyより ---
-def find_blue_target_center(img):
+def find_blue_target_center(img) -> Tuple[Optional[Tuple[int, int]], Optional[float], int]:
     """
     青い的（楕円）の中心座標・面積・青ピクセル数を返す。
     パラメータ:
@@ -191,7 +191,7 @@ def find_blue_target_center(img):
         return best_center, max_blue_area, blue_pixel_count  # 中心座標・面積・青ピクセル数
     return None, None, 0
 
-def get_is_blue_line_at_y(img, target_y, min_run=30):
+def get_is_blue_line_at_y(img, target_y, min_run=30) -> bool:
     """
     指定したy座標（target_y）で、HSV条件に合致する青ピクセルがmin_run個以上連続していればTrue、そうでなければFalseを返す。
     画像全体のx方向を横断して判定する。ノイズ除去や細いラインの検出に有効。
@@ -224,7 +224,7 @@ def get_is_blue_line_at_y(img, target_y, min_run=30):
             current_run = 0
     return max_run >= min_run
 
-def get_blue_line_pixel(img):
+def get_blue_line_pixel(img) -> int:
     """
     青物体検知・面積判定・ROIクロップ・最大面積物体のみ返す。
     
@@ -267,7 +267,7 @@ def get_blue_line_pixel(img):
     return int(max_area)
 
 # x=320の中心ラインが青的（青い楕円）にヒットしたらTrueを返す関数
-def is_x320_on_blue_target(img, x_tolerance=40):
+def is_x320_on_blue_target(img, x_tolerance=40) -> bool:
     """
     画像内の青的（楕円）の中心がx=320±x_toleranceの範囲にあればTrueを返す。
     青的が見つからなければFalse。
@@ -319,7 +319,7 @@ def is_x320_on_blue_target(img, x_tolerance=40):
     return False
 
 # x=320の中心ラインが赤的（赤い楕円）にヒットしたらTrueを返す関数
-def is_x320_on_red_target(img, x_tolerance=40):
+def is_x320_on_red_target(img, x_tolerance=40) -> bool:
     """
     画像内の赤的（楕円）の中心がx=320±x_toleranceの範囲にあればTrueを返す。
     赤的が見つからなければFalse。
@@ -370,7 +370,7 @@ def is_x320_on_red_target(img, x_tolerance=40):
         return True
     return False
 
-def get_red_target_center_x(img):
+def get_red_target_center_x(img) -> Optional[int]:
     """
     画像内の赤的（楕円）の中心x座標を返す。
     赤的が見つからなければNoneを返す。
@@ -417,7 +417,7 @@ def get_red_target_center_x(img):
     return best_center_x
 
 # 黒ラインの長さや位置で判定する関数（画像直接渡し、条件はプライベート変数）
-def is_left_black_line_detected(img, course):
+def is_left_black_line_detected(img, course) -> bool:
     """
     左側黒ラインの長さ・位置で検出する。
     パラメータ:
@@ -467,7 +467,7 @@ def is_left_black_line_detected(img, course):
             return True
     return False
 
-def is_general_horizontal_line_detected(img):
+def is_general_horizontal_line_detected(img) -> bool:
     """
     x=320と交差する一般的な水平黒ラインが検出されたらTrueを返す関数
     ROI: y0から540まで全体、x=320との交差必須、90度に近い角度を重視
@@ -546,7 +546,7 @@ def is_general_horizontal_line_detected(img):
             return True
     return False
 
-def is_horizontal_black_line_detected(img, intersection_y=450):
+def is_horizontal_black_line_detected(img, intersection_y=450) -> bool:
     """
     x=320を通り、指定されたy座標と交差する水平黒ラインが検出されたらTrueを返す関数
     frame_1909を未検出、frame_1910を検出するようにバランス調整された実装
@@ -605,7 +605,7 @@ def is_horizontal_black_line_detected(img, intersection_y=450):
                 return True
     return False
 
-def is_vertical_black_line_detected(img):
+def is_vertical_black_line_detected(img) -> bool:
     """
     x=320と交差する一般的な水平黒ラインが検出されたらTrueを返す関数
     ROI: y0から540まで全体、x=320との交差必須、90度に近い角度を重視
@@ -667,7 +667,7 @@ def is_vertical_black_line_detected(img):
             return True
     return False
 
-def get_virtual_line_target_x(img, previous_center_x=None):
+def get_virtual_line_target_x(img, previous_center_x=None) -> int:
     # エラー処理（画像None/空）
     if img is None or (hasattr(img, 'size') and img.size == 0):
         return 320
@@ -790,7 +790,7 @@ def control_preprocess_image(
     binarize_mode=None,   # 二値化タイプ（Noneで二値化なし）
     binarize_value: Optional[int]=120, # 二値化閾値（デフォルト: 120）
     noise_removal=None     # ノイズ除去
-    ):
+    ) -> np.ndarray:
     """
     画像前処理（get_line_edges_at_yと完全同一仕様）
     - グレースケール化（grayscale=True）
@@ -865,7 +865,7 @@ def control_preprocess_image(
                 img = cv2.morphologyEx(img, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
     return img
 
-def get_color_mask(img, color, pattern=None):
+def get_color_mask(img, color, pattern=None) -> np.ndarray:
     """
     指定色のHSVマスクを返す（yellow, blue, red対応）。
     patternはbottle/line/targetのみ。未指定時はbottle。
