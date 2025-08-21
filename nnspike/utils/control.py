@@ -3,12 +3,12 @@ from typing import Optional, Tuple
 import cv2
 import numpy as np
 
-def get_line_edges_at_y(image, roi, target_y, threshold=80) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def get_line_edges_at_y(img, roi, target_y, threshold=80) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """
     指定Y座標で黒ラインの左右端点（X座標）と幅を検出する。
     
     パラメータ:
-        image (np.ndarray): 入力画像（BGRまたはグレースケール）
+        img (np.ndarray): 入力画像（BGRまたはグレースケール）
         roi (tuple): ROI（x1, y1, x2, y2）画像全体基準
         target_y (int): 検出するY座標（画像全体基準）
         threshold (int): 二値化閾値（デフォルト: 80）
@@ -20,13 +20,16 @@ def get_line_edges_at_y(image, roi, target_y, threshold=80) -> Tuple[Optional[fl
         line_width (float or None): ライン幅
     """
 
+    # エラー処理（画像None/空）
+    if img is None or (hasattr(img, 'size') and img.size == 0):
+        return None, None, None
     # パラメータ（画像・ROI・Y座標・閾値）
     x1, y1, x2, y2 = roi  # ROI（x1, y1, x2, y2）
     # 前処理（グレースケール化→ガウシアンブラー→二値化→ノイズ除去→ROI抽出）
     if target_y < y1 or target_y >= y2:
         return None, None, None  # ROI外はNone返却
     mask_full = control_preprocess_image(
-        image,
+        img,
         use_hsv=False,
         grayscale=True,
         clahe=False,
@@ -50,12 +53,12 @@ def get_line_edges_at_y(image, roi, target_y, threshold=80) -> Tuple[Optional[fl
             return left_x, right_x, line_width
     return None, None, None  # ライン未検出
 
-def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
+def find_bottle_center(img, color, min_area: int = 500) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
     """
     指定色（yellow, blue, red）の物体中心座標・面積・色ピクセル数を返す。
     
     パラメータ:
-        image (np.ndarray): 入力画像（BGR）
+        img (np.ndarray): 入力画像（BGR）
         color (str): 検出色（'yellow', 'blue', 'red'）
         min_area (int): 輪郭面積の最小値（デフォルト500）
     前処理:
@@ -70,15 +73,16 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
 
     # パラメータ（画像・色・最小面積）
     # 前処理（グレースケール化→adaptiveThreshold→ノイズ除去）
+    # エラー処理（color未対応）
     if color not in ["yellow", "blue", "red"]:
-        raise ValueError("Color must be 'yellow', 'blue' or 'red'")  # 色パラメータ確認
-    if image is None or image.size == 0:
+        return None, None, 0
+    if img is None or img.size == 0:
         print("Error: Invalid image data")
         return None, None, 0  # 画像データ確認
-    color_mask = get_color_mask(image, color, pattern="bottle")  # 色抽出
+    color_mask = get_color_mask(img, color, pattern="bottle")  # 色抽出
     color_pixel_count = cv2.countNonZero(color_mask)
     mask_full = control_preprocess_image(
-        image,
+        img,
         grayscale=True
     )
     edges = cv2.adaptiveThreshold(mask_full, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
@@ -231,13 +235,12 @@ def get_blue_line_pixel(img):
     戻り値:
         max_area (float): 最大面積物体の面積（なければ0）
     """
-    # パラメータ（画像・ROI）
-    _roi = (100, 200, 540, 480)  # ROI（x1, y1, x2, y2）
-    # 前処理（青色マスク→メディアンブラー→ノイズ除去→ROI抽出）
-    x1, y1, x2, y2 = _roi
     # エラー処理（画像None/空）
     if img is None or img.size == 0:
         return 0
+    # パラメータ（画像・ROI）
+    _roi = (100, 200, 540, 480)  # ROI（x1, y1, x2, y2）
+    x1, y1, x2, y2 = _roi
     # 青色ラインマスク生成（get_color_maskでHSV抽出）
     mask_full = get_color_mask(img, "blue", pattern="line")
     # メディアンブラー＋ノイズ除去（グレースケール・二値化なし）
@@ -427,15 +430,15 @@ def is_left_black_line_detected(img, course):
     例外:
         FileNotFoundError: 画像がNoneの場合
     """
+    # エラー処理（画像None/空）
+    if img is None or (hasattr(img, 'size') and img.size == 0):
+        return False
     _min_width = 60
     _min_height = 150
     _min_aspect = 2
     _min_area = 8000
     _roi = (0, 80, 140, 420)
     x1, y1, x2, y2 = _roi
-    # エラー処理（画像None/空）
-    if img is None or (hasattr(img, 'size') and img.size == 0):
-        return False
     # courseがleftの時はimgを左右反転
     if course == 'left':
         img = cv2.flip(img, 1)
@@ -452,16 +455,15 @@ def is_left_black_line_detected(img, course):
         binarize_value=120,
         noise_removal=["dilate", "close7x7"]
     )
-    h, w = mask_full.shape
     mask_roi = np.zeros_like(mask_full)
     mask_roi[y1:y2, x1:x2] = mask_full[y1:y2, x1:x2]
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     for cnt in contours:
-        x, y, ww, hh = cv2.boundingRect(cnt)
+        x, y, w, h = cv2.boundingRect(cnt)
         area = cv2.contourArea(cnt)
-        aspect = hh / (ww + 1e-5)
+        aspect = h / (w + 1e-5)
         # ROI内で幅・高さ・アスペクト比・面積のみで判定
-        if ww >= _min_width and hh >= _min_height and aspect >= _min_aspect and area >= _min_area:
+        if w >= _min_width and h >= _min_height and aspect >= _min_aspect and area >= _min_area:
             return True
     return False
 
@@ -511,9 +513,9 @@ def is_general_horizontal_line_detected(img):
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     for contour in contours:
-        x, y, width, height = cv2.boundingRect(contour)
+        x, y, w, h = cv2.boundingRect(contour)
         area = cv2.contourArea(contour)
-        aspect_ratio = height / width if width > 0 else float('inf')
+        aspect_ratio = h / w if w > 0 else float('inf')
         # 角度計算
         angle = None
         if len(contour) >= 5:
@@ -530,12 +532,12 @@ def is_general_horizontal_line_detected(img):
             angle_from_0 = 0
             angle_from_90 = 90
         # x=320との交差判定（y座標制限なし）
-        crosses_center = (x <= _center_x <= x + width)
+        crosses_center = (x <= _center_x <= x + w)
         # 0度±10または90度±10を許容
         angle_ok = (angle_from_0 <= _angle_binarize_value) or (angle_from_90 <= _angle_binarize_value)
         if (
-            width >= _min_width and 
-            height >= _min_height and 
+            w >= _min_width and 
+            h >= _min_height and 
             aspect_ratio <= _max_aspect and 
             area >= _min_area and 
             crosses_center and
@@ -588,18 +590,18 @@ def is_horizontal_black_line_detected(img, intersection_y=450):
 
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     for contour in contours:
-        x, y, width, height = cv2.boundingRect(contour)
+        x, y, w, h = cv2.boundingRect(contour)
         area = cv2.contourArea(contour)
-        aspect_ratio = height / width if width > 0 else float('inf')
-        crosses_center = (x <= _center_x <= x + width)
-        crosses_intersection_y = (y <= intersection_y <= y + height)
+        aspect_ratio = h / w if w > 0 else float('inf')
+        crosses_center = (x <= _center_x <= x + w)
+        crosses_intersection_y = (y <= intersection_y <= y + h)
 
         # y_crossがTrueなら無条件で検出
         if crosses_intersection_y:
             return True
         else:
             # 通常の厳しい条件
-            if (width >= _min_width and height >= _min_height and aspect_ratio <= _max_aspect and area >= _min_area and crosses_center):
+            if (w >= _min_width and h >= _min_height and aspect_ratio <= _max_aspect and area >= _min_area and crosses_center):
                 return True
     return False
 
@@ -649,15 +651,15 @@ def is_vertical_black_line_detected(img):
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     for contour in contours:
-        x, y, width, height = cv2.boundingRect(contour)
+        x, y, w, h = cv2.boundingRect(contour)
         area = cv2.contourArea(contour)
-        aspect_ratio = height / width if width > 0 else float('inf')
+        aspect_ratio = h / w if w > 0 else float('inf')
         # x=320±_center_toleranceを通るか
-        line_center_x = x + width // 2
+        line_center_x = x + w // 2
         crosses_center = abs(line_center_x - _center_x) <= _center_tolerance
         if (
-            width >= _min_width and 
-            height >= _min_height and 
+            w >= _min_width and 
+            h >= _min_height and 
             aspect_ratio >= _min_aspect and 
             area >= _min_area and 
             crosses_center
@@ -666,10 +668,12 @@ def is_vertical_black_line_detected(img):
     return False
 
 def get_virtual_line_target_x(img, previous_center_x=None):
+    # エラー処理（画像None/空）
+    if img is None or (hasattr(img, 'size') and img.size == 0):
+        return 320
     # ROI座標（仮想ライン検出範囲）
     _roi = (100, 150, 540, 330)
     x1, y1, x2, y2 = _roi
-    roi_w, roi_h = x2 - x1, y2 - y1
     # グレースケール化→CLAHE→メディアンブラー→二値化（binary_inv）→ノイズ除去
     mask_full = control_preprocess_image(
         img,
@@ -776,7 +780,7 @@ def get_virtual_line_target_x(img, previous_center_x=None):
     return target_x
 
 def control_preprocess_image(
-    image,
+    img,
     use_hsv=False,         # 色空間変換（BGR→HSV）
     grayscale=False,       # グレースケール化
     clahe=False,           # コントラスト強調（CLAHE）
@@ -797,39 +801,39 @@ def control_preprocess_image(
 
     # --- 色空間変換 ---
     if use_hsv:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
     # --- グレースケール化 ---
     if grayscale:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     # --- コントラスト強調（CLAHE） ---
     if clahe:
         clahe_obj = cv2.createCLAHE(clipLimit=clahe_clipLimit, tileGridSize=(8,8))
-        image = clahe_obj.apply(image)
+        img = clahe_obj.apply(img)
 
     # --- フィルター（平滑化） ---
     if blur_type is not None:
         if blur_type == "gaussian":
-            image = cv2.GaussianBlur(image, (blur_ksize, blur_ksize), 0)
+            img = cv2.GaussianBlur(img, (blur_ksize, blur_ksize), 0)
         elif blur_type == "median":
-            image = cv2.medianBlur(image, blur_ksize)
+            img = cv2.medianBlur(img, blur_ksize)
 
     # --- 二値化 ---
     if binarize_mode is not None:
         if binarize_mode == "otsu":
             # Otsu + binary_inv
-            _, image = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+            _, img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         elif binarize_mode == "binary":
             # binary
             if binarize_value is None:
                 raise ValueError("binarize_value must be specified for binary mode")
-            _, image = cv2.threshold(image, binarize_value, 255, cv2.THRESH_BINARY)
+            _, img = cv2.threshold(img, binarize_value, 255, cv2.THRESH_BINARY)
         elif binarize_mode == "binary_inv":
             # binary_inv（明示）
             if binarize_value is None:
                 raise ValueError("binarize_value must be specified for binary_inv mode")
-            _, image = cv2.threshold(image, binarize_value, 255, cv2.THRESH_BINARY_INV)
+            _, img = cv2.threshold(img, binarize_value, 255, cv2.THRESH_BINARY_INV)
         # binarize_mode==Noneなら何もしない
 
     # --- ノイズ除去（モルフォロジー処理） ---
@@ -844,29 +848,29 @@ def control_preprocess_image(
             if nr == "none" or nr is None:
                 continue
             elif nr == "dilate":
-                image = cv2.dilate(image, np.ones((5, 5), np.uint8), iterations=1)
+                img = cv2.dilate(img, np.ones((5, 5), np.uint8), iterations=1)
             elif nr == "dilate7x2":
-                image = cv2.dilate(image, np.ones((7, 7), np.uint8), iterations=2)
+                img = cv2.dilate(img, np.ones((7, 7), np.uint8), iterations=2)
             elif nr == "dilate7x3":
-                image = cv2.dilate(image, np.ones((7, 7), np.uint8), iterations=3)
+                img = cv2.dilate(img, np.ones((7, 7), np.uint8), iterations=3)
             elif nr == "close3x3":
-                image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+                img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
             elif nr == "close5x5_ellipse":
-                image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+                img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
             elif nr == "close7x7":
-                image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+                img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
             elif nr == "close11x11":
-                image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, np.ones((11, 11), np.uint8))
+                img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((11, 11), np.uint8))
             elif nr == "open3x3":
-                image = cv2.morphologyEx(image, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
-    return image
+                img = cv2.morphologyEx(img, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    return img
 
-def get_color_mask(image, color, pattern=None):
+def get_color_mask(img, color, pattern=None):
     """
     指定色のHSVマスクを返す（yellow, blue, red対応）。
     patternはbottle/line/targetのみ。未指定時はbottle。
     """
-    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     if color == "yellow":
         lower = np.array([15, 100, 100], dtype=np.uint8)
         upper = np.array([35, 255, 255], dtype=np.uint8)
@@ -897,5 +901,5 @@ def get_color_mask(image, color, pattern=None):
         mask2 = cv2.inRange(hsv, lower2, upper2)
         mask = cv2.bitwise_or(mask1, mask2)
     else:
-        mask = np.zeros(image.shape[:2], dtype=np.uint8)
+        mask = np.zeros(img.shape[:2], dtype=np.uint8)
     return mask
