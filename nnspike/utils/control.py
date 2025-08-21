@@ -83,93 +83,6 @@ def get_line_edges_at_y(image, roi, target_y, threshold_value=50) -> Tuple[Optio
 
     return None, None, None
 
-
-def get_all_line_edges_at_y(image, roi, target_y, threshold_value=50, max_edges=None):
-    """
-    Get all detected line edges at a specific Y coordinate.
-
-    Parameters:
-    - image: Input image (BGR or grayscale)
-    - roi: Tuple (x, y, width, height) defining the ROI
-    - target_y: The Y coordinate where to detect line edges (in original image coordinates)
-    - threshold_value: Threshold for binary conversion (default: 50)
-    - max_edges: Maximum number of edges to return (default: None for all edges)
-
-    Returns:
-    - List of x-axis coordinates for detected edges: [int, int, ...]
-      Returns empty list if no edges are found.
-    """
-
-    # Extract ROI coordinates
-    x, y, w, h = roi
-
-    # Check if target_y is within ROI
-    if target_y < y or target_y >= y + h:
-        return []
-
-    # Convert to grayscale if needed
-    if len(image.shape) == 3:
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    else:
-        gray = image.copy()
-
-    # Extract ROI
-    roi_img = gray[y : y + h, x : x + w]
-
-    # Apply Gaussian blur to reduce noise
-    blurred = cv2.GaussianBlur(roi_img, (5, 5), 0)
-
-    # Binary threshold to isolate black line
-    _, binary = cv2.threshold(blurred, threshold_value, 255, cv2.THRESH_BINARY_INV)
-
-    # Calculate the row within the ROI
-    roi_row = target_y - y
-
-    # Get the binary row at target Y
-    if roi_row >= 0 and roi_row < h:
-        row_data = binary[roi_row, :]
-
-        # Find all white pixels (line pixels) in this row
-        white_pixels = np.where(row_data == 255)[0]
-
-        if len(white_pixels) > 0:
-            # Find continuous segments of white pixels and collect all edges
-            edges = []
-            segment_start = white_pixels[0]
-
-            for i in range(1, len(white_pixels)):
-                # Check if there's a gap between consecutive white pixels
-                if white_pixels[i] - white_pixels[i - 1] > 1:
-                    # End of current segment
-                    segment_end = white_pixels[i - 1]
-
-                    # Convert back to original image coordinates
-                    left_edge = x + segment_start
-                    right_edge = x + segment_end
-
-                    # Add both left and right edges
-                    edges.extend([left_edge, right_edge])
-
-                    # Start new segment
-                    segment_start = white_pixels[i]
-
-            # Don't forget the last segment
-            segment_end = white_pixels[-1]
-            left_edge = x + segment_start
-            right_edge = x + segment_end
-
-            # Add both left and right edges
-            edges.extend([left_edge, right_edge])
-
-            # Apply limit if specified
-            if max_edges is not None and len(edges) > max_edges:
-                edges = edges[:max_edges]
-
-            return edges
-
-    return []
-
-
 def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
     """
     Find the center coordinates and color pixel count of a colored object in an image using OpenCV.
@@ -216,17 +129,14 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
     # Method 1: Color-based detection (for objects with distinctive colors)
     # Define color range based on the specified color
     if color == "yellow":
-        # For yellow objects (same thresholds as detect_color_bottle in camera.py)
         lower_color = np.array([15, 100, 100], dtype=np.uint8)
         upper_color = np.array([35, 255, 255], dtype=np.uint8)
         color_mask = cv2.inRange(hsv, lower_color, upper_color)
     elif color == "blue":
-        # ノートブックで検証した最適な青色抽出範囲
         lower_color = np.array([90, 60, 40])
         upper_color = np.array([140, 255, 255])
         color_mask = cv2.inRange(hsv, lower_color, upper_color)
     elif color == "red":
-        # backup/20250724/control.pyのfind_bottle_center_with_red_countの閾値を反映
         lower_red1 = np.array([0, 90, 60], dtype=np.uint8)
         upper_red1 = np.array([12, 255, 255], dtype=np.uint8)
         lower_red2 = np.array([170, 90, 60], dtype=np.uint8)
@@ -248,10 +158,15 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
     # Combine color and edge information
     combined_mask = cv2.bitwise_or(color_mask, edges)
 
-    # Apply morphological operations to clean up the mask
-    kernel = np.ones((3, 3), np.uint8)  # Small kernel for real-time performance
-    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
-    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
+    # 画像前処理を control_preprocess_image で統一（現行処理内容を完全維持）
+    combined_mask = control_preprocess_image(
+        combined_mask,
+        grayscale=False,
+        blur_type="gaussian",
+        blur_ksize=3,
+        threshold=None,
+        noise_removal=["close3x3", "open3x3"]
+    )
 
     # Find contours
     contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -330,25 +245,14 @@ def calculate_attitude_angle(
 
     return theta
 
-
 # --- backup/20250724/control.pyより ---
-def find_blue_target_center(
-    img,
-    blue_hsv_lower=(100, 80, 80),
-    blue_hsv_upper=(140, 255, 255),
-    gray_hsv_lower=(0, 0, 60),
-    gray_hsv_upper=(180, 60, 140),
-    blur_kernel=5,
-    gray_ellipse_enable=True
-):
+def find_blue_target_center(img):
     """
-    青い的（楕円）またはグレー線の中心座標・形状情報を返す統合検出関数（グレーライン補完含む）。
-    部分的なグレー線からの楕円推定機能を含む。
+    青い的（楕円）の中心座標・形状情報を返す統合検出関数。
     Args:
         img: BGR画像 (numpy.ndarray)
         blue_hsv_lower, blue_hsv_upper: 青色範囲 (HSV)
         gray_hsv_lower, gray_hsv_upper: グレー色範囲 (HSV)
-        blur_kernel: 青マスクのメディアンブラーサイズ
     Returns:
         center: (x, y) or None
         area: float or None
@@ -356,11 +260,20 @@ def find_blue_target_center(
     """
     if img is None or img.size == 0:
         return None, None, 0
+    blue_hsv_lower = (100, 80, 80)
+    blue_hsv_upper = (140, 255, 255)
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     mask_blue = cv2.inRange(hsv, np.array(blue_hsv_lower), np.array(blue_hsv_upper))
-    mask_blue = cv2.medianBlur(mask_blue, blur_kernel)
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    mask_blue = cv2.morphologyEx(mask_blue, cv2.MORPH_CLOSE, kernel)
+    # 画像前処理を control_preprocess_image で統一（現行処理内容を完全維持）
+    # morph__ellipse(5,5)を厳密に再現
+    mask_blue = control_preprocess_image(
+        mask_blue,
+        grayscale=False,
+        blur_type="median",
+        blur_ksize=5,
+        threshold=None,
+        noise_removal=["close5x5_ellipse"]
+    )
     contours_blue, _ = cv2.findContours(mask_blue, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     best_blue_ellipse = None
     max_blue_area = 0
@@ -384,26 +297,6 @@ def find_blue_target_center(
     blue_pixel_count = cv2.countNonZero(mask_blue)
     if best_blue_ellipse is not None:
         return best_center, max_blue_area, blue_pixel_count
-    if gray_ellipse_enable:
-        # グレー楕円もblue_pixel_count=0で返す
-        mask_gray = cv2.inRange(hsv, np.array(gray_hsv_lower), np.array(gray_hsv_upper))
-        mask_gray = cv2.morphologyEx(mask_gray, cv2.MORPH_CLOSE, np.ones((7,7), np.uint8))
-        mask_gray = cv2.dilate(mask_gray, np.ones((5,5), np.uint8), iterations=1)
-        contours_gray, _ = cv2.findContours(mask_gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        ellipses = []
-        for c in contours_gray:
-            if len(c) < 10 or c.shape[0] < 5:
-                continue
-            ellipse_cv = cv2.fitEllipse(c)
-            center = (int(np.round(ellipse_cv[0][0])), int(np.round(ellipse_cv[0][1])))
-            axes_ = (int(ellipse_cv[1][0]//2), int(ellipse_cv[1][1]//2))
-            area = np.pi * axes_[0] * axes_[1]
-            if area >= 40000:
-                ellipses.append({'center': center, 'area': area})
-        if ellipses:
-            gray_center = max(ellipses, key=lambda e: e['area'])['center']
-            gray_area = max(ellipses, key=lambda e: e['area'])['area']
-            return gray_center, gray_area, 0
     return None, None, 0
 
 def get_is_blue_line_at_y(img, target_y, min_run=30):
@@ -438,6 +331,45 @@ def get_is_blue_line_at_y(img, target_y, min_run=30):
             current_run = 0
     return max_run >= min_run
 
+def get_blue_line_pixel(img):
+    """
+    ノートブックの青物体検知・面積判定・ROIクロップ・最大面積物体のみ返す。
+    Args:
+        img (np.ndarray): BGR画像
+    Returns:
+        float: 最大面積物体の面積（なければ0）
+    """
+    x1, y1, x2, y2 = 100, 200, 540, 480  # y1を200に変更
+    if img is None or img.size == 0:
+        return 0
+    img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    # 旧閾値（コメントアウト）
+    # blue_hsv_lower = (100, 150, 0)
+    # blue_hsv_upper = (140, 255, 255)
+    blue_hsv_lower = (95, 100, 50)
+    blue_hsv_upper = (145, 255, 255)
+    blue_mask_raw = np.all([
+        (blue_hsv_lower[i] <= img_hsv[:, :, i]) & (img_hsv[:, :, i] <= blue_hsv_upper[i])
+        for i in range(3)
+    ], axis=0)
+    mask_uint8 = blue_mask_raw.astype(np.uint8) * 255
+    mask_uint8 = control_preprocess_image(
+        mask_uint8,
+        grayscale=False,
+        blur_type='median',
+        blur_ksize=7,
+        threshold=None,
+        noise_removal=['close7x7']
+    )
+    mask_uint8 = mask_uint8[y1:y2, x1:x2]
+    contours, _ = cv2.findContours(mask_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    max_area = 0
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area > 300 and area > max_area:
+            max_area = area
+    return int(max_area)
+
 # x=320の中心ラインが青的（青い楕円）にヒットしたらTrueを返す関数
 def is_x320_on_blue_target(img, x_tolerance=40):
     """
@@ -453,12 +385,17 @@ def is_x320_on_blue_target(img, x_tolerance=40):
         return False
     blue_hsv_lower = (100, 80, 80)
     blue_hsv_upper = (140, 255, 255)
-    blur_kernel = 5
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     mask_blue = cv2.inRange(hsv, np.array(blue_hsv_lower), np.array(blue_hsv_upper))
-    mask_blue = cv2.medianBlur(mask_blue, blur_kernel)
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    mask_blue = cv2.morphologyEx(mask_blue, cv2.MORPH_CLOSE, kernel)
+    # 5x5楕円カーネルでクロージング
+    mask_blue = control_preprocess_image(
+        mask_blue,
+        grayscale=False,
+        blur_type="median",
+        blur_ksize=5,
+        threshold=None,
+        noise_removal=["close5x5_ellipse"]
+    )
     contours_blue, _ = cv2.findContours(mask_blue, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     best_center = None
     max_blue_area = 0
@@ -501,14 +438,19 @@ def is_x320_on_red_target(img, x_tolerance=40):
     red_hsv_upper1 = (15, 255, 210)
     red_hsv_lower2 = (175, 90, 60)
     red_hsv_upper2 = (180, 255, 210)
-    blur_kernel = 5
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     mask1 = cv2.inRange(hsv, np.array(red_hsv_lower1), np.array(red_hsv_upper1))
     mask2 = cv2.inRange(hsv, np.array(red_hsv_lower2), np.array(red_hsv_upper2))
     mask_red = cv2.bitwise_or(mask1, mask2)
-    mask_red = cv2.medianBlur(mask_red, blur_kernel)
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_CLOSE, kernel)
+    # 5x5楕円カーネルでクロージング
+    mask_red = control_preprocess_image(
+        mask_red,
+        grayscale=False,
+        blur_type="median",
+        blur_ksize=5,
+        threshold=None,
+        noise_removal=["close5x5_ellipse"]
+    )
     contours_red, _ = cv2.findContours(mask_red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     best_center = None
     max_red_area = 0
@@ -549,14 +491,19 @@ def get_red_target_center_x(img):
     red_hsv_upper1 = (15, 255, 210)
     red_hsv_lower2 = (175, 90, 60)
     red_hsv_upper2 = (180, 255, 210)
-    blur_kernel = 5
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     mask1 = cv2.inRange(hsv, np.array(red_hsv_lower1), np.array(red_hsv_upper1))
     mask2 = cv2.inRange(hsv, np.array(red_hsv_lower2), np.array(red_hsv_upper2))
     mask_red = cv2.bitwise_or(mask1, mask2)
-    mask_red = cv2.medianBlur(mask_red, blur_kernel)
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_CLOSE, kernel)
+    # 5x5楕円カーネルでクロージング
+    mask_red = control_preprocess_image(
+        mask_red,
+        grayscale=False,
+        blur_type="median",
+        blur_ksize=5,
+        threshold=None,
+        noise_removal=["close5x5_ellipse"]
+    )
     contours_red, _ = cv2.findContours(mask_red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     best_center_x = None
     max_red_area = 0
@@ -599,7 +546,7 @@ def is_left_black_line_detected(img, course):
         blur_ksize=7, # blur_ksize=9 → 7
         threshold=120, # threshold=120（変更なし）
         threshold_type="binary_inv", # threshold_type="binary_inv"（変更なし）
-        noise_removal=["dilate", "close"] # noise_removal="dilate" → ["dilate", "close"]
+        noise_removal=["dilate", "close7x7"] # "close" を "close7x7" に修正
     )
     h, w = mask.shape
     x0, y0, x1, y1 = _roi
@@ -648,7 +595,7 @@ def is_general_horizontal_line_detected(img):
         blur_ksize=7, # blur_ksize=5 → 7
         threshold=120, # threshold=None → 120
         threshold_type="binary_inv", # threshold_type="otsu" → "binary_inv"
-        noise_removal=["dilate", "close"] # noise_removal=["dilate", "close"]（変更なし）
+        noise_removal=["dilate", "close7x7"] # "close" を "close7x7" に修正
     )
     # ROI適用
     x0, y0, x1, y1 = _roi
@@ -725,7 +672,7 @@ def is_horizontal_black_line_detected(img, intersection_y=450):
         blur_ksize=7, # blur_ksize=9 → 7
         threshold=120, # threshold=None → 120
         threshold_type="binary_inv", # threshold_type="otsu" → "binary_inv"
-        noise_removal=["dilate", "close"] # noise_removal=["dilate7x2", "close11x11"] → ["dilate", "close"]
+        noise_removal=["dilate", "close7x7"] # "close" を "close7x7" に修正
     )
     # ROI適用
     x0, y0, x1, y1 = _roi
@@ -782,7 +729,7 @@ def is_vertical_black_line_detected(img):
         blur_ksize=7, # blur_ksize=5 → 7
         threshold=120, # threshold=None → 120
         threshold_type="binary_inv", # threshold_type="otsu" → "binary_inv"
-        noise_removal=["dilate", "close"] # noise_removal=["dilate", "close"]（変更なし）
+        noise_removal=["dilate", "close7x7"] # "close" を "close7x7" に修正
     )
     # ROI適用
     x0, y0, x1, y1 = _roi
@@ -825,7 +772,7 @@ def get_virtual_line_target_x(img, previous_center_x=None):
         blur_ksize=9, # blur_ksize=9 → 7
         threshold=120, # threshold=120（変更なし）
         threshold_type="binary_inv", # threshold_type="binary_inv"（変更なし）
-        noise_removal=["dilate", "close"] # noise_removal="dilate" → ["dilate", "close"]
+        noise_removal=["dilate", "close7x7"] # "close" を "close7x7" に修正
     )
     # ROI抽出
     mask = mask_full[y1:y2, x1:x2]
@@ -980,18 +927,22 @@ def control_preprocess_image(
                 continue
             elif nr == "median9":
                 img = cv2.medianBlur(img, 9)
-            elif nr == "dilate7x3":
-                img = cv2.dilate(img, np.ones((7, 7), np.uint8), iterations=3)
-            elif nr == "dilate7x2":
-                img = cv2.dilate(img, np.ones((7, 7), np.uint8), iterations=2)
             elif nr == "dilate":
                 img = cv2.dilate(img, np.ones((5, 5), np.uint8), iterations=1)
-            elif nr == "close":
+            elif nr == "dilate7x2":
+                img = cv2.dilate(img, np.ones((7, 7), np.uint8), iterations=2)
+            elif nr == "dilate7x3":
+                img = cv2.dilate(img, np.ones((7, 7), np.uint8), iterations=3)
+            elif nr == "close3x3":
+                img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+            elif nr == "close5x5_ellipse":
+                img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+            elif nr == "close7x7":
                 img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
             elif nr == "close11x11":
                 img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((11, 11), np.uint8))
-            elif nr == "close11x11":
-                img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((11, 11), np.uint8))
+            elif nr == "open3x3":
+                img = cv2.morphologyEx(img, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
     return img
 
 def get_color_mask(image, color, pattern=None):

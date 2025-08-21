@@ -359,6 +359,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "u":
                 mode = Mode.BLUE_BOTTLE_CATCH
                 print("Switched to blue bottle catch mode")
+            elif key == "1":
+                mode = Mode.DOUBLE_LOOP
+                print("Switched to double loop mode")
             elif key == "2":
                 mode = Mode.AVOID_OBSTACLE
                 print("Switched to obstacle avoidance mode")
@@ -400,6 +403,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             # --- ここまで ---
 
             match mode:
+                case Mode.DOUBLE_LOOP:
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.execute_double_loop(frame))
                 case Mode.TURN_LEFT_RELATIVE:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.turn_left_relative(frame))
                 case Mode.TURN_RIGHT_RELATIVE:
@@ -411,12 +416,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     # left_posが7000を超えたらNVIDIA_FOLLOWに切り替え
                     if left_pos is not None and abs(left_pos) >= 7000:
-                        if model is not None:
-                            mode = Mode.NVIDIA_FOLLOW
-                            print("Switched to NVIDIA_FOLLOW mode")
-                            # NVIDIA_FOLLOWの処理は次のループで実行される
-                        else:
-                            print("NVIDIA model not available, continuing with FOLLOW_LEFT_EDGE")
+                        mode = Mode.DOUBLE_LOOP
+                        print("Switched to DOUBLE_LOOP mode (left_pos >= 7000)")
                     elif yellow_pixel_count > 16000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
                         target_x = (x1 + x2) // 2

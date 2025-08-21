@@ -32,6 +32,7 @@ class Mode(Enum):
     TURN_LEFT_RELATIVE = 19
     TURN_RIGHT_RELATIVE = 20
     NVIDIA_FOLLOW = 21
+    DOUBLE_LOOP = 22  # key1ダブルループモード
 
 # One-Hot Encoding for Modes
 NUM_MODES = 6  # クラス分類用

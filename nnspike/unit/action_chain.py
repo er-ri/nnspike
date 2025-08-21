@@ -28,6 +28,7 @@ from nnspike.utils.control import (
     is_horizontal_black_line_detected,  # 水平黒ライン検出
     is_vertical_black_line_detected,  # 垂直黒ライン検出
     is_general_horizontal_line_detected,  # 一般的な水平黒ライン検出
+    get_blue_line_pixel,  # 青オブジェクト面積検出
 )
 
 class PhaseManager:
@@ -217,7 +218,7 @@ class ActionChain(object):
 
         # phase0: 青ターゲット中心x座標へ追従（青ピクセル数1000超えたらphase1へ）
         if phase.get_phase() == 0:
-            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -229,7 +230,7 @@ class ActionChain(object):
 
         # phase1: 青ピクセル数1000以上の間は中心x座標へ追従、500以下でphase2へ（右モーター位置記録）
         if phase.get_phase() == 1:
-            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -243,7 +244,7 @@ class ActionChain(object):
 
         # phase2: 青ピクセル数500以下になってから右モーター300ユニット移動まで中心x座標へ追従、300到達でphase3へ
         if phase.get_phase() == 2:
-            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -494,7 +495,7 @@ class ActionChain(object):
             # phase7用 右モーター相対位置記録（絶対値）
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
-        # 7. 左旋回（is_x320_on_blue_targetがTrueになるまで courseに応じて左:0,右:30または左:30,右:0で旋回、最低300・最大右モーター500ユニット。条件満たせばphase8へ、右モーター位置記録）
+        # 7. 左旋回（is_x320_on_blue_targetがTrueになるまで左:0, 右:30で旋回、最低300・最大右モーター500ユニット。条件満たせばphase8へ、右モーター位置記録）
         if phase.get_phase() == 7:
             blue_target_detected = is_x320_on_blue_target(image, x_tolerance=60)
             position_limit_reached = False
@@ -520,7 +521,7 @@ class ActionChain(object):
 
         # 8. 青検出（青ピクセル数1000超えたらphase9へ）
         if phase.get_phase() == 8:
-            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -532,7 +533,7 @@ class ActionChain(object):
 
         # 9. 青1000以上の間center追従、500以下でphase10へ、右モーター位置記録
         if phase.get_phase() == 9:
-            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -546,7 +547,7 @@ class ActionChain(object):
 
         # 10. 青が一定値以下になってから右モーターが所定の移動量に達するまでcenter追従。条件を満たしたら次のphaseへ
         if phase.get_phase() == 10:
-            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -678,12 +679,12 @@ class ActionChain(object):
                 # phase2用 右モーター相対位置記録（get_motor_positionで統一）
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
-        # 2. 右モーター150ユニット移動までcenter追従。150超えたらphase3へ、右モーター位置記録
+        # 2. 右モーター200ユニット移動までcenter追従。200超えたらphase3へ、右モーター位置記録
         if phase.get_phase() == 2:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            if abs(current_pos - position_start) < 150:
+            if abs(current_pos - position_start) < 200:
                 if center is not None:
                     target_x = center[0]
                 else:
@@ -811,7 +812,7 @@ class ActionChain(object):
 
         # 10. 青検出（青ピクセル数1000超えたらphase11へ、最大右モーター400ユニット。条件満たせば右モーター位置記録）
         if phase.get_phase() == 10:
-            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
@@ -853,7 +854,7 @@ class ActionChain(object):
 
         # 12. 右モーター300ユニット移動までcenter追従。300超えたらphase13へ
         if phase.get_phase() == 12:
-            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
+            center, _, blue_pixel_count = find_blue_target_center(image)
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 300:
@@ -1021,3 +1022,135 @@ class ActionChain(object):
 
         print("[heading_goal_relative] Unexpected state reached.")
         return None, None, Mode.HEAD_GOAL
+
+    def execute_double_loop(self, image: np.ndarray) -> tuple:
+        if not self._init:
+            self.initialize_action(motor_side="left")
+        phase = self._phase.get_phase()
+        left_pos = self.get_motor_position(motor_side="left")
+        target_x = None
+
+
+        # phase0: get_blue_line_pixelで18000超えたら即phase1へ
+        if phase == 0:
+            blue_area = get_blue_line_pixel(image)
+            if blue_area > 18000:
+                self._phase.next_phase()
+            elif abs(left_pos) < 12000:
+                left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
+                target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
+                return target_x, None, Mode.DOUBLE_LOOP
+            elif abs(left_pos) >= 12000:
+                self._phase.next_phase(2)
+
+        # phase1: 青ピクセルが3000未満になったらphase2へ
+        if phase == 1:
+            blue_area = get_blue_line_pixel(image)
+            if blue_area < 3000:
+                self._phase.next_phase()
+            elif abs(left_pos) < 12000:
+                left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
+                target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
+                return target_x, None, Mode.DOUBLE_LOOP
+            elif abs(left_pos) >= 12000:
+                self._phase.next_phase()
+
+        # phase2: get_blue_line_pixelで18000超えたら即phase3へ（left_pos閾値15000, 左→右エッジ、right_x使用）
+        if phase == 2:
+            if abs(left_pos) < 12000:
+                _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
+                target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
+                return target_x, None, Mode.DOUBLE_LOOP
+
+            blue_area = get_blue_line_pixel(image)
+            if blue_area > 18000:
+                self._phase.next_phase()
+            elif abs(left_pos) < 15000:
+                _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
+                target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
+                return target_x, None, Mode.DOUBLE_LOOP
+            elif abs(left_pos) >= 15000:
+                self._phase.next_phase(2)
+
+        # phase3: 青ピクセルが3000未満になったらphase4へ（left_pos閾値15000, 左→右エッジ、right_x使用）
+        if phase == 3:
+            blue_area = get_blue_line_pixel(image)
+            if blue_area < 3000:
+                self._phase.next_phase()
+            elif abs(left_pos) < 15000:
+                _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
+                target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
+                return target_x, None, Mode.DOUBLE_LOOP
+            elif abs(left_pos) >= 15000:
+                self._phase.next_phase()
+
+        # phase4: get_blue_line_pixelで18000超えたら即phase5へ（left_pos閾値18000, 左→右エッジ、right_x使用）
+        if phase == 4:
+            if abs(left_pos) < 15000:
+                left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
+                target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
+                return target_x, None, Mode.DOUBLE_LOOP
+
+            blue_area = get_blue_line_pixel(image)
+            if blue_area > 18000:
+                self._phase.next_phase()
+            elif abs(left_pos) < 19000:
+                left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
+                target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
+                return target_x, None, Mode.DOUBLE_LOOP
+            elif abs(left_pos) >= 19000:
+                self._phase.next_phase(2)
+
+        # phase5: 青ピクセルが3000未満になったらphase6へ（left_pos閾値18000, 左→右エッジ、right_x使用）
+        if phase == 5:
+            blue_area = get_blue_line_pixel(image)
+            if blue_area < 3000:
+                self._phase.next_phase()
+            elif abs(left_pos) < 19000:
+                left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
+                target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
+                return target_x, None, Mode.DOUBLE_LOOP
+            elif abs(left_pos) >= 19000:
+                self._phase.next_phase()
+
+        # phase6: get_blue_line_pixelで18000超えたら即phase7へ（left_pos閾値21000, 左→右エッジ、right_x使用）
+        if phase == 6:
+            if abs(left_pos) < 19000:
+                _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
+                target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
+                return target_x, None, Mode.DOUBLE_LOOP
+
+            blue_area = get_blue_line_pixel(image)
+            if blue_area > 18000:
+                self._phase.next_phase()
+            elif abs(left_pos) < 21000:
+                _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
+                target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
+                return target_x, None, Mode.DOUBLE_LOOP
+            elif abs(left_pos) >= 21000:
+                self._phase.next_phase(2)
+
+        # phase7: get_blue_line_pixelで3000未満になったらphase8へ（left_pos閾値21000, 左→右エッジ）
+        if phase == 7:
+            blue_area = get_blue_line_pixel(image)
+            if blue_area < 3000:
+                self._phase.next_phase()
+            elif abs(left_pos) < 21000:
+                _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
+                target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
+                return target_x, None, Mode.DOUBLE_LOOP
+            elif abs(left_pos) >= 21000:
+                self._phase.next_phase()
+
+        # phase8: 22000到達でCARRY_BOTTLE1へ
+        if phase == 8:
+            if abs(left_pos) < 22000:
+                left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
+                target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
+                return target_x, None, Mode.DOUBLE_LOOP
+            if abs(left_pos) >= 22000:
+                self.reset_action()
+                return None, None, Mode.CARRY_BOTTLE1
+
+        self.reset_action()
+        return None, None, Mode.DOUBLE_LOOP
