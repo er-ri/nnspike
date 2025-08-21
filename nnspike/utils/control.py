@@ -126,40 +126,18 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
         print("Error: Invalid image data")
         return None, None, 0
 
-    # Convert to different color spaces for better detection
-    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    # Method 1: Color-based detection (for objects with distinctive colors)
-    # Define color range based on the specified color
-    if color == "yellow":
-        lower_color = np.array([15, 100, 100], dtype=np.uint8)
-        upper_color = np.array([35, 255, 255], dtype=np.uint8)
-        color_mask = cv2.inRange(hsv, lower_color, upper_color)
-    elif color == "blue":
-        lower_color = np.array([90, 60, 40])
-        upper_color = np.array([140, 255, 255])
-        color_mask = cv2.inRange(hsv, lower_color, upper_color)
-    elif color == "red":
-        lower_red1 = np.array([0, 90, 60], dtype=np.uint8)
-        upper_red1 = np.array([12, 255, 255], dtype=np.uint8)
-        lower_red2 = np.array([170, 90, 60], dtype=np.uint8)
-        upper_red2 = np.array([180, 255, 255], dtype=np.uint8)
-        mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
-        mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
-        color_mask = cv2.bitwise_or(mask1, mask2)
-    else:
-        color_mask = np.zeros_like(gray)
-
-    # Calculate color pixel count
+    # 色抽出（HSV変換＋マスク生成）はget_color_maskで一元化
+    color_mask = get_color_mask(image, color, pattern="bottle")
     color_pixel_count = cv2.countNonZero(color_mask)
 
     # Method 2: Edge detection for bottle contours
-    # Use adaptive binarize_valueing for better edge detection under various lighting
-    edges = cv2.adaptivebinarize_value(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    gray = control_preprocess_image(
+        image,
+        grayscale=True
+    )
+    edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     edges = cv2.bitwise_not(edges)  # Invert to make edges white
-
-    # Combine color and edge information
     combined_mask = cv2.bitwise_or(color_mask, edges)
 
     # 画像前処理を control_preprocess_image で統一（現行処理内容を完全維持）
@@ -267,10 +245,8 @@ def find_blue_target_center(img):
     """
     if img is None or img.size == 0:
         return None, None, 0
-    blue_hsv_lower = (100, 80, 80)
-    blue_hsv_upper = (140, 255, 255)
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    mask_blue = cv2.inRange(hsv, np.array(blue_hsv_lower), np.array(blue_hsv_upper))
+    # 色抽出（HSV変換＋マスク生成）はget_color_maskで一元化
+    mask_blue = get_color_mask(img, "blue", pattern="target")
     # 画像前処理を control_preprocess_image で統一（現行処理内容を完全維持）
     # morph__ellipse(5,5)を厳密に再現
     # メディアンブラー→ノイズ除去（グレースケール・二値化なし）
@@ -324,7 +300,10 @@ def get_is_blue_line_at_y(img, target_y, min_run=30):
     """
     if not (0 <= target_y < img.shape[0]):
         return False
-    img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    img_hsv = control_preprocess_image(
+        img,
+        use_hsv=True
+    )
     blue_hsv_lower = (100, 80, 80)
     blue_hsv_upper = (140, 255, 255)
     line_hsv = img_hsv[target_y, :]
@@ -352,7 +331,10 @@ def get_blue_line_pixel(img):
     x1, y1, x2, y2 = 100, 200, 540, 480  # y1を200に変更
     if img is None or img.size == 0:
         return 0
-    img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    img_hsv = control_preprocess_image(
+        img,
+        use_hsv=True
+    )
     # 旧閾値（コメントアウト）
     # blue_hsv_lower = (100, 150, 0)
     # blue_hsv_upper = (140, 255, 255)
@@ -396,10 +378,8 @@ def is_x320_on_blue_target(img, x_tolerance=40):
     """
     if img is None or img.size == 0:
         return False
-    blue_hsv_lower = (100, 80, 80)
-    blue_hsv_upper = (140, 255, 255)
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    mask_blue = cv2.inRange(hsv, np.array(blue_hsv_lower), np.array(blue_hsv_upper))
+    # 色抽出（HSV変換＋マスク生成）はget_color_maskで一元化
+    mask_blue = get_color_mask(img, "blue", pattern="target")
     # 5x5楕円カーネルでクロージング
     # メディアンブラー→ノイズ除去（グレースケール・二値化なし）
     mask_blue = control_preprocess_image(
@@ -449,15 +429,8 @@ def is_x320_on_red_target(img, x_tolerance=40):
     """
     if img is None or img.size == 0:
         return False
-    # 赤色のHSV範囲（2区間）
-    red_hsv_lower1 = (0, 90, 60)
-    red_hsv_upper1 = (15, 255, 210)
-    red_hsv_lower2 = (175, 90, 60)
-    red_hsv_upper2 = (180, 255, 210)
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    mask1 = cv2.inRange(hsv, np.array(red_hsv_lower1), np.array(red_hsv_upper1))
-    mask2 = cv2.inRange(hsv, np.array(red_hsv_lower2), np.array(red_hsv_upper2))
-    mask_red = cv2.bitwise_or(mask1, mask2)
+    # 色抽出（HSV変換＋マスク生成）はget_color_maskで一元化
+    mask_red = get_color_mask(img, "red", pattern="target")
     # 5x5楕円カーネルでクロージング
     # メディアンブラー→ノイズ除去（グレースケール・二値化なし）
     mask_red = control_preprocess_image(
@@ -505,15 +478,8 @@ def get_red_target_center_x(img):
     """
     if img is None or img.size == 0:
         return None
-    # 赤色のHSV範囲（2区間）
-    red_hsv_lower1 = (0, 90, 60)
-    red_hsv_upper1 = (15, 255, 210)
-    red_hsv_lower2 = (175, 90, 60)
-    red_hsv_upper2 = (180, 255, 210)
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    mask1 = cv2.inRange(hsv, np.array(red_hsv_lower1), np.array(red_hsv_upper1))
-    mask2 = cv2.inRange(hsv, np.array(red_hsv_lower2), np.array(red_hsv_upper2))
-    mask_red = cv2.bitwise_or(mask1, mask2)
+    # 色抽出（HSV変換＋マスク生成）はget_color_maskで一元化
+    mask_red = get_color_mask(img, "red", pattern="target")
     # 5x5楕円カーネルでクロージング
     # メディアンブラー→ノイズ除去（グレースケール・二値化なし）
     mask_red = control_preprocess_image(
@@ -932,11 +898,11 @@ def control_preprocess_image(
         image = clahe_obj.apply(image)
 
     # --- フィルター（平滑化） ---
-    if blur_type == "gaussian":
-        image = cv2.GaussianBlur(image, (blur_ksize, blur_ksize), 0)
-    elif blur_type == "median":
-        image = cv2.medianBlur(image, blur_ksize)
-    # blur_type==Noneなら何もしない
+    if blur_type is not None:
+        if blur_type == "gaussian":
+            image = cv2.GaussianBlur(image, (blur_ksize, blur_ksize), 0)
+        elif blur_type == "median":
+            image = cv2.medianBlur(image, blur_ksize)
 
     # --- 二値化 ---
     if binarize_mode is not None:
@@ -995,31 +961,26 @@ def get_color_mask(image, color, pattern=None):
         upper = np.array([35, 255, 255], dtype=np.uint8)
         mask = cv2.inRange(hsv, lower, upper)
     elif color == "blue":
-        if pattern == "target":
+        if pattern == "line":
+            lower = np.array([95, 100, 50])
+            upper = np.array([145, 255, 255])
+        elif pattern == "target":
             lower = np.array([100, 80, 80])
             upper = np.array([140, 255, 255])
-        elif pattern == "line":
-            lower = np.array([105, 80, 80])
-            upper = np.array([135, 255, 255])
         else: # bottle or 未指定
             lower = np.array([90, 60, 40])
-            upper = np.array([130, 255, 255])
+            upper = np.array([140, 255, 255])
         mask = cv2.inRange(hsv, lower, upper)
     elif color == "red":
-        if pattern == "line":
-            lower1 = np.array([0, 120, 70], dtype=np.uint8)
-            upper1 = np.array([10, 255, 255], dtype=np.uint8)
-            lower2 = np.array([170, 120, 70], dtype=np.uint8)
-            upper2 = np.array([180, 255, 255], dtype=np.uint8)
-        elif pattern == "target":
+        if pattern == "target":
             lower1 = np.array([0, 90, 60], dtype=np.uint8)
             upper1 = np.array([15, 255, 210], dtype=np.uint8)
             lower2 = np.array([175, 90, 60], dtype=np.uint8)
             upper2 = np.array([180, 255, 210], dtype=np.uint8)
         else: # bottle or 未指定
-            lower1 = np.array([0, 100, 100], dtype=np.uint8)
-            upper1 = np.array([10, 255, 255], dtype=np.uint8)
-            lower2 = np.array([170, 100, 100], dtype=np.uint8)
+            lower1 = np.array([0, 90, 60], dtype=np.uint8)
+            upper1 = np.array([12, 255, 255], dtype=np.uint8)
+            lower2 = np.array([170, 90, 60], dtype=np.uint8)
             upper2 = np.array([180, 255, 255], dtype=np.uint8)
         mask1 = cv2.inRange(hsv, lower1, upper1)
         mask2 = cv2.inRange(hsv, lower2, upper2)
