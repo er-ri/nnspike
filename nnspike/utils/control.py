@@ -102,18 +102,26 @@ def find_bottle_center(img, color, min_area: int = 500) -> Tuple[Optional[Tuple[
     if not contours:
         return None, None, color_pixel_count
     valid_contours = [c for c in contours if cv2.contourArea(c) >= min_area]
+    print(f'[debug] contours数: {len(contours)}')
+    print(f'[debug] valid_contours数: {len(valid_contours)} (min_area={min_area})')
     if not valid_contours:
+        print('[debug] valid_contoursが空: return None, None, color_pixel_count')   
         return None, None, color_pixel_count
     largest_contour = max(valid_contours, key=cv2.contourArea)
     contour_size = cv2.contourArea(largest_contour)
     x, y, w, h = cv2.boundingRect(largest_contour)
     aspect_ratio = h / w if w > 0 else 0
+    print(f'[debug] largest_contour: 面積={contour_size:.1f}, bbox=({x},{y},{w},{h}), アスペクト比={aspect_ratio:.2f}')
     if aspect_ratio < 0.8:
+        print(f'[debug] aspect_ratio={aspect_ratio:.2f} < 0.8: return None, None, color_pixel_count')
         return None, None, color_pixel_count  # アスペクト比でノイズ除去
     M = cv2.moments(largest_contour)
     if M["m00"] != 0:
         cx = int(M["m10"] / M["m00"])
         cy = int(M["m01"] / M["m00"])
+        print(f'[debug] 中心座標: ({cx}, {cy}), 面積={contour_size:.1f}')
+    else:
+        print(f'[debug] M[\"m00\"]==0: return None, None, color_pixel_count')
         return (cx, cy), contour_size, color_pixel_count  # 中心座標・面積・色ピクセル数
     return None, None, color_pixel_count
 
@@ -191,7 +199,7 @@ def find_blue_target_center(img) -> Tuple[Optional[Tuple[int, int]], Optional[fl
         return best_center, max_blue_area, blue_pixel_count  # 中心座標・面積・青ピクセル数
     return None, None, 0
 
-def get_is_blue_line_at_y(img, target_y, min_run=30) -> bool:
+def get_is_blue_line_at_y(img, target_y=470, min_run=30) -> bool:
     """
     指定したy座標（target_y）で、HSV条件に合致する青ピクセルがmin_run個以上連続していればTrue、そうでなければFalseを返す。
     画像全体のx方向を横断して判定する。ノイズ除去や細いラインの検出に有効。
@@ -267,7 +275,7 @@ def get_blue_line_pixel(img) -> int:
     return int(max_area)
 
 # x=320の中心ラインが青的（青い楕円）にヒットしたらTrueを返す関数
-def is_x320_on_blue_target(img, x_tolerance=40) -> bool:
+def is_x320_on_blue_target(img, x_tolerance=60) -> bool:
     """
     画像内の青的（楕円）の中心がx=320±x_toleranceの範囲にあればTrueを返す。
     青的が見つからなければFalse。
@@ -319,7 +327,7 @@ def is_x320_on_blue_target(img, x_tolerance=40) -> bool:
     return False
 
 # x=320の中心ラインが赤的（赤い楕円）にヒットしたらTrueを返す関数
-def is_x320_on_red_target(img, x_tolerance=40) -> bool:
+def is_x320_on_red_target(img, x_tolerance=60) -> bool:
     """
     画像内の赤的（楕円）の中心がx=320±x_toleranceの範囲にあればTrueを返す。
     赤的が見つからなければFalse。
