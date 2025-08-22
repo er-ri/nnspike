@@ -780,7 +780,7 @@ def get_virtual_line_target_x(img, previous_center_x=None) -> int:
     
     # previous_center_xによる極端なジャンプ制限
     if previous_center_x is not None:
-        max_delta = 30  # 許容する最大変化量
+        max_delta = 50  # 許容する最大変化量
         if abs(target_x - previous_center_x) > max_delta:
             if target_x > previous_center_x:
                 target_x = previous_center_x + max_delta
