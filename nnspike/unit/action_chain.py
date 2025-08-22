@@ -766,7 +766,7 @@ class ActionChain(object):
         if phase.get_phase() == 4:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            threshold = 870 if self.course_type == "upper" else 1300
+            threshold = 900 if self.course_type == "upper" else 1300
             if abs(current_pos - position_start) < threshold:
                 return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
             phase.next_phase()
