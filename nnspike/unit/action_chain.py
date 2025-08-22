@@ -34,9 +34,6 @@ from nnspike.utils.control import (
     get_blue_line_pixel,  # 青オブジェクト面積検出
 )
 
-
-
-
 class PhaseManager:
     """フェーズ管理クラス。"""
 
