@@ -344,23 +344,8 @@ class ActionChain(object):
                 else:
                     return None, (40, 70), Mode.AVOID_OBSTACLE
 
-        # phase2: 右モーター移動距離300未満なら中央追従、300以上でphase3へ、右モーター位置記録。
+        # phase2: 左旋回（250未満は(40,70)/(70,40)、250以上350未満は垂直黒ライン検出で即phase4へ、350以上は強制的にphase4へ）
         if phase.get_phase() == 2:
-            position_start = phase.get_position_start("position_start")
-            current_pos = self.get_motor_position(self.course, status=status)
-            position_diff = abs(current_pos - position_start)
-            target_x = (self.x1 + self.x2) // 2
-            if position_diff < 300:
-                if self.course == "right":
-                    return None, (70, 40), Mode.AVOID_OBSTACLE
-                else:
-                    return None, (40, 70), Mode.AVOID_OBSTACLE
-            else:
-                phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
-
-        # phase3: 左旋回（250未満は(40,70)/(70,40)、250以上350未満は垂直黒ライン検出で即phase4へ、350以上は強制的にphase4へ）
-        if phase.get_phase() == 3:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             distance = abs(current_pos - position_start)
@@ -380,8 +365,8 @@ class ActionChain(object):
             else:
                 phase.next_phase()
 
-        # phase4: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
-        if phase.get_phase() == 4:
+        # phase3: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
+        if phase.get_phase() == 3:
             self.reset_action()
             if self.course == "right":
                 return None, None, Mode.FOLLOW_RIGHT_EDGE
