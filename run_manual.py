@@ -582,7 +582,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 max_contour = np.array([[[mx, my]]], dtype=np.int32)
 
                 theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use simplified speed control
-                current_base_speed = BASE_SPEED
+                # pos_checkの値によってbase_speedを変更
+                if 'pos_check' in locals() and pos_check is not None and abs(pos_check) < 22000:
+                    current_base_speed = 55
+                else:
+                    current_base_speed = 45
 
                 steering_correction = pid.update(theta)
 
