@@ -1157,6 +1157,7 @@ class ActionChain(object):
             elif current_pos >= LEFT_POS_THRESHOLD_PHASE4:
                 print(f"[DEBUG] phase5→phase7: current_pos={current_pos} >= {LEFT_POS_THRESHOLD_PHASE4}")
                 self._phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
         # phase5.5: 200距離だけ直進するフェーズ
         if phase.get_phase() == 6:
