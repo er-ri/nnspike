@@ -12,7 +12,7 @@ BLUE_AREA_MIN_THRESHOLD = 3000
 LEFT_POS_THRESHOLD_PHASE0 = 13000
 LEFT_POS_THRESHOLD_PHASE2 = 17000
 LEFT_POS_THRESHOLD_PHASE4 = 19000
-LEFT_POS_THRESHOLD_PHASE6 = 21000
+LEFT_POS_THRESHOLD_PHASE6 = 21500
 LEFT_POS_THRESHOLD_PHASE8 = 22000
 
 # ロボット本体クラス
@@ -1164,7 +1164,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
 
-            # 200距離進んだら次のフェーズへ
+            # 150距離進んだら次のフェーズへ
             if abs(current_pos - position_start) >= 150:
                 print(f"[DEBUG] phase6(直進)→phase7: 150距離進行完了 (current_pos={current_pos})")
                 self._phase.next_phase()
