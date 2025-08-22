@@ -404,7 +404,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             match mode:
                 case Mode.DOUBLE_LOOP:
-                    print("DOUBLE_LOOP")
                     target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.execute_double_loop(frame))
                 case Mode.TURN_LEFT_RELATIVE:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.turn_left_relative(frame))
