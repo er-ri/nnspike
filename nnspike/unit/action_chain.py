@@ -790,7 +790,7 @@ class ActionChain(object):
         if phase.get_phase() == 6:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            if abs(current_pos - position_start) < 100:
+            if abs(current_pos - position_start) < 200:
                 return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
             phase.next_phase()
             # phase7用 右モーター相対位置記録（get_motor_positionで統一）
@@ -801,7 +801,7 @@ class ActionChain(object):
         if phase.get_phase() == 7:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            if abs(current_pos - position_start) < 1400:
+            if abs(current_pos - position_start) < 1300:
                 temp_x = get_virtual_line_target_x(image, previous_center_x=self.pre_target_x)
                 if temp_x is not None:
                     target_x = temp_x
