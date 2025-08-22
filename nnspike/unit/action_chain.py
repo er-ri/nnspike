@@ -434,7 +434,7 @@ class ActionChain(object):
 
         # 0. 右エッジトレース（赤ピクセル数が3000を超えたらphase1へ、右モーター初期位置記録）
         if phase.get_phase() == 0:
-            left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
+            left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold=80)
             target_x = right_x if self.course == "right" else left_x
             if target_x is None:
                 target_x = (self.x1 + self.x2) // 2
@@ -469,7 +469,7 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             threshold = 1200 if self.course_type == "upper" else 700
             if abs(current_pos - position_start) < threshold:
-                left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=300, threshold_value=80)
+                left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=300, threshold=80)
                 target_x = left_x if self.course == "right" else right_x
                 if target_x is None:
                     target_x = (self.x1 + self.x2) // 2
@@ -1025,7 +1025,7 @@ class ActionChain(object):
 
         # 3. 左エッジトレース（青ライン検出でphase4へ。左エッジがなければ中央。青ライン検出時に右モーター位置記録）
         if phase.get_phase() == 3:
-            left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
+            left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold=80)
             target_x = left_x if self.course == "right" else right_x
             if target_x is None:
                 target_x = (self.x1 + self.x2) // 2
@@ -1044,7 +1044,7 @@ class ActionChain(object):
             if position_limit_reached:
                 phase.next_phase()
             else:
-                left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold_value=80)
+                left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold=80)
                 target_x = left_x if self.course == "right" else right_x
                 if target_x is None:
                     target_x = (self.x1 + self.x2) // 2
