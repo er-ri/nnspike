@@ -3,55 +3,68 @@ from typing import Optional, Tuple
 import cv2
 import numpy as np
 
-def get_line_edges_at_y(img, roi, target_y, threshold=80) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+
+def get_line_edges_at_y(image, roi, target_y, threshold_value=50) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """
-    指定Y座標で黒ラインの左右端点（X座標）と幅を検出する。
-    
-    パラメータ:
-        img (np.ndarray): 入力画像（BGRまたはグレースケール）
-        roi (tuple): ROI（x1, y1, x2, y2）画像全体基準
-        target_y (int): 検出するY座標（画像全体基準）
-        threshold (int): 二値化閾値（デフォルト: 80）
-    前処理:
-        グレースケール化→ガウシアンブラー→二値化（binary_inv）→ノイズ除去→ROI抽出
-    戻り値:
-        left_x (float or None): 左端X座標
-        right_x (float or None): 右端X座標
-        line_width (float or None): ライン幅
+    Get the left and right edge points of a black line at a specific Y coordinate.
+
+    Parameters:
+    - image: Input image (BGR or grayscale)
+    - roi_coords: Tuple (x, y, width, height) defining the ROI
+    - target_y: The Y coordinate where to detect line edges (in original image coordinates)
+    - threshold_value: Threshold for binary conversion (default: 50)
+
+    Returns:
+    - left_x: X coordinate of left edge (None if not found)
+    - right_x: X coordinate of right edge (None if not found)
+    - line_width: Width of the line at this Y position (None if not found)
     """
 
-    # エラー処理（画像None/空）
-    if img is None or (hasattr(img, 'size') and img.size == 0):
+    # Extract ROI coordinates
+    x, y, w, h = roi
+
+    # Check if target_y is within ROI
+    if target_y < y or target_y >= y + h:
         return None, None, None
-    # パラメータ（画像・ROI・Y座標・閾値）
-    x1, y1, x2, y2 = roi  # ROI（x1, y1, x2, y2）
-    # 前処理（グレースケール化→ガウシアンブラー→二値化→ノイズ除去→ROI抽出）
-    if target_y < y1 or target_y >= y2:
-        return None, None, None  # ROI外はNone返却
-    mask_full = control_preprocess_image(
-        img,
-        use_hsv=False,
-        grayscale=True,
-        clahe=False,
-        blur_type="gaussian",
-        blur_ksize=5,
-        binarize_mode="binary_inv",
-        binarize_value=threshold,
-        noise_removal=None
-    )
-    binary = mask_full[y1 : y2, x1 : x2]  # ROI抽出
-    roi_row = target_y - y1  # ROI内Y座標
-    if roi_row >= 0 and roi_row < y2:
+
+    # Convert to grayscale if needed
+    if len(image.shape) == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = image.copy()
+
+    # Extract ROI
+    roi = gray[y : y + h, x : x + w]
+
+    # Apply Gaussian blur to reduce noise
+    blurred = cv2.GaussianBlur(roi, (5, 5), 0)
+
+    # Binary threshold to isolate black line
+    _, binary = cv2.threshold(blurred, threshold_value, 255, cv2.THRESH_BINARY_INV)
+
+    # Calculate the row within the ROI
+    roi_row = target_y - y
+
+    # Get the binary row at target Y
+    if roi_row >= 0 and roi_row < h:
         row_data = binary[roi_row, :]
-        white_pixels = np.where(row_data == 255)[0]  # 白ピクセル抽出
+
+        # Find all white pixels (line pixels) in this row
+        white_pixels = np.where(row_data == 255)[0]
+
         if len(white_pixels) > 0:
+            # Find leftmost and rightmost white pixels
             left_x_roi = white_pixels[0]
             right_x_roi = white_pixels[-1]
-            left_x = x1 + left_x_roi
-            right_x = x1 + right_x_roi
+
+            # Convert back to original image coordinates
+            left_x = x + left_x_roi
+            right_x = x + right_x_roi
             line_width = right_x - left_x + 1
+
             return left_x, right_x, line_width
-    return None, None, None  # ライン未検出
+
+    return None, None, None
 
 def find_bottle_center(img, color, min_area: int = 500) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
     """
