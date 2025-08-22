@@ -943,7 +943,7 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.opposite_course, status=status)
             position_diff = abs(current_pos - position_start)
             minimum_position_reached = position_diff >= 200
-            position_limit_reached = position_diff >= 400
+            position_limit_reached = position_diff >= 500
             horizontal_line_detected = is_general_horizontal_line_detected(image)
             # 最低200ユニットは必ず旋回
             if not minimum_position_reached:
