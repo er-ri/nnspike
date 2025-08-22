@@ -432,7 +432,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, "yellow")
                     # シンプルに右モーターの相対位置はright_posを使う
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                    
                     # right_posが7000を超えたらNVIDIA_FOLLOWに切り替え
                     if right_pos is not None and abs(right_pos) >= 7000:
                         if model is not None:

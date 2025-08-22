@@ -347,7 +347,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            if position_diff < 500:
+            if position_diff < 400:
                 if self.course == "right":
                     return None, (70, 40), Mode.AVOID_OBSTACLE
                 else:
@@ -399,10 +399,11 @@ class ActionChain(object):
         # phase3: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
         if phase.get_phase() == 4:
             self.reset_action()
+            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             if self.course == "right":
-                return None, None, Mode.FOLLOW_RIGHT_EDGE
+                return target_x, None, Mode.FOLLOW_RIGHT_EDGE
             else:
-                return None, None, Mode.FOLLOW_LEFT_EDGE
+                return target_x, None, Mode.FOLLOW_LEFT_EDGE
 
         print("[avoid_obstacle_relative] Unexpected state reached.")
         return None, None, Mode.AVOID_OBSTACLE
