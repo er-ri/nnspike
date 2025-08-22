@@ -834,7 +834,7 @@ class ActionChain(object):
 
         # 11. 青ピクセルが500以下まで減るまでcenter追従（500以下でphase12へ、最大右モーター400ユニット。条件満たせば右モーター位置記録）
         if phase.get_phase() == 11:
-            center, _, blue_pixel_count = find_blue_target_center(image, gray_ellipse_enable=False)
+            center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
             else:
