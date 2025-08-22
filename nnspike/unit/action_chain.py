@@ -349,17 +349,17 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             if position_diff < 400:
                 if self.course == "right":
-                    return None, (60, 30), Mode.AVOID_OBSTACLE
+                    return None, (65, 35), Mode.AVOID_OBSTACLE
                 else:
-                    return None, (30, 60), Mode.AVOID_OBSTACLE
+                    return None, (35, 65), Mode.AVOID_OBSTACLE
             if is_horizontal_black_line_detected(image, intersection_y=450):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
                 if self.course == "right":
-                    return None, (60, 30), Mode.AVOID_OBSTACLE
+                    return None, (65, 35), Mode.AVOID_OBSTACLE
                 else:
-                    return None, (30, 60), Mode.AVOID_OBSTACLE
+                    return None, (35, 65), Mode.AVOID_OBSTACLE
 
         # phase2: 右モーター移動距離300未満なら中央追従、300以上でphase3へ、右モーター位置記録。
         if phase.get_phase() == 2:
@@ -368,9 +368,9 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             if position_diff < 100:
                 if self.course == "right":
-                    return None, (60, 35), Mode.AVOID_OBSTACLE
+                    return None, (65, 35), Mode.AVOID_OBSTACLE
                 else:
-                    return None, (35, 60), Mode.AVOID_OBSTACLE
+                    return None, (35, 65), Mode.AVOID_OBSTACLE
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
