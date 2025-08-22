@@ -366,7 +366,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            if position_diff < 100:
+            if position_diff < 200:
                 if self.course == "right":
                     return None, (70, 40), Mode.AVOID_OBSTACLE
                 else:
@@ -380,19 +380,19 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             distance = abs(current_pos - position_start)
-            if distance < 250:
+            if distance < 50:
                 if self.course == "right":
-                    return None, (40, 70), Mode.AVOID_OBSTACLE
+                    return None, (30, 60), Mode.AVOID_OBSTACLE
                 else:
-                    return None, (70, 40), Mode.AVOID_OBSTACLE
-            elif distance < 350:
+                    return None, (60, 30), Mode.AVOID_OBSTACLE
+            elif distance < 500:
                 if is_vertical_black_line_detected(image):
                     phase.next_phase()
                 else:
                     if self.course == "right":
-                        return None, (40, 70), Mode.AVOID_OBSTACLE
+                        return None, (30, 60), Mode.AVOID_OBSTACLE
                     else:
-                        return None, (70, 40), Mode.AVOID_OBSTACLE
+                        return None, (60, 30), Mode.AVOID_OBSTACLE
             else:
                 phase.next_phase()
 
