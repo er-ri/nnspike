@@ -54,6 +54,8 @@ def main():
     df, _ = read_label_data(label_path)
 
     index = 0
+    show_preprocessed = False
+    preprocessed_image = None
     while True:
         if index < 0:
             index = 0
@@ -63,11 +65,10 @@ def main():
         row = df.iloc[index]
         mode = row["mode"]
         target_x = row["target_x"] if not pd.isna(row["target_x"]) else 0
-        # interval = row["interval"]
         image_path = row["image_path"].replace("../", "./")
         image = cv2.imread(image_path)
 
-        offset_y = OFFSET_Y  # Constant value for y-offset in ROI_CNN (new: 350)
+        offset_y = OFFSET_Y
 
         yellow_center_x, _, yellow_pixel_count = find_bottle_center(image, "yellow")
         blue_center_x, _, blue_pixel_count = find_bottle_center(image, "blue")
@@ -94,9 +95,7 @@ def main():
             "left_pos": motor_b_pos,
         }
 
-        # right_info からは削除
         right_info = []
-        # 表示順: 水平→垂直→青ライン検出系→その他
         right_info.append(f"get_virtual_line_target_x: {get_virtual_line_target_x(image)}")
         right_info.append(f"find_blue_target_center: {find_blue_target_center(image)}")
         right_info.append(f"is_x320_on_blue_target: {is_x320_on_blue_target(image)}")
@@ -111,54 +110,67 @@ def main():
         right_info.append(f"get_blue_line_pixel: {get_blue_line_pixel(image)}")
         info["right_info"] = right_info
 
-        # y=300の位置に水平線、画面中央に垂直線を描画
-        image_with_line = image.copy()
-        x_center = image_with_line.shape[1] // 2
+        # 事前処理画像生成（get_virtual_line_target_x相当）
+        if show_preprocessed:
+            preprocessed_image = control_preprocess_image(
+                image,
+                use_hsv=False,
+                grayscale=True,
+                clahe=True,
+                clahe_clipLimit=3.0,
+                blur_type="median",
+                blur_ksize=7,
+                binarize_mode="binary_inv",
+                binarize_value=120,
+                noise_removal=["dilate", "close7x7"]
+            )
+            image_to_show = cv2.cvtColor(preprocessed_image, cv2.COLOR_GRAY2BGR)
+        else:
+            image_to_show = image.copy()
+
+        x_center = image_to_show.shape[1] // 2
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.5
         font_thickness = 1
-        # 水平線とラベルを複数y座標で描画
         for y_line in [300, 330, 450, 470]:
             # 水平線（黄色）
-            cv2.line(image_with_line, (0, y_line), (image_with_line.shape[1], y_line), (0, 255, 255), 2)
+            cv2.line(image_to_show, (0, y_line), (image_to_show.shape[1], y_line), (0, 255, 255), 2)
             # 水平線の横にy座標値を小さく描画
             text_y = f"y={y_line}"
             text_y_size, _ = cv2.getTextSize(text_y, font, font_scale, font_thickness)
             text_y_x = 5
             text_y_y = y_line - 7 if y_line - 7 > text_y_size[1] else y_line + text_y_size[1] + 7
-            cv2.putText(image_with_line, text_y, (text_y_x, text_y_y), font, font_scale, (0, 255, 255), font_thickness, cv2.LINE_AA)
+            cv2.putText(image_to_show, text_y, (text_y_x, text_y_y), font, font_scale, (0, 255, 255), font_thickness, cv2.LINE_AA)
         # 垂直線（黄色）
-        cv2.line(image_with_line, (x_center, 0), (x_center, image_with_line.shape[0]), (0, 255, 255), 2)
+        cv2.line(image_to_show, (x_center, 0), (x_center, image_to_show.shape[0]), (0, 255, 255), 2)
         # 垂直線の横にx座標値を小さく描画
         text_x_label = f"x={x_center}"
         text_x_size, _ = cv2.getTextSize(text_x_label, font, font_scale, font_thickness)
-        text_x_x = x_center + 7 if x_center + 7 + text_x_size[0] < image_with_line.shape[1] else x_center - text_x_size[0] - 7
+        text_x_x = x_center + 7 if x_center + 7 + text_x_size[0] < image_to_show.shape[1] else x_center - text_x_size[0] - 7
         text_x_y = 20
-        cv2.putText(image_with_line, text_x_label, (text_x_x, text_x_y), font, font_scale, (0, 255, 255), font_thickness, cv2.LINE_AA)
+        cv2.putText(image_to_show, text_x_label, (text_x_x, text_x_y), font, font_scale, (0, 255, 255), font_thickness, cv2.LINE_AA)
 
         # 右端にright_infoを表示
-        right_x = image_with_line.shape[1] - 10
+        right_x = image_to_show.shape[1] - 10
         start_y = 40
         line_height = 18
         for i, text in enumerate(info["right_info"]):
             text_size, _ = cv2.getTextSize(text, font, font_scale, font_thickness)
             x = right_x - text_size[0]
             y = start_y + i * line_height
-            cv2.putText(image_with_line, text, (x, y), font, font_scale, (255, 128, 0), font_thickness, cv2.LINE_AA)
+            cv2.putText(image_to_show, text, (x, y), font, font_scale, (255, 128, 0), font_thickness, cv2.LINE_AA)
 
-        image = draw_driving_info(image_with_line, info, ROI_CNN)
+        image_to_show = draw_driving_info(image_to_show, info, ROI_CNN)
 
-        cv2.imshow(f"ETRobot: {dir_path}", image)
+        cv2.imshow(f"ETRobot: {dir_path}", image_to_show)
 
         key = cv2.waitKey(0) & 0xFF
         if key == ord("q"):
             break
         elif key == ord("1"):  # Update dataframe
-            df, index = read_label_data(label_path, image_path=image_path)
-            index = 578
+            show_preprocessed = True
         elif key == ord("2"):  # Update dataframe
-            df, index = read_label_data(label_path, image_path=image_path)
-            index = 734
+            show_preprocessed = False
         elif key == ord("3"):  # Update dataframe
             df, index = read_label_data(label_path, image_path=image_path)
             index = 904
