@@ -417,6 +417,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     # left_posが7000を超えたらNVIDIA_FOLLOWに切り替え
                     if left_pos is not None and abs(left_pos) >= 7000:
                         mode = Mode.DOUBLE_LOOP
+                        target_x = (x1 + x2) // 2
                         print("Switched to DOUBLE_LOOP mode (left_pos >= 7000)")
                     elif yellow_pixel_count > 16000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
