@@ -1036,24 +1036,28 @@ class ActionChain(object):
         if phase.get_phase() == 0:    
             blue_area = get_blue_line_pixel(image)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
+                print(f"[DEBUG] phase0→phase1: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD}")
                 self._phase.next_phase()
             elif abs(left_pos) < LEFT_POS_THRESHOLD_PHASE0:
                 left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
             elif abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE0:
+                print(f"[DEBUG] phase0→phase2: abs(left_pos)={abs(left_pos)} >= {LEFT_POS_THRESHOLD_PHASE0}")
                 self._phase.next_phase(2)
 
         # phase1: 青ピクセルが3000未満になったらphase2へ
         if phase.get_phase() == 1:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
+                print(f"[DEBUG] phase1→phase2: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD}")
                 self._phase.next_phase()
             elif abs(left_pos) < LEFT_POS_THRESHOLD_PHASE0:
                 left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
             elif abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE0:
+                print(f"[DEBUG] phase1→phase3: abs(left_pos)={abs(left_pos)} >= {LEFT_POS_THRESHOLD_PHASE0}")
                 self._phase.next_phase()
 
         # phase2: get_blue_line_pixelでBLUE_AREA_THRESHOLD超えたら即phase3へ（left_pos閾値15000, 左→右エッジ、right_x使用）
@@ -1065,24 +1069,28 @@ class ActionChain(object):
 
             blue_area = get_blue_line_pixel(image)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
+                print(f"[DEBUG] phase2→phase3: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD}")
                 self._phase.next_phase()
             elif abs(left_pos) < LEFT_POS_THRESHOLD_PHASE2:
                 _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
             elif abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE2:
+                print(f"[DEBUG] phase2→phase4: abs(left_pos)={abs(left_pos)} >= {LEFT_POS_THRESHOLD_PHASE2}")
                 self._phase.next_phase(2)
 
         # phase3: 青ピクセルが3000未満になったらphase4へ（left_pos閾値15000, 左→右エッジ、right_x使用）
         if phase.get_phase() == 3:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
+                print(f"[DEBUG] phase3→phase4: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD}")
                 self._phase.next_phase()
             elif abs(left_pos) < LEFT_POS_THRESHOLD_PHASE2:
                 _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
             elif abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE2:
+                print(f"[DEBUG] phase3→phase5: abs(left_pos)={abs(left_pos)} >= {LEFT_POS_THRESHOLD_PHASE2}")
                 self._phase.next_phase()
 
         # phase4: get_blue_line_pixelで18000超えたら即phase5へ（left_pos閾値18000, 左→右エッジ、right_x使用）
@@ -1094,24 +1102,28 @@ class ActionChain(object):
 
             blue_area = get_blue_line_pixel(image)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
+                print(f"[DEBUG] phase4→phase5: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD}")
                 self._phase.next_phase()
             elif abs(left_pos) < LEFT_POS_THRESHOLD_PHASE4:
                 left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
             elif abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE4:
+                print(f"[DEBUG] phase4→phase6: abs(left_pos)={abs(left_pos)} >= {LEFT_POS_THRESHOLD_PHASE4}")
                 self._phase.next_phase(2)
 
         # phase5: 青ピクセルが3000未満になったらphase6へ（left_pos閾値18000, 左→右エッジ、right_x使用）
         if phase.get_phase() == 5:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
+                print(f"[DEBUG] phase5→phase6: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD}")
                 self._phase.next_phase()
             elif abs(left_pos) < LEFT_POS_THRESHOLD_PHASE4:
                 left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
             elif abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE4:
+                print(f"[DEBUG] phase5→phase7: abs(left_pos)={abs(left_pos)} >= {LEFT_POS_THRESHOLD_PHASE4}")
                 self._phase.next_phase()
 
         # phase6: get_blue_line_pixelで18000超えたら即phase7へ（left_pos閾値21000, 左→右エッジ、right_x使用）
@@ -1123,24 +1135,28 @@ class ActionChain(object):
 
             blue_area = get_blue_line_pixel(image)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
+                print(f"[DEBUG] phase6→phase7: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD}")
                 self._phase.next_phase()
             elif abs(left_pos) < LEFT_POS_THRESHOLD_PHASE6:
                 _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
             elif abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE6:
+                print(f"[DEBUG] phase6→phase8: abs(left_pos)={abs(left_pos)} >= {LEFT_POS_THRESHOLD_PHASE6}")
                 self._phase.next_phase(2)
 
         # phase7: get_blue_line_pixelで3000未満になったらphase8へ（left_pos閾値21000, 左→右エッジ）
         if phase.get_phase() == 7:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
+                print(f"[DEBUG] phase7→phase8: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD}")
                 self._phase.next_phase()
             elif abs(left_pos) < LEFT_POS_THRESHOLD_PHASE6:
                 _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
             elif abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE6:
+                print(f"[DEBUG] phase7→phase9: abs(left_pos)={abs(left_pos)} >= {LEFT_POS_THRESHOLD_PHASE6}")
                 self._phase.next_phase()
 
         # phase8: 22000到達でCARRY_BOTTLE1へ
@@ -1150,6 +1166,7 @@ class ActionChain(object):
                 target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
             if abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE8:
+                print(f"[DEBUG] phase8→phase9: abs(left_pos)={abs(left_pos)} >= {LEFT_POS_THRESHOLD_PHASE8}")
                 self._phase.next_phase()
 
         if phase.get_phase() == 9:
