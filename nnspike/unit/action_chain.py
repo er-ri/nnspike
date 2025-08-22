@@ -145,6 +145,20 @@ class ActionChain(object):
         print("[get_motor_position] Unexpected state reached.")
         return 0
 
+    def get_target_x_by_course(self, image, offset_y, course="right"):
+        """
+        image, offset_y, course("right"/"left")を受けてtarget_xを返す共通メソッド
+        """
+        if course == "right":
+            _, right_x, _ = get_line_edges_at_y(image, ROI_CNN, offset_y, 80)
+            target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
+        elif course == "left":
+            left_x, _, _ = get_line_edges_at_y(image, ROI_CNN, offset_y, 80)
+            target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
+        else:
+            target_x = (self.x1 + self.x2) // 2
+        return target_x
+
     def turn_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """左旋回アクション.
 
@@ -1049,7 +1063,7 @@ class ActionChain(object):
                 print(f"[DEBUG] phase0→phase1: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD}")
                 self._phase.next_phase()
             elif current_pos < LEFT_POS_THRESHOLD_PHASE0:
-                target_x = get_target_x_by_course(image, OFFSET_Y, self.course)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, None, Mode.DOUBLE_LOOP
             elif current_pos >= LEFT_POS_THRESHOLD_PHASE0:
                 print(f"[DEBUG] phase0→phase2: current_pos={current_pos} >= {LEFT_POS_THRESHOLD_PHASE0}")
@@ -1062,7 +1076,7 @@ class ActionChain(object):
                 print(f"[DEBUG] phase1→phase2: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD}")
                 self._phase.next_phase()
             elif current_pos < LEFT_POS_THRESHOLD_PHASE0:
-                target_x = get_target_x_by_course(image, OFFSET_Y, self.course)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, None, Mode.DOUBLE_LOOP
             elif current_pos >= LEFT_POS_THRESHOLD_PHASE0:
                 print(f"[DEBUG] phase1→phase3: current_pos={current_pos} >= {LEFT_POS_THRESHOLD_PHASE0}")
@@ -1071,7 +1085,7 @@ class ActionChain(object):
         # phase2: get_blue_line_pixelでBLUE_AREA_THRESHOLD超えたら即phase3へ（left_pos閾値15000, 左→右エッジ、right_x使用）
         if phase.get_phase() == 2:
             if current_pos < LEFT_POS_THRESHOLD_PHASE0:
-                target_x = get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
 
             blue_area = get_blue_line_pixel(image)
@@ -1079,7 +1093,7 @@ class ActionChain(object):
                 print(f"[DEBUG] phase2→phase3: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD}")
                 self._phase.next_phase()
             elif current_pos < LEFT_POS_THRESHOLD_PHASE2:
-                target_x = get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
             elif current_pos >= LEFT_POS_THRESHOLD_PHASE2:
                 print(f"[DEBUG] phase2→phase4: current_pos={current_pos} >= {LEFT_POS_THRESHOLD_PHASE2}")
@@ -1092,7 +1106,7 @@ class ActionChain(object):
                 print(f"[DEBUG] phase3→phase4: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD}")
                 self._phase.next_phase()
             elif current_pos < LEFT_POS_THRESHOLD_PHASE2:
-                target_x = get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
             elif current_pos >= LEFT_POS_THRESHOLD_PHASE2:
                 print(f"[DEBUG] phase3→phase5: current_pos={current_pos} >= {LEFT_POS_THRESHOLD_PHASE2}")
@@ -1101,7 +1115,7 @@ class ActionChain(object):
         # phase4: get_blue_line_pixelで18000超えたら即phase5へ（left_pos閾値18000, 左→右エッジ、right_x使用）
         if phase.get_phase() == 4:
             if current_pos < LEFT_POS_THRESHOLD_PHASE2:
-                target_x = get_target_x_by_course(image, OFFSET_Y, self.course)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, None, Mode.DOUBLE_LOOP
 
             blue_area = get_blue_line_pixel(image)
@@ -1109,7 +1123,7 @@ class ActionChain(object):
                 print(f"[DEBUG] phase4→phase5: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD}")
                 self._phase.next_phase()
             elif current_pos < LEFT_POS_THRESHOLD_PHASE4:
-                target_x = get_target_x_by_course(image, OFFSET_Y, self.course)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, None, Mode.DOUBLE_LOOP
             elif current_pos >= LEFT_POS_THRESHOLD_PHASE4:
                 print(f"[DEBUG] phase4→phase6: current_pos={current_pos} >= {LEFT_POS_THRESHOLD_PHASE4}")
@@ -1122,7 +1136,7 @@ class ActionChain(object):
                 print(f"[DEBUG] phase5→phase6: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD}")
                 self._phase.next_phase()
             elif current_pos < LEFT_POS_THRESHOLD_PHASE4:
-                target_x = get_target_x_by_course(image, OFFSET_Y, self.course)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, None, Mode.DOUBLE_LOOP
             elif current_pos >= LEFT_POS_THRESHOLD_PHASE4:
                 print(f"[DEBUG] phase5→phase7: current_pos={current_pos} >= {LEFT_POS_THRESHOLD_PHASE4}")
@@ -1131,7 +1145,7 @@ class ActionChain(object):
         # phase6: get_blue_line_pixelで18000超えたら即phase7へ（left_pos閾値21000, 左→右エッジ、right_x使用）
         if phase.get_phase() == 6:
             if current_pos < LEFT_POS_THRESHOLD_PHASE4:
-                target_x = get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
 
             blue_area = get_blue_line_pixel(image)
@@ -1139,7 +1153,7 @@ class ActionChain(object):
                 print(f"[DEBUG] phase6→phase7: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD}")
                 self._phase.next_phase()
             elif current_pos < LEFT_POS_THRESHOLD_PHASE6:
-                target_x = get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
             elif current_pos >= LEFT_POS_THRESHOLD_PHASE6:
                 print(f"[DEBUG] phase6→phase8: current_pos={current_pos} >= {LEFT_POS_THRESHOLD_PHASE6}")
@@ -1152,7 +1166,7 @@ class ActionChain(object):
                 print(f"[DEBUG] phase7→phase8: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD}")
                 self._phase.next_phase()
             elif current_pos < LEFT_POS_THRESHOLD_PHASE6:
-                target_x = get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
             elif current_pos >= LEFT_POS_THRESHOLD_PHASE6:
                 print(f"[DEBUG] phase7→phase9: current_pos={current_pos} >= {LEFT_POS_THRESHOLD_PHASE6}")
@@ -1161,7 +1175,7 @@ class ActionChain(object):
         # phase8: 22000到達でCARRY_BOTTLE1へ
         if phase.get_phase() == 8:
             if current_pos < LEFT_POS_THRESHOLD_PHASE8:
-                target_x = get_target_x_by_course(image, OFFSET_Y, self.course)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, None, Mode.DOUBLE_LOOP
             if current_pos >= LEFT_POS_THRESHOLD_PHASE8:
                 print(f"[DEBUG] phase8→phase9: current_pos={current_pos} >= {LEFT_POS_THRESHOLD_PHASE8}")
@@ -1174,16 +1188,4 @@ class ActionChain(object):
         print("[execute_double_loop] Unexpected state reached.")
         return None, None, Mode.DOUBLE_LOOP
 
-def get_target_x_by_course(self, image, offset_y, course="right"):
-    """
-    image, offset_y, course("right"/"left")を受けてtarget_xを返す共通メソッド
-    """
-    if course == "right":
-        _, right_x, _ = get_line_edges_at_y(image, ROI_CNN, offset_y, 80)
-        target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
-    elif course == "left":
-        left_x, _, _ = get_line_edges_at_y(image, ROI_CNN, offset_y, 80)
-        target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
-    else:
-        target_x = (self.x1 + self.x2) // 2
-    return target_x
+
