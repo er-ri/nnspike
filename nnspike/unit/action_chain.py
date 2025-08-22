@@ -1027,13 +1027,13 @@ class ActionChain(object):
     def execute_double_loop(self, image: np.ndarray) -> tuple:
 
         if not self._init:
-            self.initialize_action(motor_side="left")
-        phase = self._phase.get_phase()
-        left_pos = self.get_motor_position(motor_side="left")
-        target_x = None
+            self.initialize_action(motor_side=self.course)
+        phase = self._phase
+        status = self._status
+        left_pos = self.get_motor_position(self.course, status=status)
 
         # phase0: get_blue_line_pixelでBLUE_AREA_THRESHOLD超えたら即phase1へ
-        if phase == 0:
+        if phase.get_phase() == 0:    
             blue_area = get_blue_line_pixel(image)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
                 self._phase.next_phase()
@@ -1045,7 +1045,7 @@ class ActionChain(object):
                 self._phase.next_phase(2)
 
         # phase1: 青ピクセルが3000未満になったらphase2へ
-        if phase == 1:
+        if phase.get_phase() == 1:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
                 self._phase.next_phase()
@@ -1057,7 +1057,7 @@ class ActionChain(object):
                 self._phase.next_phase()
 
         # phase2: get_blue_line_pixelでBLUE_AREA_THRESHOLD超えたら即phase3へ（left_pos閾値15000, 左→右エッジ、right_x使用）
-        if phase == 2:
+        if phase.get_phase() == 2:
             if abs(left_pos) < LEFT_POS_THRESHOLD_PHASE0:
                 _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
@@ -1074,7 +1074,7 @@ class ActionChain(object):
                 self._phase.next_phase(2)
 
         # phase3: 青ピクセルが3000未満になったらphase4へ（left_pos閾値15000, 左→右エッジ、right_x使用）
-        if phase == 3:
+        if phase.get_phase() == 3:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
                 self._phase.next_phase()
@@ -1086,7 +1086,7 @@ class ActionChain(object):
                 self._phase.next_phase()
 
         # phase4: get_blue_line_pixelで18000超えたら即phase5へ（left_pos閾値18000, 左→右エッジ、right_x使用）
-        if phase == 4:
+        if phase.get_phase() == 4:
             if abs(left_pos) < LEFT_POS_THRESHOLD_PHASE2:
                 left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
@@ -1103,7 +1103,7 @@ class ActionChain(object):
                 self._phase.next_phase(2)
 
         # phase5: 青ピクセルが3000未満になったらphase6へ（left_pos閾値18000, 左→右エッジ、right_x使用）
-        if phase == 5:
+        if phase.get_phase() == 5:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
                 self._phase.next_phase()
@@ -1115,7 +1115,7 @@ class ActionChain(object):
                 self._phase.next_phase()
 
         # phase6: get_blue_line_pixelで18000超えたら即phase7へ（left_pos閾値21000, 左→右エッジ、right_x使用）
-        if phase == 6:
+        if phase.get_phase() == 6:
             if abs(left_pos) < LEFT_POS_THRESHOLD_PHASE4:
                 _, right_x, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
@@ -1132,7 +1132,7 @@ class ActionChain(object):
                 self._phase.next_phase(2)
 
         # phase7: get_blue_line_pixelで3000未満になったらphase8へ（left_pos閾値21000, 左→右エッジ）
-        if phase == 7:
+        if phase.get_phase() == 7:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
                 self._phase.next_phase()
@@ -1144,7 +1144,7 @@ class ActionChain(object):
                 self._phase.next_phase()
 
         # phase8: 22000到達でCARRY_BOTTLE1へ
-        if phase == 8:
+        if phase.get_phase() == 8:
             if abs(left_pos) < LEFT_POS_THRESHOLD_PHASE8:
                 left_x, _, _ = get_line_edges_at_y(image, (self.x1, self.y1, self.x2, self.y2), OFFSET_Y, 80)
                 target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
