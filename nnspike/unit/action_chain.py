@@ -62,11 +62,14 @@ class PhaseManager:
         self._state[key] = value
 
     def get_position_start(self, key: str) -> int:
-        """指定したkeyのposition_start値を取得する."""
+        """指定したkeyのposition_start値を取得する（必ずint型で返す）."""
         value = self._state.get(key, None)
-        if not isinstance(value, int):
+        if isinstance(value, int):
+            return value
+        try:
+            return int(value)
+        except (TypeError, ValueError):
             return 0
-        return value
 
 class ActionChain(object):
     """ETRobotのためのアクションシーケンス管理クラス."""
