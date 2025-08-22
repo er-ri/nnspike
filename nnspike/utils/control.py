@@ -638,7 +638,7 @@ def is_vertical_black_line_detected(img) -> bool:
         blur_ksize=7,
         binarize_mode="binary_inv",
         binarize_value=120,
-        noise_removal=["dilate", "close7x7"]
+        noise_removal=["close7x7"]
     )
     # ROI適用
     mask_roi = np.zeros_like(mask_full)
@@ -669,9 +669,8 @@ def get_virtual_line_target_x(img, previous_center_x=None) -> int:
     if img is None or (hasattr(img, 'size') and img.size == 0):
         return 320
     # ROI座標（仮想ライン検出範囲）
-    _roi = (100, 150, 540, 330)
+    _roi = (100, 100, 540, 330)
     x1, y1, x2, y2 = _roi
-    # グレースケール化→CLAHE→メディアンブラー→二値化（binary_inv）→ノイズ除去
     mask_full = control_preprocess_image(
         img,
         use_hsv=False,
@@ -684,17 +683,16 @@ def get_virtual_line_target_x(img, previous_center_x=None) -> int:
         binarize_value=120,
         noise_removal=["dilate", "close7x7"]
     )
-    # ROI抽出
     mask_full = mask_full[y1:y2, x1:x2]
-    # 輪郭抽出
     contours, _ = cv2.findContours(mask_full, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    min_area = 50
+    min_area = 500
     max_aspect = 5.0
     filtered_contours = []
     rect_centers_x = []
     rect_centers_y = []
     rects = []
-    # 面積・アスペクト比・最大面積でフィルタ
+    short_axes = []
+    # 面積・アスペクト比・最大面積でフィルタ（短径記録）
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
         area = w * h
@@ -703,7 +701,7 @@ def get_virtual_line_target_x(img, previous_center_x=None) -> int:
             continue
         if aspect > max_aspect:
             continue
-        if area >= 8000:
+        if area >= 12000:
             continue
         cx = x + w // 2
         cy = y + h // 2
@@ -711,69 +709,74 @@ def get_virtual_line_target_x(img, previous_center_x=None) -> int:
         rect_centers_x.append(cx)
         rect_centers_y.append(cy)
         rects.append((x, y, w, h))
-    # x座標でグループ化
-    x_merge_binarize_value = 150
-    merged_groups = []
-    used = set()
-    for i, cx in enumerate(rect_centers_x):
-        if i in used:
-            continue
-        group = [i]
-        used.add(i)
-        for j, cx2 in enumerate(rect_centers_x):
-            if j in used or j == i:
-                continue
-            if abs(cx - cx2) < x_merge_binarize_value:
-                group.append(j)
-                used.add(j)
-        merged_groups.append(group)
-    # グループごとに外接矩形と面積計算
-    merged_rects = []
-    merged_areas = []
-    for group in merged_groups:
-        xs, ys, ws, hs = [], [], [], []
-        total_area = 0
-        for idx in group:
-            x, y, w, h = cv2.boundingRect(filtered_contours[idx])
-            xs.append(x)
-            ys.append(y)
-            ws.append(x+w)
-            hs.append(y+h)
-            total_area += w * h
-        if xs:
-            min_x = min(xs)
-            min_y = min(ys)
-            max_x = max(ws)
-            max_y = max(hs)
-            merged_rects.append((min_x, min_y, max_x-min_x, max_y-min_y))
-            merged_areas.append(total_area)
-    # 最大面積グループの端点からtarget_x算出
-    if merged_rects:
-        max_idx = np.argmax(merged_areas)
-        rect = merged_rects[max_idx]
-        min_x, min_y, w, h = rect
-        max_x = min_x + w
-        left_edge_x = x1 + min_x
-        right_edge_x = x1 + max_x
-        group_center_x = x1 + min_x + w // 2
-        group_center_y = y1 + min_y + h // 2
-        if group_center_x < 320:
+        short_axes.append(min(w, h))
+
+    candidates = []
+    for cnt in filtered_contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        center_x = x1 + x + w // 2
+        center_y = y1 + y + h // 2
+        left_edge_x = x1 + x
+        right_edge_x = x1 + x + w
+        area = w * h
+        candidates.append({
+            'center_x': center_x,
+            'center_y': center_y,
+            'left_edge_x': left_edge_x,
+            'right_edge_x': right_edge_x,
+            'area': area
+        })
+    candidates_sorted = sorted(candidates, key=lambda c: c['center_y'], reverse=True)
+    selected = None
+    for c in candidates_sorted:
+        # ここで必要な判定条件を追加可能（例: center_y >= 100 など）
+        # 今回は下から順に最初の物体を選択
+        selected = c
+        break
+    # 物体がない場合
+    if selected is None:
+        target_x = 320
+        edge_label = "no_object"
+    else:
+        center_x = selected['center_x']
+        left_edge_x = selected['left_edge_x']
+        right_edge_x = selected['right_edge_x']
+
+        # previous_center_xからpre_edge_labelを初期化
+        if previous_center_x is None or previous_center_x == 320:
+            pre_edge_label = None
+        elif previous_center_x < 320:
+            pre_edge_label = 'right'
+        else:
+            pre_edge_label = 'left'
+
+        # 320付近は必ず前回の回避方向を優先
+        # 検知した物体のうち一つでも320±50px（270〜370）にあれば絶対に回避方向の転換を許さない
+        any_in_center = any(270 <= c['center_x'] <= 370 for c in candidates)
+        if any_in_center and pre_edge_label is not None:
+            edge_label = pre_edge_label
+        else:
+            if center_x < 320:
+                edge_label = 'right'
+            else:
+                edge_label = 'left'
+
+        if edge_label == 'right':
             edge_x = right_edge_x
             target_x = edge_x + 150
-        else:
+        elif edge_label == 'left':
             edge_x = left_edge_x
             target_x = edge_x - 150
-    else:
-        target_x = 320  # 障害物なし時は中央
-    
+
     # previous_center_xによる極端なジャンプ制限
-    if previous_center_x is not None:
+    if candidates and previous_center_x is not None:
         max_delta = 40  # 許容する最大変化量
         if abs(target_x - previous_center_x) > max_delta:
             if target_x > previous_center_x:
                 target_x = previous_center_x + max_delta
             else:
                 target_x = previous_center_x - max_delta
+
     return target_x
 
 def control_preprocess_image(
