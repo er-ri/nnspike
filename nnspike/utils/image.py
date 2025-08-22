@@ -45,7 +45,7 @@ def normalize_image(image: np.ndarray) -> np.ndarray:
     return image
 
 
-def draw_driving_info(image: np.ndarray, info: dict, roi: tuple[int, int, int, int]) -> np.ndarray:
+def draw_driving_info(image: np.ndarray, info: dict, roi: tuple[int, int, int, int], text_color=(0, 0, 0)) -> np.ndarray:
     """Draws driving information on an image.
 
     This function overlays driving-related information onto a given image. It draws a tracing point,
@@ -79,7 +79,7 @@ def draw_driving_info(image: np.ndarray, info: dict, roi: tuple[int, int, int, i
             (50, 20 + index * 20),
             cv2.FONT_HERSHEY_PLAIN,
             1,
-            (0, 0, 0),  # Font color (black)
+            text_color,  # Font color (指定色)
             1,
             cv2.LINE_4,
         )

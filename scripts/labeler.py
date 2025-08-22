@@ -7,6 +7,7 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, parent_dir)
 
 import cv2
+from nnspike.utils import control_preprocess_image
 import pandas as pd
 from nnspike.constants import OFFSET_Y, ROI_CNN, Mode
 from nnspike.utils import (
@@ -154,13 +155,17 @@ def main():
         right_x = image_to_show.shape[1] - 10
         start_y = 40
         line_height = 18
+        # 右側テキストカラーは従来通り
+        right_text_color = (255, 128, 0)
         for i, text in enumerate(info["right_info"]):
             text_size, _ = cv2.getTextSize(text, font, font_scale, font_thickness)
             x = right_x - text_size[0]
             y = start_y + i * line_height
-            cv2.putText(image_to_show, text, (x, y), font, font_scale, (255, 128, 0), font_thickness, cv2.LINE_AA)
+            cv2.putText(image_to_show, text, (x, y), font, font_scale, right_text_color, font_thickness, cv2.LINE_AA)
 
-        image_to_show = draw_driving_info(image_to_show, info, ROI_CNN)
+        # 左側テキストカラーはノーマル画像なら黒、白黒反転時は白
+        left_text_color = (255, 255, 255) if show_preprocessed else (0, 0, 0)
+        image_to_show = draw_driving_info(image_to_show, info, ROI_CNN, text_color=left_text_color)
 
         cv2.imshow(f"ETRobot: {dir_path}", image_to_show)
 
