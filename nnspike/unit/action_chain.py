@@ -12,7 +12,7 @@ BLUE_AREA_MIN_THRESHOLD = 3000
 LEFT_POS_THRESHOLD_PHASE0 = 13000
 LEFT_POS_THRESHOLD_PHASE2 = 17000
 LEFT_POS_THRESHOLD_PHASE4 = 19000
-LEFT_POS_THRESHOLD_PHASE6 = 21500
+LEFT_POS_THRESHOLD_PHASE6 = 21000
 LEFT_POS_THRESHOLD_PHASE8 = 22000
 
 # ロボット本体クラス
@@ -1173,7 +1173,7 @@ class ActionChain(object):
 
         # phase7: get_blue_line_pixelで18000超えたら即phase8へ（left_pos閾値21000, 左→右エッジ、right_x使用）
         if phase.get_phase() == 7:
-            if current_pos < LEFT_POS_THRESHOLD_PHASE6:
+            if current_pos < LEFT_POS_THRESHOLD_PHASE4:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
 
