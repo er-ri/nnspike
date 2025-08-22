@@ -1197,7 +1197,8 @@ class ActionChain(object):
 
         if phase.get_phase() == 9:
             self.reset_action()
-            return None, None, Mode.CARRY_BOTTLE1
+            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+            return target_x, None, Mode.CARRY_BOTTLE1
 
         print("[execute_double_loop] Unexpected state reached.")
         return None, None, Mode.DOUBLE_LOOP
