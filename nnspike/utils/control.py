@@ -172,9 +172,9 @@ def find_blue_target_center(img) -> Tuple[Optional[Tuple[int, int]], Optional[fl
         grayscale=False,
         clahe=False,
         blur_type="median",
-        blur_ksize=5,
+        blur_ksize=7,
         binarize_mode=None,
-        noise_removal=["close5x5_ellipse"]
+        noise_removal=["dilate", "close5x5_ellipse"]
     )
     contours_blue, _ = cv2.findContours(mask_blue, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     best_blue_ellipse = None
