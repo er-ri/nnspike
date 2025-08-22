@@ -352,7 +352,7 @@ class ActionChain(object):
                     return None, (70, 40), Mode.AVOID_OBSTACLE
                 else:
                     return None, (40, 70), Mode.AVOID_OBSTACLE
-            if is_horizontal_black_line_detected(image, intersection_y=450):
+            if is_horizontal_black_line_detected(image, intersection_y=450, roi=(250, 300, 390, 540)):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:

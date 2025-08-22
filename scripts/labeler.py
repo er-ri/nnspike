@@ -105,7 +105,7 @@ def main():
         course_value = row["course"] if "course" in row else "left"
         right_info.append(f"is_left_black_line_detected(course={course_value}): {is_left_black_line_detected(image, course_value)}")
         right_info.append(f"is_general_horizontal_line_detected: {is_general_horizontal_line_detected(image)}")
-        right_info.append(f"is_horizontal_black_line_detected: {is_horizontal_black_line_detected(image)}")
+        right_info.append(f"is_horizontal_black_line_detected: {is_horizontal_black_line_detected(image, intersection_y=450, roi=(250, 300, 390, 540))}")
         right_info.append(f"is_vertical_black_line_detected: {is_vertical_black_line_detected(image)}")
         right_info.append(f"get_is_blue_line_at_y: {get_is_blue_line_at_y(image)}")
         right_info.append(f"get_blue_line_pixel: {get_blue_line_pixel(image)}")

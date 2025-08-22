@@ -543,7 +543,7 @@ def is_general_horizontal_line_detected(img) -> bool:
             return True
     return False
 
-def is_horizontal_black_line_detected(img, intersection_y=450) -> bool:
+def is_horizontal_black_line_detected(img, intersection_y=450, roi=(100, 300, 540, 540)) -> bool:
     """
     x=320を通り、指定されたy座標と交差する水平黒ラインが検出されたらTrueを返す関数
     frame_1909を未検出、frame_1910を検出するようにバランス調整された実装
@@ -551,6 +551,7 @@ def is_horizontal_black_line_detected(img, intersection_y=450) -> bool:
     パラメータ:
         img (np.ndarray): BGR画像
         intersection_y (int): 交差判定するy座標（デフォルト450）
+        roi (tuple): ROI（x1, y1, x2, y2）デフォルト(100, 300, 540, 540)
 
     戻り値:
         bool: x=320を通り、指定されたy座標と交差する水平黒ラインが検出されればTrue、なければFalse
@@ -565,8 +566,7 @@ def is_horizontal_black_line_detected(img, intersection_y=450) -> bool:
     _max_aspect = 0.4    # アスペクト比
     _min_area = 23000    # 面積条件
     _center_x = 320      # 画像中心x座標
-    _roi = (100, 300, 540, 540)  # ROI（x1, y1, x2, y2）
-    x1, y1, x2, y2 = _roi
+    x1, y1, x2, y2 = roi
 
     # 前処理（グレースケール化→CLAHE→メディアンブラー→二値化→ノイズ除去）
     mask_full = control_preprocess_image(
