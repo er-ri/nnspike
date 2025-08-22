@@ -1144,12 +1144,12 @@ class ActionChain(object):
                 print(f"[DEBUG] phase4→phase6: current_pos={current_pos} >= {LEFT_POS_THRESHOLD_PHASE4}")
                 self._phase.next_phase(2)
 
-        # phase5: 青ピクセルが3000未満になったらphase6へ（left_pos閾値18000, 左→右エッジ、right_x使用）
+        # phase5: 青ピクセルが3000未満になったら200距離直進フェーズ(phase6)へ（left_pos閾値18000, 左→右エッジ、right_x使用）
         if phase.get_phase() == 5:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
-                print(f"[DEBUG] phase5→phase6: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD}")
-                self._phase.next_phase()  # phase6へ
+                print(f"[DEBUG] phase5→phase6(直進): blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD}")
+                self._phase.next_phase()  # phase6(直進)へ
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             elif current_pos < LEFT_POS_THRESHOLD_PHASE4:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
@@ -1159,56 +1159,58 @@ class ActionChain(object):
                 self._phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
-        # phase5.5: 200距離だけ直進するフェーズ
+        # phase6: 150距離だけ直進するフェーズ。150進んだら次のフェーズへ
         if phase.get_phase() == 6:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
 
             # 200距離進んだら次のフェーズへ
             if abs(current_pos - position_start) >= 150:
+                print(f"[DEBUG] phase6(直進)→phase7: 150距離進行完了 (current_pos={current_pos})")
                 self._phase.next_phase()
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             return target_x, None, Mode.DOUBLE_LOOP
 
-        # phase6: get_blue_line_pixelで18000超えたら即phase7へ（left_pos閾値21000, 左→右エッジ、right_x使用）
+        # phase7: get_blue_line_pixelで18000超えたら即phase8へ（left_pos閾値21000, 左→右エッジ、right_x使用）
         if phase.get_phase() == 7:
-            if current_pos < LEFT_POS_THRESHOLD_PHASE4:
+            if current_pos < LEFT_POS_THRESHOLD_PHASE6:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
 
             blue_area = get_blue_line_pixel(image)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
-                print(f"[DEBUG] phase6→phase7: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD}")
-                self._phase.next_phase()
-            elif current_pos < LEFT_POS_THRESHOLD_PHASE6:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
-                return target_x, None, Mode.DOUBLE_LOOP
-            elif current_pos >= LEFT_POS_THRESHOLD_PHASE6:
-                print(f"[DEBUG] phase6→phase8: current_pos={current_pos} >= {LEFT_POS_THRESHOLD_PHASE6}")
-                self._phase.next_phase(2)
-
-        # phase7: get_blue_line_pixelで3000未満になったらphase8へ（left_pos閾値21000, 左→右エッジ）
-        if phase.get_phase() == 8:
-            blue_area = get_blue_line_pixel(image)
-            if blue_area < BLUE_AREA_MIN_THRESHOLD:
-                print(f"[DEBUG] phase7→phase8: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD}")
+                print(f"[DEBUG] phase7→phase8: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD}")
                 self._phase.next_phase()
             elif current_pos < LEFT_POS_THRESHOLD_PHASE6:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
             elif current_pos >= LEFT_POS_THRESHOLD_PHASE6:
                 print(f"[DEBUG] phase7→phase9: current_pos={current_pos} >= {LEFT_POS_THRESHOLD_PHASE6}")
+                self._phase.next_phase(2)
+
+        # phase8: get_blue_line_pixelで3000未満になったらphase9へ（left_pos閾値21000, 左→右エッジ）
+        if phase.get_phase() == 8:
+            blue_area = get_blue_line_pixel(image)
+            if blue_area < BLUE_AREA_MIN_THRESHOLD:
+                print(f"[DEBUG] phase8→phase9: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD}")
+                self._phase.next_phase()
+            elif current_pos < LEFT_POS_THRESHOLD_PHASE6:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                return target_x, None, Mode.DOUBLE_LOOP
+            elif current_pos >= LEFT_POS_THRESHOLD_PHASE6:
+                print(f"[DEBUG] phase8→phase10: current_pos={current_pos} >= {LEFT_POS_THRESHOLD_PHASE6}")
                 self._phase.next_phase()
 
-        # phase8: 22000到達でCARRY_BOTTLE1へ
+        # phase9: 22000到達でCARRY_BOTTLE1へ
         if phase.get_phase() == 9:
             if current_pos < LEFT_POS_THRESHOLD_PHASE8:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, None, Mode.DOUBLE_LOOP
             if current_pos >= LEFT_POS_THRESHOLD_PHASE8:
-                print(f"[DEBUG] phase8→phase9: current_pos={current_pos} >= {LEFT_POS_THRESHOLD_PHASE8}")
+                print(f"[DEBUG] phase9→phase10: current_pos={current_pos} >= {LEFT_POS_THRESHOLD_PHASE8}")
                 self._phase.next_phase()
 
+        # phase10: CARRY_BOTTLE1へ
         if phase.get_phase() == 10:
             self.reset_action()
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)

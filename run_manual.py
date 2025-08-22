@@ -436,9 +436,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     if right_pos is not None and abs(right_pos) >= 7000:
                         if model is not None:
                             mode = Mode.NVIDIA_FOLLOW
+                            target_x = (x1 + x2) // 2
                             print("Switched to NVIDIA_FOLLOW mode")
                         else:
                             mode = Mode.DOUBLE_LOOP
+                            target_x = (x1 + x2) // 2
                             print("Switched to DOUBLE_LOOP mode (left_pos >= 7000)")
                     elif yellow_pixel_count > 16000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
