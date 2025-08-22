@@ -437,9 +437,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         if model is not None:
                             mode = Mode.NVIDIA_FOLLOW
                             print("Switched to NVIDIA_FOLLOW mode")
-                            # NVIDIA_FOLLOWの処理は次のループで実行される
                         else:
-                            print("NVIDIA model not available, continuing with FOLLOW_RIGHT_EDGE")
+                            mode = Mode.DOUBLE_LOOP
+                            print("Switched to DOUBLE_LOOP mode (left_pos >= 7000)")
                     elif yellow_pixel_count > 16000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
                         target_x = (x1 + x2) // 2
