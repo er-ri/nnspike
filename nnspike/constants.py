@@ -6,7 +6,7 @@ ROI_CNN = (0, 0, 640, 480)
 OFFSET_Y = 470  # 0.20 meters to the ground
 
 # Base speed for robot movement (used throughout action logic)
-BASE_SPEED = 45
+BASE_SPEED = 50
 
 
 # Behavior Mode
