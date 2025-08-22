@@ -71,59 +71,48 @@ def find_bottle_center(img, color, min_area: int = 500) -> Tuple[Optional[Tuple[
         ValueError: colorが未対応の場合
     """
 
-    # パラメータ（画像・色・最小面積）
-    # 前処理（グレースケール化→adaptiveThreshold→ノイズ除去）
-    # エラー処理（color未対応）
     if color not in ["yellow", "blue", "red"]:
         return None, None, 0
     if img is None or img.size == 0:
-        print("Error: Invalid image data")
-        return None, None, 0  # 画像データ確認
-    color_mask = get_color_mask(img, color, pattern="bottle")  # 色抽出
+        return None, None, 0
+    color_mask = get_color_mask(img, color, pattern="bottle")
     color_pixel_count = cv2.countNonZero(color_mask)
-    mask_full = control_preprocess_image(
-        img,
-        grayscale=True
-    )
-    edges = cv2.adaptiveThreshold(mask_full, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-    edges = cv2.bitwise_not(edges)
-    combined_mask = cv2.bitwise_or(color_mask, edges)
-    combined_mask = control_preprocess_image(
-        combined_mask,
+    bottle_mask = control_preprocess_image(
+        color_mask,
         use_hsv=False,
         grayscale=False,
         clahe=False,
-        blur_type="gaussian",
-        blur_ksize=3,
+        blur_type="median",
+        blur_ksize=7,
         binarize_mode=None,
-        noise_removal=["close3x3", "open3x3"]
+        noise_removal=["close7x7"]
     )
-    contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(bottle_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
         return None, None, color_pixel_count
-    valid_contours = [c for c in contours if cv2.contourArea(c) >= min_area]
-    print(f'[debug] contours数: {len(contours)}')
-    print(f'[debug] valid_contours数: {len(valid_contours)} (min_area={min_area})')
-    if not valid_contours:
-        print('[debug] valid_contoursが空: return None, None, color_pixel_count')   
+    max_area = 0
+    best_contour = None
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        x, y, w, h = cv2.boundingRect(contour)
+        aspect_ratio = h / w if w > 0 else 0
+        M = cv2.moments(contour)
+        m00 = M["m00"]
+        if area < min_area:
+            continue
+        if aspect_ratio < 0.8:
+            continue
+        if m00 == 0:
+            continue
+        if area > max_area:
+            max_area = area
+            best_contour = contour
+    if best_contour is None:
         return None, None, color_pixel_count
-    largest_contour = max(valid_contours, key=cv2.contourArea)
-    contour_size = cv2.contourArea(largest_contour)
-    x, y, w, h = cv2.boundingRect(largest_contour)
-    aspect_ratio = h / w if w > 0 else 0
-    print(f'[debug] largest_contour: 面積={contour_size:.1f}, bbox=({x},{y},{w},{h}), アスペクト比={aspect_ratio:.2f}')
-    if aspect_ratio < 0.8:
-        print(f'[debug] aspect_ratio={aspect_ratio:.2f} < 0.8: return None, None, color_pixel_count')
-        return None, None, color_pixel_count  # アスペクト比でノイズ除去
-    M = cv2.moments(largest_contour)
-    if M["m00"] != 0:
-        cx = int(M["m10"] / M["m00"])
-        cy = int(M["m01"] / M["m00"])
-        print(f'[debug] 中心座標: ({cx}, {cy}), 面積={contour_size:.1f}')
-    else:
-        print(f'[debug] M[\"m00\"]==0: return None, None, color_pixel_count')
-        return (cx, cy), contour_size, color_pixel_count  # 中心座標・面積・色ピクセル数
-    return None, None, color_pixel_count
+    M = cv2.moments(best_contour)
+    cx = int(M["m10"] / M["m00"])
+    cy = int(M["m01"] / M["m00"])
+    return (cx, cy), max_area, color_pixel_count
 
 def calculate_attitude_angle(
     offset_pixels: float,
@@ -260,7 +249,7 @@ def get_blue_line_pixel(img) -> int:
         blur_type="median",
         blur_ksize=7,
         binarize_mode=None,
-        noise_removal=["close7x7"]
+        noise_removal=["dilate", "close7x7"]
     )
     # ROI抽出
     mask_full = mask_full[y1:y2, x1:x2]

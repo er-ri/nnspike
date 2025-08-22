@@ -96,17 +96,18 @@ def main():
 
         # right_info からは削除
         right_info = []
+        # 表示順: 水平→垂直→青ライン検出系→その他
         right_info.append(f"get_virtual_line_target_x: {get_virtual_line_target_x(image)}")
         right_info.append(f"find_blue_target_center: {find_blue_target_center(image)}")
-        right_info.append(f"get_is_blue_line_at_y: {get_is_blue_line_at_y(image)}")
         right_info.append(f"is_x320_on_blue_target: {is_x320_on_blue_target(image)}")
         right_info.append(f"is_x320_on_red_target: {is_x320_on_red_target(image)}")
         right_info.append(f"get_red_target_center_x: {get_red_target_center_x(image)}")
         course_value = row["course"] if "course" in row else "left"
         right_info.append(f"is_left_black_line_detected(course={course_value}): {is_left_black_line_detected(image, course_value)}")
+        right_info.append(f"is_general_horizontal_line_detected: {is_general_horizontal_line_detected(image)}")
         right_info.append(f"is_horizontal_black_line_detected: {is_horizontal_black_line_detected(image)}")
         right_info.append(f"is_vertical_black_line_detected: {is_vertical_black_line_detected(image)}")
-        right_info.append(f"is_general_horizontal_line_detected: {is_general_horizontal_line_detected(image)}")
+        right_info.append(f"get_is_blue_line_at_y: {get_is_blue_line_at_y(image)}")
         right_info.append(f"get_blue_line_pixel: {get_blue_line_pixel(image)}")
         info["right_info"] = right_info
 

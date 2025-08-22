@@ -54,7 +54,6 @@ class PhaseManager:
     def next_phase(self, skip: int = 1) -> None:
         """phase値をskip分進める（デフォルト1）。"""
         self._state["phase"] = self._state.get("phase", 0) + skip
-        print(f"[DEBUG] next_phase(+{skip}): {self._state['phase']}")
 
     def set_position_start(self, key: str, value) -> None:
         """指定したkey（例: 'right_position_start'）にvalue（例: モーター位置）をセットする。
