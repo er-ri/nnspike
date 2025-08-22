@@ -1150,8 +1150,11 @@ class ActionChain(object):
                 target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
                 return target_x, None, Mode.DOUBLE_LOOP
             if abs(left_pos) >= LEFT_POS_THRESHOLD_PHASE8:
-                self.reset_action()
-                return None, None, Mode.CARRY_BOTTLE1
+                self._phase.next_phase()
 
-        self.reset_action()
+        if phase.get_phase() == 9:
+            self.reset_action()
+            return None, None, Mode.CARRY_BOTTLE1
+
+        print("[back_and_turn2_relative] Unexpected state reached.")
         return None, None, Mode.DOUBLE_LOOP
