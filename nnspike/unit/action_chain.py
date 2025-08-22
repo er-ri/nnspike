@@ -777,7 +777,7 @@ class ActionChain(object):
         if phase.get_phase() == 5:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            if abs(current_pos - position_start) < 370:
+            if abs(current_pos - position_start) < 360:
                 if self.course == "right":
                     return None, (0, 30), Mode.CARRY_BOTTLE2
                 else:
