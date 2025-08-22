@@ -63,7 +63,6 @@ class PhaseManager:
         if not isinstance(value, int):
             value = 0
         self._state[key] = value
-        print(f"[DEBUG] set_position_start('{key}', {value})")
 
     def get_position_start(self, key: str) -> int:
         """指定したkeyのposition_start値を取得する."""
