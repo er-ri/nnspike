@@ -1013,14 +1013,9 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            minimum_position_reached = position_diff >= 100
             position_limit_reached = position_diff >= 600
-            if not minimum_position_reached:
-                if self.course == "right":
-                    return None, (0, 30), Mode.HEAD_GOAL
-                else:
-                    return None, (30, 0), Mode.HEAD_GOAL
             vertical_line_detected = is_vertical_black_line_detected(image)
+            # 常に左旋回。垂直黒ライン検出または600到達でphase3へ
             if (not vertical_line_detected) and (not position_limit_reached):
                 if self.course == "right":
                     return None, (0, 30), Mode.HEAD_GOAL
