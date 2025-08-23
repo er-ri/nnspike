@@ -205,14 +205,16 @@ class ETRobot(object):
         Set the ETRobot motor's speed.
 
         Args:
-            left_speed (int): Left motor speed (0-100).
-            right_speed (int): Right motor speed (0-100)."""
+            left_speed (int): Left motor speed (推奨-1500～1500)。
+            right_speed (int): Right motor speed (推奨-1500～1500)。
+        """
+        # SPIKE側と合わせて±1500で頭打ち
+        left_speed_capped = max(-1500, min(1500, int(left_speed)))
+        right_speed_capped = max(-1500, min(1500, int(right_speed)))
         id_byte = self.COMMAND_SET_MOTOR_FORWARD_SPEED_ID.to_bytes(1, "big")
-        parameter1_byte = left_speed.to_bytes(1, "big")
-        parameter2_byte = right_speed.to_bytes(1, "big")
-
+        parameter1_byte = left_speed_capped.to_bytes(2, "big", signed=True)
+        parameter2_byte = right_speed_capped.to_bytes(2, "big", signed=True)
         command = id_byte + parameter1_byte + parameter2_byte
-
         self.__send_command(command)
 
     def set_motor_backward_speed(self, left_speed: int, right_speed: int) -> None:
@@ -220,15 +222,15 @@ class ETRobot(object):
         Set the ETRobot motor's speed in reverse direction.
 
         Args:
-            left_speed (int): Left motor speed (0-100).
-            right_speed (int): Right motor speed (0-100).
+            left_speed (int): Left motor speed (推奨-1500～1500)。
+            right_speed (int): Right motor speed (推奨-1500～1500)。
         """
+        left_speed_capped = max(-1500, min(1500, int(left_speed)))
+        right_speed_capped = max(-1500, min(1500, int(right_speed)))
         id_byte = self.COMMAND_SET_MOTOR_BACKWARD_SPEED_ID.to_bytes(1, "big")
-        parameter1_byte = left_speed.to_bytes(1, "big")
-        parameter2_byte = right_speed.to_bytes(1, "big")
-
+        parameter1_byte = left_speed_capped.to_bytes(2, "big", signed=True)
+        parameter2_byte = right_speed_capped.to_bytes(2, "big", signed=True)
         command = id_byte + parameter1_byte + parameter2_byte
-
         self.__send_command(command)
 
     def brake(self) -> None:

@@ -64,15 +64,15 @@ class LegoSpike(object):
 
         """Read command from USB and return the command ID and parameters."""
         if self.usb.any():
-            data = self.usb.read(6)  # Read "CF:" + 3 bytes command data
+            data = self.usb.read(5)  # Read "CF:" + 1byte id + 2byte param1 + 2byte param2
 
             flag_pos = data.find(CMD_FLAG)
 
-            if flag_pos >= 0 and len(data) >= flag_pos + 6:  # Ensure we have enough bytes
-                raw_bytes = data[flag_pos + 3 : flag_pos + 6]  # Extract the 3 bytes after "CF:"
+            if flag_pos >= 0 and len(data) >= flag_pos + 5:  # Ensure we have enough bytes
+                raw_bytes = data[flag_pos + 3 : flag_pos + 7]  # Extract the 4 bytes after "CF:"
                 command_id = int.from_bytes(raw_bytes[0:1], "big")
-                command_parameter1 = int.from_bytes(raw_bytes[1:2], "big")
-                command_parameter2 = int.from_bytes(raw_bytes[2:3], "big")
+                command_parameter1 = int.from_bytes(raw_bytes[1:3], "big", signed=True)
+                command_parameter2 = int.from_bytes(raw_bytes[3:5], "big", signed=True)
 
                 return command_id, command_parameter1, command_parameter2
 
@@ -96,11 +96,13 @@ class LegoSpike(object):
         """Method to control the steering wheel angle.
 
         Args:
-            left_speed: Left wheel speed(0~100)
-            right_speed: Right wheel speed(0~100)
+            left_speed: Left wheel speed (from etrobot, -1500～1500)
+            right_speed: Right wheel speed (from etrobot, -1500～1500)
         """
-        self.motor_left.run_at_speed(-int(left_speed))
-        self.motor_right.run_at_speed(int(right_speed))
+        left_speed_capped = max(-1500, min(1500, int(left_speed)))
+        right_speed_capped = max(-1500, min(1500, int(right_speed)))
+        self.motor_left.run_at_speed(-left_speed_capped)
+        self.motor_right.run_at_speed(right_speed_capped)
 
     def _set_motor_relative_position(self, left_position: int, right_position: int) -> None:
         self.motor_left.preset(-int(left_position))
@@ -149,6 +151,16 @@ async def main_task():
 
 
 # Trigger a garbage collection cycle
+gc.collect()
+
+print("Starting LEGO Prime Hub..")
+
+try:
+    lego_spike = LegoSpike()
+    uasyncio.run(main_task())
+except SystemExit as e:
+    print(e)
+
 gc.collect()
 
 print("Starting LEGO Prime Hub..")
