@@ -455,7 +455,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     # ハイスピードモード（右エッジ追従＋高速）
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     target_x = right_x if right_x is not None else (x1 + x2) // 2
-                    current_base_speed = 100
+                    current_base_speed = 800
                 case Mode.SMALL_TURN_RIGHT:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.small_turn_right())
                 case Mode.CARRY_BOTTLE1:
@@ -581,9 +581,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 left_speed = 0
             if right_speed is None:
                 right_speed = 0
-            # Clamp speed values to valid range (必ずset_motor_speed前に実施)
-            left_speed = int(max(0, min(100, left_speed)))
-            right_speed = int(max(0, min(100, right_speed)))
+            # Clamp speed values to valid range（上限制限なし、0未満のみ0に）
+            left_speed = int(max(0, left_speed))
+            right_speed = int(max(0, right_speed))
 
             # Temporarily set Heading Gate mode
             if mode == Mode.PAUSE:
