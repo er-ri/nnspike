@@ -455,7 +455,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     # ハイスピードモード（右エッジ追従＋高速）
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     target_x = right_x if right_x is not None else (x1 + x2) // 2
-                    current_base_speed = 800
+                    current_base_speed = 500
                 case Mode.SMALL_TURN_RIGHT:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.small_turn_right())
                 case Mode.CARRY_BOTTLE1:
