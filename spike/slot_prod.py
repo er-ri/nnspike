@@ -1,14 +1,15 @@
+# LEGO type:standard slot:2 autostart
 """Main controlling program for LEGO Spike Prime Hub"""
-
 import gc
-import hub  # type: ignore
+import hub# type: ignore
 import time
-import uasyncio  # type: ignore
+import uasyncio# type: ignore
 
 # Command ID list
-COMMAND_SET_MOTOR_FORWARD_SPEED_ID = 201
-COMMAND_SET_MOTOR_BACKWARD_SPEED_ID = 202
+COMMAND_SET_MOTOR_FORWARD_POWER_ID = 201
+COMMAND_SET_MOTOR_BACKWARD_POWER_ID = 202
 COMMAND_SET_MOTOR_RELATIVE_POSITION_ID = 203
+COMMAND_SET_MOTOR_DEGREES_ID = 206
 COMMAND_STOP_MOTOR_ID = 204
 COMMAND_MOVE_ARM_ID = 205
 
@@ -25,17 +26,25 @@ PORT_MAP = {
 
 
 class LegoSpike(object):
-    """Class to control LEGO Spike Prime Hub.
-    This class initializes the hub, sets up motors and sensors, and provides methods to read commands
-    from USB and execute them.
-    It also includes methods to control the motors and arm, and to handle the command execution logic.
+    """LEGO Spike Prime Hub
+
+    Class for controlling all the devices in the Spike car by receiving
+    commands from Raspberry Pi. Every command is made up of 2 bytes, the
+    first byte indicates the command id while the second byte represents
+    the corresponding parameters as shown below.
+
+    | Device | Command Id | Parameter1 | Parameter2 |
+    | Motor | 0 | Power: 0~180 | Steering: -90 ~ 90|
+
     """
 
     def __init__(self) -> None:
         # Initialization
-        hub.display.show(hub.Image.ALL_CLOCKS, delay=400, clear=True, wait=False, loop=True, fade=0)
-        hub.motion.align_to_model(hub.TOP, hub.FRONT)  # GYRO, orientation
-        hub.motion.yaw_pitch_roll(0)  # yaw, pitch and roll
+        hub.display.show(
+            hub.Image.ALL_CLOCKS, delay=400, clear=True, wait=False, loop=True, fade=0
+        )
+        hub.motion.align_to_model(hub.TOP, hub.FRONT)# GYRO, orientation
+        hub.motion.yaw_pitch_roll(0)# yaw, pitch and roll
 
         # Set ports
         self.motor_arm = getattr(hub.port, PORT_MAP["motor_arm"]).motor
@@ -54,7 +63,10 @@ class LegoSpike(object):
         # Set motors mode to measure its relative position on boot
         self._set_motor_relative_position(left_position=0, right_position=0)
 
-        hub.display.show(hub.Image.HAPPY)
+        # Millisecond counter for record the latest command executed time, maximum idle time
+        self.command_counter = time.ticks_ms()
+
+        hub.display.show(hub.Image.YES)
 
     def read_command(self):
         command_id = None
@@ -72,19 +84,19 @@ class LegoSpike(object):
                 command_id = int.from_bytes(raw_bytes[0:1], "big")
                 command_parameter1 = int.from_bytes(raw_bytes[1:3], "big")
                 command_parameter2 = int.from_bytes(raw_bytes[3:5], "big")
+                self.command_counter = time.ticks_ms()
 
-                return command_id, command_parameter1, command_parameter2
-
-        # If no command is read, return None values
-        return None, None, None
+        return command_id, command_parameter1, command_parameter2
 
     def execute_command(self, command_id, command_parameter1, command_parameter2):
-        if command_id == COMMAND_SET_MOTOR_FORWARD_SPEED_ID:
+        if command_id == COMMAND_SET_MOTOR_FORWARD_POWER_ID:
             self._set_motor_speed(command_parameter1, command_parameter2)
-        elif command_id == COMMAND_SET_MOTOR_BACKWARD_SPEED_ID:
+        elif command_id == COMMAND_SET_MOTOR_BACKWARD_POWER_ID:
             self._set_motor_speed(-command_parameter1, -command_parameter2)
         elif command_id == COMMAND_SET_MOTOR_RELATIVE_POSITION_ID:
             self._set_motor_relative_position(command_parameter1, command_parameter2)
+        elif command_id == COMMAND_SET_MOTOR_DEGREES_ID:
+            self._set_motor_degrees(command_parameter1, command_parameter2)
         elif command_id == COMMAND_STOP_MOTOR_ID:
             self.motor_left.brake()
             self.motor_right.brake()
@@ -98,10 +110,16 @@ class LegoSpike(object):
             left_speed: Left wheel speed(0~100)
             right_speed: Right wheel speed(0~100)
         """
+        self.command_counter = time.ticks_ms()
+
         self.motor_left.run_at_speed(-int(left_speed))
         self.motor_right.run_at_speed(int(right_speed))
 
-    def _set_motor_relative_position(self, left_position: int, right_position: int) -> None:
+    def _set_motor_relative_position(
+        self, left_position: int, right_position: int
+    ) -> None:
+        self.command_counter = time.ticks_ms()
+
         self.motor_left.preset(left_position)
         self.motor_right.preset(right_position)
 
@@ -109,41 +127,49 @@ class LegoSpike(object):
         """Method to move the arm motor up or down and set its current position using preset.
 
         Args:
-            action: Action to perform (0 = move up, 1 = move down)
+            action: Action to perform (0 = move down, 1 = move up)
         """
-        if action == 0:  # Move down
-            self.motor_arm.run_at_speed(int(40))  # Encapulate int() to ensure speed is an integer
-        elif action == 1:  # Move up
-            self.motor_arm.run_at_speed(-int(40))  # Encapulate int() to ensure speed is an integer
-        elif action == 2:  # Stop arm
-            self.motor_arm.brake()
+        self.command_counter = time.ticks_ms()
 
-async def receiver():
+        if action == 0:# Move down
+            # アームを下げる: 速度50で回転（角度指定なし、連続動作）
+            self.motor_arm.run_at_speed(50)
+        elif action == 1:# Move up
+            # アームを上げる: 速度-50で回転（角度指定なし、連続動作）
+            self.motor_arm.run_at_speed(-50)
+
+    def _set_motor_degrees(self, left_degrees: int, right_degrees: int) -> None:
+        """
+        左右モーターを指定された角度だけ動かす（度数単位）。
+        Args:
+            left_degrees: 左モーターの回転角度（正負で方向指定）
+            right_degrees: 右モーターの回転角度（正負で方向指定）
+        """
+        self.command_counter = time.ticks_ms()
+        self.motor_left.run_for_degrees(-int(left_degrees), 50)# 左はマイナス値で反転
+        self.motor_right.run_for_degrees(int(right_degrees), 50)
+
+def receiver():
+    # バッファを空にして最新コマンドだけ取得（古いコマンドはすべて廃棄）
+    latest_command = None
+    # USBバッファに残っている全てのコマンドを読み捨て、最後の1つだけ実行
     while True:
-        try:
-            command_id, command_parameter1, command_parameter2 = lego_spike.read_command()
-        except Exception:
-            command_id = None
-            command_parameter1 = None
-            command_parameter2 = None
+        if lego_spike.usb.any():
+            command = lego_spike.read_command()
+            if command[0] is not None:
+                latest_command = command
+            # ループ継続してバッファを空にする
+        else:
+            break
+    if latest_command is not None:
+        command_id, command_parameter1, command_parameter2 = latest_command
+        lego_spike.execute_command(command_id, command_parameter1, command_parameter2)
 
-        if command_id != None:
-            lego_spike.execute_command(command_id, command_parameter1, command_parameter2)
+    time.sleep(0.01)
 
-        await uasyncio.sleep(0.01)  # Sleep for 10ms to reduce CPU usage
-
-
-async def main_task():
-    tasks = list()
-
-    receiver_task = uasyncio.create_task(receiver())
-    tasks.append(receiver_task)
-
-    # Run indefinitely - let the receiver task handle commands continuously
-    try:
-        await receiver_task
-    except uasyncio.CancelledError:
-        pass
+def main_task():
+    while True:
+        receiver()
 
 
 # Trigger a garbage collection cycle
@@ -153,6 +179,13 @@ print("Starting LEGO Prime Hub..")
 
 try:
     lego_spike = LegoSpike()
-    uasyncio.run(main_task())
+    main_task()
 except SystemExit as e:
     print(e)
+
+lego_spike.motor_left.brake()
+lego_spike.motor_right.brake()
+
+hub.display.show(hub.Image.ASLEEP)
+
+print("Ended")
