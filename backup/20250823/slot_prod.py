@@ -63,15 +63,15 @@ class LegoSpike(object):
 
         """Read command from USB and return the command ID and parameters."""
         if self.usb.any():
-            data = self.usb.read(7)  # Read "CF:" + 1byte id + 2byte param1 + 2byte param2
+            data = self.usb.read(6)  # Read "CF:" + 3 bytes command data
 
             flag_pos = data.find(CMD_FLAG)
 
-            if flag_pos >= 0 and len(data) >= flag_pos + 7:  # Ensure we have enough bytes
-                raw_bytes = data[flag_pos + 3 : flag_pos + 7]  # Extract the 4 bytes after "CF:"
+            if flag_pos >= 0 and len(data) >= flag_pos + 6:  # Ensure we have enough bytes
+                raw_bytes = data[flag_pos + 3 : flag_pos + 6]  # Extract the 3 bytes after "CF:"
                 command_id = int.from_bytes(raw_bytes[0:1], "big")
-                command_parameter1 = int.from_bytes(raw_bytes[1:3], "big")
-                command_parameter2 = int.from_bytes(raw_bytes[3:5], "big")
+                command_parameter1 = int.from_bytes(raw_bytes[1:2], "big")
+                command_parameter2 = int.from_bytes(raw_bytes[2:3], "big")
 
                 return command_id, command_parameter1, command_parameter2
 
@@ -117,6 +117,7 @@ class LegoSpike(object):
             self.motor_arm.run_at_speed(-int(40))  # Encapulate int() to ensure speed is an integer
         elif action == 2:  # Stop arm
             self.motor_arm.brake()
+
 
 async def receiver():
     while True:

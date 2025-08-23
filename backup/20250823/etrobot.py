@@ -153,8 +153,8 @@ class ETRobot(object):
 
     def set_motor_relative_position(self, left_positon: int, right_position: int) -> None:
         id_byte = self.COMMAND_SET_MOTOR_RELATIVE_POSITION_ID.to_bytes(1, "big")
-        parameter1_byte = left_positon.to_bytes(2, "big")
-        parameter2_byte = right_position.to_bytes(2, "big")
+        parameter1_byte = left_positon.to_bytes(1, "big")
+        parameter2_byte = right_position.to_bytes(1, "big")
 
         command = id_byte + parameter1_byte + parameter2_byte
 
@@ -209,8 +209,8 @@ class ETRobot(object):
             right_speed (int): Right motor speed (0-100).
         """
         id_byte = self.COMMAND_SET_MOTOR_FORWARD_SPEED_ID.to_bytes(1, "big")
-        parameter1_byte = left_speed.to_bytes(2, "big")
-        parameter2_byte = right_speed.to_bytes(2, "big")
+        parameter1_byte = left_speed.to_bytes(1, "big")
+        parameter2_byte = right_speed.to_bytes(1, "big")
 
         command = id_byte + parameter1_byte + parameter2_byte
 
@@ -225,8 +225,8 @@ class ETRobot(object):
             right_speed (int): Right motor speed (0-100).
         """
         id_byte = self.COMMAND_SET_MOTOR_BACKWARD_SPEED_ID.to_bytes(1, "big")
-        parameter1_byte = left_speed.to_bytes(2, "big")
-        parameter2_byte = right_speed.to_bytes(2, "big")
+        parameter1_byte = left_speed.to_bytes(1, "big")
+        parameter2_byte = right_speed.to_bytes(1, "big")
 
         command = id_byte + parameter1_byte + parameter2_byte
 
@@ -235,8 +235,8 @@ class ETRobot(object):
     def brake(self) -> None:
         """Brake the motors of the ETRobot."""
         id_byte = self.COMMAND_STOP_MOTOR_ID.to_bytes(1, "big")
-        parameter1_byte = self.DUMMY.to_bytes(2, "big")
-        parameter2_byte = self.DUMMY.to_bytes(2, "big")
+        parameter1_byte = self.DUMMY.to_bytes(1, "big")
+        parameter2_byte = self.DUMMY.to_bytes(1, "big")
 
         command = id_byte + parameter1_byte + parameter2_byte
 
@@ -257,8 +257,8 @@ class ETRobot(object):
                 2: アームを止める (stop arm)
         """
         id_byte = self.COMMAND_MOVE_ARM_ID.to_bytes(1, "big")
-        parameter1_byte = action.to_bytes(2, "big")
-        parameter2_byte = self.DUMMY.to_bytes(2, "big")
+        parameter1_byte = action.to_bytes(1, "big")
+        parameter2_byte = self.DUMMY.to_bytes(1, "big")
 
         command = id_byte + parameter1_byte + parameter2_byte
 
