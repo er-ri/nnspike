@@ -117,13 +117,12 @@ def main():
                 image,
                 use_hsv=False,
                 grayscale=True,
-                clahe=True,
-                clahe_clipLimit=3.0,
-                blur_type="median",
-                blur_ksize=7,
+                clahe=False,
+                blur_type="gaussian",
+                blur_ksize=5,
                 binarize_mode="binary_inv",
-                binarize_value=120,
-                noise_removal=["dilate", "close7x7"]
+                binarize_value=80,
+                noise_removal=None
             )
             image_to_show = cv2.cvtColor(preprocessed_image, cv2.COLOR_GRAY2BGR)
         else:

@@ -604,14 +604,15 @@ def is_horizontal_black_line_detected(img, intersection_y=450, roi=(100, 300, 54
 
 def is_vertical_black_line_detected(img) -> bool:
     """
-    x=320と交差する一般的な水平黒ラインが検出されたらTrueを返す関数
-    ROI: y0から540まで全体、x=320との交差必須、90度に近い角度を重視
+    x=320±60px付近を通る縦長（垂直）黒ラインが検出されたらTrueを返す関数
+    ROI: (200, 200, 440, 540)の範囲で判定
+    幅・高さ・アスペクト比（縦長）・面積・中心付近（x=320±60px）を重視
 
     パラメータ:
         img (np.ndarray): BGR画像
 
     戻り値:
-        bool: x=320と交差し90度に近い水平黒ラインが検出されればTrue、なければFalse
+        bool: x=320±60px付近を通る縦長黒ラインが検出されればTrue、なければFalse
     """
     # エラー処理（画像None/空）
     if img is None or (hasattr(img, 'size') and img.size == 0):

@@ -434,10 +434,11 @@ class ActionChain(object):
 
         # 0. 右エッジトレース（赤ピクセル数が3000を超えたらphase1へ、右モーター初期位置記録）
         if phase.get_phase() == 0:
-            left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold=80)
-            target_x = right_x if self.course == "right" else left_x
-            if target_x is None:
-                target_x = (self.x1 + self.x2) // 2
+            #left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold=80)
+            #target_x = right_x if self.course == "right" else left_x
+            #if target_x is None:
+            #    target_x = (self.x1 + self.x2) // 2
+            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             _, _, red_pixel_count = find_bottle_center(img=image, color="red")
             if red_pixel_count > 3000:
                 phase.next_phase()
@@ -469,10 +470,11 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             threshold = 1200 if self.course_type == "upper" else 700
             if abs(current_pos - position_start) < threshold:
-                left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=300, threshold=80)
-                target_x = left_x if self.course == "right" else right_x
-                if target_x is None:
-                    target_x = (self.x1 + self.x2) // 2
+                #left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=300, threshold=80)
+                #target_x = left_x if self.course == "right" else right_x
+                #if target_x is None:
+                #    target_x = (self.x1 + self.x2) // 2
+                target_x = self.get_target_x_by_course(image, offset_y=300, course=self.opposite_course)
                 return target_x, None, Mode.CARRY_BOTTLE1
             # 1200超えたら次フェーズへ
             phase.next_phase()
@@ -1025,10 +1027,11 @@ class ActionChain(object):
 
         # 3. 左エッジトレース（青ライン検出でphase4へ。左エッジがなければ中央。青ライン検出時に右モーター位置記録）
         if phase.get_phase() == 3:
-            left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold=80)
-            target_x = left_x if self.course == "right" else right_x
-            if target_x is None:
-                target_x = (self.x1 + self.x2) // 2
+            #left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold=80)
+            #target_x = left_x if self.course == "right" else right_x
+            #if target_x is None:
+            #    target_x = (self.x1 + self.x2) // 2
+            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
             blue_line = get_is_blue_line_at_y(image, target_y=OFFSET_Y)
             if blue_line:
                 phase.next_phase()
@@ -1044,10 +1047,11 @@ class ActionChain(object):
             if position_limit_reached:
                 phase.next_phase()
             else:
-                left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold=80)
-                target_x = left_x if self.course == "right" else right_x
-                if target_x is None:
-                    target_x = (self.x1 + self.x2) // 2
+                #left_x, right_x, _ = get_line_edges_at_y(image=image, roi=ROI_CNN, target_y=OFFSET_Y, threshold=80)
+                #target_x = left_x if self.course == "right" else right_x
+                #if target_x is None:
+                #    target_x = (self.x1 + self.x2) // 2
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.HEAD_GOAL
 
         # 5. 600到達で状態リセットしPAUSE
