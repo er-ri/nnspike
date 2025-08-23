@@ -7,7 +7,7 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, parent_dir)
 
 import cv2
-from nnspike.utils import control_preprocess_image
+from nnspike.utils import control_preprocess_image, fill_green_with_white
 import pandas as pd
 from nnspike.constants import OFFSET_Y, ROI_CNN, Mode
 from nnspike.utils import (
@@ -54,9 +54,8 @@ def main():
     label_path = args.label_data
     df, _ = read_label_data(label_path)
 
+    show_mode = 1  # 1:元画像, 2:fill_green_with_white, 3:fill_green_with_white+control_preprocess_image
     index = 0
-    show_preprocessed = False
-    preprocessed_image = None
     while True:
         if index < 0:
             index = 0
@@ -106,14 +105,22 @@ def main():
         right_info.append(f"is_left_black_line_detected(course={course_value}): {is_left_black_line_detected(image, course_value)}")
         right_info.append(f"is_general_horizontal_line_detected: {is_general_horizontal_line_detected(image)}")
         right_info.append(f"is_horizontal_black_line_detected: {is_horizontal_black_line_detected(image, intersection_y=450, roi=(250, 300, 390, 540))}")
-        right_info.append(f"is_vertical_black_line_detected: {is_vertical_black_line_detected(image)}")
+        right_info.append(f"is_vertical_black_line_detected: {is_vertical_black_line_detected(image, roi=(100, 200, 540, 540), center_tolerance=120)}")
         right_info.append(f"get_is_blue_line_at_y: {get_is_blue_line_at_y(image)}")
         right_info.append(f"get_blue_line_pixel: {get_blue_line_pixel(image)}")
         info["right_info"] = right_info
 
-        # 事前処理画像生成（get_virtual_line_target_x相当）
-        if show_preprocessed:
-            preprocessed_image = control_preprocess_image(
+        # 画像表示モード切替（if/elif/else構造で正しく分岐）
+        if show_mode == 1:
+            # 1:元画像
+            image_to_show = image.copy()
+        elif show_mode == 2:
+            # 2:緑除去のみ
+            image_to_show = fill_green_with_white(image)
+        elif show_mode == 3:
+            # 3:前処理（ユーザー指定のcontrol_preprocess_imageパラメータ）
+            threshold = 80  # 必要なら他の値に変更可
+            mask_full = control_preprocess_image(
                 image,
                 use_hsv=False,
                 grayscale=True,
@@ -121,10 +128,41 @@ def main():
                 blur_type="gaussian",
                 blur_ksize=5,
                 binarize_mode="binary_inv",
-                binarize_value=80,
+                binarize_value=threshold,
                 noise_removal=None
             )
-            image_to_show = cv2.cvtColor(preprocessed_image, cv2.COLOR_GRAY2BGR)
+            image_to_show = cv2.cvtColor(mask_full, cv2.COLOR_GRAY2BGR)
+        elif show_mode == 4:
+            # 4:仮想ライン用（get_virtual_line_target_xと同じ前処理）
+            mask_full = control_preprocess_image(
+                image,
+                use_hsv=False,
+                grayscale=True,
+                clahe=True,
+                clahe_clipLimit=3.0,
+                blur_type="median",
+                blur_ksize=7,
+                binarize_mode="binary_inv",
+                binarize_value=120,
+                noise_removal=["dilate", "close7x7"]
+            )
+            image_to_show = cv2.cvtColor(mask_full, cv2.COLOR_GRAY2BGR)
+        elif show_mode == 5:
+            # 5:その他ライン判定（指定パラメータで前処理）
+            img = fill_green_with_white(image)
+            mask_full = control_preprocess_image(
+                img,
+                use_hsv=False,
+                grayscale=True,
+                clahe=True,
+                clahe_clipLimit=3.0,
+                blur_type="median",
+                blur_ksize=7,
+                binarize_mode="binary_inv",
+                binarize_value=120,
+                noise_removal=["dilate", "close7x7"]
+            )
+            image_to_show = cv2.cvtColor(mask_full, cv2.COLOR_GRAY2BGR)
         else:
             image_to_show = image.copy()
 
@@ -161,35 +199,38 @@ def main():
             x = right_x - text_size[0]
             y = start_y + i * line_height
             cv2.putText(image_to_show, text, (x, y), font, font_scale, right_text_color, font_thickness, cv2.LINE_AA)
+        if show_mode in [3, 4, 5]:
+            left_text_color = (255, 255, 255)
+        else:
+            left_text_color = (0, 0, 0)
 
         # 左側テキストカラーはノーマル画像なら黒、白黒反転時は白
-        left_text_color = (255, 255, 255) if show_preprocessed else (0, 0, 0)
         image_to_show = draw_driving_info(image_to_show, info, ROI_CNN, text_color=left_text_color)
-
-        cv2.imshow(f"ETRobot: {dir_path}", image_to_show)
+        cv2.imshow('ETRobot Viewer', image_to_show)
 
         key = cv2.waitKey(0) & 0xFF
         if key == ord("q"):
             break
-        elif key == ord("1"):  # Update dataframe
-            show_preprocessed = True
-        elif key == ord("2"):  # Update dataframe
-            show_preprocessed = False
-        elif key == ord("3"):  # Update dataframe
-            df, index = read_label_data(label_path, image_path=image_path)
-            index = 904
-        elif key == ord("4"):  # Update dataframe
-            df, index = read_label_data(label_path, image_path=image_path)
-            index = 1009
+        elif key == ord("1"):  # 1:元画像
+            show_mode = 1
+        elif key == ord("2"):  # 2:緑白塗り画像
+            show_mode = 2
+        elif key == ord("3"):  # 3:緑白塗り＋前処理画像
+            show_mode = 3
+        elif key == ord("4"):  # 4:control_preprocess_imageのみ
+            show_mode = 4
+        elif key == ord("5"):  # 5:緑除去＋control_preprocess_image（4と同じパラメータ）
+            show_mode = 5
         elif key == ord("u"):  # Update dataframe
             df, index = read_label_data(label_path, image_path=image_path)
         elif key == ord("n"):  # Move to next frame
             index += 1
+        elif key == ord("m"):  # 100フレーム先にジャンプ
+            index = min(index + 100, len(df) - 1)
         elif key == ord("b"):  # Move to previous frame
             index -= 1
 
     cv2.destroyAllWindows()
-
 
 if __name__ == "__main__":
     main()

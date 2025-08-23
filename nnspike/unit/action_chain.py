@@ -386,7 +386,7 @@ class ActionChain(object):
                 else:
                     return None, (60, 30), Mode.AVOID_OBSTACLE
             elif distance < 500:
-                if is_vertical_black_line_detected(image):
+                if is_vertical_black_line_detected(image, roi=(100, 200, 540, 540), center_tolerance=120):
                     phase.next_phase()
                 else:
                     if self.course == "right":

@@ -28,6 +28,7 @@ def get_line_edges_at_y(image, roi, target_y, threshold=80) -> Tuple[Optional[fl
     # 前処理（グレースケール化→ガウシアンブラー→二値化→ノイズ除去→ROI抽出）
     if target_y < y1 or target_y >= y2:
         return None, None, None  # ROI外はNone返却
+
     mask_full = control_preprocess_image(
         image,
         use_hsv=False,
@@ -439,6 +440,8 @@ def is_left_black_line_detected(img, course) -> bool:
     # courseがleftの時はimgを左右反転
     if course == 'left':
         img = cv2.flip(img, 1)
+    # 緑領域除去
+    img = fill_green_with_white(img)
     # 前処理（グレースケール化→CLAHE→メディアンブラー→二値化→ノイズ除去）
     mask_full = control_preprocess_image(
         img,
@@ -486,9 +489,11 @@ def is_general_horizontal_line_detected(img) -> bool:
     _min_area = 3000      # 面積条件
     _angle_binarize_value = 10  # 角度許容範囲（0度±10または90度±10）
     _center_x = 320       # 画像中心x座標
-    _roi = (200, 0, 440, 540)  # ROI（x1, y1, x2, y2）
+    _roi = (200, 50, 440, 540)  # ROI（x1, y1, x2, y2）
     x1, y1, x2, y2 = _roi
 
+    # 緑領域除去
+    img = fill_green_with_white(img)
     # 前処理（グレースケール化→CLAHE→メディアンブラー→二値化→ノイズ除去）
     mask_full = control_preprocess_image(
         img,
@@ -568,6 +573,8 @@ def is_horizontal_black_line_detected(img, intersection_y=450, roi=(100, 300, 54
     _center_x = 320      # 画像中心x座標
     x1, y1, x2, y2 = roi
 
+    # 緑領域除去
+    img = fill_green_with_white(img)
     # 前処理（グレースケール化→CLAHE→メディアンブラー→二値化→ノイズ除去）
     mask_full = control_preprocess_image(
         img,
@@ -602,14 +609,15 @@ def is_horizontal_black_line_detected(img, intersection_y=450, roi=(100, 300, 54
                 return True
     return False
 
-def is_vertical_black_line_detected(img) -> bool:
+def is_vertical_black_line_detected(img, roi=(200, 200, 440, 540), center_tolerance=80) -> bool:
     """
     x=320±60px付近を通る縦長（垂直）黒ラインが検出されたらTrueを返す関数
-    ROI: (200, 200, 440, 540)の範囲で判定
+    ROI: roi引数で指定した範囲で判定（デフォルト: (200, 200, 440, 540)）
     幅・高さ・アスペクト比（縦長）・面積・中心付近（x=320±60px）を重視
 
     パラメータ:
         img (np.ndarray): BGR画像
+        roi (tuple): ROI（x1, y1, x2, y2）
 
     戻り値:
         bool: x=320±60px付近を通る縦長黒ラインが検出されればTrue、なければFalse
@@ -619,15 +627,15 @@ def is_vertical_black_line_detected(img) -> bool:
         return False
     
     # パラメータ（幅・高さ・アスペクト比・面積・中心座標・許容範囲・ROI）
-    _min_width = 70      # 幅条件
+    _min_width = 50      # 幅条件
     _min_height = 200   # 高さ条件
     _min_aspect = 1.8   # アスペクト比
-    _min_area = 14000   # 面積条件
+    _min_area = 11000   # 面積条件
     _center_x = 320     # 画像中心x座標
-    _center_tolerance = 60  # 中心許容範囲（x=320±60px）
-    _roi = (200, 200, 440, 540)  # ROI（x1, y1, x2, y2）
-    x1, y1, x2, y2 = _roi
+    x1, y1, x2, y2 = roi
 
+    # 緑領域除去
+    img = fill_green_with_white(img)
     # 前処理（グレースケール化→CLAHE→メディアンブラー→二値化→ノイズ除去）
     mask_full = control_preprocess_image(
         img,
@@ -654,7 +662,7 @@ def is_vertical_black_line_detected(img) -> bool:
         aspect_ratio = h / w if w > 0 else float('inf')
         # x=320±_center_toleranceを通るか
         line_center_x = x + w // 2
-        crosses_center = abs(line_center_x - _center_x) <= _center_tolerance
+        crosses_center = abs(line_center_x - _center_x) <= center_tolerance
         if (
             w >= _min_width and 
             h >= _min_height and 
@@ -790,15 +798,8 @@ def control_preprocess_image(
     blur_ksize=7,          # フィルターサイズ
     binarize_mode=None,   # 二値化タイプ（Noneで二値化なし）
     binarize_value: Optional[int]=120, # 二値化閾値（デフォルト: 120）
-    noise_removal=None     # ノイズ除去
+    noise_removal=None,    # ノイズ除去
     ) -> np.ndarray:
-    """
-    画像前処理（get_line_edges_at_yと完全同一仕様）
-    - グレースケール化（grayscale=True）
-    - GaussianBlur（blur_type='gaussian', blur_ksize=5）
-    - 二値化（binarize_mode='binary_inv', binarize_value=80）
-    - ノイズ除去はデフォルトでなし（noise_removal='none'）
-    """
 
     # --- 色空間変換 ---
     if use_hsv:
@@ -904,3 +905,21 @@ def get_color_mask(img, color, pattern=None) -> np.ndarray:
     else:
         mask = np.zeros(img.shape[:2], dtype=np.uint8)
     return mask
+
+# --- 緑領域を白で塗りつぶす独立メソッド ---
+def fill_green_with_white(img):
+    """
+    画像の緑領域（HSV指定）を白で塗りつぶす。
+    パラメータ:
+        img (np.ndarray): BGR画像
+    戻り値:
+        np.ndarray: 緑領域が白で塗りつぶされた画像（BGR）
+    """
+    if img.ndim == 3 and img.shape[2] == 3:
+        hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        lower_green = np.array([35, 120, 60], dtype=np.uint8)
+        upper_green = np.array([90, 255, 220], dtype=np.uint8)
+        green_mask = cv2.inRange(hsv_img, lower_green, upper_green)
+        img = img.copy()
+        img[green_mask != 0] = [255, 255, 255]
+    return img

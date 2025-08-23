@@ -94,7 +94,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     def nvidia_model_predict(model, et: ETRobot):
         """NVIDIAモデルによる予測を行う。ノートブックテスト結果を反映した安定版"""
         try:
-            roi_area = process_image(image=model_input_frame, device=device, roi=(x1, y1, x2, y2))
+            roi_area = process_image(image=frame, device=device, roi=(x1, y1, x2, y2))
             
             # ETRobot.retrieve_motors_relative_position()は1つの値（int）を返す
             # 両モーターの絶対値の合計: motor_a_position + motor_b_position
@@ -123,7 +123,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             return target_x, speeds, mode
         return None, (0, 0), default_mode
 
-    pre_target_x = None  # GATE_PASS用の前回値
+    pre_target_x = (x1 + x2) // 2  # GATE_PASS用の前回値
+    yellow_blocked = False  # yellow中心利用停止フラグ
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
 
@@ -233,10 +234,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
-            # course leftのときはmodel入力用画像を左右反転
-            model_input_frame = frame.copy()
-            if course == "left":
-                model_input_frame = cv2.flip(model_input_frame, 1)
+            
             # 毎ループ1回だけstatusを取得
             status = et.get_spike_status()
             left_pos = status.motors["A"].relative_position
@@ -289,12 +287,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     "right_speed": int(right_speed) if right_speed is not None else 0,
                 }
                 
-                # Add NVIDIA model info if available
-                # if use_nvidia_model and nvidia_prediction is not None:
-                #     info["text"]["nvidia_x"] = round(nvidia_prediction, 2)
-                #     info["text"]["nvidia_mode"] = nvidia_mode_prediction
-                #     info["text"]["nvidia_prob"] = nvidia_prob
-
                 # Create visualization frame
                 gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
                 gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
@@ -422,7 +414,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     elif yellow_pixel_count > 16000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
                         target_x = (x1 + x2) // 2
-                    elif yellow_pixel_count > 3000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
+                        yellow_blocked = True
+                    elif not yellow_blocked and yellow_pixel_count > 3000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
                         target_x = yellow_cx[0]  # X座標のみを取得
                     elif left_x is not None:
                         target_x = left_x
@@ -445,7 +438,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     elif yellow_pixel_count > 16000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
                         target_x = (x1 + x2) // 2
-                    elif yellow_pixel_count > 3000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
+                        yellow_blocked = True
+                    elif not yellow_blocked and yellow_pixel_count > 3000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         target_x = yellow_cx[0]  # X座標のみを取得
                     elif right_x is not None:
                         target_x = right_x
@@ -522,44 +516,25 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                             mode = Mode.CARRY_BOTTLE1
                             print(f"Left position {abs(left_pos)} > 22000, switching to CARRY_BOTTLE1")
                         else:
-                            # courseによって左右判定を反転
-                            # abs(left_pos)で左右トレースを切り替え
-                            if left_pos is not None and 12000 <= abs(left_pos) < 15000:
+                            if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:
+                                # 左コース: 左エッジならright_x
                                 _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                                 target_x = right_x if right_x is not None else (x1 + x2) // 2
-                                print(f"[DEBUG] left_pos={left_pos}, trace=right (12000-15000)")
-                            elif left_pos is not None and 15000 <= abs(left_pos) < 18000:
+                            else:
+                                # 左コース: 右エッジならleft_x
                                 left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                                 target_x = left_x if left_x is not None else (x1 + x2) // 2
-                                print(f"[DEBUG] left_pos={left_pos}, trace=left (15000-18000)")
-                            # abs(left_pos)が19000～21000のときは強制的にright_xをtarget_xにする
-                            elif left_pos is not None and 18000 <= abs(left_pos) <= 21000:
-                                _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                                target_x = right_x if right_x is not None else (x1 + x2) // 2
-                                print(f"[DEBUG] left_pos={left_pos}, trace=right (18000-21000)")
-                            # abs(left_pos)が21000より大きい場合は左
-                            elif left_pos is not None and abs(left_pos) > 21000:
-                                left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                                target_x = left_x if left_x is not None else (x1 + x2) // 2
-                                print(f"[DEBUG] left_pos={left_pos}, trace=left (21000-)")
-                            elif nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:  # 左エッジ
-                                _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                                target_x = right_x if right_x is not None else (x1 + x2) // 2
-                                print(f"[DEBUG] left_pos={left_pos}, trace=right")
-                            else:  # 左モード以外はすべて右エッジ
-                                left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                                target_x = left_x if left_x is not None else (x1 + x2) // 2
-                                print(f"[DEBUG] left_pos={left_pos}, trace=left")
                     else:
                         if right_pos is not None and abs(right_pos) > 22000:
                             mode = Mode.CARRY_BOTTLE1
                             print(f"Right position {abs(right_pos)} > 22000, switching to CARRY_BOTTLE1")
                         else:
-                            # ...existing code...
-                            if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:  # 左エッジ
+                            if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:
+                                # 右コース: 左エッジならleft_x
                                 left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                                 target_x = left_x if left_x is not None else (x1 + x2) // 2
-                            else:  # 左モード以外はすべて右エッジ
+                            else:
+                                # 右コース: 右エッジならright_x
                                 _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                                 target_x = right_x if right_x is not None else (x1 + x2) // 2
                 case _:
