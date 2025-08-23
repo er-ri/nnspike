@@ -581,9 +581,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 left_speed = 0
             if right_speed is None:
                 right_speed = 0
-            # Clamp speed values to valid range（上限制限なし、0未満のみ0に）
-            left_speed = int(max(0, left_speed))
-            right_speed = int(max(0, right_speed))
+            # Clamp speed values to valid range（上限255、0未満は0に）
+            left_speed = int(max(0, min(255, left_speed)))
+            right_speed = int(max(0, min(255, right_speed)))
 
             # Temporarily set Heading Gate mode
             if mode == Mode.PAUSE:
