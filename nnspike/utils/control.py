@@ -20,14 +20,13 @@ def get_line_edges_at_y(image, roi, target_y, threshold=80) -> Tuple[Optional[fl
         line_width (float or None): ライン幅
     """
 
-    # エラー処理（画像None/空）
+    # 画像がNoneまたは空の場合はNone返却
     if image is None or (hasattr(image, 'size') and image.size == 0):
         return None, None, None
-    # パラメータ（画像・ROI・Y座標・閾値）
-    x1, y1, x2, y2 = roi  # ROI（x1, y1, x2, y2）
-    # 前処理（グレースケール化→ガウシアンブラー→二値化→ノイズ除去→ROI抽出）
+    x1, y1, x2, y2 = roi  # ROI座標
+    # 前処理（詳細は引数で指定）
     if target_y < y1 or target_y >= y2:
-        return None, None, None  # ROI外はNone返却
+        return None, None, None  # ROI外の場合はNone
 
     mask_full = control_preprocess_image(
         image,
@@ -41,10 +40,10 @@ def get_line_edges_at_y(image, roi, target_y, threshold=80) -> Tuple[Optional[fl
         noise_removal=None
     )
     binary = mask_full[y1 : y2, x1 : x2]  # ROI抽出
-    roi_row = target_y - y1  # ROI内Y座標
-    if roi_row >= 0 and roi_row < y2:
+    roi_row = target_y - y1  # ROI内のY座標
+    if roi_row >= 0 and roi_row < (y2 - y1):
         row_data = binary[roi_row, :]
-        white_pixels = np.where(row_data == 255)[0]  # 白ピクセル抽出
+        white_pixels = np.where(row_data == 255)[0]  # 白画素の抽出
         if len(white_pixels) > 0:
             left_x_roi = white_pixels[0]
             right_x_roi = white_pixels[-1]
@@ -52,7 +51,7 @@ def get_line_edges_at_y(image, roi, target_y, threshold=80) -> Tuple[Optional[fl
             right_x = x1 + right_x_roi
             line_width = right_x - left_x + 1
             return left_x, right_x, line_width
-    return None, None, None  # ライン未検出
+    return None, None, None  # ラインが検出できない場合
 
 def find_bottle_center(img, color, min_area: int = 500) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
     """
@@ -63,7 +62,7 @@ def find_bottle_center(img, color, min_area: int = 500) -> Tuple[Optional[Tuple[
         color (str): 検出色（'yellow', 'blue', 'red'）
         min_area (int): 輪郭面積の最小値（デフォルト500）
     前処理:
-        グレースケール化→adaptiveThreshold→ノイズ除去
+        HSVマスク→メディアンブラー→ノイズ除去
     戻り値:
         center (tuple or None): 物体中心座標 (x, y)
         area (float or None): 面積
@@ -151,7 +150,7 @@ def find_blue_target_center(img) -> Tuple[Optional[Tuple[int, int]], Optional[fl
         area (float or None): 面積
         blue_pixel_count (int): 青ピクセル数
     """
-    # エラー処理（画像None/空）
+    # 画像がNoneまたは空の場合はNone返却
     if img is None or img.size == 0:
         return None, None, 0
     mask_blue = get_color_mask(img, "blue", pattern="target")  # 青色抽出
@@ -202,15 +201,15 @@ def get_is_blue_line_at_y(img, target_y=470, min_run=30) -> bool:
     戻り値:
         bool: min_run個以上連続した青ピクセルがあればTrue、なければFalse
     """
-    # エラー処理（画像None/空）
+    # 画像がNoneまたは空の場合はFalse返却
     if img is None or img.size == 0:
         return False
     if not (0 <= target_y < img.shape[0]):
         return False
-    # 青色ラインマスク生成（get_color_maskでHSV抽出）
+    # 青色ラインマスク生成（HSV抽出）
     mask = get_color_mask(img, "blue", pattern="line")
     line_mask = mask[target_y, :]
-    # 連続する青ピクセル数がmin_run以上あるか判定
+    # 連続する青画素数がmin_run以上か判定
     max_run = 0
     current_run = 0
     for v in line_mask:
@@ -233,15 +232,14 @@ def get_blue_line_pixel(img) -> int:
     戻り値:
         max_area (float): 最大面積物体の面積（なければ0）
     """
-    # エラー処理（画像None/空）
+    # 画像がNoneまたは空の場合は0返却
     if img is None or img.size == 0:
         return 0
-    # パラメータ（画像・ROI）
-    _roi = (100, 200, 540, 480)  # ROI（x1, y1, x2, y2）
+    _roi = (100, 200, 540, 480)  # ROI座標
     x1, y1, x2, y2 = _roi
-    # 青色ラインマスク生成（get_color_maskでHSV抽出）
+    # 青色ラインマスク生成（HSV抽出）
     mask_full = get_color_mask(img, "blue", pattern="line")
-    # メディアンブラー＋ノイズ除去（グレースケール・二値化なし）
+    # メディアンブラー＋ノイズ除去
     mask_full = control_preprocess_image(
         mask_full,
         use_hsv=False,
@@ -252,14 +250,14 @@ def get_blue_line_pixel(img) -> int:
         binarize_mode=None,
         noise_removal=["dilate", "close7x7"]
     )
-    # ROI抽出
+    # ROI適用
     mask_full = mask_full[y1:y2, x1:x2]
-    # 輪郭抽出
+    # 輪郭検出
     contours, _ = cv2.findContours(mask_full, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     max_area = 0
     for contour in contours:
         area = cv2.contourArea(contour)
-        # 面積300以上かつ最大面積のみ返す
+        # 面積300以上かつ最大面積のみ返却
         if area > 300 and area > max_area:
             max_area = area
     return int(max_area)
@@ -275,13 +273,12 @@ def is_x320_on_blue_target(img, x_tolerance=60) -> bool:
     戻り値:
         bool: x=320付近に青的があればTrue、なければFalse
     """
-    # エラー処理（画像None/空）
+    # 画像がNoneまたは空の場合はFalse返却
     if img is None or img.size == 0:
         return False
-    # 色抽出（HSV変換＋マスク生成）はget_color_maskで一元化
+    # 色抽出はget_color_maskで統一
     mask_blue = get_color_mask(img, "blue", pattern="target")
-    # 5x5楕円カーネルでクロージング
-    # メディアンブラー→ノイズ除去（グレースケール・二値化なし）
+    # クロージング（5x5楕円カーネル）＋メディアンブラー
     mask_blue = control_preprocess_image(
         mask_blue,
         use_hsv=False,
@@ -327,13 +324,12 @@ def is_x320_on_red_target(img, x_tolerance=60) -> bool:
     戻り値:
         bool: x=320付近に赤的があればTrue、なければFalse
     """
-    # エラー処理（画像None/空）
+    # 画像がNoneまたは空の場合はFalse返却
     if img is None or img.size == 0:
         return False
-    # 色抽出（HSV変換＋マスク生成）はget_color_maskで一元化
+    # 色抽出はget_color_maskで統一
     mask_red = get_color_mask(img, "red", pattern="target")
-    # 5x5楕円カーネルでクロージング
-    # メディアンブラー→ノイズ除去（グレースケール・二値化なし）
+    # クロージング（5x5楕円カーネル）＋メディアンブラー
     mask_red = control_preprocess_image(
         mask_red,
         use_hsv=False,
@@ -377,13 +373,12 @@ def get_red_target_center_x(img) -> Optional[int]:
     戻り値:
         int or None: 赤的の中心x座標、見つからなければNone
     """
-    # エラー処理（画像None/空）
+    # 画像がNoneまたは空の場合はNone返却
     if img is None or img.size == 0:
         return None
-    # 色抽出（HSV変換＋マスク生成）はget_color_maskで一元化
+    # 色抽出はget_color_maskで統一
     mask_red = get_color_mask(img, "red", pattern="target")
-    # 5x5楕円カーネルでクロージング
-    # メディアンブラー→ノイズ除去（グレースケール・二値化なし）
+    # クロージング（5x5楕円カーネル）＋メディアンブラー
     mask_red = control_preprocess_image(
         mask_red,
         use_hsv=False,
@@ -428,7 +423,7 @@ def is_left_black_line_detected(img, course) -> bool:
     例外:
         FileNotFoundError: 画像がNoneの場合
     """
-    # エラー処理（画像None/空）
+    # 画像がNoneまたは空の場合はFalse返却
     if img is None or (hasattr(img, 'size') and img.size == 0):
         return False
     _min_width = 60
@@ -437,12 +432,12 @@ def is_left_black_line_detected(img, course) -> bool:
     _min_area = 8000
     _roi = (0, 80, 140, 420)
     x1, y1, x2, y2 = _roi
-    # courseがleftの時はimgを左右反転
+    # leftコース時は左右反転
     if course == 'left':
         img = cv2.flip(img, 1)
-    # 緑領域除去
+    # 緑領域を白で塗りつぶし
     img = fill_green_with_white(img)
-    # 前処理（グレースケール化→CLAHE→メディアンブラー→二値化→ノイズ除去）
+    # 前処理（グレースケール化・CLAHE・メディアンブラー・二値化・ノイズ除去）
     mask_full = control_preprocess_image(
         img,
         use_hsv=False,
@@ -462,7 +457,7 @@ def is_left_black_line_detected(img, course) -> bool:
         x, y, w, h = cv2.boundingRect(cnt)
         area = cv2.contourArea(cnt)
         aspect = h / (w + 1e-5)
-        # ROI内で幅・高さ・アスペクト比・面積のみで判定
+        # ROI内で幅・高さ・アスペクト比・面積で判定
         if w >= _min_width and h >= _min_height and aspect >= _min_aspect and area >= _min_area:
             return True
     return False
@@ -478,11 +473,11 @@ def is_general_horizontal_line_detected(img) -> bool:
     戻り値:
         bool: x=320と交差し90度に近い水平黒ラインが検出されればTrue、なければFalse
     """
-    # エラー処理（画像None/空）
+    # 画像がNoneまたは空の場合はFalse返却
     if img is None or (hasattr(img, 'size') and img.size == 0):
         return False
     
-    # パラメータ（幅・高さ・アスペクト比・面積・角度・中心座標・ROI）
+    # 判定パラメータ
     _min_width = 150      # 幅条件
     _min_height = 10      # 高さ条件
     _max_aspect = 0.2     # アスペクト比（高さ/幅）
@@ -492,9 +487,9 @@ def is_general_horizontal_line_detected(img) -> bool:
     _roi = (200, 50, 440, 540)  # ROI（x1, y1, x2, y2）
     x1, y1, x2, y2 = _roi
 
-    # 緑領域除去
+    # 緑領域を白で塗りつぶし
     img = fill_green_with_white(img)
-    # 前処理（グレースケール化→CLAHE→メディアンブラー→二値化→ノイズ除去）
+    # 前処理（グレースケール化・CLAHE・メディアンブラー・二値化・ノイズ除去）
     mask_full = control_preprocess_image(
         img,
         use_hsv=False,
@@ -523,17 +518,17 @@ def is_general_horizontal_line_detected(img) -> bool:
         if len(contour) >= 5:
             rect = cv2.minAreaRect(contour)
             angle_raw = rect[2]
-            # minAreaRectの仕様: -90〜0度、短辺がx軸方向に近い場合-90、長辺がx軸方向に近い場合0
+            # minAreaRectの仕様: -90〜0度
             if angle_raw < -45:
-                angle_norm = 90 + angle_raw  # 水平に近い場合0付近、垂直に近い場合90付近
+                angle_norm = 90 + angle_raw  # 水平0付近、垂直90付近
             else:
-                angle_norm = angle_raw  # 0付近
+                angle_norm = angle_raw  # 水平0付近
             angle_from_0 = abs(angle_norm)
             angle_from_90 = abs(abs(angle_norm) - 90)
         else:
             angle_from_0 = 0
             angle_from_90 = 90
-        # x=320との交差判定（y座標制限なし）
+        # x=320との交差判定
         crosses_center = (x <= _center_x <= x + w)
         # 0度±10または90度±10を許容
         angle_ok = (angle_from_0 <= _angle_binarize_value) or (angle_from_90 <= _angle_binarize_value)
@@ -561,11 +556,11 @@ def is_horizontal_black_line_detected(img, intersection_y=450, roi=(100, 300, 54
     戻り値:
         bool: x=320を通り、指定されたy座標と交差する水平黒ラインが検出されればTrue、なければFalse
     """
-    # エラー処理（画像None/空）
+    # 画像がNoneまたは空の場合はFalse返却
     if img is None or (hasattr(img, 'size') and img.size == 0):
         return False
     
-    # パラメータ（幅・高さ・アスペクト比・面積・中心座標・ROI）
+    # 判定パラメータ
     _min_width = 400      # 幅条件
     _min_height = 50     # 高さ条件
     _max_aspect = 0.4    # アスペクト比
@@ -573,9 +568,9 @@ def is_horizontal_black_line_detected(img, intersection_y=450, roi=(100, 300, 54
     _center_x = 320      # 画像中心x座標
     x1, y1, x2, y2 = roi
 
-    # 緑領域除去
+    # 緑領域を白で塗りつぶし
     img = fill_green_with_white(img)
-    # 前処理（グレースケール化→CLAHE→メディアンブラー→二値化→ノイズ除去）
+    # 前処理（グレースケール化・CLAHE・メディアンブラー・二値化・ノイズ除去）
     mask_full = control_preprocess_image(
         img,
         use_hsv=False,
@@ -600,11 +595,11 @@ def is_horizontal_black_line_detected(img, intersection_y=450, roi=(100, 300, 54
         crosses_center = (x <= _center_x <= x + w)
         crosses_intersection_y = (y <= intersection_y <= y + h)
 
-        # y_crossがTrueなら無条件で検出
+        # y座標交差なら無条件で検出
         if crosses_intersection_y:
             return True
         else:
-            # 通常の厳しい条件
+            # 通常条件
             if (w >= _min_width and h >= _min_height and aspect_ratio <= _max_aspect and area >= _min_area and crosses_center):
                 return True
     return False
@@ -622,11 +617,11 @@ def is_vertical_black_line_detected(img, roi=(200, 200, 440, 540), center_tolera
     戻り値:
         bool: x=320±60px付近を通る縦長黒ラインが検出されればTrue、なければFalse
     """
-    # エラー処理（画像None/空）
+    # 画像がNoneまたは空の場合はFalse返却
     if img is None or (hasattr(img, 'size') and img.size == 0):
         return False
     
-    # パラメータ（幅・高さ・アスペクト比・面積・中心座標・許容範囲・ROI）
+    # 判定パラメータ
     _min_width = 50      # 幅条件
     _min_height = 200   # 高さ条件
     _min_aspect = 1.8   # アスペクト比
@@ -634,9 +629,9 @@ def is_vertical_black_line_detected(img, roi=(200, 200, 440, 540), center_tolera
     _center_x = 320     # 画像中心x座標
     x1, y1, x2, y2 = roi
 
-    # 緑領域除去
+    # 緑領域を白で塗りつぶし
     img = fill_green_with_white(img)
-    # 前処理（グレースケール化→CLAHE→メディアンブラー→二値化→ノイズ除去）
+    # 前処理（グレースケール化・CLAHE・メディアンブラー・二値化・ノイズ除去）
     mask_full = control_preprocess_image(
         img,
         use_hsv=False,
@@ -660,7 +655,7 @@ def is_vertical_black_line_detected(img, roi=(200, 200, 440, 540), center_tolera
         x, y, w, h = cv2.boundingRect(contour)
         area = cv2.contourArea(contour)
         aspect_ratio = h / w if w > 0 else float('inf')
-        # x=320±_center_toleranceを通るか
+        # x=320±center_toleranceを通るか
         line_center_x = x + w // 2
         crosses_center = abs(line_center_x - _center_x) <= center_tolerance
         if (
@@ -674,10 +669,10 @@ def is_vertical_black_line_detected(img, roi=(200, 200, 440, 540), center_tolera
     return False
 
 def get_virtual_line_target_x(img, previous_center_x=None) -> int:
-    # エラー処理（画像None/空）
+    # 画像がNoneまたは空の場合は320返却
     if img is None or (hasattr(img, 'size') and img.size == 0):
         return 320
-    # ROI座標（仮想ライン検出範囲）
+    # 仮想ライン検出用ROI座標
     _roi = (100, 100, 540, 330)
     x1, y1, x2, y2 = _roi
     mask_full = control_preprocess_image(
@@ -701,7 +696,7 @@ def get_virtual_line_target_x(img, previous_center_x=None) -> int:
     rect_centers_y = []
     rects = []
     short_axes = []
-    # 面積・アスペクト比・最大面積でフィルタ（短径記録）
+    # 面積・アスペクト比でフィルタ
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
         area = w * h
@@ -738,11 +733,10 @@ def get_virtual_line_target_x(img, previous_center_x=None) -> int:
     candidates_sorted = sorted(candidates, key=lambda c: c['center_y'], reverse=True)
     selected = None
     for c in candidates_sorted:
-        # ここで必要な判定条件を追加可能（例: center_y >= 100 など）
-        # 今回は下から順に最初の物体を選択
+        # 下から順に最初の物体を選択
         selected = c
         break
-    # 物体がない場合
+    # 物体がない場合は中央
     if selected is None:
         target_x = 320
         edge_label = "no_object"
@@ -751,7 +745,7 @@ def get_virtual_line_target_x(img, previous_center_x=None) -> int:
         left_edge_x = selected['left_edge_x']
         right_edge_x = selected['right_edge_x']
 
-        # previous_center_xからpre_edge_labelを初期化
+        # previous_center_xから回避方向ラベル初期化
         if previous_center_x is None or previous_center_x == 320:
             pre_edge_label = None
         elif previous_center_x < 320:
@@ -759,8 +753,7 @@ def get_virtual_line_target_x(img, previous_center_x=None) -> int:
         else:
             pre_edge_label = 'left'
 
-        # 320付近は必ず前回の回避方向を優先
-        # 検知した物体のうち一つでも320±50px（270〜370）にあれば絶対に回避方向の転換を許さない
+        # 320±50pxに物体があれば前回方向を優先
         any_in_center = any(270 <= c['center_x'] <= 370 for c in candidates)
         if any_in_center and pre_edge_label is not None:
             edge_label = pre_edge_label
@@ -776,9 +769,12 @@ def get_virtual_line_target_x(img, previous_center_x=None) -> int:
         elif edge_label == 'left':
             edge_x = left_edge_x
             target_x = edge_x - 150
+        else:
+            # 物体中心には絶対向かわない。安全なデフォルト値。
+            target_x = 320
 
-    # previous_center_xによる極端なジャンプ制限
-    if candidates and previous_center_x is not None:
+    # previous_center_xによるジャンプ制限
+    if candidates and previous_center_x is not None and 'target_x' in locals():
         max_delta = 40  # 許容する最大変化量
         if abs(target_x - previous_center_x) > max_delta:
             if target_x > previous_center_x:
@@ -790,14 +786,14 @@ def get_virtual_line_target_x(img, previous_center_x=None) -> int:
 
 def control_preprocess_image(
     img,
-    use_hsv=False,         # 色空間変換（BGR→HSV）
+    use_hsv=False,         # BGR→HSV変換
     grayscale=False,       # グレースケール化
-    clahe=False,           # コントラスト強調（CLAHE）
+    clahe=False,           # CLAHE（コントラスト強調）
     clahe_clipLimit=3.0,   # CLAHEパラメータ
-    blur_type=None,        # フィルター（平滑化）
+    blur_type=None,        # 平滑化フィルター
     blur_ksize=7,          # フィルターサイズ
-    binarize_mode=None,   # 二値化タイプ（Noneで二値化なし）
-    binarize_value: Optional[int]=120, # 二値化閾値（デフォルト: 120）
+    binarize_mode=None,    # 二値化タイプ
+    binarize_value: Optional[int]=120, # 二値化閾値
     noise_removal=None,    # ノイズ除去
     ) -> np.ndarray:
 
