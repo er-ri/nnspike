@@ -250,7 +250,10 @@ class ETRobot(object):
         Move the arm up or down.
 
         Args:
-            action (int): Action to perform (0 = move up, 1 = move down, 2 = stop arm).
+            action (int): Action to perform (0 = move down, 1 = move up, 2 = stop arm).
+                0: アームを下げる (move down)
+                1: アームを上げる (move up)
+                2: アームを止める (stop arm)
         """
         id_byte = self.COMMAND_MOVE_ARM_ID.to_bytes(1, "big")
         parameter1_byte = action.to_bytes(1, "big")
