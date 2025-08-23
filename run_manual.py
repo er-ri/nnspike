@@ -318,9 +318,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "d":
                 mode = Mode.FOLLOW_RIGHT_EDGE
                 print("Switched to following: right edge")
-            elif key == "r":
-                mode = Mode.TURN_RIGHT
-                print("Switched to turn right mode")
+            elif key == "h":
+                mode = Mode.HIGH_SPEED
+                print("Switched to HIGH_SPEED mode")
             elif key == "l":
                 mode = Mode.TURN_LEFT
                 print("Switched to turn left mode")
@@ -451,8 +451,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.turn_left())
                 case Mode.SMALL_TURN_LEFT:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.small_turn_left())
-                case Mode.TURN_RIGHT:
-                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.trun_right())
+                case Mode.HIGH_SPEED:
+                    # ハイスピードモード（右エッジ追従＋高速）
+                    _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+                    target_x = right_x if right_x is not None else (x1 + x2) // 2
+                    current_base_speed = 100
                 case Mode.SMALL_TURN_RIGHT:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.small_turn_right())
                 case Mode.CARRY_BOTTLE1:
@@ -559,11 +562,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 max_contour = np.array([[[mx, my]]], dtype=np.int32)
 
                 theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use simplified speed control
-                # pos_checkの値によってbase_speedを変更
-                if 'pos_check' in locals() and pos_check is not None and abs(pos_check) < 22000:
-                    current_base_speed = 50
-                else:
-                    current_base_speed = BASE_SPEED
+                # HIGH_SPEEDモードのときはbase_speedを上書きしない
+                if mode != Mode.HIGH_SPEED:
+                    # pos_checkの値によってbase_speedを変更
+                    if 'pos_check' in locals() and pos_check is not None and abs(pos_check) < 22000:
+                        current_base_speed = 50
+                    else:
+                        current_base_speed = BASE_SPEED
 
                 steering_correction = pid.update(theta)
 

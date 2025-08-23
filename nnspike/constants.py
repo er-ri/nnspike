@@ -21,7 +21,7 @@ class Mode(Enum):
     HEAD_GOAL = 7
     PAUSE = 8
     TURN_LEFT = 9
-    TURN_RIGHT = 10
+    HIGH_SPEED = 10  # 旧TURN_RIGHT, 高速走行モード
     FORWARD = 11
     BACKWARD = 12
     GATE_PASS = 13
