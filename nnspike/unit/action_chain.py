@@ -637,7 +637,7 @@ class ActionChain(object):
             # phase1用 右モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
-        # 1. 左旋回（最低右モーター450ユニットは必ず旋回。450ユニット超えてからis_x320_on_red_target(image, x_tolerance=60)検出または940ユニット到達まで courseに応じて左:0,右:30または左:30,右:0で継続。条件満たせばphase2へ）
+        # 1. 左旋回（最低右モーター450ユニットは必ず旋回。450ユニット超えてからis_x320_on_red_target(image, x_tolerance=60)検出または940ユニット到達まで左:0,右:30で継続。条件満たせばphase2へ）
         if phase.get_phase() == 1:
             red_target_detected = is_x320_on_red_target(image, x_tolerance=60)
             position_limit_reached = False
@@ -1221,35 +1221,78 @@ class ActionChain(object):
     def high_speed_cornering(self, image: np.ndarray) -> tuple:
         """
         ハイスピードでコーナリングする関数。
-        ベーススピード100、右コーナー固定。
-        戻り値: (target_x, (左速度, 右速度), Mode.HIGH_SPEED)
+        フェーズ0: コースに応じて左右エッジトレース、最大距離制限500で切り替え。
         """
-        # 初回呼び出し時のみ初期化
         if not self._init:
             self.initialize_action(motor_side=self.course)
         phase = self._phase
         status = self._status
 
-        offset_y = OFFSET_Y
-        # 右コーナーのみ（direction固定）
-        _, right_x, _ = get_line_edges_at_y(image, ROI_CNN, offset_y, 80)
-        target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
-        left_speed = int(100 * 0.6)
-        right_speed = 100
-        left_speed = max(0, min(100, left_speed))
-        right_speed = max(0, min(100, right_speed))
-        return target_x, (left_speed, right_speed), Mode.HIGH_SPEED
-
-        # phase9: 22000到達でCARRY_BOTTLE1へ
-        if phase.get_phase() == 9:
-            if current_pos < LEFT_POS_THRESHOLD_PHASE8:
+        if phase.get_phase() == 0:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)  # ← 明示的に定義
+            if position_diff < 500:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-                return target_x, None, Mode.DOUBLE_LOOP
-            if current_pos >= LEFT_POS_THRESHOLD_PHASE8:
-                self._phase.next_phase()
+                return target_x, None, Mode.HIGH_SPEED
+            else:
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+                phase.next_phase()
+
+        if phase.get_phase() == 1:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)
+            position_limit_reached = position_diff >= 500
+            vertical_line_detected = is_vertical_black_line_detected(image)
+            # 常に左旋回。垂直黒ライン検出または600到達でphase3へ
+            if (not vertical_line_detected) and (not position_limit_reached):
+                if self.course == "right":
+                    return None, (40, 70), Mode.HEAD_GOAL
+                else:
+                    return None, (70, 40), Mode.HEAD_GOAL
+            phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            phase.next_phase()
+
+        if phase.get_phase() == 2:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)  # ← 明示的に定義
+            if position_diff < 500:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                return target_x, None, Mode.HIGH_SPEED
+            else:
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+                phase.next_phase()
+
+        if phase.get_phase() == 1:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)
+            position_limit_reached = position_diff >= 500
+            vertical_line_detected = is_vertical_black_line_detected(image)
+            # 常に左旋回。垂直黒ライン検出または600到達でphase3へ
+            if (not vertical_line_detected) and (not position_limit_reached):
+                if self.course == "right":
+                    return None, (40, 70), Mode.HIGH_SPEED
+                else:
+                    return None, (70, 40), Mode.HIGH_SPEED
+            phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            phase.next_phase()
+
+        if phase.get_phase() == 2:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)  # ← 明示的に定義
+            if position_diff < 500:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                return target_x, None, Mode.HIGH_SPEED
+            else:
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+                phase.next_phase()
 
         # phase10: CARRY_BOTTLE1へ
-        if phase.get_phase() == 10:
+        if phase.get_phase() == 3:
             self.reset_action()
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             return target_x, None, Mode.CARRY_BOTTLE1
