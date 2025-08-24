@@ -712,7 +712,7 @@ class ActionChain(object):
         if phase.get_phase() == 1:
             center, _, blue_pixel_count = find_bottle_center(img=image, color="blue")
             target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
-            if blue_pixel_count >= 2000:
+            if blue_pixel_count >= 1000:
                 # 青ボトル中心x座標へ追従
                 return target_x, None, Mode.CARRY_BOTTLE2
             else:
