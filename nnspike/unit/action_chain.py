@@ -940,7 +940,7 @@ class ActionChain(object):
             # phase1用 左モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position(self.opposite_course, status=status))
 
-        # 1. 右旋回（最低左モーター200ユニットは必ず旋回。200ユニット超えてから一般的な水平黒ライン検出または400ユニット到達まで courseに応じて左:30,右:0または左:0,右:30で継続。条件満たせばphase2へ）
+        # 1. 右旋回（最低左モーター200ユニットは必ず旋回。200ユニット超えてから一般的な水平黒ライン検出または400ユニット到達まで左:30,右:0で継続。条件満たせばphase2へ）
         if phase.get_phase() == 1:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.opposite_course, status=status)
@@ -1218,4 +1218,42 @@ class ActionChain(object):
         print("[execute_double_loop] Unexpected state reached.")
         return None, None, Mode.DOUBLE_LOOP
 
+    def high_speed_cornering(self, image: np.ndarray) -> tuple:
+        """
+        ハイスピードでコーナリングする関数。
+        ベーススピード100、右コーナー固定。
+        戻り値: (target_x, (左速度, 右速度), Mode.HIGH_SPEED)
+        """
+        # 初回呼び出し時のみ初期化
+        if not self._init:
+            self.initialize_action(motor_side=self.course)
+        phase = self._phase
+        status = self._status
+
+        offset_y = OFFSET_Y
+        # 右コーナーのみ（direction固定）
+        _, right_x, _ = get_line_edges_at_y(image, ROI_CNN, offset_y, 80)
+        target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
+        left_speed = int(100 * 0.6)
+        right_speed = 100
+        left_speed = max(0, min(100, left_speed))
+        right_speed = max(0, min(100, right_speed))
+        return target_x, (left_speed, right_speed), Mode.HIGH_SPEED
+
+        # phase9: 22000到達でCARRY_BOTTLE1へ
+        if phase.get_phase() == 9:
+            if current_pos < LEFT_POS_THRESHOLD_PHASE8:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                return target_x, None, Mode.DOUBLE_LOOP
+            if current_pos >= LEFT_POS_THRESHOLD_PHASE8:
+                self._phase.next_phase()
+
+        # phase10: CARRY_BOTTLE1へ
+        if phase.get_phase() == 10:
+            self.reset_action()
+            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+            return target_x, None, Mode.CARRY_BOTTLE1
+
+        print("[high_speed_cornering] Unexpected state reached.")
+        return None, None, Mode.HIGH_SPEED
 
