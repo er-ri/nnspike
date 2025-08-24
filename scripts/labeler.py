@@ -25,6 +25,7 @@ from nnspike.utils import (
     is_vertical_black_line_detected,  # 垂直黒ライン検出
     is_general_horizontal_line_detected,  # 一般的な水平黒ライン検出
     get_blue_line_pixel,  # 青オブジェクト面積検出
+    get_color_mask,  # 色マスク生成
 )
 
 
@@ -164,8 +165,21 @@ def main():
             )
             image_to_show = cv2.cvtColor(mask_full, cv2.COLOR_GRAY2BGR)
         elif show_mode == 6:
-            # 6:新規モード
-            image_to_show = image.copy()  # ここに新規モードの処理を追加
+            # 6:find_bottle_centerと同じマスク処理（青ボトル例）
+            color = "blue"  # 必要に応じて他色も切替可
+            color_mask = get_color_mask(image, color, pattern="bottle")
+            bottle_mask = control_preprocess_image(
+                color_mask,
+                use_hsv=False,
+                grayscale=False,
+                clahe=False,
+                blur_type="median",
+                blur_ksize=7,
+                binarize_mode=None,
+                noise_removal=["close7x7"]
+            )
+            # bottle_mask: 青部分のみ白(255)、他は黒(0)
+            image_to_show = cv2.merge([bottle_mask, bottle_mask, bottle_mask])
         else:
             image_to_show = image.copy()
 
@@ -202,7 +216,7 @@ def main():
             x = right_x - text_size[0]
             y = start_y + i * line_height
             cv2.putText(image_to_show, text, (x, y), font, font_scale, right_text_color, font_thickness, cv2.LINE_AA)
-        if show_mode in [3, 4, 5]:
+        if show_mode in [3, 4, 5, 6]:
             left_text_color = (255, 255, 255)
         else:
             left_text_color = (0, 0, 0)

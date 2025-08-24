@@ -89,6 +89,18 @@ class KeyboardController:
         """Restore terminal settings"""
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)  # type: ignore
 
+class StateFlags:
+    def __init__(self):
+        self.yellow_blocked = False
+        self.force_sensor_switched = False
+    def set_yellow_blocked(self, value: bool):
+        self.yellow_blocked = value
+    def is_yellow_blocked(self):
+        return self.yellow_blocked
+    def set_force_sensor_switched(self, value: bool):
+        self.force_sensor_switched = value
+    def is_force_sensor_switched(self):
+        return self.force_sensor_switched
 
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", course_type="upper", model_path=None):
     def nvidia_model_predict(model, et: ETRobot):
@@ -123,8 +135,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             return target_x, speeds, mode
         return None, (0, 0), default_mode
 
-    pre_target_x = (x1 + x2) // 2  # GATE_PASS用の前回値
-    yellow_blocked = False  # yellow中心利用停止フラグ
+    # yellow_blockedはstate_flagsで管理
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
 
@@ -185,38 +196,27 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             print("Continuing without NVIDIA model...")
             model = None
 
-    # Set initial mode to PAUSE (initial_mode/course-based logic is disabled)
-    # if initial_mode:
-    #     mode = initial_mode
-    # else:
-    #     mode = Mode.FOLLOW_LEFT_EDGE if course == "left" else Mode.FOLLOW_RIGHT_EDGE
     mode = Mode.PAUSE
+    state_flags = StateFlags()
+    pre_target_x = (x1 + x2) // 2
 
-    # Initialize robot, PID controller, and keyboard controller
     keyboard = KeyboardController()
     pid = PIDController(
-        Kp=50,  # Reduced from 50 to minimize zigzag behavior
-        Ki=0,  # Small integral term to eliminate steady-state error
-        Kd=5,  # Derivative term to smooth out rapid changes
+        Kp=50,
+        Ki=0,
+        Kd=5,
         setpoint=0,
-        output_limits=(
-            -BASE_SPEED,
-            BASE_SPEED,
-        ),  # Direct radian limits for steering correction
+        output_limits=(-BASE_SPEED, BASE_SPEED),
     )
 
-    # フレームカウンターとモデル予測結果を保持する変数
     frame_counter = 0
     last_nvidia_prediction = None
     last_nvidia_mode_prediction = None
     last_nvidia_prob = None
 
-    #et.move_arm(1, 1.0)  # アームを上げる（1: up）
-    #et.move_arm(0, 1.0)  # アームを下げる（0: down）
-    #et.move_arm(2, 0.5)  # アームを止める
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
-    # --- ここから未定義エラー防止のための宣言（関数スコープ） ---
+    # 変数初期化
     target_x = None
     offset_y = None
     theta = None
@@ -226,8 +226,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     mx = None
     my = None
     max_contour = None
-    # --- ここまで ---
-
     try:
         while et.is_running and keyboard.running:
             ret, frame = cap.read()
@@ -305,6 +303,17 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 except Exception as e:
                     print(f"Socket error: {e}")
                     break
+
+            # --- フォースセンサー押下でエッジ追従モード切替（1回のみ） ---
+            force_val = status.sensors.force
+            if not state_flags.is_force_sensor_switched() and force_val is not None and force_val > 0:
+                if course == "right":
+                    mode = Mode.FOLLOW_RIGHT_EDGE
+                    print("Force sensor pressed: Switched to FOLLOW_RIGHT_EDGE mode")
+                else:
+                    mode = Mode.FOLLOW_LEFT_EDGE
+                    print("Force sensor pressed: Switched to FOLLOW_LEFT_EDGE mode")
+                state_flags.set_force_sensor_switched(True)
 
             # Check for keyboard input to change behavior mode
             key = keyboard.get_key()
@@ -414,8 +423,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     elif yellow_pixel_count > 18000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
                         target_x = (x1 + x2) // 2
-                        yellow_blocked = True
-                    elif not yellow_blocked and yellow_pixel_count > 3000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
+                        state_flags.set_yellow_blocked(True)
+                    elif not state_flags.is_yellow_blocked() and yellow_pixel_count > 3000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
                         target_x = yellow_cx[0]  # X座標のみを取得
                     elif left_x is not None:
                         target_x = left_x
@@ -438,8 +447,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     elif yellow_pixel_count > 18000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
                         target_x = (x1 + x2) // 2
-                        yellow_blocked = True
-                    elif not yellow_blocked and yellow_pixel_count > 3000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
+                        state_flags.set_yellow_blocked(True)
+                    elif not state_flags.is_yellow_blocked() and yellow_pixel_count > 3000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         target_x = yellow_cx[0]  # X座標のみを取得
                     elif right_x is not None:
                         target_x = right_x
