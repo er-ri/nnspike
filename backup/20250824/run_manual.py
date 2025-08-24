@@ -404,7 +404,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.BLUE_BOTTLE_CATCH:
                     target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.blue_bottle_catch(frame))
                 case Mode.FOLLOW_LEFT_EDGE:
-                    yellow_cx, _, yellow_pixel_count = find_bottle_center(image=frame, color="yellow")
+                    yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, "yellow")
                     left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     # left_posが7000を超えたらNVIDIA_FOLLOWに切り替え
                     if left_pos is not None and abs(left_pos) >= 7000:
@@ -422,7 +422,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     else:
                         target_x = (x1 + x2) // 2
                 case Mode.FOLLOW_RIGHT_EDGE:
-                    yellow_cx, _, yellow_pixel_count = find_bottle_center(image=frame, color="yellow")
+                    yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, "yellow")
                     # シンプルに右モーターの相対位置はright_posを使う
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     # right_posが7000を超えたらNVIDIA_FOLLOWに切り替え
@@ -478,7 +478,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.heading_goal_relative(frame))
                 case Mode.FORWARD:
                     # 赤色重心に向かって進む（find_bottle_center使用）。イエロー・ブルー検知は行わない。
-                    red_cx, _, red_pixel_count = find_bottle_center(image=frame, color="red")
+                    red_cx, _, red_pixel_count = find_bottle_center(frame, "red")
                     if red_pixel_count > 3000:
                         if red_cx is not None:
                             target_x = red_cx[0]  # X座標のみを取得

@@ -439,7 +439,7 @@ class ActionChain(object):
             #if target_x is None:
             #    target_x = (self.x1 + self.x2) // 2
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-            _, _, red_pixel_count = find_bottle_center(image=image, color="red")
+            _, _, red_pixel_count = find_bottle_center(img=image, color="red")
             if red_pixel_count > 3000:
                 phase.next_phase()
                 # phase1用 右モーター相対位置記録（絶対値）
@@ -449,7 +449,7 @@ class ActionChain(object):
 
         # 1. 赤ボトル中心追従（右モーター相対位置差分が1000未満の間、赤ピクセル500未満なら中央。1000超えたらphase2へ、右モーター位置記録）
         if phase.get_phase() == 1:
-            center, _, red_px = find_bottle_center(image=image, color="red")
+            center, _, red_px = find_bottle_center(img=image, color="red")
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             # 右モーター相対位置差分で継続判定
@@ -699,7 +699,7 @@ class ActionChain(object):
 
         # 0. 赤ターゲット中心追従（青ピクセル数20000未満の間は赤中心追従、20000以上でphase1へ）
         if phase.get_phase() == 0:
-            _, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
+            _, _, blue_pixel_count = find_bottle_center(img=image, color="blue")
             if blue_pixel_count < 20000:
                 # 赤ターゲット中心追従
                 red_center_x = get_red_target_center_x(image)
@@ -710,7 +710,7 @@ class ActionChain(object):
 
         # 1. 青ボトル中心追従（青ピクセル数2000以上の間center追従、2000未満でphase2へ、右モーター位置記録）
         if phase.get_phase() == 1:
-            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
+            center, _, blue_pixel_count = find_bottle_center(img=image, color="blue")
             target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
             if blue_pixel_count >= 1000:
                 # 青ボトル中心x座標へ追従
@@ -723,7 +723,7 @@ class ActionChain(object):
 
         # 2. 右モーター200ユニット移動までcenter追従。200超えたらphase3へ、右モーター位置記録
         if phase.get_phase() == 2:
-            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
+            center, _, blue_pixel_count = find_bottle_center(img=image, color="blue")
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 200:
@@ -896,7 +896,7 @@ class ActionChain(object):
 
         # 12. 右モーター300ユニット移動までcenter追従。300超えたらphase13へ
         if phase.get_phase() == 12:
-            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
+            center, _, blue_pixel_count = find_bottle_center(img=image, color="blue")
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 300:

@@ -53,12 +53,12 @@ def get_line_edges_at_y(image, roi, target_y, threshold_value=80) -> Tuple[Optio
             return left_x, right_x, line_width
     return None, None, None  # ラインが検出できない場合
 
-def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
+def find_bottle_center(img, color, min_area: int = 500) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
     """
     指定色（yellow, blue, red）の物体中心座標・面積・色ピクセル数を返す。
     
     パラメータ:
-        image (np.ndarray): 入力画像（BGR）
+        img (np.ndarray): 入力画像（BGR）
         color (str): 検出色（'yellow', 'blue', 'red'）
         min_area (int): 輪郭面積の最小値（デフォルト500）
     前処理:
@@ -73,9 +73,9 @@ def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tupl
 
     if color not in ["yellow", "blue", "red"]:
         return None, None, 0
-    if image is None or image.size == 0:
+    if img is None or img.size == 0:
         return None, None, 0
-    color_mask = get_color_mask(image, color, pattern="bottle")
+    color_mask = get_color_mask(img, color, pattern="bottle")
     color_pixel_count = cv2.countNonZero(color_mask)
     bottle_mask = control_preprocess_image(
         color_mask,

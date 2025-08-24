@@ -70,9 +70,9 @@ def main():
 
         offset_y = OFFSET_Y
 
-        yellow_center_x, _, yellow_pixel_count = find_bottle_center(image, "yellow")
-        blue_center_x, _, blue_pixel_count = find_bottle_center(image, "blue")
-        red_center_x, _, red_pixel_count = find_bottle_center(image, "red")
+        yellow_center_x, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow")
+        blue_center_x, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
+        red_center_x, _, red_pixel_count = find_bottle_center(image=image, color="red")
 
         info = dict()
         info["target_x"] = target_x
@@ -163,6 +163,9 @@ def main():
                 noise_removal=["dilate", "close7x7"]
             )
             image_to_show = cv2.cvtColor(mask_full, cv2.COLOR_GRAY2BGR)
+        elif show_mode == 6:
+            # 6:新規モード
+            image_to_show = image.copy()  # ここに新規モードの処理を追加
         else:
             image_to_show = image.copy()
 
@@ -221,6 +224,8 @@ def main():
             show_mode = 4
         elif key == ord("5"):  # 5:緑除去＋control_preprocess_image（4と同じパラメータ）
             show_mode = 5
+        elif key == ord("6"):  # 6:新規モード
+            show_mode = 6
         elif key == ord("u"):  # Update dataframe
             df, index = read_label_data(label_path, image_path=image_path)
         elif key == ord("n"):  # Move to next frame
