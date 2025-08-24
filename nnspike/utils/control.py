@@ -3,15 +3,15 @@ from typing import Optional, Tuple
 import cv2
 import numpy as np
 
-def get_line_edges_at_y(image, roi, target_y, threshold=80) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def get_line_edges_at_y(image, roi, target_y, threshold_value=80) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """
     指定Y座標で黒ラインの左右端点（X座標）と幅を検出する。
     
     パラメータ:
-        image (np.ndarray): 入力画像（BGRまたはグレースケール）
-        roi (tuple): ROI（x1, y1, x2, y2）画像全体基準
-        target_y (int): 検出するY座標（画像全体基準）
-        threshold (int): 二値化閾値（デフォルト: 80）
+    image (np.ndarray): 入力画像（BGRまたはグレースケール）
+    roi (tuple): ROI（x1, y1, x2, y2）画像全体基準
+    target_y (int): 検出するY座標（画像全体基準）
+    threshold_value (int): 二値化閾値（デフォルト: 80）
     前処理:
         グレースケール化→ガウシアンブラー→二値化（binary_inv）→ノイズ除去→ROI抽出
     戻り値:
@@ -36,7 +36,7 @@ def get_line_edges_at_y(image, roi, target_y, threshold=80) -> Tuple[Optional[fl
         blur_type="gaussian",
         blur_ksize=5,
         binarize_mode="binary_inv",
-        binarize_value=threshold,
+        binarize_value=threshold_value,
         noise_removal=None
     )
     binary = mask_full[y1 : y2, x1 : x2]  # ROI抽出
