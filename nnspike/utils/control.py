@@ -569,7 +569,7 @@ def is_horizontal_black_line_detected(img, intersection_y=450, roi=(100, 300, 54
     x1, y1, x2, y2 = roi
 
     # 緑領域を白で塗りつぶし
-    img = fill_green_with_white(img)
+    #img = fill_green_with_white(img)
     # 前処理（グレースケール化・CLAHE・メディアンブラー・二値化・ノイズ除去）
     mask_full = control_preprocess_image(
         img,
@@ -630,7 +630,7 @@ def is_vertical_black_line_detected(img, roi=(200, 200, 440, 540), center_tolera
     x1, y1, x2, y2 = roi
 
     # 緑領域を白で塗りつぶし
-    img = fill_green_with_white(img)
+    #img = fill_green_with_white(img)
     # 前処理（グレースケール化・CLAHE・メディアンブラー・二値化・ノイズ除去）
     mask_full = control_preprocess_image(
         img,
