@@ -91,6 +91,7 @@ def wait_for_start(et, keyboard):
             if (force_val is not None and force_val > 0):
                 print("Start!")
                 started = True
+                first_key = "__force__"  # forceセンサーでスタートした場合はダミー値をセット
             # 有効なモードキーでスタート
             elif key is not None and keyboard.is_mode_key(key):
                 print("Start!")
