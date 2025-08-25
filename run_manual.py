@@ -144,6 +144,8 @@ def wait_for_start(et, keyboard, state_flags):
     return first_key
 
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", course_type="upper"):
+    def reset_frame_vars():
+        return None, None, None, None, None, None, None, None, None
 
     def unpack_action_result(result, default_mode=Mode.PAUSE):
         # Noneや不正な戻り値も吸収して安全にアンパック
@@ -215,9 +217,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         ),  # Direct radian limits for steering correction
     )
 
-    # フレームカウンターとモデル予測結果を保持する変数
-    frame_counter = 0
-
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
     first_key = wait_for_start(et, keyboard, state_flags)
@@ -226,15 +225,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         return
 
     # --- ここから未定義エラー防止のための宣言（関数スコープ） ---
-    target_x = None
-    offset_y = None
-    theta = None
-    steering_correction = None
-    left_speed = None
-    right_speed = None
-    mx = None
-    my = None
-    max_contour = None
+    target_x, offset_y, theta, steering_correction, left_speed, right_speed, mx, my, max_contour = reset_frame_vars()
     # --- ここまで ---
 
     try:
@@ -260,8 +251,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         print("\nForce sensor pressed: Switched to FOLLOW_LEFT_EDGE mode")
                     state_flags.set_force_sensor_switched(True)
 
-            # NVIDIA関連の推論・変数・分岐を完全削除
-
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
                 sensor_recorder.log_frame_data(status, mode)
@@ -272,7 +261,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             # Send video stream and driving info if enabled (must be after frame, target_x, etc. are set)
             if send_video_stream and client_socket is not None:
-
                 info = dict()
                 # target_x, offset_yがNoneの場合は0にして送信（video/可視化側でNoneを扱わない）
                 safe_target_x = int(target_x) if isinstance(target_x, (int, float)) and target_x is not None else 0
@@ -324,15 +312,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 print(msg)
 
             # --- ここから未定義エラー防止のための初期化 ---
-            target_x = None
-            offset_y = None
-            theta = None
-            steering_correction = None
-            left_speed = None
-            right_speed = None
-            mx = None
-            my = None
-            max_contour = None
+            target_x, offset_y, theta, steering_correction, left_speed, right_speed, mx, my, max_contour = reset_frame_vars()
             # --- ここまで ---
 
             match mode:
@@ -383,8 +363,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         target_x = (x1 + x2) // 2
                 case Mode.AVOID_OBSTACLE:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.avoid_obstacle_relative(frame))
-                case Mode.TURN_LEFT:
-                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.turn_left())
                 case Mode.SMALL_TURN_LEFT:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.small_turn_left())
                 case Mode.HIGH_SPEED:

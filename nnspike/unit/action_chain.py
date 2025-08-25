@@ -159,36 +159,6 @@ class ActionChain(object):
             target_x = (self.x1 + self.x2) // 2
         return target_x
 
-    def turn_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
-        """左旋回アクション.
-
-        1.5秒間、左モータ:0・右モータ:30で旋回し、1.5秒経過後にPAUSEへ遷移。
-        戻り値: (None, (左速度, 右速度), モード)
-        """
-        self.start_time = time.time() if self.start_time == 0.0 else self.start_time
-        self.current_time = time.time()
-
-        elapsed_time = self.current_time - self.start_time
-        if elapsed_time < 1.5:
-            return None, (0, 30), Mode.TURN_LEFT
-        self.start_time = 0.0
-        return None, None, Mode.PAUSE
-
-    def trun_right(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
-        """右旋回アクション.
-
-        1.5秒間、左モータ:30・右モータ:0で旋回し、1.5秒経過後にPAUSEへ遷移。
-        戻り値: (None, (左速度, 右速度), モード)
-        """
-        self.start_time = time.time() if self.start_time == 0.0 else self.start_time
-        self.current_time = time.time()
-
-        elapsed_time = self.current_time - self.start_time
-        if elapsed_time < 1.5:
-            return None, (30, 0), Mode.TURN_RIGHT
-        self.start_time = 0.0
-        return None, None, Mode.PAUSE
-
     def small_turn_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """短時間（0.3秒）左旋回アクション.
 
