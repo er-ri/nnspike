@@ -5,28 +5,29 @@ OpenCV-Based Line Following Robot Control
 This script controls a line-following robot using OpenCV for image processing
 instead of neural network predictions. It uses the get_line_edges_at_y function
 to detect the line centroid and follows it using PID control.
-
+    
 Speed Tuning Parameters:
-- BASE_SPEED: Base speed for straight lines (start here)
+        - BASE_SPEED: Base speed for straight lines (start here)
 
 PID Tuning Parameters:
-- Kp, Ki, Kd: Standard PID parameters for steering correction
-  * Kp (Proportional): Controls immediate response to error
-    - Too high: Causes zigzag/oscillation
-    - Too low: Slow response, may not follow turns
-    - Start with: 10-20 for line following
-  * Ki (Integral): Eliminates steady-state error
-    - Too high: Causes instability and overshoot
-    - Too low: Robot may drift to one side
-    - Start with: 0.1-1.0
-  * Kd (Derivative): Smooths out rapid changes
-    - Too high: Sensitive to noise, erratic behavior
-    - Too low: May overshoot on turns
-    - Start with: 2-10
+        - Kp, Ki, Kd: Standard PID parameters for steering correction
+            * Kp (Proportional): Controls immediate response to error
+                - Too high: Causes zigzag/oscillation
+                - Too low: Slow response, may not follow turns
+                - Start with: 10-20 for line following
+            * Ki (Integral): Eliminates steady-state error
+                - Too high: Causes instability and overshoot
+                - Too low: Robot may drift to one side
+                - Start with: 0.1-1.0
+            * Kd (Derivative): Smooths out rapid changes
+                - Too high: Sensitive to noise, erratic behavior
+                - Too low: May overshoot on turns
+                - Start with: 2-10
 """
 import argparse
 import math
 import pickle
+import sys
 
 # Platform-specific imports for keyboard input (Raspberry Pi only)
  # import select（未使用のため削除）
@@ -118,7 +119,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     )
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
-    import sys
     # --- フォースセンサー起動時チェック（初期化後1秒待機して再取得、表示は1回のみ） ---
     try:
         status_init = et.get_spike_status()
