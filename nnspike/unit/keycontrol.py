@@ -27,7 +27,7 @@ class KeyboardController:
         if key == "q":
             self.running = False
             print("Quitting...")
-            return current_mode
+            return Mode.PAUSE
         elif key == "a":
             print("Switched to following: left edge")
             return Mode.FOLLOW_LEFT_EDGE
