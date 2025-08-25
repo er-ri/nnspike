@@ -146,9 +146,15 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             status = et.get_spike_status()
             force_val = getattr(status.sensors, "force", None)
             key = keyboard.get_key()
-            if (force_val is not None and force_val > 0) or (key is not None and keyboard.get_mode_from_key(key, Mode.PAUSE) != Mode.PAUSE):
+            # forceセンサー or 有効なモードキーのみスタート
+            if (force_val is not None and force_val > 0):
                 print("Start!")
                 started = True
+            elif key is not None:
+                mode_from_key = keyboard.get_mode_from_key(key, Mode.PAUSE)
+                if mode_from_key != Mode.PAUSE:
+                    print("Start!")
+                    started = True
             if not keyboard.running:
                 print("Quitting before start. Exiting...")
                 et.stop()
