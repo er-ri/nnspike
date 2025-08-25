@@ -74,6 +74,41 @@ class StateFlags:
     def is_force_sensor_switched(self):
         return self.force_sensor_switched
 
+def wait_for_start(et, keyboard):
+    """
+    forceセンサーまたは有効なモードキーでスタート
+    終了時は first_key を返す
+    """
+    print("Press the force sensor or any mode key to start...")
+    started = False
+    first_key = None
+    try:
+        while not started and keyboard.running:
+            status = et.get_spike_status()
+            force_val = getattr(status.sensors, "force", None)
+            key = keyboard.get_key()
+            # forceセンサー押下でスタート
+            if (force_val is not None and force_val > 0):
+                print("Start!")
+                started = True
+            # 有効なモードキーでスタート
+            elif key is not None and keyboard.is_mode_key(key):
+                print("Start!")
+                first_key = key
+                started = True
+            if not keyboard.running:
+                print("Quitting before start. Exiting...")
+                et.stop()
+                keyboard.cleanup()
+                return None
+            time.sleep(0.01)
+    except KeyboardInterrupt:
+        print("Interrupted before start. Exiting...")
+        et.stop()
+        keyboard.cleanup()
+        return None
+    return first_key
+
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", course_type="upper"):
 
     def unpack_action_result(result, default_mode=Mode.PAUSE):
@@ -179,35 +214,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     except Exception:
         print("Force sensor check failed. Please check hardware.")
 
-    print("Press the force sensor or any mode key to start...")
-    started = False
-    first_key = None
-    try:
-        while not started and keyboard.running:
-            status = et.get_spike_status()
-            force_val = getattr(status.sensors, "force", None)
-            key = keyboard.get_key()
-            # forceセンサー押下でスタート
-            if (force_val is not None and force_val > 0):
-                print("Start!")
-                started = True
-            # 有効なモードキーでスタート
-            elif key is not None and keyboard.is_mode_key(key):
-                print("Start!")
-                first_key = key
-                started = True
-            if not keyboard.running:
-                print("Quitting before start. Exiting...")
-                et.stop()
-                cap.release()
-                keyboard.cleanup()
-                return
-            time.sleep(0.01)
-    except KeyboardInterrupt:
-        print("Interrupted before start. Exiting...")
-        et.stop()
+    first_key = wait_for_start(et, keyboard)
+    if first_key is None:
         cap.release()
-        keyboard.cleanup()
         return
 
     # --- ここから未定義エラー防止のための宣言（関数スコープ） ---
