@@ -237,22 +237,21 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     print("Press the force sensor or any mode key to start...")
     started = False
-    # 有効なモードキーは keycontrol.py の get_mode_from_key で判定
     try:
         while not started and keyboard.running:
             status = et.get_spike_status()
             force_val = getattr(status.sensors, "force", None)
             key = keyboard.get_key()
-            mode_from_key = None
-            if key is not None:
-                mode_from_key = keyboard.get_mode_from_key(key, Mode.PAUSE)
-            # forceセンサー or 有効なモードキーのみスタート（get_mode_from_keyは1回のみ呼ぶ）
+            # forceセンサー押下でスタート
             if (force_val is not None and force_val > 0):
                 print("Start!")
                 started = True
-            elif mode_from_key is not None and mode_from_key != Mode.PAUSE:
+            # 有効なモードキー（a/d/h/l/f/j/k/i/o/b/g/e/u/1/2/3/4/5/6/7/8/p/n/q）でスタート
+            elif key is not None and key in [
+                "a", "d", "h", "l", "f", "j", "k", "i", "o", "b", "g", "e", "u", "1", "2", "3", "4", "5", "6", "7", "8", "p", "n", "q"
+            ]:
                 print("Start!")
-                mode = mode_from_key  # スタート時に希望モードにセット
+                # modeは後続のキー判定で切り替わるためここではセットしない
                 started = True
             if not keyboard.running:
                 print("Quitting before start. Exiting...")
