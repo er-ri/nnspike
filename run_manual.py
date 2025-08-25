@@ -127,9 +127,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             status_init = et.get_spike_status()
             force_val_init = getattr(status_init.sensors, "force", None)
         if force_val_init is not None:
-            print("Force sensor is active. You can press it anytime to switch edge-following mode.")
+            print("Force sensor is active. You can press it anytime to switch edge-following mode.\n")
         else:
-            print("Force sensor is NOT detected. Please check connection.")
+            print("Force sensor is NOT detected. Please check connection.\n")
     except Exception:
         print("Force sensor check failed. Please check hardware.")
 
