@@ -277,7 +277,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.turn_left_relative(frame))
                 case Mode.TURN_RIGHT_RELATIVE:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.turn_right_relative(frame))
-                    print(f"[DEBUG] TURN_RIGHT_RELATIVE action result mode: {mode}")
                 case Mode.BLUE_BOTTLE_CATCH:
                     target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.blue_bottle_catch(frame))
                 case Mode.FOLLOW_LEFT_EDGE:
