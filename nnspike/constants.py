@@ -3,6 +3,15 @@ from enum import Enum
 
 # Region of Interest for CNN model
 ROI_CNN = (0, 0, 640, 480)
+ROI_VIRTUAL = (100, 100, 540, 330)
+ROI_LOOP = (100, 200, 540, 480)
+ROI_LINE_LEFT = (0, 80, 140, 420)
+ROI_LINE_HORIZON1 = (200, 50, 440, 540)
+ROI_LINE_HORIZON2 = (100, 300, 540, 540)
+ROI_LINE_HORIZON3 = (250, 300, 390, 540)
+ROI_LINE_VERTICAL1 = (200, 200, 440, 540)
+ROI_LINE_VERTICAL2 = (100, 200, 540, 540)
+
 OFFSET_Y = 470  # 0.20 meters to the ground
 
 # Base speed for robot movement (used throughout action logic)

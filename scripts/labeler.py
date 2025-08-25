@@ -21,11 +21,22 @@ from nnspike.utils import (
     is_x320_on_red_target,  # 画像中央x=320付近で赤ターゲット検出
     get_red_target_center_x,  # 赤ターゲット中心x座標取得
     is_left_black_line_detected,  # 左黒ライン検出
-    is_horizontal_black_line_detected,  # 水平黒ライン検出
+    is_lower_horizontal_line_detected,  # 下部水平黒ライン検出
     is_vertical_black_line_detected,  # 垂直黒ライン検出
-    is_general_horizontal_line_detected,  # 一般的な水平黒ライン検出
+    is_upper_horizontal_line_detected,  # 上部水平黒ライン検出
     get_blue_line_pixel,  # 青オブジェクト面積検出
     get_color_mask,  # 色マスク生成
+)
+from nnspike.constants import (
+    ROI_CNN,
+    ROI_VIRTUAL,
+    ROI_LOOP,
+    ROI_LINE_LEFT,
+    ROI_LINE_HORIZON1,
+    ROI_LINE_HORIZON2,
+    ROI_LINE_HORIZON3,
+    ROI_LINE_VERTICAL1,
+    ROI_LINE_VERTICAL2
 )
 
 
@@ -55,8 +66,22 @@ def main():
     label_path = args.label_data
     df, _ = read_label_data(label_path)
 
+
     show_mode = 1  # 1:元画像, 2:fill_green_with_white, 3:fill_green_with_white+control_preprocess_image
     index = 0
+    roi_mode = 0  # 0:なし, 1以降はROI枠
+    roi_list = [
+        None,
+        ROI_VIRTUAL,
+        ROI_LOOP,
+        ROI_LINE_LEFT,
+        ROI_LINE_HORIZON1,
+        ROI_LINE_HORIZON2,
+        ROI_LINE_HORIZON3,
+        ROI_LINE_VERTICAL1,
+        ROI_LINE_VERTICAL2
+    ]
+    show_info_text = True  # 0キーで切り替え
     while True:
         if index < 0:
             index = 0
@@ -104,23 +129,20 @@ def main():
         right_info.append(f"get_red_target_center_x: {get_red_target_center_x(image)}")
         course_value = row["course"] if "course" in row else "left"
         right_info.append(f"is_left_black_line_detected(course={course_value}): {is_left_black_line_detected(image, course_value)}")
-        right_info.append(f"is_general_horizontal_line_detected: {is_general_horizontal_line_detected(image)}")
-        right_info.append(f"is_horizontal_black_line_detected: {is_horizontal_black_line_detected(image, intersection_y=450, roi=(250, 300, 390, 540))}")
-        right_info.append(f"is_vertical_black_line_detected: {is_vertical_black_line_detected(image, roi=(100, 200, 540, 540), center_tolerance=120)}")
+        right_info.append(f"is_upper_horizontal_line_detected: {is_upper_horizontal_line_detected(image)}")
+        right_info.append(f"is_lower_horizontal_line_detected: {is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3)}")
+        right_info.append(f"is_vertical_black_line_detected: {is_vertical_black_line_detected(image, roi=ROI_LINE_VERTICAL2, center_tolerance=120)}")
         right_info.append(f"get_is_blue_line_at_y: {get_is_blue_line_at_y(image)}")
         right_info.append(f"get_blue_line_pixel: {get_blue_line_pixel(image)}")
         info["right_info"] = right_info
 
         # 画像表示モード切替（if/elif/else構造で正しく分岐）
         if show_mode == 1:
-            # 1:元画像
             image_to_show = image.copy()
         elif show_mode == 2:
-            # 2:緑除去のみ
             image_to_show = fill_green_with_white(image)
         elif show_mode == 3:
-            # 3:前処理（ユーザー指定のcontrol_preprocess_imageパラメータ）
-            threshold = 80  # 必要なら他の値に変更可
+            threshold = 80
             mask_full = control_preprocess_image(
                 image,
                 use_hsv=False,
@@ -134,7 +156,6 @@ def main():
             )
             image_to_show = cv2.cvtColor(mask_full, cv2.COLOR_GRAY2BGR)
         elif show_mode == 4:
-            # 4:仮想ライン用（get_virtual_line_target_xと同じ前処理）
             mask_full = control_preprocess_image(
                 image,
                 use_hsv=False,
@@ -149,7 +170,6 @@ def main():
             )
             image_to_show = cv2.cvtColor(mask_full, cv2.COLOR_GRAY2BGR)
         elif show_mode == 5:
-            # 5:その他ライン判定（指定パラメータで前処理）
             img = fill_green_with_white(image)
             mask_full = control_preprocess_image(
                 img,
@@ -165,8 +185,7 @@ def main():
             )
             image_to_show = cv2.cvtColor(mask_full, cv2.COLOR_GRAY2BGR)
         elif show_mode == 6:
-            # 6:find_bottle_centerと同じマスク処理（青ボトル例）
-            color = "blue"  # 必要に応じて他色も切替可
+            color = "blue"
             color_mask = get_color_mask(image, color, pattern="bottle")
             bottle_mask = control_preprocess_image(
                 color_mask,
@@ -178,10 +197,37 @@ def main():
                 binarize_mode=None,
                 noise_removal=["close7x7"]
             )
-            # bottle_mask: 青部分のみ白(255)、他は黒(0)
             image_to_show = cv2.merge([bottle_mask, bottle_mask, bottle_mask])
         else:
             image_to_show = image.copy()
+
+        # ROI枠の描画（黄色）
+        if roi_mode > 0 and roi_list[roi_mode] is not None:
+            rx1, ry1, rx2, ry2 = roi_list[roi_mode]
+            cv2.rectangle(image_to_show, (rx1, ry1), (rx2, ry2), (0, 255, 255), 2)
+            # ROI名称を右上隅（外側）に黄色文字で描画
+            roi_names = [
+                "ROI_VIRTUAL",
+                "ROI_LOOP",
+                "ROI_LINE_LEFT",
+                "ROI_LINE_HORIZON1",
+                "ROI_LINE_HORIZON2",
+                "ROI_LINE_HORIZON3",
+                "ROI_LINE_VERTICAL1",
+                "ROI_LINE_VERTICAL2"
+            ]
+            # ROI枠の右上隅（外側）にROI名称を黄色文字で描画
+            if roi_mode > 0 and roi_list[roi_mode] is not None:
+                roi_name = roi_names[roi_mode - 1] if 1 <= roi_mode <= len(roi_names) else ""
+                rx1, ry1, rx2, ry2 = roi_list[roi_mode]
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = 0.5  # y=300等と同じ
+                font_thickness = 1
+                text_size, _ = cv2.getTextSize(roi_name, font, font_scale, font_thickness)
+                # 文字の右端がROI右端直線(rx2)と揃うようにx座標を調整
+                text_x = rx2 - text_size[0]
+                text_y = ry1 - 5 if ry1 - 5 > text_size[1] else ry1 + text_size[1] + 5
+                cv2.putText(image_to_show, roi_name, (text_x, text_y), font, font_scale, (0, 255, 255), font_thickness, cv2.LINE_AA)
 
         x_center = image_to_show.shape[1] // 2
         font = cv2.FONT_HERSHEY_SIMPLEX
@@ -205,49 +251,56 @@ def main():
         text_x_y = 20
         cv2.putText(image_to_show, text_x_label, (text_x_x, text_x_y), font, font_scale, (0, 255, 255), font_thickness, cv2.LINE_AA)
 
-        # 右端にright_infoを表示
-        right_x = image_to_show.shape[1] - 10
-        start_y = 40
-        line_height = 18
-        # 右側テキストカラーは従来通り
-        right_text_color = (255, 128, 0)
-        for i, text in enumerate(info["right_info"]):
-            text_size, _ = cv2.getTextSize(text, font, font_scale, font_thickness)
-            x = right_x - text_size[0]
-            y = start_y + i * line_height
-            cv2.putText(image_to_show, text, (x, y), font, font_scale, right_text_color, font_thickness, cv2.LINE_AA)
-        if show_mode in [3, 4, 5, 6]:
-            left_text_color = (255, 255, 255)
-        else:
-            left_text_color = (0, 0, 0)
-
-        # 左側テキストカラーはノーマル画像なら黒、白黒反転時は白
-        image_to_show = draw_driving_info(image_to_show, info, ROI_CNN, text_color=left_text_color)
+        if show_info_text:
+            # 右端にright_infoを表示
+            right_x = image_to_show.shape[1] - 10
+            start_y = 40
+            line_height = 18
+            right_text_color = (255, 128, 0)
+            for i, text in enumerate(info["right_info"]):
+                text_size, _ = cv2.getTextSize(text, font, font_scale, font_thickness)
+                x = right_x - text_size[0]
+                y = start_y + i * line_height
+                cv2.putText(image_to_show, text, (x, y), font, font_scale, right_text_color, font_thickness, cv2.LINE_AA)
+            if show_mode in [3, 4, 5, 6]:
+                left_text_color = (255, 255, 255)
+            else:
+                left_text_color = (0, 0, 0)
+            # 左側テキストカラーはノーマル画像なら黒、白黒反転時は白
+            image_to_show = draw_driving_info(image_to_show, info, ROI_CNN, text_color=left_text_color)
         cv2.imshow('ETRobot Viewer', image_to_show)
 
         key = cv2.waitKey(0) & 0xFF
         if key == ord("q"):
             break
-        elif key == ord("1"):  # 1:元画像
+        elif key == ord("1"):
             show_mode = 1
-        elif key == ord("2"):  # 2:緑白塗り画像
+        elif key == ord("2"):
             show_mode = 2
-        elif key == ord("3"):  # 3:緑白塗り＋前処理画像
+        elif key == ord("3"):
             show_mode = 3
-        elif key == ord("4"):  # 4:control_preprocess_imageのみ
+        elif key == ord("4"):
             show_mode = 4
-        elif key == ord("5"):  # 5:緑除去＋control_preprocess_image（4と同じパラメータ）
+        elif key == ord("5"):
             show_mode = 5
-        elif key == ord("6"):  # 6:新規モード
+        elif key == ord("6"):
             show_mode = 6
-        elif key == ord("u"):  # Update dataframe
+        elif key == ord("a"):
+            roi_mode = (roi_mode + 1) % len(roi_list)  # 0→1→2→...→0で切り替え
+        elif key == ord("d"):
+            roi_mode = (roi_mode - 1) % len(roi_list)  # 逆順切り替え
+        elif key == ord("u"):
             df, index = read_label_data(label_path, image_path=image_path)
-        elif key == ord("n"):  # Move to next frame
+        elif key == ord("n"):
             index += 1
-        elif key == ord("m"):  # 100フレーム先にジャンプ
+        elif key == ord("."):
             index = min(index + 100, len(df) - 1)
-        elif key == ord("b"):  # Move to previous frame
+        elif key == ord(","):
+            index = max(index - 100, 0)
+        elif key == ord("b"):
             index -= 1
+        elif key == ord("0"):
+            show_info_text = not show_info_text
 
     cv2.destroyAllWindows()
 

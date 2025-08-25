@@ -4,7 +4,7 @@ from typing import Optional, Tuple  # 型ヒント用
 import numpy as np  # 画像処理用
 
 # 定数・モード・ROI設定
-from nnspike.constants import OFFSET_Y, ROI_CNN, Mode, BASE_SPEED
+from nnspike.constants import OFFSET_Y, ROI_CNN, Mode, BASE_SPEED, ROI_LINE_HORIZON3, ROI_LINE_VERTICAL2
 
 # --- 閾値定数（全体で統一管理） ---
 BLUE_AREA_MAX_THRESHOLD = 18000
@@ -28,9 +28,9 @@ from nnspike.utils.control import (
     is_x320_on_red_target,  # 画像中央x=320付近で赤ターゲット検出
     get_red_target_center_x,  # 赤ターゲット中心x座標取得
     is_left_black_line_detected,  # 左黒ライン検出
-    is_horizontal_black_line_detected,  # 水平黒ライン検出
+    is_lower_horizontal_line_detected,  # 下部水平黒ライン検出
     is_vertical_black_line_detected,  # 垂直黒ライン検出
-    is_general_horizontal_line_detected,  # 一般的な水平黒ライン検出
+    is_upper_horizontal_line_detected,  # 上部水平黒ライン検出
     get_blue_line_pixel,  # 青オブジェクト面積検出
 )
 
@@ -352,7 +352,7 @@ class ActionChain(object):
                     return None, (70, 40), Mode.AVOID_OBSTACLE
                 else:
                     return None, (40, 70), Mode.AVOID_OBSTACLE
-            if is_horizontal_black_line_detected(image, intersection_y=450, roi=(250, 300, 390, 540)):
+            if is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
@@ -386,7 +386,7 @@ class ActionChain(object):
                 else:
                     return None, (60, 30), Mode.AVOID_OBSTACLE
             elif distance < 500:
-                if is_vertical_black_line_detected(image, roi=(100, 200, 540, 540), center_tolerance=120):
+                if is_vertical_black_line_detected(image, roi=ROI_LINE_VERTICAL2, center_tolerance=120):
                     phase.next_phase()
                 else:
                     if self.course == "right":
@@ -947,7 +947,7 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             minimum_position_reached = position_diff >= 200
             position_limit_reached = position_diff >= 500
-            horizontal_line_detected = is_general_horizontal_line_detected(image)
+            horizontal_line_detected = is_upper_horizontal_line_detected(image)
             # 最低200ユニットは必ず旋回
             if not minimum_position_reached:
                 if self.course == "right":
@@ -991,7 +991,7 @@ class ActionChain(object):
 
         # 0. intersection_y=450で黒水平ライン検出まで中央追従（距離制限なし）。検出でphase1へ、右モーター位置記録。
         if phase.get_phase() == 0:
-            if is_horizontal_black_line_detected(image, intersection_y=450):
+            if is_lower_horizontal_line_detected(image, intersection_y=450):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
