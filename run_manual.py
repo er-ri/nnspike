@@ -287,13 +287,20 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             # --- フォースセンサー押下でエッジ追従モード切替（1回のみ） ---
             force_val = status.sensors.force
+            if force_val == 1:
+                print("Force Sensor: PRESSED   ", end='\r')
+            elif force_val == 0:
+                print("Force Sensor: RELEASED  ", end='\r')
+            else:
+                print(f"Force Sensor: UNKNOWN ({force_val})", end='\r')
+
             if not state_flags.is_force_sensor_switched() and force_val is not None and force_val > 0:
                 if course == "right":
                     mode = Mode.FOLLOW_RIGHT_EDGE
-                    print("Force sensor pressed: Switched to FOLLOW_RIGHT_EDGE mode")
+                    print("\nForce sensor pressed: Switched to FOLLOW_RIGHT_EDGE mode")
                 else:
                     mode = Mode.FOLLOW_LEFT_EDGE
-                    print("Force sensor pressed: Switched to FOLLOW_LEFT_EDGE mode")
+                    print("\nForce sensor pressed: Switched to FOLLOW_LEFT_EDGE mode")
                 state_flags.set_force_sensor_switched(True)
 
             # Check for keyboard input to change behavior mode
