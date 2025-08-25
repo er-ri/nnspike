@@ -89,6 +89,19 @@ class KeyboardController:
         """Restore terminal settings"""
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)  # type: ignore
 
+# StateFlagsクラス（バックアップより）
+class StateFlags:
+    def __init__(self):
+        self.yellow_blocked = False
+        self.force_sensor_switched = False
+    def set_yellow_blocked(self, value: bool):
+        self.yellow_blocked = value
+    def is_yellow_blocked(self):
+        return self.yellow_blocked
+    def set_force_sensor_switched(self, value: bool):
+        self.force_sensor_switched = value
+    def is_force_sensor_switched(self):
+        return self.force_sensor_switched
 
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", course_type="upper", model_path=None):
     def nvidia_model_predict(model, et: ETRobot):
@@ -124,7 +137,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         return None, (0, 0), default_mode
 
     pre_target_x = (x1 + x2) // 2  # GATE_PASS用の前回値
-    yellow_blocked = False  # yellow中心利用停止フラグ
+    state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
 
@@ -475,8 +488,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     elif yellow_pixel_count > 18000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
                         target_x = (x1 + x2) // 2
-                        yellow_blocked = True
-                    elif not yellow_blocked and yellow_pixel_count > 3000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
+                        state_flags.set_yellow_blocked(True)
+                    elif not state_flags.is_yellow_blocked() and yellow_pixel_count > 3000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
                         target_x = yellow_cx[0]  # X座標のみを取得
                     elif left_x is not None:
                         target_x = left_x
@@ -499,8 +512,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     elif yellow_pixel_count > 18000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
                         target_x = (x1 + x2) // 2
-                        yellow_blocked = True
-                    elif not yellow_blocked and yellow_pixel_count > 3000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
+                        state_flags.set_yellow_blocked(True)
+                    elif not state_flags.is_yellow_blocked() and yellow_pixel_count > 3000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         target_x = yellow_cx[0]  # X座標のみを取得
                     elif right_x is not None:
                         target_x = right_x
