@@ -29,29 +29,18 @@ import math
 import pickle
 
 # Platform-specific imports for keyboard input (Raspberry Pi only)
-import select
+ # import select（未使用のため削除）
 import socket
 import struct
-import sys
+ # import sys（未使用のため削除）
 import time
-
-import termios
-import tty
 
 import cv2
 import numpy as np
-import torch
 import nnspike
-from nnspike.unit import ETRobot, ActionChain, WebcamVideoStream
-from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode, NUM_MODES
+from nnspike.unit import ETRobot, ActionChain, WebcamVideoStream, KeyboardController
+from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x
-from scripts.utils import process_image, model_inference, load_optimized_model
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# Enable QNNPACK for optimal performance on ARM processors (Raspberry Pi)
-torch.backends.quantized.engine = "qnnpack"
-
 
 # User defined constants
 x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
@@ -64,25 +53,6 @@ HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry P
 
 # Camera/video setup (WebcamVideoStreamで一元管理)
 ## TIMESTAMP生成はmain関数内に集約
-
-
-class KeyboardController:
-    def __init__(self):
-        self.running = True
-        self.current_key = None
-        self.old_settings = termios.tcgetattr(sys.stdin)  # type: ignore
-        tty.setraw(sys.stdin.fileno())  # type: ignore
-
-    def get_key(self):
-        """Get a single keypress"""
-        if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-            key = sys.stdin.read(1).lower()
-            return key
-        return None
-
-    def cleanup(self):
-        """Restore terminal settings"""
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)  # type: ignore
 
 class StateFlags:
     def __init__(self):
@@ -97,25 +67,7 @@ class StateFlags:
     def is_force_sensor_switched(self):
         return self.force_sensor_switched
 
-def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", course_type="upper", model_path=None):
-    def nvidia_model_predict(model, et: ETRobot):
-        """NVIDIAモデルによる予測を行う。ノートブックテスト結果を反映した安定版"""
-        try:
-            roi_area = process_image(image=frame, device=device, roi=(x1, y1, x2, y2))
-            
-            # ETRobot.retrieve_motors_relative_position()は1つの値（int）を返す
-            # 両モーターの絶対値の合計: motor_a_position + motor_b_position
-            relative_position = et.retrieve_motors_relative_position()
-            scaled_relative_position = relative_position / RELATIVE_POSITION_SCALE
-            tensor_relative_position = torch.tensor([scaled_relative_position], dtype=torch.float32).unsqueeze(0).to(device)
-            
-            # model_inference関数を使用（torch.no_grad()は関数内で実行される）
-            nvidia_prediction, (nvidia_mode_prediction, nvidia_prob) = model_inference(model, roi_area, tensor_relative_position)
-            
-            return nvidia_prediction, nvidia_mode_prediction, nvidia_prob
-        except Exception as e:
-            print(f"NVIDIA model prediction error: {e}")
-            return None, None, None
+def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", course_type="upper"):
 
     def unpack_action_result(result, default_mode=Mode.PAUSE):
         # Noneや不正な戻り値も吸収して安全にアンパック
@@ -154,6 +106,17 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     # Initialize edge following preference based on the course parameter
     et = ETRobot()
     action_chain = ActionChain(et, course, course_type)
+    mode = Mode.PAUSE
+    state_flags = StateFlags()
+    keyboard = KeyboardController()
+    pid = PIDController(
+        Kp=50,
+        Ki=0,
+        Kd=5,
+        setpoint=0,
+        output_limits=(-BASE_SPEED, BASE_SPEED),
+    )
+    et.set_motor_relative_position(left_positon=0, right_position=0)
 
     # --- フォースセンサー起動時チェック（初期化後1秒待機して再取得、表示は1回のみ） ---
     try:
@@ -170,45 +133,24 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     except Exception:
         print("Force sensor check failed. Please check hardware.")
 
-    # Initialize NVIDIA model if enabled
-    model = None
-    if model_path:
-        print(f"Loading NVIDIA model from: {model_path}")
-        try:
-            model = load_optimized_model(model_path, device)
-            model.eval()
-            print("SUCCESS: NVIDIA model loaded successfully")
-            total_params = sum(p.numel() for p in model.parameters())
-            # 実際のクラス数をmode_classifier.weight.shape[0]から取得
-            if hasattr(model, 'mode_classifier') and hasattr(model.mode_classifier, 'weight'):
-                actual_classes = model.mode_classifier.weight.shape[0]
-            else:
-                actual_classes = 'Unknown'
-            print(f"Model parameters: {total_params:,}, Classes: {actual_classes}")
-        except Exception as e:
-            print(f"ERROR: Error loading NVIDIA model: {e}")
-            print("Continuing without NVIDIA model...")
-            model = None
-
-    mode = Mode.PAUSE
-    state_flags = StateFlags()
-    pre_target_x = (x1 + x2) // 2
-
-    keyboard = KeyboardController()
-    pid = PIDController(
-        Kp=50,
-        Ki=0,
-        Kd=5,
-        setpoint=0,
-        output_limits=(-BASE_SPEED, BASE_SPEED),
-    )
-
-    frame_counter = 0
-    last_nvidia_prediction = None
-    last_nvidia_mode_prediction = None
-    last_nvidia_prob = None
-
-    et.set_motor_relative_position(left_positon=0, right_position=0)
+    print("Press the force sensor or any mode key to start...")
+    started = False
+    # 有効なモードキーは keycontrol.py の get_mode_from_key で判定
+    try:
+        while not started:
+            status = et.get_spike_status()
+            force_val = getattr(status.sensors, "force", None)
+            key = keyboard.get_key()
+            if (force_val is not None and force_val > 0) or (key is not None and keyboard.get_mode_from_key(key, Mode.PAUSE) != Mode.PAUSE):
+                print("Start!")
+                started = True
+            time.sleep(0.05)
+    except KeyboardInterrupt:
+        print("Interrupted before start. Exiting...")
+        et.stop()
+        vs.stop()
+        keyboard.cleanup()
+        return
 
     # 変数初期化
     target_x = None
@@ -220,6 +162,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     mx = None
     my = None
     max_contour = None
+    pre_target_x = (x1 + x2) // 2
+
     try:
         while et.is_running and keyboard.running:
             ret, frame = vs.read()
@@ -227,16 +171,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
             
-            key = keyboard.get_key()
-
             # 毎ループ1回だけstatusを取得
             status = et.get_spike_status()
             left_pos = status.motors["A"].relative_position
             right_pos = status.motors["B"].relative_position
 
             # --- フォースセンサー押下でエッジ追従モード切替（1回のみ） ---
-            force_val = status.sensors.force
-            if not state_flags.is_force_sensor_switched() and force_val is not None and force_val > 0:
+            if not state_flags.is_force_sensor_switched() and status.sensors.force is not None and status.sensors.force > 0:
                 if course == "right":
                     mode = Mode.FOLLOW_RIGHT_EDGE
                     print("\nForce sensor pressed: Switched to FOLLOW_RIGHT_EDGE mode")
@@ -245,37 +186,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     print("\nForce sensor pressed: Switched to FOLLOW_LEFT_EDGE mode")
                 state_flags.set_force_sensor_switched(True)
 
-            if mode == Mode.PAUSE:
-                et.brake()
-                continue  # PAUSE時は以降の処理を全てスキップ
-
-            # NVIDIAモデル予測をright_posが22000以下の時のみ実行（フレームスキップで負荷軽減）
-            nvidia_prediction = None
-            nvidia_mode_prediction = None
-            nvidia_prob = None
-            frame_counter += 1
-            
-            # 3フレームに1回だけモデル予測を実行（負荷軽減）
-            if model is not None:
-                if course == "left":
-                    pos_check = left_pos
-                else:
-                    pos_check = right_pos
-                if (pos_check is None or abs(pos_check) <= 22000) and frame_counter % 3 == 0:
-                    last_nvidia_prediction, last_nvidia_mode_prediction, last_nvidia_prob = nvidia_model_predict(model, et)
-            
-            # 最新の予測結果を使用
-            nvidia_prediction = last_nvidia_prediction
-            nvidia_mode_prediction = last_nvidia_mode_prediction
-            nvidia_prob = last_nvidia_prob
-
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
                 sensor_recorder.log_frame_data(status, mode)
 
             # Save video frame if enabled (WebcamVideoStreamで管理)
-            if save_camera_video:
-                vs.write(frame)
+            # vs.write(frame) は未実装または不要
 
             # Send video stream and driving info if enabled (must be after frame, target_x, etc. are set)
             if send_video_stream and client_socket is not None:
@@ -315,80 +231,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     print(f"Socket error: {e}")
                     break
 
-            # Check for keyboard input to change behavior mode
-            if key == "q":  # 'q' key to quit
-                print("Quitting...")
-                keyboard.running = False
+
+            key = keyboard.get_key()
+            mode = keyboard.get_mode_from_key(key, mode)
+            if not keyboard.running:
                 break
-            elif key == "a":
-                mode = Mode.FOLLOW_LEFT_EDGE
-                print("Switched to following: left edge")
-            elif key == "d":
-                mode = Mode.FOLLOW_RIGHT_EDGE
-                print("Switched to following: right edge")
-            elif key == "h":
-                mode = Mode.HIGH_SPEED
-                print("Switched to HIGH_SPEED mode")
-            elif key == "l":
-                mode = Mode.TURN_LEFT
-                print("Switched to turn left mode")
-            elif key == "f":
-                mode = Mode.FORWARD
-                print("Switched to forward mode")
-            elif key == "j":
-                mode = Mode.SMALL_TURN_LEFT
-                print("Switched to small turn left mode")
-            elif key == "k":
-                mode = Mode.SMALL_TURN_RIGHT
-                print("Switched to small turn right mode")
-            elif key == "i":
-                mode = Mode.TURN_LEFT_RELATIVE
-                print("Switched to turn left (relative) mode")
-            elif key == "o":
-                mode = Mode.TURN_RIGHT_RELATIVE
-                print("Switched to turn right (relative) mode")
-            elif key == "b":
-                mode = Mode.BACKWARD
-                print("Switched to backward mode")
-            elif key == "g":
-                mode = Mode.GATE_PASS
-                print("Switched to gate pass mode")
-            elif key == "e":
-                mode = Mode.EYE_BLUE
-                print("Switched to blue eyes mode")
-            elif key == "u":
-                mode = Mode.BLUE_BOTTLE_CATCH
-                print("Switched to blue bottle catch mode")
-            elif key == "1":
-                mode = Mode.DOUBLE_LOOP
-                print("Switched to double loop mode")
-            elif key == "2":
-                mode = Mode.AVOID_OBSTACLE
-                print("Switched to obstacle avoidance mode")
-            elif key == "3":
-                mode = Mode.CARRY_BOTTLE1
-                print("Switched to bottle carrying 1 mode")
-            elif key == "4":
-                mode = Mode.BACK_AND_TURN1
-                print("Switched to back and turn 1 mode")
-            elif key == "5":
-                mode = Mode.CARRY_BOTTLE2
-                print("Switched to bottle carrying 2 mode")
-            elif key == "6":
-                mode = Mode.BACK_AND_TURN2
-                print("Switched to back and turn 2 mode")
-            elif key == "7":
-                mode = Mode.HEAD_GOAL
-                print("Switched to heading goal mode")
-            elif key == "8" or key == "p":
-                mode = Mode.PAUSE
-                print("Pausing robot")
-            elif key == "n":
-                if model is not None:
-                    mode = Mode.NVIDIA_FOLLOW
-                    print("Switched to NVIDIA model following mode")
-                else:
-                    print("NVIDIA model not available")
 
             # --- ここから未定義エラー防止のための初期化 ---
             target_x = None
@@ -433,16 +280,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     yellow_cx, _, yellow_pixel_count = find_bottle_center(image=frame, color="yellow")
                     # シンプルに右モーターの相対位置はright_posを使う
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                    # right_posが7000を超えたらNVIDIA_FOLLOWに切り替え
+                    # right_posが7000を超えたらDOUBLE_LOOPに切り替え
                     if right_pos is not None and abs(right_pos) >= 7000:
-                        if model is not None:
-                            mode = Mode.NVIDIA_FOLLOW
-                            target_x = (x1 + x2) // 2
-                            print("Switched to NVIDIA_FOLLOW mode")
-                        else:
-                            mode = Mode.DOUBLE_LOOP
-                            target_x = (x1 + x2) // 2
-                            print("Switched to DOUBLE_LOOP mode (left_pos >= 7000)")
+                        mode = Mode.DOUBLE_LOOP
+                        target_x = (x1 + x2) // 2
+                        print("Switched to DOUBLE_LOOP mode (right_pos >= 7000)")
                     elif yellow_pixel_count > 18000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
                         target_x = (x1 + x2) // 2
@@ -508,7 +350,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         pre_target_x = target_x
                 case Mode.EYE_BLUE:
                     # ブルーアイズ（青重心）に向かう: find_blue_target_centerを使用
-                    center, area, blue_pixel_count = find_blue_target_center(frame, gray_ellipse_enable=False)
+                    center, area, blue_pixel_count = find_blue_target_center(frame)
                     if center is not None:
                         target_x = center[0]
                     else:
@@ -521,34 +363,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
-                case Mode.NVIDIA_FOLLOW:
-                    # courseによってCARRY_BOTTLE1への切り替え判定を分岐
-                    if course == "left":
-                        if left_pos is not None and abs(left_pos) > 22000:
-                            mode = Mode.CARRY_BOTTLE1
-                            print(f"Left position {abs(left_pos)} > 22000, switching to CARRY_BOTTLE1")
-                        else:
-                            if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:
-                                # 左コース: 左エッジならright_x
-                                _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                                target_x = right_x if right_x is not None else (x1 + x2) // 2
-                            else:
-                                # 左コース: 右エッジならleft_x
-                                left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                                target_x = left_x if left_x is not None else (x1 + x2) // 2
-                    else:
-                        if right_pos is not None and abs(right_pos) > 22000:
-                            mode = Mode.CARRY_BOTTLE1
-                            print(f"Right position {abs(right_pos)} > 22000, switching to CARRY_BOTTLE1")
-                        else:
-                            if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:
-                                # 右コース: 左エッジならleft_x
-                                left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                                target_x = left_x if left_x is not None else (x1 + x2) // 2
-                            else:
-                                # 右コース: 右エッジならright_x
-                                _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                                target_x = right_x if right_x is not None else (x1 + x2) // 2
                 case _:
                     # Default to center if invalid edge specified
                     target_x = (x1 + x2) // 2
@@ -570,14 +384,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 # Create a simple contour for visualization (approximate target point)
                 max_contour = np.array([[[mx, my]]], dtype=np.int32)
 
-                theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use simplified speed control
-                # HIGH_SPEEDモードのときはbase_speedを上書きしない
-                if mode != Mode.HIGH_SPEED:
-                    # pos_checkの値によってbase_speedを変更
-                    if 'pos_check' in locals() and pos_check is not None and abs(pos_check) < 22000:
-                        current_base_speed = 50
-                    else:
-                        current_base_speed = BASE_SPEED
+                theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)
+                # HIGH_SPEEDモード以外はBASE_SPEEDを使用
+                if mode == Mode.HIGH_SPEED:
+                    current_base_speed = 100
+                else:
+                    current_base_speed = BASE_SPEED
 
                 steering_correction = pid.update(theta)
 
@@ -625,16 +437,12 @@ if __name__ == "__main__":
     parser.add_argument("--send-video", action="store_true", help="Send video stream to host PC")
     parser.add_argument("--course", choices=["left", "right"], default="right", help="Initial course to follow: 'left' for left edge, 'right' for right edge (default: right)")
     parser.add_argument("--course-type", choices=["upper", "lower"], default="upper", help="Course type: 'upper' or 'lower' (default: upper)")
-    parser.add_argument("--model-path", help="Path to the trained NVIDIA model file (enables NVIDIA model)")
 
     args = parser.parse_args()
     print("Starting OpenCV-based line following robot...")
     print(f"Using ROI: {ROI_CNN}")
     print(f"Base speed: {BASE_SPEED}")
     print(f"course: {args.course}")
-    print(f"NVIDIA model: {'Enabled' if args.model_path else 'Disabled'}")
-    if args.model_path:
-        print(f"Model path: {args.model_path}")
     print(f"Video streaming to host PC: {'Enabled' if args.send_video else 'Disabled'}")
     print("Controls:")
     print("  'a' - Follow left edge")
@@ -644,8 +452,6 @@ if __name__ == "__main__":
     print("  'k' - Small turn left")
     print("  'j' - Small turn right")
     print("  'f' - Forward")
-    if args.model_path:
-        print("  'n' - NVIDIA model following")
     print("  'q' - Quit")
     print("Press Ctrl+C to stop")
 
@@ -655,5 +461,4 @@ if __name__ == "__main__":
         send_video_stream=args.send_video,
         course=args.course,
         course_type=args.course_type,
-        model_path=args.model_path,
     )
