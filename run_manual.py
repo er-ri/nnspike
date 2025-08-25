@@ -157,10 +157,14 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     et = ETRobot()
     action_chain = ActionChain(et, course, course_type)
 
-    # --- フォースセンサー起動時チェック（main関数開始時に集約） ---
+    # --- フォースセンサー起動時チェック（初期化後1秒待機して再取得、表示は1回のみ） ---
     try:
         status_init = et.get_spike_status()
         force_val_init = getattr(status_init.sensors, "force", None)
+        if force_val_init is None:
+            time.sleep(1)
+            status_init = et.get_spike_status()
+            force_val_init = getattr(status_init.sensors, "force", None)
         if force_val_init is not None:
             print("Force sensor is active. You can press it anytime to switch edge-following mode.")
         else:
