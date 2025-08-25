@@ -32,16 +32,18 @@ def main():
         while True:
             status = et.get_spike_status()
             force_val = getattr(status.sensors, "force", None)
-            if not state_switched and force_val is not None and force_val > 0:
-                print("\nForce sensor pressed: Switched mode (edge-following or similar)")
-                state_switched = True
-            if force_val == 1:
+            if force_val is not None and force_val > 0:
+                if not state_switched:
+                    print("\nForce sensor pressed: Switched mode (edge-following or similar)")
+                    state_switched = True
                 print("Force Sensor: PRESSED   ", end='\r')
             elif force_val == 0:
                 print("Force Sensor: RELEASED  ", end='\r')
+                state_switched = False
             else:
                 print(f"Force Sensor: UNKNOWN ({force_val})", end='\r')
-            time.sleep(0.2)
+                state_switched = False
+            time.sleep(0.05)
     except KeyboardInterrupt:
         print("\nテスト終了。")
         et.stop()
