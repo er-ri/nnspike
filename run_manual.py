@@ -76,9 +76,28 @@ class StateFlags:
 
 def wait_for_start(et, keyboard):
     """
-    forceセンサーまたは有効なモードキーでスタート
-    終了時は first_key を返す
+    起動時にフォースセンサーの接続状態を確認し、
+    フォースセンサーまたは有効なモードキーでロボットをスタートさせる。
+    終了時は first_key（最初に押されたキーまたはforceセンサー）を返す。
     """
+    try:
+        status_init = et.get_spike_status()
+        force_val_init = getattr(status_init.sensors, "force", None)
+        if force_val_init is None:
+            time.sleep(1)
+            status_init = et.get_spike_status()
+            force_val_init = getattr(status_init.sensors, "force", None)
+        if force_val_init is not None:
+            print("Force sensor is active. You can press it anytime to switch edge-following mode.")
+            print("\r", end="")
+            sys.stdout.flush()
+        else:
+            print("Force sensor is NOT detected. Please check connection.")
+            print("\r", end="")
+            sys.stdout.flush()
+    except Exception:
+        print("Force sensor check failed. Please check hardware.")
+
     print("Press the force sensor or any mode key to start...")
     started = False
     first_key = None
@@ -167,12 +186,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     et = ETRobot()
     action_chain = ActionChain(et, course, course_type)
 
-
-    # Set initial mode to PAUSE (initial_mode/course-based logic is disabled)
-    # if initial_mode:
-    #     mode = initial_mode
-    # else:
-    #     mode = Mode.FOLLOW_LEFT_EDGE if course == "left" else Mode.FOLLOW_RIGHT_EDGE
     mode = Mode.PAUSE
 
     # Initialize robot, PID controller, and keyboard controller
@@ -191,29 +204,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     # フレームカウンターとモデル予測結果を保持する変数
     frame_counter = 0
 
-    #et.move_arm(1, 1.0)  # アームを上げる（1: up）
-    #et.move_arm(0, 1.0)  # アームを下げる（0: down）
-    #et.move_arm(2, 0.5)  # アームを止める
     et.set_motor_relative_position(left_positon=0, right_position=0)
-
-    # --- フォースセンサー起動時チェック（初期化後1秒待機して再取得、表示は1回のみ） ---
-    try:
-        status_init = et.get_spike_status()
-        force_val_init = getattr(status_init.sensors, "force", None)
-        if force_val_init is None:
-            time.sleep(1)
-            status_init = et.get_spike_status()
-            force_val_init = getattr(status_init.sensors, "force", None)
-        if force_val_init is not None:
-            print("Force sensor is active. You can press it anytime to switch edge-following mode.")
-            print("\r", end="")
-            sys.stdout.flush()
-        else:
-            print("Force sensor is NOT detected. Please check connection.")
-            print("\r", end="")
-            sys.stdout.flush()
-    except Exception:
-        print("Force sensor check failed. Please check hardware.")
 
     first_key = wait_for_start(et, keyboard)
     if first_key is None:
