@@ -141,8 +141,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         sensor_recorder = SensorRecorder(timestamp=TIMESTAMP)
         sensor_recorder.start_recording()  # Initialize video writer conditionally
 
-
-
     client_socket = None
     if send_video_stream:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
