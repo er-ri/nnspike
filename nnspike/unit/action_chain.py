@@ -375,7 +375,7 @@ class ActionChain(object):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
-        # phase2: 左旋回（250未満は(40,70)/(70,40)、250以上350未満は垂直黒ライン検出で即phase4へ、350以上は強制的にphase4へ）
+        # phase3: 左旋回（50未満は(30,60)/(60,30)、500未満は(30,60)/(60,30)、500以上で次フェーズへ。500未満かつ垂直黒ライン検出で次フェーズへ）
         if phase.get_phase() == 3:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
@@ -396,7 +396,7 @@ class ActionChain(object):
             else:
                 phase.next_phase()
 
-        # phase3: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
+        # phase4: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
         if phase.get_phase() == 4:
             self.reset_action()
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
@@ -447,17 +447,12 @@ class ActionChain(object):
                     return None, (70, 40), Mode.AVOID_OBSTACLE
                 else:
                     return None, (40, 70), Mode.AVOID_OBSTACLE
-            if is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3):
+            else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
-            else:
-                if self.course == "right":
-                    return None, (70, 40), Mode.AVOID_OBSTACLE
-                else:
-                    return None, (40, 70), Mode.AVOID_OBSTACLE
 
-        # phase2: 左旋回（250未満は(40,70)/(70,40)、250以上350未満は垂直黒ライン検出で即phase4へ、350以上は強制的にphase4へ）
-        if phase.get_phase() == 3:
+        # phase2: 左旋回（250未満は(40,70)/(70,40)、250以上350未満は垂直黒ライン検出で即phase3へ、350以上は強制的にphase3へ）
+        if phase.get_phase() == 2:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             distance = abs(current_pos - position_start)
@@ -466,16 +461,14 @@ class ActionChain(object):
                     return None, (30, 60), Mode.AVOID_OBSTACLE
                 else:
                     return None, (60, 30), Mode.AVOID_OBSTACLE
-            elif distance < 300:
-                if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
-                    phase.next_phase()
+            elif distance < 500:
+                if self.course == "right":
+                    return None, (30, 60), Mode.AVOID_OBSTACLE
                 else:
-                    if self.course == "right":
-                        return None, (30, 60), Mode.AVOID_OBSTACLE
-                    else:
-                        return None, (60, 30), Mode.AVOID_OBSTACLE
+                    return None, (60, 30), Mode.AVOID_OBSTACLE
+            else:
+                phase.next_phase()
 
-        # phase3: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
         if phase.get_phase() == 3:
             self.reset_action()
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
