@@ -580,7 +580,7 @@ def is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HO
     x1, y1, x2, y2 = roi
 
     # 緑領域を白で塗りつぶし
-    #image = fill_green_with_white(image)
+    image = fill_green_with_white(image)
     # 前処理（グレースケール化・CLAHE・メディアンブラー・二値化・ノイズ除去）
     mask_full = control_preprocess_image(
         image,
