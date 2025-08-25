@@ -15,10 +15,14 @@ def main():
     try:
         while True:
             status = et.get_spike_status()
-            print(f"status.sensors: {status.sensors}")  # force以外も表示
             force_val = getattr(status.sensors, "force", None)
-            print(f"Force Sensor Value: {force_val}", end='\r')
-            time.sleep(0.5)
+            if force_val == 1:
+                print("[押下] Force Sensor: 1 (押されています)   ", end='\r')
+            elif force_val == 0:
+                print("[未押下] Force Sensor: 0 (押されていません) ", end='\r')
+            else:
+                print(f"[不明] Force Sensor: {force_val}                ", end='\r')
+            time.sleep(0.2)
     except KeyboardInterrupt:
         print("\nテスト終了。")
         et.stop()
