@@ -190,16 +190,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
 
-            # PAUSEモード時はet.brake()のみ実行し、他の処理は完全スキップ
-            if mode == Mode.PAUSE:
-                et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                et.brake()
-                key = keyboard.get_key()
-                mode = keyboard.get_mode_from_key(key, mode)
-                if not keyboard.running:
-                    break
-                continue
-
             # 毎ループ1回だけstatusを取得
             status = et.get_spike_status()
             left_pos = status.motors["A"].relative_position
@@ -261,7 +251,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     break
 
             key = keyboard.get_key()
-            mode = keyboard.get_mode_from_key(key, mode)
+            # キーが押された時だけmodeを変更する（Noneなら維持）
+            if key is not None:
+                mode = keyboard.get_mode_from_key(key, mode)
             if not keyboard.running:
                 break
             # --- ここから未定義エラー防止のための初期化 ---
