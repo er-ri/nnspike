@@ -128,8 +128,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             force_val_init = getattr(status_init.sensors, "force", None)
         if force_val_init is not None:
             print("Force sensor is active. You can press it anytime to switch edge-following mode.")
+            print()
         else:
             print("Force sensor is NOT detected. Please check connection.")
+            print()
     except Exception:
         print("Force sensor check failed. Please check hardware.")
 
