@@ -79,6 +79,36 @@ class KeyboardController:
         """Restore terminal settings"""
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)  # type: ignore
 
+    def get_mode_from_key(self, key):
+        """キー入力からモードとメッセージを返す。quit判定も含む"""
+        if key == "q":
+            return "quit", "Quitting..."
+        keymap = {
+            "a": (Mode.FOLLOW_LEFT_EDGE, "Switched to following: left edge"),
+            "d": (Mode.FOLLOW_RIGHT_EDGE, "Switched to following: right edge"),
+            "h": (Mode.HIGH_SPEED, "Switched to HIGH_SPEED mode"),
+            "l": (Mode.TURN_LEFT, "Switched to turn left mode"),
+            "f": (Mode.FORWARD, "Switched to forward mode"),
+            "j": (Mode.SMALL_TURN_LEFT, "Switched to small turn left mode"),
+            "k": (Mode.SMALL_TURN_RIGHT, "Switched to small turn right mode"),
+            "i": (Mode.TURN_LEFT_RELATIVE, "Switched to turn left (relative) mode"),
+            "o": (Mode.TURN_RIGHT_RELATIVE, "Switched to turn right (relative) mode"),
+            "b": (Mode.BACKWARD, "Switched to backward mode"),
+            "g": (Mode.GATE_PASS, "Switched to gate pass mode"),
+            "e": (Mode.EYE_BLUE, "Switched to blue eyes mode"),
+            "u": (Mode.BLUE_BOTTLE_CATCH, "Switched to blue bottle catch mode"),
+            "1": (Mode.DOUBLE_LOOP, "Switched to double loop mode"),
+            "2": (Mode.AVOID_OBSTACLE, "Switched to obstacle avoidance mode"),
+            "3": (Mode.CARRY_BOTTLE1, "Switched to bottle carrying 1 mode"),
+            "4": (Mode.BACK_AND_TURN1, "Switched to back and turn 1 mode"),
+            "5": (Mode.CARRY_BOTTLE2, "Switched to bottle carrying 2 mode"),
+            "6": (Mode.BACK_AND_TURN2, "Switched to back and turn 2 mode"),
+            "7": (Mode.HEAD_GOAL, "Switched to heading goal mode"),
+            "8": (Mode.PAUSE, "Pausing robot"),
+            "p": (Mode.PAUSE, "Pausing robot"),
+        }
+        return keymap.get(key, (None, None))
+    
 # StateFlagsクラス（バックアップより）
 class StateFlags:
     def __init__(self):
@@ -324,74 +354,14 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 state_flags.set_first_key_used(True)
             else:
                 key = keyboard.get_key()
-            if key == "q":  # 'q' key to quit
-                print("Quitting...")
+            mode_result, msg = keyboard.get_mode_from_key(key)
+            if mode_result == "quit":
+                print(msg)
                 keyboard.running = False
                 break
-            elif key == "a":
-                mode = Mode.FOLLOW_LEFT_EDGE
-                print("Switched to following: left edge")
-            elif key == "d":
-                mode = Mode.FOLLOW_RIGHT_EDGE
-                print("Switched to following: right edge")
-            elif key == "h":
-                mode = Mode.HIGH_SPEED
-                print("Switched to HIGH_SPEED mode")
-            elif key == "l":
-                mode = Mode.TURN_LEFT
-                print("Switched to turn left mode")
-            elif key == "f":
-                mode = Mode.FORWARD
-                print("Switched to forward mode")
-            elif key == "j":
-                mode = Mode.SMALL_TURN_LEFT
-                print("Switched to small turn left mode")
-            elif key == "k":
-                mode = Mode.SMALL_TURN_RIGHT
-                print("Switched to small turn right mode")
-            elif key == "i":
-                mode = Mode.TURN_LEFT_RELATIVE
-                print("Switched to turn left (relative) mode")
-            elif key == "o":
-                mode = Mode.TURN_RIGHT_RELATIVE
-                print("Switched to turn right (relative) mode")
-            elif key == "b":
-                mode = Mode.BACKWARD
-                print("Switched to backward mode")
-            elif key == "g":
-                mode = Mode.GATE_PASS
-                print("Switched to gate pass mode")
-            elif key == "e":
-                mode = Mode.EYE_BLUE
-                print("Switched to blue eyes mode")
-            elif key == "u":
-                mode = Mode.BLUE_BOTTLE_CATCH
-                print("Switched to blue bottle catch mode")
-            elif key == "1":
-                mode = Mode.DOUBLE_LOOP
-                print("Switched to double loop mode")
-            elif key == "2":
-                mode = Mode.AVOID_OBSTACLE
-                print("Switched to obstacle avoidance mode")
-            elif key == "3":
-                mode = Mode.CARRY_BOTTLE1
-                print("Switched to bottle carrying 1 mode")
-            elif key == "4":
-                mode = Mode.BACK_AND_TURN1
-                print("Switched to back and turn 1 mode")
-            elif key == "5":
-                mode = Mode.CARRY_BOTTLE2
-                print("Switched to bottle carrying 2 mode")
-            elif key == "6":
-                mode = Mode.BACK_AND_TURN2
-                print("Switched to back and turn 2 mode")
-            elif key == "7":
-                mode = Mode.HEAD_GOAL
-                print("Switched to heading goal mode")
-            elif key == "8" or key == "p":
-                mode = Mode.PAUSE
-                print("Pausing robot")
-            # 'n'キーによるNVIDIA_FOLLOWモード切替を一時的に削除
+            elif mode_result is not None:
+                mode = mode_result
+                print(msg)
 
             # --- ここから未定義エラー防止のための初期化 ---
             target_x = None
