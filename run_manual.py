@@ -192,9 +192,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 print("Start!")
                 started = True
             # 有効なモードキーでスタート
-            elif key is not None and key in [
-                "a", "d", "h", "l", "f", "j", "k", "i", "o", "b", "g", "e", "u", "1", "2", "3", "4", "5", "6", "7", "8", "p", "n", "q"
-            ]:
+            elif key is not None and keyboard.is_mode_key(key):
                 print("Start!")
                 first_key = key
                 started = True

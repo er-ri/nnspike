@@ -10,6 +10,11 @@ class KeyboardController:
         self.current_key = None
         self.old_settings = termios.tcgetattr(sys.stdin)  # type: ignore
         tty.setraw(sys.stdin.fileno())  # type: ignore
+        # 有効なモードキーリスト（run_manual.pyから移動）
+        self._mode_keys = set([
+            "a", "d", "h", "l", "f", "j", "k", "i", "o", "b", "g", "e", "u",
+            "1", "2", "3", "4", "5", "6", "7", "8", "p", "n", "q"
+        ])
 
     def get_key(self):
         """Get a single keypress"""
@@ -17,6 +22,12 @@ class KeyboardController:
             key = sys.stdin.read(1).lower()
             return key
         return None
+
+    def is_mode_key(self, key):
+        """
+        有効なモードキーかどうか判定
+        """
+        return key in self._mode_keys
 
     def cleanup(self):
         """Restore terminal settings"""
