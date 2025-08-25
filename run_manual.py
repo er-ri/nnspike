@@ -157,6 +157,17 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     et = ETRobot()
     action_chain = ActionChain(et, course, course_type)
 
+    # --- フォースセンサー起動時チェック（main関数開始時に集約） ---
+    try:
+        status_init = et.get_spike_status()
+        force_val_init = getattr(status_init.sensors, "force", None)
+        if force_val_init is not None:
+            print("Force sensor is active. You can press it anytime to switch edge-following mode.")
+        else:
+            print("Force sensor is NOT detected. Please check connection.")
+    except Exception:
+        print("Force sensor check failed. Please check hardware.")
+
     # Initialize NVIDIA model if enabled
     model = None
     if model_path:
@@ -287,13 +298,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             # --- フォースセンサー押下でエッジ追従モード切替（1回のみ） ---
             force_val = status.sensors.force
-            if force_val == 1:
-                print("Force Sensor: PRESSED   ", end='\r')
-            elif force_val == 0:
-                print("Force Sensor: RELEASED  ", end='\r')
-            else:
-                print(f"Force Sensor: UNKNOWN ({force_val})", end='\r')
-
             if not state_flags.is_force_sensor_switched() and force_val is not None and force_val > 0:
                 if course == "right":
                     mode = Mode.FOLLOW_RIGHT_EDGE
