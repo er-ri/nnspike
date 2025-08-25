@@ -133,6 +133,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     except Exception:
         print("Force sensor check failed. Please check hardware.")
 
+    print()
     print("Press the force sensor or any mode key to start...")
     started = False
     # 有効なモードキーは keycontrol.py の get_mode_from_key で判定
