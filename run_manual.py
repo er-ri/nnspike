@@ -137,13 +137,19 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     started = False
     # 有効なモードキーは keycontrol.py の get_mode_from_key で判定
     try:
-        while not started:
+        while not started and keyboard.running:
             status = et.get_spike_status()
             force_val = getattr(status.sensors, "force", None)
             key = keyboard.get_key()
             if (force_val is not None and force_val > 0) or (key is not None and keyboard.get_mode_from_key(key, Mode.PAUSE) != Mode.PAUSE):
                 print("Start!")
                 started = True
+            if not keyboard.running:
+                print("Quitting before start. Exiting...")
+                et.stop()
+                vs.stop()
+                keyboard.cleanup()
+                return
             time.sleep(0.05)
     except KeyboardInterrupt:
         print("Interrupted before start. Exiting...")
