@@ -1,7 +1,7 @@
-import select
 import sys
 import termios
 import tty
+import select
 from nnspike.constants import Mode
 
 class KeyboardController:
@@ -22,76 +22,32 @@ class KeyboardController:
         """Restore terminal settings"""
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)  # type: ignore
 
-    def get_mode_from_key(self, key, current_mode):
-        """キー入力に応じてモードを返す。変更がなければcurrent_modeを返す"""
-        # 以前のロジック：全モードでキーによるモード変更が可能
-        if key is None:
-            return current_mode
+    def get_mode_from_key(self, key):
+        """キー入力からモードとメッセージを返す。quit判定も含む"""
         if key == "q":
-            self.running = False
-            print("Quitting...")
-            return Mode.PAUSE
-        elif key == "a":
-            print("Switched to following: left edge")
-            return Mode.FOLLOW_LEFT_EDGE
-        elif key == "d":
-            print("Switched to following: right edge")
-            return Mode.FOLLOW_RIGHT_EDGE
-        elif key == "h":
-            print("Switched to HIGH_SPEED mode")
-            return Mode.HIGH_SPEED
-        elif key == "l":
-            print("Switched to turn left mode")
-            return Mode.TURN_LEFT
-        elif key == "f":
-            print("Switched to forward mode")
-            return Mode.FORWARD
-        elif key == "j":
-            print("Switched to small turn left mode")
-            return Mode.SMALL_TURN_LEFT
-        elif key == "k":
-            print("Switched to small turn right mode")
-            return Mode.SMALL_TURN_RIGHT
-        elif key == "i":
-            print("Switched to turn left (relative) mode")
-            return Mode.TURN_LEFT_RELATIVE
-        elif key == "o":
-            print("Switched to turn right (relative) mode")
-            return Mode.TURN_RIGHT_RELATIVE
-        elif key == "b":
-            print("Switched to backward mode")
-            return Mode.BACKWARD
-        elif key == "g":
-            print("Switched to gate pass mode")
-            return Mode.GATE_PASS
-        elif key == "e":
-            print("Switched to blue eyes mode")
-            return Mode.EYE_BLUE
-        elif key == "u":
-            print("Switched to blue bottle catch mode")
-            return Mode.BLUE_BOTTLE_CATCH
-        elif key == "1":
-            print("Switched to double loop mode")
-            return Mode.DOUBLE_LOOP
-        elif key == "2":
-            print("Switched to obstacle avoidance mode")
-            return Mode.AVOID_OBSTACLE
-        elif key == "3":
-            print("Switched to bottle carrying 1 mode")
-            return Mode.CARRY_BOTTLE1
-        elif key == "4":
-            print("Switched to back and turn 1 mode")
-            return Mode.BACK_AND_TURN1
-        elif key == "5":
-            print("Switched to bottle carrying 2 mode")
-            return Mode.CARRY_BOTTLE2
-        elif key == "6":
-            print("Switched to back and turn 2 mode")
-            return Mode.BACK_AND_TURN2
-        elif key == "7":
-            print("Switched to heading goal mode")
-            return Mode.HEAD_GOAL
-        elif key == "8" or key == "p":
-            print("Pausing robot")
-            return Mode.PAUSE
-        return current_mode
+            return "quit", "Quitting..."
+        keymap = {
+            "a": (Mode.FOLLOW_LEFT_EDGE, "Switched to following: left edge"),
+            "d": (Mode.FOLLOW_RIGHT_EDGE, "Switched to following: right edge"),
+            "h": (Mode.HIGH_SPEED, "Switched to HIGH_SPEED mode"),
+            "l": (Mode.TURN_LEFT, "Switched to turn left mode"),
+            "f": (Mode.FORWARD, "Switched to forward mode"),
+            "j": (Mode.SMALL_TURN_LEFT, "Switched to small turn left mode"),
+            "k": (Mode.SMALL_TURN_RIGHT, "Switched to small turn right mode"),
+            "i": (Mode.TURN_LEFT_RELATIVE, "Switched to turn left (relative) mode"),
+            "o": (Mode.TURN_RIGHT_RELATIVE, "Switched to turn right (relative) mode"),
+            "b": (Mode.BACKWARD, "Switched to backward mode"),
+            "g": (Mode.GATE_PASS, "Switched to gate pass mode"),
+            "e": (Mode.EYE_BLUE, "Switched to blue eyes mode"),
+            "u": (Mode.BLUE_BOTTLE_CATCH, "Switched to blue bottle catch mode"),
+            "1": (Mode.DOUBLE_LOOP, "Switched to double loop mode"),
+            "2": (Mode.AVOID_OBSTACLE, "Switched to obstacle avoidance mode"),
+            "3": (Mode.CARRY_BOTTLE1, "Switched to bottle carrying 1 mode"),
+            "4": (Mode.BACK_AND_TURN1, "Switched to back and turn 1 mode"),
+            "5": (Mode.CARRY_BOTTLE2, "Switched to bottle carrying 2 mode"),
+            "6": (Mode.BACK_AND_TURN2, "Switched to back and turn 2 mode"),
+            "7": (Mode.HEAD_GOAL, "Switched to heading goal mode"),
+            "8": (Mode.PAUSE, "Pausing robot"),
+            "p": (Mode.PAUSE, "Pausing robot"),
+        }
+        return keymap.get(key, (None, None))

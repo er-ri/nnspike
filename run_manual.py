@@ -36,13 +36,12 @@ import time
 
 import termios
 import tty
+from nnspike.unit import ETRobot, ActionChain, KeyboardController
 
 import cv2
 import numpy as np
 import nnspike
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode, NUM_MODES
-from nnspike.unit import ETRobot
-from nnspike.unit.action_chain import ActionChain
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x
 
 # User defined constants
@@ -61,53 +60,7 @@ cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
 
-class KeyboardController:
-    def __init__(self):
-        self.running = True
-        self.current_key = None
-        self.old_settings = termios.tcgetattr(sys.stdin)  # type: ignore
-        tty.setraw(sys.stdin.fileno())  # type: ignore
-
-    def get_key(self):
-        """Get a single keypress"""
-        if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-            key = sys.stdin.read(1).lower()
-            return key
-        return None
-
-    def cleanup(self):
-        """Restore terminal settings"""
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)  # type: ignore
-
-    def get_mode_from_key(self, key):
-        """キー入力からモードとメッセージを返す。quit判定も含む"""
-        if key == "q":
-            return "quit", "Quitting..."
-        keymap = {
-            "a": (Mode.FOLLOW_LEFT_EDGE, "Switched to following: left edge"),
-            "d": (Mode.FOLLOW_RIGHT_EDGE, "Switched to following: right edge"),
-            "h": (Mode.HIGH_SPEED, "Switched to HIGH_SPEED mode"),
-            "l": (Mode.TURN_LEFT, "Switched to turn left mode"),
-            "f": (Mode.FORWARD, "Switched to forward mode"),
-            "j": (Mode.SMALL_TURN_LEFT, "Switched to small turn left mode"),
-            "k": (Mode.SMALL_TURN_RIGHT, "Switched to small turn right mode"),
-            "i": (Mode.TURN_LEFT_RELATIVE, "Switched to turn left (relative) mode"),
-            "o": (Mode.TURN_RIGHT_RELATIVE, "Switched to turn right (relative) mode"),
-            "b": (Mode.BACKWARD, "Switched to backward mode"),
-            "g": (Mode.GATE_PASS, "Switched to gate pass mode"),
-            "e": (Mode.EYE_BLUE, "Switched to blue eyes mode"),
-            "u": (Mode.BLUE_BOTTLE_CATCH, "Switched to blue bottle catch mode"),
-            "1": (Mode.DOUBLE_LOOP, "Switched to double loop mode"),
-            "2": (Mode.AVOID_OBSTACLE, "Switched to obstacle avoidance mode"),
-            "3": (Mode.CARRY_BOTTLE1, "Switched to bottle carrying 1 mode"),
-            "4": (Mode.BACK_AND_TURN1, "Switched to back and turn 1 mode"),
-            "5": (Mode.CARRY_BOTTLE2, "Switched to bottle carrying 2 mode"),
-            "6": (Mode.BACK_AND_TURN2, "Switched to back and turn 2 mode"),
-            "7": (Mode.HEAD_GOAL, "Switched to heading goal mode"),
-            "8": (Mode.PAUSE, "Pausing robot"),
-            "p": (Mode.PAUSE, "Pausing robot"),
-        }
-        return keymap.get(key, (None, None))
+## KeyboardControllerはkeycontrol.pyに移動
     
 # StateFlagsクラス（バックアップより）
 class StateFlags:
@@ -475,7 +428,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         pre_target_x = target_x
                 case Mode.EYE_BLUE:
                     # ブルーアイズ（青重心）に向かう: find_blue_target_centerを使用
-                    center, area, blue_pixel_count = find_blue_target_center(frame, gray_ellipse_enable=False)
+                    center, area, blue_pixel_count = find_blue_target_center(frame)
                     if center is not None:
                         target_x = center[0]
                     else:
@@ -511,13 +464,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 max_contour = np.array([[[mx, my]]], dtype=np.int32)
 
                 theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use simplified speed control
-                # HIGH_SPEEDモードのときはbase_speedを上書きしない
-                if mode != Mode.HIGH_SPEED:
-                    # pos_checkの値によってbase_speedを変更
-                    if 'pos_check' in locals() and pos_check is not None and abs(pos_check) < 22000:
-                        current_base_speed = 50
-                    else:
-                        current_base_speed = BASE_SPEED
+                # HIGH_SPEEDモードのみbase_speedを255に変更
+                if mode == Mode.HIGH_SPEED:
+                    current_base_speed = 100
+                else:
+                    current_base_speed = BASE_SPEED
 
                 steering_correction = pid.update(theta)
 
