@@ -28,19 +28,15 @@ import math
 import pickle
 
 # Platform-specific imports for keyboard input (Raspberry Pi only)
-import select
 import socket
 import struct
 import sys
 import time
 
-import termios
-import tty
 from nnspike.unit import ETRobot, ActionChain, KeyboardController
 
 import cv2
 import numpy as np
-import nnspike
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode, NUM_MODES
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x
 
@@ -58,9 +54,6 @@ cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FPS, 25)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-
-
-## KeyboardControllerはkeycontrol.pyに移動
     
 # StateFlagsクラス（バックアップより）
 class StateFlags:
