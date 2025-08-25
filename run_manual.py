@@ -44,9 +44,8 @@ import torch
 import nnspike
 
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode, NUM_MODES
-#from nnspike.unit import ETRobot
-#from nnspike.unit.action_chain import ActionChain
-from nnspike.unit import ETRobot, ActionChain, WebcamVideoStream, KeyboardController
+from nnspike.unit import ETRobot
+from nnspike.unit.action_chain import ActionChain
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x
 from scripts.utils import process_image, model_inference, load_optimized_model
 
@@ -66,6 +65,10 @@ BASE_SPEED = 45  # Base speed for straight lines (adjust this first)
 HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
 
 # Camera setup
+cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FPS, 25)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
 
 class KeyboardController:
@@ -123,8 +126,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     pre_target_x = (x1 + x2) // 2  # GATE_PASS用の前回値
     yellow_blocked = False  # yellow中心利用停止フラグ
     # Generate timestamp for consistent naming if recording is enabled
-    TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else ""
-    vs = WebcamVideoStream(src=0, save_video=save_camera_video, timestamp=TIMESTAMP, resolution=(640, 480)).start()
+    TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
 
     # Initialize sensor recorder conditionally
     sensor_recorder = None
@@ -132,7 +134,22 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         sensor_recorder = SensorRecorder(timestamp=TIMESTAMP)
         sensor_recorder.start_recording()  # Initialize video writer conditionally
 
-
+    video_writer = None
+    video_filename = None  # Initialize to avoid UnboundLocalError
+    if save_camera_video:
+        fourcc = cv2.VideoWriter_fourcc(*"XVID")  # type: ignore[attr-defined]
+        video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
+        # フレームサイズがNoneや不正な場合はデフォルト(640,480)を使う
+        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        if not frame_width or not frame_height:
+            frame_width, frame_height = 640, 480
+        video_writer = cv2.VideoWriter(
+            filename=video_filename,
+            fourcc=fourcc,
+            fps=30,
+            frameSize=(frame_width, frame_height),
+        )
 
     client_socket = None
     if send_video_stream:
@@ -199,6 +216,58 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     #et.move_arm(2, 0.5)  # アームを止める
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
+    # --- フォースセンサー起動時チェック（初期化後1秒待機して再取得、表示は1回のみ） ---
+    try:
+        status_init = et.get_spike_status()
+        force_val_init = getattr(status_init.sensors, "force", None)
+        if force_val_init is None:
+            time.sleep(1)
+            status_init = et.get_spike_status()
+            force_val_init = getattr(status_init.sensors, "force", None)
+        if force_val_init is not None:
+            print("Force sensor is active. You can press it anytime to switch edge-following mode.")
+            print("\r", end="")
+            sys.stdout.flush()
+        else:
+            print("Force sensor is NOT detected. Please check connection.")
+            print("\r", end="")
+            sys.stdout.flush()
+    except Exception:
+        print("Force sensor check failed. Please check hardware.")
+
+    print("Press the force sensor or any mode key to start...")
+    started = False
+    # 有効なモードキーは keycontrol.py の get_mode_from_key で判定
+    try:
+        while not started and keyboard.running:
+            status = et.get_spike_status()
+            force_val = getattr(status.sensors, "force", None)
+            key = keyboard.get_key()
+            mode_from_key = None
+            if key is not None:
+                mode_from_key = keyboard.get_mode_from_key(key, Mode.PAUSE)
+            # forceセンサー or 有効なモードキーのみスタート（get_mode_from_keyは1回のみ呼ぶ）
+            if (force_val is not None and force_val > 0):
+                print("Start!")
+                started = True
+            elif mode_from_key is not None and mode_from_key != Mode.PAUSE:
+                print("Start!")
+                mode = mode_from_key  # スタート時に希望モードにセット
+                started = True
+            if not keyboard.running:
+                print("Quitting before start. Exiting...")
+                et.stop()
+                cap.release()
+                keyboard.cleanup()
+                return
+            time.sleep(0.01)
+    except KeyboardInterrupt:
+        print("Interrupted before start. Exiting...")
+        et.stop()
+        cap.release()
+        keyboard.cleanup()
+        return
+
     # --- ここから未定義エラー防止のための宣言（関数スコープ） ---
     target_x = None
     offset_y = None
@@ -213,7 +282,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     try:
         while et.is_running and keyboard.running:
-            ret, frame = vs.read()
+            ret, frame = cap.read()
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
@@ -222,6 +291,16 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             status = et.get_spike_status()
             left_pos = status.motors["A"].relative_position
             right_pos = status.motors["B"].relative_position
+
+            # --- フォースセンサー押下でエッジ追従モード切替（1回のみ） ---
+            if not state_flags.is_force_sensor_switched() and status.sensors.force is not None and status.sensors.force > 0:
+                if course == "right":
+                    mode = Mode.FOLLOW_RIGHT_EDGE
+                    print("\nForce sensor pressed: Switched to FOLLOW_RIGHT_EDGE mode")
+                else:
+                    mode = Mode.FOLLOW_LEFT_EDGE
+                    print("\nForce sensor pressed: Switched to FOLLOW_LEFT_EDGE mode")
+                state_flags.set_force_sensor_switched(True)
 
             # NVIDIAモデル予測をright_posが22000以下の時のみ実行（フレームスキップで負荷軽減）
             nvidia_prediction = None
@@ -247,7 +326,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if record_sensor_data and sensor_recorder is not None:
                 sensor_recorder.log_frame_data(status, mode)
 
-            # Save video frame if enabled (WebcamVideoStreamで自動管理)
+            # Save video frame if enabled
+            if save_camera_video and video_writer is not None:
+                video_writer.write(frame)
 
             # Send video stream and driving info if enabled (must be after frame, target_x, etc. are set)
             if send_video_stream and client_socket is not None:
@@ -581,11 +662,17 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         print(f"Error: {e}")
     finally:
         et.stop()
-        vs.stop()
+        cap.release()
 
         # Close socket connection if it was opened
         if client_socket is not None:
             client_socket.close()
+
+        # Clean up video writer if it was used
+        if save_camera_video and video_writer is not None:
+            video_writer.release()
+            if video_filename:
+                print(f"Video saved to: {video_filename}")
 
         # Clean up sensor recorder if it was used
         if record_sensor_data and sensor_recorder is not None:
