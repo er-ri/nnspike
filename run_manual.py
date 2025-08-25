@@ -123,18 +123,18 @@ def wait_for_start(et, keyboard, state_flags):
                 print("Start!")
                 first_key = key
                 started = True
-            if started:
-                # forceセンサーでスタートした場合のみ有効化
-                if first_key == "__force__":
-                    state_flags.enable_force_sensor_mode_switch()
-                else:
-                    state_flags.disable_force_sensor_mode_switch()
             if not keyboard.running:
                 print("Quitting before start. Exiting...")
                 et.stop()
                 keyboard.cleanup()
                 return None
             time.sleep(0.03)
+        # スタート決定後に一度だけモード切替有効化/無効化を判定
+        if started:
+            if first_key == "__force__":
+                state_flags.enable_force_sensor_mode_switch()
+            else:
+                state_flags.disable_force_sensor_mode_switch()
     except KeyboardInterrupt:
         print("Interrupted before start. Exiting...")
         et.stop()
