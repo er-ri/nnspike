@@ -227,6 +227,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
             
+            key = keyboard.get_key()
+
             # 毎ループ1回だけstatusを取得
             status = et.get_spike_status()
             left_pos = status.motors["A"].relative_position
@@ -314,7 +316,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     break
 
             # Check for keyboard input to change behavior mode
-            key = keyboard.get_key()
             if key == "q":  # 'q' key to quit
                 print("Quitting...")
                 keyboard.running = False
