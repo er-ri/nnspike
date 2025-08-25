@@ -163,7 +163,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 vs.stop()
                 keyboard.cleanup()
                 return
-            time.sleep(0.05)
+            time.sleep(0.01)
     except KeyboardInterrupt:
         print("Interrupted before start. Exiting...")
         et.stop()
@@ -254,7 +254,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             mode = keyboard.get_mode_from_key(key, mode)
             if not keyboard.running:
                 break
-
             # --- ここから未定義エラー防止のための初期化 ---
             target_x = None
             offset_y = None
@@ -420,16 +419,15 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 left_speed = 0
             if right_speed is None:
                 right_speed = 0
-            # PAUSEモード時はモーターをブレーキ
-            if mode == Mode.PAUSE:
-                et.brake()
-                continue  # PAUSE時はbrakeのみ、以降の速度設定はスキップ
 
-            # ...existing code...
             # Clamp speed values to valid range（上限255、0未満は0に）
             left_speed = int(max(0, min(255, left_speed)))
             right_speed = int(max(0, min(255, right_speed)))
-            et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+
+            if mode == Mode.PAUSE:
+                et.brake()
+            else:
+                et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
 
     except KeyboardInterrupt:
         print("Interrupted by user")
