@@ -2,9 +2,8 @@
 """
 OpenCV-Based Line Following Robot Control
 
-This script controls a line-following robot using OpenCV for image processing
-instead of neural network predictions. It uses the get_line_edges_at_y function
-to detect the line centroid and follows it using PID control.
+このスクリプトはOpenCVによる画像処理でライン追従ロボットを制御します。
+get_line_edges_at_y関数でライン重心を検出し、PID制御で追従します。
 
 Speed Tuning Parameters:
 - BASE_SPEED: Base speed for straight lines (start here)
@@ -40,20 +39,11 @@ import tty
 
 import cv2
 import numpy as np
-import torch
 import nnspike
-
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode, NUM_MODES
 from nnspike.unit import ETRobot
 from nnspike.unit.action_chain import ActionChain
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x
-from scripts.utils import process_image, model_inference, load_optimized_model
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# Enable QNNPACK for optimal performance on ARM processors (Raspberry Pi)
-torch.backends.quantized.engine = "qnnpack"
-
 
 # User defined constants
 x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
@@ -108,25 +98,7 @@ class StateFlags:
     def is_force_sensor_switched(self):
         return self.force_sensor_switched
 
-def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", course_type="upper", model_path=None):
-    def nvidia_model_predict(model, et: ETRobot):
-        """NVIDIAモデルによる予測を行う。ノートブックテスト結果を反映した安定版"""
-        try:
-            roi_area = process_image(image=frame, device=device, roi=(x1, y1, x2, y2))
-            
-            # ETRobot.retrieve_motors_relative_position()は1つの値（int）を返す
-            # 両モーターの絶対値の合計: motor_a_position + motor_b_position
-            relative_position = et.retrieve_motors_relative_position()
-            scaled_relative_position = relative_position / RELATIVE_POSITION_SCALE
-            tensor_relative_position = torch.tensor([scaled_relative_position], dtype=torch.float32).unsqueeze(0).to(device)
-            
-            # model_inference関数を使用（torch.no_grad()は関数内で実行される）
-            nvidia_prediction, (nvidia_mode_prediction, nvidia_prob) = model_inference(model, roi_area, tensor_relative_position)
-            
-            return nvidia_prediction, nvidia_mode_prediction, nvidia_prob
-        except Exception as e:
-            print(f"NVIDIA model prediction error: {e}")
-            return None, None, None
+def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", course_type="upper"):
 
     def unpack_action_result(result, default_mode=Mode.PAUSE):
         # Noneや不正な戻り値も吸収して安全にアンパック
@@ -183,25 +155,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     et = ETRobot()
     action_chain = ActionChain(et, course, course_type)
 
-    # Initialize NVIDIA model if enabled
-    model = None
-    if model_path:
-        print(f"Loading NVIDIA model from: {model_path}")
-        try:
-            model = load_optimized_model(model_path, device)
-            model.eval()
-            print("SUCCESS: NVIDIA model loaded successfully")
-            total_params = sum(p.numel() for p in model.parameters())
-            # 実際のクラス数をmode_classifier.weight.shape[0]から取得
-            if hasattr(model, 'mode_classifier') and hasattr(model.mode_classifier, 'weight'):
-                actual_classes = model.mode_classifier.weight.shape[0]
-            else:
-                actual_classes = 'Unknown'
-            print(f"Model parameters: {total_params:,}, Classes: {actual_classes}")
-        except Exception as e:
-            print(f"ERROR: Error loading NVIDIA model: {e}")
-            print("Continuing without NVIDIA model...")
-            model = None
 
     # Set initial mode to PAUSE (initial_mode/course-based logic is disabled)
     # if initial_mode:
@@ -225,9 +178,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     # フレームカウンターとモデル予測結果を保持する変数
     frame_counter = 0
-    last_nvidia_prediction = None
-    last_nvidia_mode_prediction = None
-    last_nvidia_prob = None
 
     #et.move_arm(1, 1.0)  # アームを上げる（1: up）
     #et.move_arm(0, 1.0)  # アームを下げる（0: down）
@@ -320,25 +270,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     print("\nForce sensor pressed: Switched to FOLLOW_LEFT_EDGE mode")
                 state_flags.set_force_sensor_switched(True)
 
-            # NVIDIAモデル予測をright_posが22000以下の時のみ実行（フレームスキップで負荷軽減）
-            nvidia_prediction = None
-            nvidia_mode_prediction = None
-            nvidia_prob = None
-            frame_counter += 1
-
-            # 3フレームに1回だけモデル予測を実行（負荷軽減）
-            if model is not None:
-                if course == "left":
-                    pos_check = left_pos
-                else:
-                    pos_check = right_pos
-                if (pos_check is None or abs(pos_check) <= 22000) and frame_counter % 3 == 0:
-                    last_nvidia_prediction, last_nvidia_mode_prediction, last_nvidia_prob = nvidia_model_predict(model, et)
-
-            # 最新の予測結果を使用
-            nvidia_prediction = last_nvidia_prediction
-            nvidia_mode_prediction = last_nvidia_mode_prediction
-            nvidia_prob = last_nvidia_prob
+            # NVIDIA関連の推論・変数・分岐を完全削除
 
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
@@ -459,12 +391,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             elif key == "8" or key == "p":
                 mode = Mode.PAUSE
                 print("Pausing robot")
-            elif key == "n":
-                if model is not None:
-                    mode = Mode.NVIDIA_FOLLOW
-                    print("Switched to NVIDIA model following mode")
-                else:
-                    print("NVIDIA model not available")
+            # 'n'キーによるNVIDIA_FOLLOWモード切替を一時的に削除
 
             # --- ここから未定義エラー防止のための初期化 ---
             target_x = None
@@ -509,16 +436,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, "yellow")
                     # シンプルに右モーターの相対位置はright_posを使う
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                    # right_posが7000を超えたらNVIDIA_FOLLOWに切り替え
+                    # right_posが7000を超えたらDOUBLE_LOOPに切り替え
                     if right_pos is not None and abs(right_pos) >= 7000:
-                        if model is not None:
-                            mode = Mode.NVIDIA_FOLLOW
-                            target_x = (x1 + x2) // 2
-                            print("Switched to NVIDIA_FOLLOW mode")
-                        else:
-                            mode = Mode.DOUBLE_LOOP
-                            target_x = (x1 + x2) // 2
-                            print("Switched to DOUBLE_LOOP mode (left_pos >= 7000)")
+                        mode = Mode.DOUBLE_LOOP
+                        target_x = (x1 + x2) // 2
+                        print("Switched to DOUBLE_LOOP mode (left_pos >= 7000)")
                     elif yellow_pixel_count > 18000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
                         target_x = (x1 + x2) // 2
@@ -596,34 +518,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
-                case Mode.NVIDIA_FOLLOW:
-                    # courseによってCARRY_BOTTLE1への切り替え判定を分岐
-                    if course == "left":
-                        if left_pos is not None and abs(left_pos) > 22000:
-                            mode = Mode.CARRY_BOTTLE1
-                            print(f"Left position {abs(left_pos)} > 22000, switching to CARRY_BOTTLE1")
-                        else:
-                            if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:
-                                # 左コース: 左エッジならright_x
-                                _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                                target_x = right_x if right_x is not None else (x1 + x2) // 2
-                            else:
-                                # 左コース: 右エッジならleft_x
-                                left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                                target_x = left_x if left_x is not None else (x1 + x2) // 2
-                    else:
-                        if right_pos is not None and abs(right_pos) > 22000:
-                            mode = Mode.CARRY_BOTTLE1
-                            print(f"Right position {abs(right_pos)} > 22000, switching to CARRY_BOTTLE1")
-                        else:
-                            if nvidia_mode_prediction == Mode.FOLLOW_LEFT_EDGE.value:
-                                # 右コース: 左エッジならleft_x
-                                left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                                target_x = left_x if left_x is not None else (x1 + x2) // 2
-                            else:
-                                # 右コース: 右エッジならright_x
-                                _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
-                                target_x = right_x if right_x is not None else (x1 + x2) // 2
+                # NVIDIA_FOLLOWモード分岐を一時的に削除
                 case _:
                     # Default to center if invalid edge specified
                     target_x = (x1 + x2) // 2
@@ -711,16 +606,13 @@ if __name__ == "__main__":
     parser.add_argument("--send-video", action="store_true", help="Send video stream to host PC")
     parser.add_argument("--course", choices=["left", "right"], default="right", help="Initial course to follow: 'left' for left edge, 'right' for right edge (default: right)")
     parser.add_argument("--course-type", choices=["upper", "lower"], default="upper", help="Course type: 'upper' or 'lower' (default: upper)")
-    parser.add_argument("--model-path", help="Path to the trained NVIDIA model file (enables NVIDIA model)")
+    # NVIDIA関連の引数を削除
 
     args = parser.parse_args()
     print("Starting OpenCV-based line following robot...")
     print(f"Using ROI: {ROI_CNN}")
     print(f"Base speed: {BASE_SPEED}")
     print(f"course: {args.course}")
-    print(f"NVIDIA model: {'Enabled' if args.model_path else 'Disabled'}")
-    if args.model_path:
-        print(f"Model path: {args.model_path}")
     print(f"Video streaming to host PC: {'Enabled' if args.send_video else 'Disabled'}")
     print("Controls:")
     print("  'a' - Follow left edge")
@@ -730,8 +622,6 @@ if __name__ == "__main__":
     print("  'k' - Small turn left")
     print("  'j' - Small turn right")
     print("  'f' - Forward")
-    if args.model_path:
-        print("  'n' - NVIDIA model following")
     print("  'q' - Quit")
     print("Press Ctrl+C to stop")
 
@@ -741,5 +631,4 @@ if __name__ == "__main__":
         send_video_stream=args.send_video,
         course=args.course,
         course_type=args.course_type,
-        model_path=args.model_path,
     )
