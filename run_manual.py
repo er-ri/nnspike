@@ -146,6 +146,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             status = et.get_spike_status()
             force_val = getattr(status.sensors, "force", None)
             key = keyboard.get_key()
+                print(f"[DEBUG] force_val={force_val}, key={key}")
+                mode_from_key = keyboard.get_mode_from_key(key, Mode.PAUSE) if key is not None else None
+                print(f"[DEBUG] mode_from_key={mode_from_key}")
             if (force_val is not None and force_val > 0) or (key is not None and keyboard.get_mode_from_key(key, Mode.PAUSE) != Mode.PAUSE):
                 print("Start!")
                 started = True
@@ -412,10 +415,15 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 left_speed = 0
             if right_speed is None:
                 right_speed = 0
+            # PAUSEモード時はモーターをブレーキ
+            if mode == Mode.PAUSE:
+                et.brake()
+                continue  # PAUSE時はbrakeのみ、以降の速度設定はスキップ
+
+            # ...existing code...
             # Clamp speed values to valid range（上限255、0未満は0に）
             left_speed = int(max(0, min(255, left_speed)))
             right_speed = int(max(0, min(255, right_speed)))
-
             et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
 
     except KeyboardInterrupt:
@@ -429,8 +437,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         # Close socket connection if it was opened
         if client_socket is not None:
             client_socket.close()
-
-    # 動画保存はWebcamVideoStreamで自動管理される
 
         # Clean up sensor recorder if it was used
         if record_sensor_data and sensor_recorder is not None:
