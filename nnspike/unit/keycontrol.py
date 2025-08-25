@@ -24,6 +24,9 @@ class KeyboardController:
 
     def get_mode_from_key(self, key, current_mode):
         """キー入力に応じてモードを返す。変更がなければcurrent_modeを返す"""
+        # 以前のロジック：全モードでキーによるモード変更が可能
+        if key is None:
+            return current_mode
         if key == "q":
             self.running = False
             print("Quitting...")
