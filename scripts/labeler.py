@@ -35,8 +35,7 @@ from nnspike.constants import (
     ROI_LINE_HORIZON1,
     ROI_LINE_HORIZON2,
     ROI_LINE_HORIZON3,
-    ROI_LINE_VERTICAL1,
-    ROI_LINE_VERTICAL2
+    ROI_LINE_VERTICAL1
 )
 
 
@@ -78,8 +77,7 @@ def main():
         ROI_LINE_HORIZON1,
         ROI_LINE_HORIZON2,
         ROI_LINE_HORIZON3,
-        ROI_LINE_VERTICAL1,
-        ROI_LINE_VERTICAL2
+        ROI_LINE_VERTICAL1
     ]
     show_info_text = True  # 0キーで切り替え
     while True:
@@ -131,7 +129,7 @@ def main():
         right_info.append(f"is_left_black_line_detected(course={course_value}): {is_left_black_line_detected(image, course_value)}")
         right_info.append(f"is_upper_horizontal_line_detected: {is_upper_horizontal_line_detected(image)}")
         right_info.append(f"is_lower_horizontal_line_detected: {is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3)}")
-        right_info.append(f"is_vertical_black_line_detected: {is_vertical_black_line_detected(image, roi=ROI_LINE_VERTICAL2, center_tolerance=120)}")
+        right_info.append(f"is_vertical_black_line_detected: {is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120)}")
         right_info.append(f"get_is_blue_line_at_y: {get_is_blue_line_at_y(image)}")
         right_info.append(f"get_blue_line_pixel: {get_blue_line_pixel(image)}")
         info["right_info"] = right_info
@@ -214,7 +212,7 @@ def main():
                 "ROI_LINE_HORIZON2",
                 "ROI_LINE_HORIZON3",
                 "ROI_LINE_VERTICAL1",
-                "ROI_LINE_VERTICAL2"
+                "ROI_LOOP"
             ]
             # ROI枠の右上隅（外側）にROI名称を黄色文字で描画
             if roi_mode > 0 and roi_list[roi_mode] is not None:

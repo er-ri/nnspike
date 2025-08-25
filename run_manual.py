@@ -436,7 +436,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     else:
                         target_x = (x1 + x2) // 2
                 case Mode.AVOID_OBSTACLE:
-                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.avoid_obstacle_relative(frame))
+                    #_, (left_speed, right_speed), mode = unpack_action_result(action_chain.avoid_obstacle_relative(frame))
+                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.avoid_obstacle(frame))
                 case Mode.TURN_LEFT:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.turn_left())
                 case Mode.SMALL_TURN_LEFT:

@@ -4,7 +4,7 @@ from typing import Optional, Tuple  # 型ヒント用
 import numpy as np  # 画像処理用
 
 # 定数・モード・ROI設定
-from nnspike.constants import OFFSET_Y, ROI_CNN, Mode, BASE_SPEED, ROI_LINE_HORIZON3, ROI_LINE_VERTICAL2
+from nnspike.constants import OFFSET_Y, ROI_CNN, Mode, BASE_SPEED, ROI_LINE_HORIZON3, ROI_LOOP
 
 # --- 閾値定数（全体で統一管理） ---
 BLUE_AREA_MAX_THRESHOLD = 18000
@@ -386,7 +386,7 @@ class ActionChain(object):
                 else:
                     return None, (60, 30), Mode.AVOID_OBSTACLE
             elif distance < 500:
-                if is_vertical_black_line_detected(image, roi=ROI_LINE_VERTICAL2, center_tolerance=120):
+                if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                     phase.next_phase()
                 else:
                     if self.course == "right":
@@ -398,6 +398,85 @@ class ActionChain(object):
 
         # phase3: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
         if phase.get_phase() == 4:
+            self.reset_action()
+            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+            if self.course == "right":
+                return target_x, None, Mode.FOLLOW_RIGHT_EDGE
+            else:
+                return target_x, None, Mode.FOLLOW_LEFT_EDGE
+
+        print("[avoid_obstacle_relative] Unexpected state reached.")
+        return None, None, Mode.AVOID_OBSTACLE
+
+    def avoid_obstacle(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+        """
+        障害物回避（avoid_obstacle）フェーズ詳細：
+        phase0: 左旋回（右モーター500未満まで、左:40,右:70/左:70,右:40）。到達でphase1へ、右モーター位置記録。
+        phase1: intersection_y=450で黒水平ライン検出まで中央追従（最低500進める）。500未満は中央追従、500以上で黒ライン検出判定。検出でphase2へ、右モーター位置記録。
+        phase2: 右モーター移動距離50未満は旋回、50以上500未満は旋回または中央追従、500以上で黒ライン検出判定。検出で次フェーズへ。
+
+        Returns:
+            Tuple[Optional[float], Optional[Tuple[int, int]], Mode]: (target_x, (left_speed, right_speed), mode)
+        """
+        # 初回呼び出し時のみ初期化
+        if not self._init:
+            self.initialize_action(motor_side=self.course)
+        phase = self._phase
+        status = self._status
+
+        # phase0: 左旋回（右モーター500未満まで、左:40,右:70/左:70,右:40）。到達でphase1へ、右モーター位置記録。
+        if phase.get_phase() == 0:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            if abs(current_pos - position_start) < 500:
+                if self.course == "right":
+                    return None, (40, 70), Mode.AVOID_OBSTACLE
+                else:
+                    return None, (70, 40), Mode.AVOID_OBSTACLE
+            else:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+
+        # phase1: intersection_y=450で黒水平ライン検出まで中央追従（最低500進める）。500未満は中央追従、500以上で黒ライン検出判定。検出でphase2へ、右モーター位置記録。
+        if phase.get_phase() == 1:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)
+            if position_diff < 500:
+                if self.course == "right":
+                    return None, (70, 40), Mode.AVOID_OBSTACLE
+                else:
+                    return None, (40, 70), Mode.AVOID_OBSTACLE
+            if is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3):
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            else:
+                if self.course == "right":
+                    return None, (70, 40), Mode.AVOID_OBSTACLE
+                else:
+                    return None, (40, 70), Mode.AVOID_OBSTACLE
+
+        # phase2: 左旋回（250未満は(40,70)/(70,40)、250以上350未満は垂直黒ライン検出で即phase4へ、350以上は強制的にphase4へ）
+        if phase.get_phase() == 3:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            distance = abs(current_pos - position_start)
+            if distance < 50:
+                if self.course == "right":
+                    return None, (30, 60), Mode.AVOID_OBSTACLE
+                else:
+                    return None, (60, 30), Mode.AVOID_OBSTACLE
+            elif distance < 300:
+                if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
+                    phase.next_phase()
+                else:
+                    if self.course == "right":
+                        return None, (30, 60), Mode.AVOID_OBSTACLE
+                    else:
+                        return None, (60, 30), Mode.AVOID_OBSTACLE
+
+        # phase3: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
+        if phase.get_phase() == 3:
             self.reset_action()
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             if self.course == "right":

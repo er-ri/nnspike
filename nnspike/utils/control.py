@@ -10,8 +10,7 @@ from nnspike.constants import (
     ROI_LINE_HORIZON1,
     ROI_LINE_HORIZON2,
     ROI_LINE_HORIZON3,
-    ROI_LINE_VERTICAL1,
-    ROI_LINE_VERTICAL2
+    ROI_LINE_VERTICAL1
 )
 
 def get_line_edges_at_y(image, roi, target_y, threshold_value=80) -> Tuple[Optional[float], Optional[float], Optional[float]]:
@@ -556,27 +555,21 @@ def is_upper_horizontal_line_detected(image) -> bool:
 
 def is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON2) -> bool:
     """
-    x=320を通り、指定されたy座標と交差する水平黒ラインが検出されたらTrueを返す関数
-    frame_1909を未検出、frame_1910を検出するようにバランス調整された実装
+    x=320を通り、指定されたy座標と交差する水平黒ラインが検出されたらTrueを返す関数。
 
-    パラメータ:
-        img (np.ndarray): BGR画像
-        intersection_y (int): 交差判定するy座標（デフォルト450）
-        roi (tuple): ROI（x1, y1, x2, y2）デフォルト(100, 300, 540, 540)
+    Parameters:
+        image (np.ndarray): 入力画像（BGR）
+        intersection_y (int): 交差判定するy座標（デフォルト: 450）
+        roi (tuple): ROI: (x1, y1, x2, y2)（デフォルト: ROI_LINE_HORIZON2）
 
-    戻り値:
-        bool: x=320を通り、指定されたy座標と交差する水平黒ラインが検出されればTrue、なければFalse
+    Returns:
+        bool: 条件を満たす水平黒ラインが検出されればTrue、なければFalse
     """
     # 画像がNoneまたは空の場合はFalse返却
     if image is None or (hasattr(image, 'size') and image.size == 0):
         return False
     
-    # 判定パラメータ
-    _min_width = 400      # 幅条件
-    _min_height = 50     # 高さ条件
-    _max_aspect = 0.4    # アスペクト比
-    _min_area = 23000    # 面積条件
-    _center_x = 320      # 画像中心x座標
+    # ROI座標のみ使用
     x1, y1, x2, y2 = roi
 
     # 緑領域を白で塗りつぶし
@@ -602,17 +595,12 @@ def is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HO
     for contour in contours:
         x, y, w, h = cv2.boundingRect(contour)
         area = cv2.contourArea(contour)
-        aspect_ratio = h / w if w > 0 else float('inf')
-        crosses_center = (x <= _center_x <= x + w)
         crosses_intersection_y = (y <= intersection_y <= y + h)
 
-        # y座標交差なら無条件で検出
-        if crosses_intersection_y:
+        # y座標交差かつ面積8000以上でTrue
+        if crosses_intersection_y and area >= 8000:
             return True
-        else:
-            # 通常条件
-            if (w >= _min_width and h >= _min_height and aspect_ratio <= _max_aspect and area >= _min_area and crosses_center):
-                return True
+        
     return False
 
 def is_vertical_black_line_detected(image, roi=ROI_LINE_VERTICAL1, center_tolerance=80) -> bool:
