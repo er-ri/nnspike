@@ -62,12 +62,6 @@ class StateFlags:
         self.force_sensor_switched = False
         self.first_key_used = False
         self.force_sensor_mode_switch_enabled = False
-    def enable_force_sensor_mode_switch(self):
-        self.force_sensor_mode_switch_enabled = True
-    def disable_force_sensor_mode_switch(self):
-        self.force_sensor_mode_switch_enabled = False
-    def is_force_sensor_mode_switch_enabled(self):
-        return self.force_sensor_mode_switch_enabled
     def set_first_key_used(self, value: bool):
         self.first_key_used = value
     def is_first_key_used(self):
@@ -130,11 +124,6 @@ def wait_for_start(et, keyboard, state_flags):
                 return None
             time.sleep(0.03)
         # スタート決定後に一度だけモード切替有効化/無効化を判定
-        if started:
-            if first_key == "__force__":
-                state_flags.enable_force_sensor_mode_switch()
-            else:
-                state_flags.disable_force_sensor_mode_switch()
     except KeyboardInterrupt:
         print("Interrupted before start. Exiting...")
         et.stop()
@@ -248,16 +237,15 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             left_pos = status.motors["A"].relative_position
             right_pos = status.motors["B"].relative_position
 
-            # --- forceセンサーでスタートした場合のみ、forceセンサーによるモード切替を有効化 ---
-            if state_flags.is_force_sensor_mode_switch_enabled():
-                if not state_flags.is_force_sensor_switched() and status.sensors.force is not None and status.sensors.force > 0:
-                    if course == "right":
-                        mode = Mode.FOLLOW_RIGHT_EDGE
-                        print("\nForce sensor pressed: Switched to FOLLOW_RIGHT_EDGE mode")
-                    else:
-                        mode = Mode.FOLLOW_LEFT_EDGE
-                        print("\nForce sensor pressed: Switched to FOLLOW_LEFT_EDGE mode")
-                    state_flags.set_force_sensor_switched(True)
+            # forceセンサーでスタートした場合のみ、forceセンサーによるモード切替を有効化（フラグ廃止のため直接判定）
+            if not state_flags.is_force_sensor_switched() and status.sensors.force is not None and status.sensors.force > 0:
+                if course == "right":
+                    mode = Mode.FOLLOW_RIGHT_EDGE
+                    print("\nForce sensor pressed: Switched to FOLLOW_RIGHT_EDGE mode")
+                else:
+                    mode = Mode.FOLLOW_LEFT_EDGE
+                    print("\nForce sensor pressed: Switched to FOLLOW_LEFT_EDGE mode")
+                state_flags.set_force_sensor_switched(True)
 
             # NVIDIA関連の推論・変数・分岐を完全削除
 
