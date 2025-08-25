@@ -231,7 +231,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     print(f"Socket error: {e}")
                     break
 
-
             key = keyboard.get_key()
             mode = keyboard.get_mode_from_key(key, mode)
             if not keyboard.running:
