@@ -252,8 +252,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             key = keyboard.get_key()
             # キーが押された時だけmodeを変更する（Noneなら維持）
-            if key is not None:
-                mode = keyboard.get_mode_from_key(key, mode)
+            mode = keyboard.get_mode_from_key(key, mode)
             if not keyboard.running:
                 break
             # --- ここから未定義エラー防止のための初期化 ---
