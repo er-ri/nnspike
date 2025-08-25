@@ -102,7 +102,7 @@ def wait_for_start(et, keyboard):
                 et.stop()
                 keyboard.cleanup()
                 return None
-            time.sleep(0.01)
+            time.sleep(0.03)
     except KeyboardInterrupt:
         print("Interrupted before start. Exiting...")
         et.stop()
