@@ -118,6 +118,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     )
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
+    import sys
     # --- フォースセンサー起動時チェック（初期化後1秒待機して再取得、表示は1回のみ） ---
     try:
         status_init = et.get_spike_status()
@@ -128,10 +129,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             force_val_init = getattr(status_init.sensors, "force", None)
         if force_val_init is not None:
             print("Force sensor is active. You can press it anytime to switch edge-following mode.")
-            print()
+            print("\r", end="")
+            sys.stdout.flush()
         else:
             print("Force sensor is NOT detected. Please check connection.")
-            print()
+            print("\r", end="")
+            sys.stdout.flush()
     except Exception:
         print("Force sensor check failed. Please check hardware.")
 
