@@ -44,8 +44,9 @@ import torch
 import nnspike
 
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode, NUM_MODES
-from nnspike.unit import ETRobot
-from nnspike.unit.action_chain import ActionChain
+#from nnspike.unit import ETRobot
+#from nnspike.unit.action_chain import ActionChain
+from nnspike.unit import ETRobot, ActionChain, WebcamVideoStream, KeyboardController
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x
 from scripts.utils import process_image, model_inference, load_optimized_model
 
@@ -65,10 +66,6 @@ BASE_SPEED = 45  # Base speed for straight lines (adjust this first)
 HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
 
 # Camera setup
-cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FPS, 25)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
 
 class KeyboardController:
@@ -126,7 +123,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     pre_target_x = (x1 + x2) // 2  # GATE_PASS用の前回値
     yellow_blocked = False  # yellow中心利用停止フラグ
     # Generate timestamp for consistent naming if recording is enabled
-    TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
+    TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else ""
+    vs = WebcamVideoStream(src=0, save_video=save_camera_video, timestamp=TIMESTAMP, resolution=(640, 480)).start()
 
     # Initialize sensor recorder conditionally
     sensor_recorder = None
@@ -134,22 +132,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         sensor_recorder = SensorRecorder(timestamp=TIMESTAMP)
         sensor_recorder.start_recording()  # Initialize video writer conditionally
 
-    video_writer = None
-    video_filename = None  # Initialize to avoid UnboundLocalError
-    if save_camera_video:
-        fourcc = cv2.VideoWriter_fourcc(*"XVID")  # type: ignore[attr-defined]
-        video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
-        # フレームサイズがNoneや不正な場合はデフォルト(640,480)を使う
-        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        if not frame_width or not frame_height:
-            frame_width, frame_height = 640, 480
-        video_writer = cv2.VideoWriter(
-            filename=video_filename,
-            fourcc=fourcc,
-            fps=30,
-            frameSize=(frame_width, frame_height),
-        )
+
 
     client_socket = None
     if send_video_stream:
@@ -230,7 +213,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     try:
         while et.is_running and keyboard.running:
-            ret, frame = cap.read()
+            ret, frame = vs.read()
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
@@ -264,9 +247,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if record_sensor_data and sensor_recorder is not None:
                 sensor_recorder.log_frame_data(status, mode)
 
-            # Save video frame if enabled
-            if save_camera_video and video_writer is not None:
-                video_writer.write(frame)
+            # Save video frame if enabled (WebcamVideoStreamで自動管理)
 
             # Send video stream and driving info if enabled (must be after frame, target_x, etc. are set)
             if send_video_stream and client_socket is not None:
@@ -600,17 +581,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         print(f"Error: {e}")
     finally:
         et.stop()
-        cap.release()
+        vs.stop()
 
         # Close socket connection if it was opened
         if client_socket is not None:
             client_socket.close()
-
-        # Clean up video writer if it was used
-        if save_camera_video and video_writer is not None:
-            video_writer.release()
-            if video_filename:
-                print(f"Video saved to: {video_filename}")
 
         # Clean up sensor recorder if it was used
         if record_sensor_data and sensor_recorder is not None:
