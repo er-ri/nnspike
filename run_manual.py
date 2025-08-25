@@ -94,6 +94,11 @@ class StateFlags:
     def __init__(self):
         self.yellow_blocked = False
         self.force_sensor_switched = False
+        self.first_key_used = False
+    def set_first_key_used(self, value: bool):
+        self.first_key_used = value
+    def is_first_key_used(self):
+        return self.first_key_used
     def set_yellow_blocked(self, value: bool):
         self.yellow_blocked = value
     def is_yellow_blocked(self):
@@ -250,6 +255,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     print("Press the force sensor or any mode key to start...")
     started = False
+    first_key = None
     try:
         while not started and keyboard.running:
             status = et.get_spike_status()
@@ -259,12 +265,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if (force_val is not None and force_val > 0):
                 print("Start!")
                 started = True
-            # 有効なモードキー（a/d/h/l/f/j/k/i/o/b/g/e/u/1/2/3/4/5/6/7/8/p/n/q）でスタート
+            # 有効なモードキーでスタート
             elif key is not None and key in [
                 "a", "d", "h", "l", "f", "j", "k", "i", "o", "b", "g", "e", "u", "1", "2", "3", "4", "5", "6", "7", "8", "p", "n", "q"
             ]:
                 print("Start!")
-                # modeは後続のキー判定で切り替わるためここではセットしない
+                first_key = key
                 started = True
             if not keyboard.running:
                 print("Quitting before start. Exiting...")
@@ -298,7 +304,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
-            
+
             # 毎ループ1回だけstatusを取得
             status = et.get_spike_status()
             left_pos = status.motors["A"].relative_position
@@ -319,7 +325,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             nvidia_mode_prediction = None
             nvidia_prob = None
             frame_counter += 1
-            
+
             # 3フレームに1回だけモデル予測を実行（負荷軽減）
             if model is not None:
                 if course == "left":
@@ -328,7 +334,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     pos_check = right_pos
                 if (pos_check is None or abs(pos_check) <= 22000) and frame_counter % 3 == 0:
                     last_nvidia_prediction, last_nvidia_mode_prediction, last_nvidia_prob = nvidia_model_predict(model, et)
-            
+
             # 最新の予測結果を使用
             nvidia_prediction = last_nvidia_prediction
             nvidia_mode_prediction = last_nvidia_mode_prediction
@@ -360,7 +366,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     "left_speed": int(left_speed) if left_speed is not None else 0,
                     "right_speed": int(right_speed) if right_speed is not None else 0,
                 }
-                
+
                 # Create visualization frame
                 gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
                 gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
@@ -380,8 +386,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     print(f"Socket error: {e}")
                     break
 
-            # Check for keyboard input to change behavior mode
-            key = keyboard.get_key()
+            # 最初の1回だけfirst_keyを使い、以降はget_key()
+            if not state_flags.is_first_key_used() and first_key is not None:
+                key = first_key
+                state_flags.set_first_key_used(True)
+            else:
+                key = keyboard.get_key()
             if key == "q":  # 'q' key to quit
                 print("Quitting...")
                 keyboard.running = False
