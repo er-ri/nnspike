@@ -310,7 +310,7 @@ class ActionChain(object):
         # 左(A)の開始～現在の差分が430を超えたら停止
         if abs(left_position - self._left_position_start) > 430:
             self._left_position_start = 0
-            print(f"[DEBUG] TURN_RIGHT_RELATIVE: left_position diff={abs(left_position - self._left_position_start)} > 430, PAUSEに遷移")
+            # デバッグ出力完全削除
             return None, None, Mode.PAUSE
         return None, (30, 0), Mode.TURN_RIGHT_RELATIVE
 
