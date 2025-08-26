@@ -396,8 +396,6 @@ class ActionChain(object):
         print("[avoid_obstacle_relative] Unexpected state reached.")
         return None, None, Mode.AVOID_OBSTACLE
 
-
-
     def high_speed_avoid(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
 
         if not self._init:
@@ -419,9 +417,9 @@ class ActionChain(object):
             if yellow_pixel_count > 18000 and yellow_cx is not None:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
-            elif yellow_pixel_count > 3000 and yellow_cx is not None:
+            else:
                 target_x = yellow_cx[0]
-            return target_x, None, Mode.HIGH_SPEED_AVOID
+                return target_x, None, Mode.HIGH_SPEED_AVOID
 
         if phase.get_phase() == 2:
             position_start = phase.get_position_start("position_start")
