@@ -407,10 +407,9 @@ class ActionChain(object):
 
         if phase.get_phase() == 0:
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-            _, _, red_pixel_count = find_bottle_center(image=image, color="red")
-            if red_pixel_count > 3000:
+            _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow")
+            if yellow_pixel_count > 3000:
                 phase.next_phase()
-                # phase1用 右モーター相対位置記録（絶対値）
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
                 return target_x, None, Mode.HIGH_SPEED_AVOID
