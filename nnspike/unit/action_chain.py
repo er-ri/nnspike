@@ -404,6 +404,7 @@ class ActionChain(object):
         status = self._status
 
         if phase.get_phase() == 0:
+            print("[DEBUG] phase=0 (yellow detect & center follow)")
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow")
             if yellow_pixel_count > 3000:
@@ -413,8 +414,9 @@ class ActionChain(object):
                 return target_x, None, Mode.HIGH_SPEED_AVOID
 
         if phase.get_phase() == 1:
+            print("[DEBUG] phase=1 (yellow area check)")
             yellow_cx, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow")
-            if yellow_pixel_count > 18000 and yellow_cx is not None:
+            if yellow_pixel_count > 18000:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
@@ -422,6 +424,7 @@ class ActionChain(object):
                 return target_x, None, Mode.HIGH_SPEED_AVOID
 
         if phase.get_phase() == 2:
+            print("[DEBUG] phase=2 (position diff < 500)")
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 500:
@@ -435,6 +438,7 @@ class ActionChain(object):
 
         # phase1: intersection_y=450で黒水平ライン検出まで中央追従（最低500進める）。500未満は中央追従、500以上で黒ライン検出判定。検出でphase2へ、右モーター位置記録。
         if phase.get_phase() == 3:
+            print("[DEBUG] phase=3 (intersection & black line)")
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
@@ -454,6 +458,7 @@ class ActionChain(object):
 
         # phase2: 右モーター移動距離300未満なら中央追従、300以上でphase3へ、右モーター位置記録。
         if phase.get_phase() == 4:
+            print("[DEBUG] phase=4 (position diff < 100)")
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
@@ -468,6 +473,7 @@ class ActionChain(object):
 
         # phase3: 左旋回（50未満は(30,60)/(60,30)、500未満は(30,60)/(60,30)、500以上で次フェーズへ。500未満かつ垂直黒ライン検出で次フェーズへ）
         if phase.get_phase() == 5:
+            print("[DEBUG] phase=5 (left turn & vertical black line)")
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             distance = abs(current_pos - position_start)
@@ -489,6 +495,7 @@ class ActionChain(object):
 
         # phase4: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
         if phase.get_phase() == 6:
+            print("[DEBUG] phase=6 (reset & edge follow)")
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             blue_area = get_blue_line_pixel(image)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
