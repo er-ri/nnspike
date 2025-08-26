@@ -144,8 +144,6 @@ def wait_for_start(et, keyboard, state_flags):
     return first_key
 
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", course_type="upper"):
-    theta_under_3_counter = 0
-    theta_under_3_start_pos = None
     def reset_frame_vars():
         return None, None, None, None, None, None, None, None, None
 
@@ -162,7 +160,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             return target_x, speeds, mode
         return None, (0, 0), default_mode
 
-    pre_target_x = (x1 + x2) // 2  # GATE_PASS用の前回値
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
@@ -228,6 +225,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     # --- ここから未定義エラー防止のための宣言（関数スコープ） ---
     target_x, offset_y, theta, steering_correction, left_speed, right_speed, mx, my, max_contour = reset_frame_vars()
+    theta_under_3_start_pos = None
+    pre_target_x = (x1 + x2) // 2  # GATE_PASS用の前回値
     # --- ここまで ---
 
     try:
@@ -456,23 +455,23 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 if mode == Mode.HIGH_SPEED:
                     current_base_speed = 100
                 elif mode == Mode.HIGH_SPEED_AVOID:
-                    if left_pos < 5000 and left_pos is not None:
+                    # courseに応じてposを切り替え
+                    edge_pos = left_pos if course == "left" else right_pos
+                    if edge_pos is not None and edge_pos < 5000:
                         current_base_speed = 100
-                        theta_under_3_counter = 0
                         theta_under_3_start_pos = None
                     else:
                         # theta < 3 が500距離の間続いたら current_base_speed = 100
                         if theta is not None and theta < 3:
                             if theta_under_3_start_pos is None:
-                                theta_under_3_start_pos = left_pos if left_pos is not None else 0
-                            # left_posがNoneの場合は0扱い
-                            distance = abs((left_pos if left_pos is not None else 0) - theta_under_3_start_pos)
+                                theta_under_3_start_pos = edge_pos if edge_pos is not None else 0
+                            # edge_posがNoneの場合は0扱い
+                            distance = abs((edge_pos if edge_pos is not None else 0) - theta_under_3_start_pos)
                             if distance >= 500:
                                 current_base_speed = 100
                             else:
                                 current_base_speed = BASE_SPEED
                         else:
-                            theta_under_3_counter = 0
                             theta_under_3_start_pos = None
                             current_base_speed = BASE_SPEED
                 else:
