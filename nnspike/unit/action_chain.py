@@ -401,9 +401,9 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 500:
                 if self.course == "right":
-                    return None, (50, 70), Mode.HIGH_SPEED_AVOID
+                    return None, (50, 75), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (70, 50), Mode.HIGH_SPEED_AVOID
+                    return None, (75, 50), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -427,28 +427,7 @@ class ActionChain(object):
                 else:
                     return None, (40, 70), Mode.HIGH_SPEED_AVOID
 
-        # phase3: 左旋回（50未満は(30,60)/(60,30)、500未満は(30,60)/(60,30)、500以上で次フェーズへ。500未満かつ垂直黒ライン検出で次フェーズへ）
         if phase.get_phase() == 2:
-            position_start = phase.get_position_start("position_start")
-            current_pos = self.get_motor_position(self.course, status=status)
-            distance = abs(current_pos - position_start)
-            if distance < 50:
-                if self.course == "right":
-                    return None, (30, 60), Mode.HIGH_SPEED_AVOID
-                else:
-                    return None, (60, 30), Mode.HIGH_SPEED_AVOID
-            elif distance < 500:
-                if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
-                    phase.next_phase()
-                else:
-                    if self.course == "right":
-                        return None, (30, 60), Mode.HIGH_SPEED_AVOID
-                    else:
-                        return None, (60, 30), Mode.HIGH_SPEED_AVOID
-            else:
-                phase.next_phase()
-
-        if phase.get_phase() == 3:
             self.reset_action()
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             if self.course == "right":
