@@ -238,8 +238,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             # 毎ループ1回だけstatusを取得
             status = et.get_spike_status()
-            left_pos = status.motors["A"].relative_position
-            right_pos = status.motors["B"].relative_position
+            left_raw = status.motors["A"].relative_position
+            right_raw = status.motors["B"].relative_position
+            left_pos = left_raw[0] if isinstance(left_raw, tuple) else left_raw
+            right_pos = right_raw[0] if isinstance(right_raw, tuple) else right_raw
 
             # forceセンサーでスタートした場合のみ、forceセンサーによるモード切替を有効化（フラグ廃止のため直接判定）
             if state_flags.is_force_sensor_mode_switch_enabled():
@@ -457,11 +459,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 elif mode == Mode.HIGH_SPEED_AVOID:
                     # courseに応じてposを切り替え
                     # edge_posがtuple型の場合はintに変換
-                    raw_pos = left_pos if course == "left" else right_pos
-                    if isinstance(raw_pos, tuple):
-                        edge_pos = raw_pos[0]
-                    else:
-                        edge_pos = raw_pos
+                    edge_pos = left_pos if course == "left" else right_pos
                     if edge_pos is not None and isinstance(edge_pos, (int, float)) and edge_pos < 5000:
                         current_base_speed = 100
                         theta_under_3_start_pos = None
