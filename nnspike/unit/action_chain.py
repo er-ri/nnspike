@@ -57,6 +57,9 @@ class PhaseManager:
 
         valueがint型以外の場合は0に変換してセットする。
         """
+        # valueがtuple型の場合は先頭要素をintとして扱う
+        if isinstance(value, tuple) and len(value) > 0 and isinstance(value[0], int):
+            value = value[0]
         if not isinstance(value, int):
             value = 0
         self._state[key] = value
@@ -66,6 +69,14 @@ class PhaseManager:
         value = self._state.get(key, None)
         if isinstance(value, int):
             return value
+        if isinstance(value, tuple):
+            if len(value) == 0:
+                return 0
+            if isinstance(value[0], int):
+                return value[0]
+            return 0
+        if value is None:
+            return 0
         try:
             return int(value)
         except (TypeError, ValueError):
