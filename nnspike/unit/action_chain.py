@@ -379,7 +379,7 @@ class ActionChain(object):
         print("[avoid_obstacle_relative] Unexpected state reached.")
         return None, None, Mode.AVOID_OBSTACLE
 
-    def avoid_obstacle(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    def hight_speed_avoid(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         障害物回避の相対位置判定バージョン。
         ・phase0: 左旋回（右モーター500未満まで、左:40,右:70/左:70,右:40）。到達でphase1へ、右モーター位置記録。
@@ -395,21 +395,31 @@ class ActionChain(object):
         phase = self._phase
         status = self._status
 
-        # phase0: 左旋回（右モーター500未満まで、左:40,右:70/左:70,右:40）。到達でphase1へ、右モーター位置記録。
         if phase.get_phase() == 0:
+            yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, "yellow")
+            if yellow_pixel_count > 18000 and yellow_cx is not None:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            elif yellow_pixel_count > 3000 and yellow_cx is not None:
+                target_x = yellow_cx[0]
+            else:
+                target_x = self.get_target_x_by_course(image, offset_y=ROI_CNN, course=self.course)
+            return target_x, None, Mode.HIGH_SPEED_AVOID
+
+        if phase.get_phase() == 1:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 500:
                 if self.course == "right":
-                    return None, (50, 75), Mode.AVOID_OBSTACLE
+                    return None, (50, 75), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (75, 50), Mode.AVOID_OBSTACLE
+                    return None, (75, 50), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
         # phase1: intersection_y=450で黒水平ライン検出まで中央追従（最低500進める）。500未満は中央追従、500以上で黒ライン検出判定。検出でphase2へ、右モーター位置記録。
-        if phase.get_phase() == 1:
+        if phase.get_phase() == 2:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
@@ -428,7 +438,7 @@ class ActionChain(object):
                     return None, (40, 70), Mode.HIGH_SPEED_AVOID
 
         # phase2: 右モーター移動距離300未満なら中央追従、300以上でphase3へ、右モーター位置記録。
-        if phase.get_phase() == 2:
+        if phase.get_phase() == 3:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
@@ -442,7 +452,7 @@ class ActionChain(object):
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
         # phase3: 左旋回（50未満は(30,60)/(60,30)、500未満は(30,60)/(60,30)、500以上で次フェーズへ。500未満かつ垂直黒ライン検出で次フェーズへ）
-        if phase.get_phase() == 3:
+        if phase.get_phase() == 4:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             distance = abs(current_pos - position_start)
@@ -463,13 +473,23 @@ class ActionChain(object):
                 phase.next_phase()
 
         # phase4: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
-        if phase.get_phase() == 4:
+        if phase.get_phase() == 5:
             self.reset_action()
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             if self.course == "right":
                 return target_x, None, Mode.FOLLOW_RIGHT_EDGE
             else:
                 return target_x, None, Mode.FOLLOW_LEFT_EDGE
+
+        # phase4: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
+        if phase.get_phase() == 6:
+            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+            blue_area = get_blue_line_pixel(image)
+            if blue_area > BLUE_AREA_MAX_THRESHOLD:
+                self.reset_action()
+                return target_x, None, Mode.DOUBLE_LOOP
+            else:
+                return target_x, None, Mode.HIGH_SPEED_AVOID
 
         print("[avoid_obstacle] Unexpected state reached.")
         return None, None, Mode.HIGH_SPEED_AVOID

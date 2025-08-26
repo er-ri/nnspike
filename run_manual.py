@@ -32,6 +32,7 @@ import socket
 import struct
 import sys
 import time
+from turtle import left
 
 from nnspike.unit import ETRobot, ActionChain, KeyboardController
 
@@ -144,6 +145,8 @@ def wait_for_start(et, keyboard, state_flags):
     return first_key
 
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", course_type="upper"):
+    theta_under_3_counter = 0
+    theta_under_3_start_pos = None
     def reset_frame_vars():
         return None, None, None, None, None, None, None, None, None
 
@@ -333,8 +336,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         target_x = (x1 + x2) // 2
                         print("Switched to DOUBLE_LOOP mode (left_pos >= 7000)")
                     elif yellow_pixel_count > 18000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
-                        #mode = Mode.AVOID_OBSTACLE
-                        mode = Mode.HIGH_SPEED_AVOID
+                        mode = Mode.AVOID_OBSTACLE
                         target_x = (x1 + x2) // 2
                         state_flags.set_yellow_blocked(True)
                     elif not state_flags.is_yellow_blocked() and yellow_pixel_count > 3000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
@@ -367,7 +369,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.SMALL_TURN_LEFT:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.small_turn_left())
                 case Mode.HIGH_SPEED_AVOID:
-                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.avoid_obstacle(frame))
+                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.hight_speed_avoid(frame))
                 case Mode.HIGH_SPEED:
                     # ハイスピードモード（右エッジ追従＋高速）
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
@@ -454,9 +456,26 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 # HIGH_SPEEDモードのみbase_speedを255に変更
                 if mode == Mode.HIGH_SPEED:
                     current_base_speed = 100
-                
-                elif mode == Mode.FOLLOW_LEFT_EDGE and left_pos is not None and abs(left_pos) <= 7000:
-                    current_base_speed = 100
+                elif mode == Mode.HIGH_SPEED_AVOID:
+                    if left_pos < 5000 and left_pos is not None:
+                        current_base_speed = 100
+                        theta_under_3_counter = 0
+                        theta_under_3_start_pos = None
+                    else:
+                        # theta < 3 が500距離の間続いたら current_base_speed = 100
+                        if theta is not None and theta < 3:
+                            if theta_under_3_start_pos is None:
+                                theta_under_3_start_pos = left_pos if left_pos is not None else 0
+                            # left_posがNoneの場合は0扱い
+                            distance = abs((left_pos if left_pos is not None else 0) - theta_under_3_start_pos)
+                            if distance >= 500:
+                                current_base_speed = 100
+                            else:
+                                current_base_speed = BASE_SPEED
+                        else:
+                            theta_under_3_counter = 0
+                            theta_under_3_start_pos = None
+                            current_base_speed = BASE_SPEED
                 else:
                     current_base_speed = BASE_SPEED
 
