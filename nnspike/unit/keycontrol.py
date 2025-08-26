@@ -41,7 +41,7 @@ class KeyboardController:
             "a": (Mode.FOLLOW_LEFT_EDGE, "Switched to following: left edge"),
             "d": (Mode.FOLLOW_RIGHT_EDGE, "Switched to following: right edge"),
             "h": (Mode.HIGH_SPEED, "Switched to HIGH_SPEED mode"),
-            "l": (Mode.HIGHSPEED_AVOID, "Switched to HIGH_SPEED_AVOID mode"),
+            "l": (Mode.HIGH_SPEED_AVOID, "Switched to HIGH_SPEED_AVOID mode"),
             "f": (Mode.FORWARD, "Switched to forward mode"),
             "j": (Mode.SMALL_TURN_LEFT, "Switched to small turn left mode"),
             "k": (Mode.SMALL_TURN_RIGHT, "Switched to small turn right mode"),
