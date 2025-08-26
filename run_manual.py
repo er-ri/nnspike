@@ -466,6 +466,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         current_base_speed = 100
                         theta_under_3_start_pos = None
                     else:
+                        print(f"[DEBUG] HIGH_SPEED_AVOID: theta={theta}")
                         if theta < 3:
                             if theta_under_3_start_pos is None:
                                 theta_under_3_start_pos = edge_pos
