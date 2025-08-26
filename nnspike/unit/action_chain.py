@@ -396,14 +396,16 @@ class ActionChain(object):
         print("[avoid_obstacle_relative] Unexpected state reached.")
         return None, None, Mode.AVOID_OBSTACLE
 
-    def extract_num(val):
-        if isinstance(val, (int, float)):
-            return val
-        elif isinstance(val, (tuple, list)) and len(val) > 0:
-            return extract_num(val[0])
-        return 0
+
 
     def high_speed_avoid(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+        def extract_num(val):
+            if isinstance(val, (int, float)):
+                return val
+            elif isinstance(val, (tuple, list)) and len(val) > 0:
+                return extract_num(val[0])
+            return 0
+
         if not self._init:
             self.initialize_action(motor_side=self.course)
         phase = self._phase
