@@ -423,6 +423,82 @@ class ActionChain(object):
                 target_x = yellow_cx[0]
             return target_x, None, Mode.HIGH_SPEED_AVOID
 
+        if phase.get_phase() == 2:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            if abs(current_pos - position_start) < 500:
+                if self.course == "right":
+                    return None, (50, 75), Mode.HIGH_SPEED_AVOID
+                else:
+                    return None, (75, 50), Mode.HIGH_SPEED_AVOID
+            else:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+
+        # phase1: intersection_y=450で黒水平ライン検出まで中央追従（最低500進める）。500未満は中央追従、500以上で黒ライン検出判定。検出でphase2へ、右モーター位置記録。
+        if phase.get_phase() == 3:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)
+            if position_diff < 400:
+                if self.course == "right":
+                    return None, (70, 40), Mode.HIGH_SPEED_AVOID
+                else:
+                    return None, (40, 70), Mode.HIGH_SPEED_AVOID
+            if is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3):
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            else:
+                if self.course == "right":
+                    return None, (70, 40), Mode.HIGH_SPEED_AVOID
+                else:
+                    return None, (40, 70), Mode.HIGH_SPEED_AVOID
+
+        # phase2: 右モーター移動距離300未満なら中央追従、300以上でphase3へ、右モーター位置記録。
+        if phase.get_phase() == 4:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)
+            if position_diff < 100:
+                if self.course == "right":
+                    return None, (70, 40), Mode.HIGH_SPEED_AVOID
+                else:
+                    return None, (40, 70), Mode.HIGH_SPEED_AVOID
+            else:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+
+        # phase3: 左旋回（50未満は(30,60)/(60,30)、500未満は(30,60)/(60,30)、500以上で次フェーズへ。500未満かつ垂直黒ライン検出で次フェーズへ）
+        if phase.get_phase() == 5:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            distance = abs(current_pos - position_start)
+            if distance < 50:
+                if self.course == "right":
+                    return None, (40, 70), Mode.HIGH_SPEED_AVOID
+                else:
+                    return None, (70, 40), Mode.HIGH_SPEED_AVOID
+            elif distance < 500:
+                if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
+                    phase.next_phase()
+                else:
+                    if self.course == "right":
+                        return None, (30, 60), Mode.HIGH_SPEED_AVOID
+                    else:
+                        return None, (60, 30), Mode.HIGH_SPEED_AVOID
+            else:
+                phase.next_phase()
+
+        # phase4: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
+        if phase.get_phase() == 6:
+            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+            blue_area = get_blue_line_pixel(image)
+            if blue_area > BLUE_AREA_MAX_THRESHOLD:
+                self.reset_action()
+                return target_x, None, Mode.DOUBLE_LOOP
+            else:
+                return target_x, None, Mode.HIGH_SPEED_AVOID
+
         print("[avoid_obstacle] Unexpected state reached.")
         return None, None, Mode.HIGH_SPEED_AVOID
     
