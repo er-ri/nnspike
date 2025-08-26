@@ -743,7 +743,7 @@ class ActionChain(object):
         # 0. 赤ターゲット中心追従（青ピクセル数20000未満の間は赤中心追従、20000以上でphase1へ）
         if phase.get_phase() == 0:
             _, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
-            if blue_pixel_count < 20000:
+            if blue_pixel_count < 18000:
                 # 赤ターゲット中心追従
                 red_center_x = get_red_target_center_x(image)
                 target_x = red_center_x if red_center_x is not None else (self.x1 + self.x2) // 2
@@ -755,7 +755,7 @@ class ActionChain(object):
         if phase.get_phase() == 1:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
             target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
-            if blue_pixel_count >= 1000:
+            if blue_pixel_count >= 4000:
                 # 青ボトル中心x座標へ追従
                 return target_x, None, Mode.CARRY_BOTTLE2
             else:
