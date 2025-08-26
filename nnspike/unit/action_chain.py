@@ -420,7 +420,10 @@ class ActionChain(object):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
-                target_x = yellow_cx[0]
+                if yellow_cx is not None:
+                    target_x = yellow_cx[0]
+                else:
+                    target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, None, Mode.HIGH_SPEED_AVOID
 
         if phase.get_phase() == 2:
