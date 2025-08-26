@@ -458,7 +458,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     current_base_speed = 100
                 elif mode == Mode.HIGH_SPEED_AVOID:
                     # courseに応じてposを切り替え（int型のみ）
-                    edge_pos = left_pos if course == "left" else right_pos
+                    edge_pos_raw = left_pos if course == "left" else right_pos
+                    edge_pos = edge_pos_raw[0] if isinstance(edge_pos_raw, tuple) and len(edge_pos_raw) > 0 and isinstance(edge_pos_raw[0], int) else edge_pos_raw
                     if edge_pos is not None and isinstance(edge_pos, (int, float)) and edge_pos < 5000:
                         current_base_speed = 100
                         theta_under_3_start_pos = None
@@ -470,7 +471,16 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                             if theta_under_3_start_pos is None:
                                 theta_under_3_start_pos = edge_pos if edge_pos is not None else 0
                             # edge_posがNoneの場合は0扱い
-                            distance = abs((edge_pos if edge_pos is not None else 0) - theta_under_3_start_pos)
+                            # edge_pos, theta_under_3_start_posがtuple型の場合はint型へ変換
+                            def safe_num(val):
+                                if isinstance(val, (int, float)):
+                                    return val
+                                if isinstance(val, tuple) and len(val) > 0 and isinstance(val[0], (int, float)):
+                                    return val[0]
+                                return 0
+                            ep = safe_num(edge_pos)
+                            tsp = safe_num(theta_under_3_start_pos)
+                            distance = abs(ep - tsp)
                             if distance >= 500:
                                 current_base_speed = 100
                             else:
