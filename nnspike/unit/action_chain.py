@@ -448,9 +448,9 @@ class ActionChain(object):
             distance = abs(current_pos - position_start)
             if distance < 50:
                 if self.course == "right":
-                    return None, (30, 60), Mode.HIGH_SPEED_AVOID
+                    return None, (40, 70), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (60, 30), Mode.HIGH_SPEED_AVOID
+                    return None, (70, 40), Mode.HIGH_SPEED_AVOID
             elif distance < 500:
                 if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                     phase.next_phase()
