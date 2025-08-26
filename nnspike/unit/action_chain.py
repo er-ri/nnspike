@@ -474,15 +474,6 @@ class ActionChain(object):
 
         # phase4: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
         if phase.get_phase() == 5:
-            self.reset_action()
-            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-            if self.course == "right":
-                return target_x, None, Mode.FOLLOW_RIGHT_EDGE
-            else:
-                return target_x, None, Mode.FOLLOW_LEFT_EDGE
-
-        # phase4: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
-        if phase.get_phase() == 6:
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             blue_area = get_blue_line_pixel(image)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
