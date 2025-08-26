@@ -32,7 +32,6 @@ import socket
 import struct
 import sys
 import time
-from turtle import left
 
 from nnspike.unit import ETRobot, ActionChain, KeyboardController
 
