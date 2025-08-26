@@ -457,9 +457,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 if mode == Mode.HIGH_SPEED:
                     current_base_speed = 100
                 elif mode == Mode.HIGH_SPEED_AVOID:
-                    # courseに応じてposを切り替え
-                    edge_pos_raw = left_pos if course == "left" else right_pos
-                    edge_pos = edge_pos_raw[0] if isinstance(edge_pos_raw, tuple) else edge_pos_raw
+                    # courseに応じてposを切り替え（int型のみ）
+                    edge_pos = left_pos if course == "left" else right_pos
                     if edge_pos is not None and isinstance(edge_pos, (int, float)) and edge_pos < 5000:
                         current_base_speed = 100
                         theta_under_3_start_pos = None
