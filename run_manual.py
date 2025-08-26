@@ -477,7 +477,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         else:
                             theta_under_3_start_pos = None
                             current_base_speed = BASE_SPEED
-                        print(f"[DEBUG] HIGH_SPEED_AVOID: theta={theta}, edge_pos={edge_pos}, speed={current_base_speed}")
+                        print(f"[DEBUG] HIGH_SPEED_AVOID: theta={theta}, edge_pos={edge_pos}, speed={current_base_speed}, offset_pixels={offset_pixels}")
                 else:
                     current_base_speed = BASE_SPEED
 
