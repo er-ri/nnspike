@@ -456,7 +456,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     current_base_speed = 100
                 
                 elif mode == Mode.FOLLOW_LEFT_EDGE and left_pos is not None and abs(left_pos) <= 7000:
-                    current_base_speed = 80
+                    current_base_speed = 100
                 else:
                     current_base_speed = BASE_SPEED
 
