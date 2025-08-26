@@ -396,18 +396,29 @@ class ActionChain(object):
         print("[avoid_obstacle_relative] Unexpected state reached.")
         return None, None, Mode.AVOID_OBSTACLE
 
-    def hight_speed_avoid(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
-        def extract_num(val):
-            if isinstance(val, (int, float)):
-                return val
-            elif isinstance(val, (tuple, list)) and len(val) > 0:
-                return extract_num(val[0])
-            return 0
-        
+    def extract_num(val):
+        if isinstance(val, (int, float)):
+            return val
+        elif isinstance(val, (tuple, list)) and len(val) > 0:
+            return extract_num(val[0])
+        return 0
+
+    def high_speed_avoid(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         if not self._init:
             self.initialize_action(motor_side=self.course)
         phase = self._phase
         status = self._status
+
+        # phase0: yellow中心座標で追従（型安全化）
+        if phase.get_phase() == 0:
+            target_x = self.get_target_x_by_course(image, offset_y=ROI_CNN, course=self.course)
+            yellow_cx, _, yellow_pixel_count = find_bottle_center(image, "yellow")
+            if yellow_pixel_count > 18000 and yellow_cx is not None:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            elif yellow_pixel_count > 3000 and yellow_cx is not None:
+                target_x = extract_num(yellow_cx)
+            return target_x, None, Mode.HIGH_SPEED_AVOID
 
         print("[avoid_obstacle] Unexpected state reached.")
         return None, None, Mode.HIGH_SPEED_AVOID
