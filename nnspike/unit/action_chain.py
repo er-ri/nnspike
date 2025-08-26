@@ -499,7 +499,7 @@ class ActionChain(object):
         # phase4: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
         if phase.get_phase() == 6:
             print("[DEBUG] phase=6 (reset & edge follow)")
-            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+            target_x = self.get_target_x_by_course(image, 350, self.course)
             blue_area = get_blue_line_pixel(image)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
                 self.reset_action()
