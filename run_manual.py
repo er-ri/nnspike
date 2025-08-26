@@ -464,7 +464,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         theta_under_3_start_pos = None
                     else:
                         # theta < 3 が500距離の間続いたら current_base_speed = 100
-                        if theta is not None and theta < 3:
+                        # thetaがtuple型の場合はfloatへ変換
+                        theta_val = theta[0] if isinstance(theta, tuple) and len(theta) > 0 else theta
+                        if theta_val is not None and isinstance(theta_val, (int, float)) and theta_val < 3:
                             if theta_under_3_start_pos is None:
                                 theta_under_3_start_pos = edge_pos if edge_pos is not None else 0
                             # edge_posがNoneの場合は0扱い
