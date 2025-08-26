@@ -598,7 +598,7 @@ def is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HO
         crosses_intersection_y = (y <= intersection_y <= y + h)
 
         # y座標交差かつ面積8000以上でTrue
-        if crosses_intersection_y and area >= 8000:
+        if crosses_intersection_y and area >= 5000:
             return True
         
     return False
