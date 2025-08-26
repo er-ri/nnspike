@@ -396,7 +396,7 @@ class ActionChain(object):
         status = self._status
 
         if phase.get_phase() == 0:
-            yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, "yellow")
+            yellow_cx, _, yellow_pixel_count = find_bottle_center(image, "yellow")
             if yellow_pixel_count > 18000 and yellow_cx is not None:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
