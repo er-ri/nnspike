@@ -397,24 +397,29 @@ class ActionChain(object):
         return None, None, Mode.AVOID_OBSTACLE
 
     def hight_speed_avoid(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
-        """
-        障害物回避の相対位置判定バージョン。
-        ・phase0: 左旋回（右モーター500未満まで、左:40,右:70/左:70,右:40）。到達でphase1へ、右モーター位置記録。
-        ・phase1: intersection_y=450で黒水平ライン検出まで中央追従（最低500進める）。500未満は中央追従、500以上で黒ライン検出判定。検出でphase2へ、右モーター位置記録。
-        ・phase2: 右モーター移動距離300未満なら中央追従、300以上でphase3へ、右モーター位置記録。
-        ・phase3: 左旋回（250未満は(40,70)/(70,40)、250以上350未満は垂直黒ライン検出で即phase4へ、350以上は強制的にphase4へ）
-        ・phase4: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
-        戻り値: (None, (左速度, 右速度), モード)
-        """
-        # 初回呼び出し時のみ初期化
+        def extract_num(val):
+            if isinstance(val, (int, float)):
+                return val
+            elif isinstance(val, (tuple, list)) and len(val) > 0:
+                return extract_num(val[0])
+            return 0
+        
         if not self._init:
             self.initialize_action(motor_side=self.course)
         phase = self._phase
         status = self._status
 
-
-        target_x = 0
+    # phase0: yellow中心座標で追従（型安全化）
+    if phase.get_phase() == 0:
+        target_x = self.get_target_x_by_course(image, offset_y=ROI_CNN, course=self.course)
+        yellow_cx, _, yellow_pixel_count = find_bottle_center(image, "yellow")
+        if yellow_pixel_count > 18000 and yellow_cx is not None:
+            phase.next_phase()
+            phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+        elif yellow_pixel_count > 3000 and yellow_cx is not None:
+            target_x = extract_num(yellow_cx)
         return target_x, None, Mode.HIGH_SPEED_AVOID
+
 
         # 以降は現状維持（必要なら本来のロジックを復元してください）
         return 160, None, Mode.HIGH_SPEED_AVOID
