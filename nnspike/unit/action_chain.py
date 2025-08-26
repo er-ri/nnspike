@@ -417,7 +417,7 @@ class ActionChain(object):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             elif yellow_pixel_count > 3000 and yellow_cx is not None:
-                target_x = extract_num(yellow_cx)
+                target_x = int(extract_num(yellow_cx))
             return target_x, None, Mode.HIGH_SPEED_AVOID
 
         print("[avoid_obstacle] Unexpected state reached.")
