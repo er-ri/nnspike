@@ -476,7 +476,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         theta_val = theta[0] if isinstance(theta, tuple) and len(theta) > 0 else theta
                         if theta_val is not None and isinstance(theta_val, (int, float)) and theta_val < 3:
                             if theta_under_3_start_pos is None:
-                                theta_under_3_start_pos = edge_pos if edge_pos is not None else 0
+                                theta_under_3_start_pos = ep
                             # edge_posがNoneの場合は0扱い
                             # edge_pos, theta_under_3_start_posがtuple型の場合はint型へ変換
                             def safe_num(val):
