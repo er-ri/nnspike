@@ -457,16 +457,16 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 if mode == Mode.HIGH_SPEED:
                     current_base_speed = 100
                 elif mode == Mode.HIGH_SPEED_AVOID:
+                    print(f"[DEBUG] HIGH_SPEED_AVOID: theta={theta}")
                     # courseに応じてposを切り替え（int型のみ）
                     # edge_pos: courseに応じてint/float/tuple/list/Noneを直接受ける
                     edge_pos = left_pos if course == "left" else right_pos
                     edge_pos = 0 if edge_pos is None else (edge_pos[0] if type(edge_pos) in (tuple, list) else edge_pos)
                     theta = 0 if theta is None else (theta[0] if type(theta) in (tuple, list) else theta)
-                    if edge_pos < 5000:
+                    if edge_pos < 4000:
                         current_base_speed = 100
                         theta_under_3_start_pos = None
                     else:
-                        print(f"[DEBUG] HIGH_SPEED_AVOID: theta={theta}")
                         if theta < 3:
                             if theta_under_3_start_pos is None:
                                 theta_under_3_start_pos = edge_pos
