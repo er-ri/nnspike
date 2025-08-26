@@ -401,9 +401,9 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 500:
                 if self.course == "right":
-                    return None, (40, 70), Mode.AVOID_OBSTACLE
+                    return None, (50, 70), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (70, 40), Mode.AVOID_OBSTACLE
+                    return None, (70, 50), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -415,9 +415,9 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             if position_diff < 500:
                 if self.course == "right":
-                    return None, (70, 40), Mode.AVOID_OBSTACLE
+                    return None, (70, 50), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (40, 70), Mode.AVOID_OBSTACLE
+                    return None, (50, 70), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -429,14 +429,14 @@ class ActionChain(object):
             distance = abs(current_pos - position_start)
             if distance < 50:
                 if self.course == "right":
-                    return None, (30, 60), Mode.AVOID_OBSTACLE
+                    return None, (30, 60), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (60, 30), Mode.AVOID_OBSTACLE
-            elif distance < 500:
+                    return None, (60, 30), Mode.HIGH_SPEED_AVOID
+            elif distance < 300:
                 if self.course == "right":
-                    return None, (30, 60), Mode.AVOID_OBSTACLE
+                    return None, (30, 60), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (60, 30), Mode.AVOID_OBSTACLE
+                    return None, (60, 30), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
 
@@ -448,8 +448,8 @@ class ActionChain(object):
             else:
                 return target_x, None, Mode.FOLLOW_LEFT_EDGE
 
-        print("[avoid_obstacle_relative] Unexpected state reached.")
-        return None, None, Mode.AVOID_OBSTACLE
+        print("[avoid_obstacle] Unexpected state reached.")
+        return None, None, Mode.HIGH_SPEED_AVOID
 
     def carry_bottle1_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """

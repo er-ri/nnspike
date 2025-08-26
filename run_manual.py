@@ -32,6 +32,7 @@ import socket
 import struct
 import sys
 import time
+from turtle import left
 
 from nnspike.unit import ETRobot, ActionChain, KeyboardController
 
@@ -333,7 +334,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         target_x = (x1 + x2) // 2
                         print("Switched to DOUBLE_LOOP mode (left_pos >= 7000)")
                     elif yellow_pixel_count > 18000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
-                        mode = Mode.AVOID_OBSTACLE
+                        #mode = Mode.AVOID_OBSTACLE
+                        mode = Mode.HIGH_SPEED_AVOID
                         target_x = (x1 + x2) // 2
                         state_flags.set_yellow_blocked(True)
                     elif not state_flags.is_yellow_blocked() and yellow_pixel_count > 3000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
@@ -365,11 +367,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.avoid_obstacle_relative(frame))
                 case Mode.SMALL_TURN_LEFT:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.small_turn_left())
+                case Mode.HIGH_SPEED_AVOID:
+                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.avoid_obstacle(frame))
                 case Mode.HIGH_SPEED:
                     # ハイスピードモード（右エッジ追従＋高速）
                     _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     target_x = right_x if right_x is not None else (x1 + x2) // 2
-                    current_base_speed = 255
+                    current_base_speed = 100                case Mode.HIGH_SPEED:
                 case Mode.SMALL_TURN_RIGHT:
                     _, (left_speed, right_speed), mode = unpack_action_result(action_chain.small_turn_right())
                 case Mode.CARRY_BOTTLE1:
@@ -452,6 +456,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 # HIGH_SPEEDモードのみbase_speedを255に変更
                 if mode == Mode.HIGH_SPEED:
                     current_base_speed = 100
+                
+                elif mode == Mode.FOLLOW_LEFT_EDGE and left_pos is not None and abs(left_pos) <= 7000:
+                    current_base_speed = 80
                 else:
                     current_base_speed = BASE_SPEED
 

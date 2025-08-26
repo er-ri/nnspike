@@ -28,6 +28,7 @@ class Mode(Enum):
     BACK_AND_TURN2 = 6
     HEAD_GOAL = 7
     PAUSE = 8
+    HIGH_SPEED_AVOID = 9  # 高速障害物回避モード
     HIGH_SPEED = 10  # 旧TURN_RIGHT, 高速走行モード
     FORWARD = 11
     BACKWARD = 12

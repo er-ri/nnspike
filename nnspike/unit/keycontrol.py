@@ -12,7 +12,7 @@ class KeyboardController:
         tty.setraw(sys.stdin.fileno())  # type: ignore
         # 有効なモードキーリスト（run_manual.pyから移動）
         self._mode_keys = set([
-            "a", "d", "h", "f", "j", "k", "i", "o", "b", "g", "e", "u",
+            "a", "d", "h", "l", "f", "j", "k", "i", "o", "b", "g", "e", "u",
             "1", "2", "3", "4", "5", "6", "7", "8", "p", "n", "q"
         ])
 
@@ -41,7 +41,7 @@ class KeyboardController:
             "a": (Mode.FOLLOW_LEFT_EDGE, "Switched to following: left edge"),
             "d": (Mode.FOLLOW_RIGHT_EDGE, "Switched to following: right edge"),
             "h": (Mode.HIGH_SPEED, "Switched to HIGH_SPEED mode"),
-            # "l": (Mode.TURN_LEFT, "Switched to turn left mode"),
+            "l": (Mode.HIGHSPEED_AVOID, "Switched to HIGH_SPEED_AVOID mode"),
             "f": (Mode.FORWARD, "Switched to forward mode"),
             "j": (Mode.SMALL_TURN_LEFT, "Switched to small turn left mode"),
             "k": (Mode.SMALL_TURN_RIGHT, "Switched to small turn right mode"),
