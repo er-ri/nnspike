@@ -457,44 +457,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 if mode == Mode.HIGH_SPEED:
                     current_base_speed = 100
                 elif mode == Mode.HIGH_SPEED_AVOID:
-                    # courseに応じてposを切り替え（int型のみ）
-                    edge_pos_raw = left_pos if course == "left" else right_pos
-                    edge_pos = edge_pos_raw[0] if isinstance(edge_pos_raw, tuple) and len(edge_pos_raw) > 0 and isinstance(edge_pos_raw[0], int) else edge_pos_raw
-                    def safe_num(val):
-                        if isinstance(val, (int, float)):
-                            return val
-                        if isinstance(val, tuple) and len(val) > 0 and isinstance(val[0], (int, float)):
-                            return val[0]
-                        return 0
-                    ep = safe_num(edge_pos)
-                    if ep < 5000:
-                        current_base_speed = 100
-                        theta_under_3_start_pos = None
-                    else:
-                        # theta < 3 が500距離の間続いたら current_base_speed = 100
-                        # thetaがtuple型の場合はfloatへ変換
-                        theta_val = theta[0] if isinstance(theta, tuple) and len(theta) > 0 else theta
-                        if theta_val is not None and isinstance(theta_val, (int, float)) and theta_val < 3:
-                            if theta_under_3_start_pos is None:
-                                theta_under_3_start_pos = ep
-                            # edge_posがNoneの場合は0扱い
-                            # edge_pos, theta_under_3_start_posがtuple型の場合はint型へ変換
-                            def safe_num(val):
-                                if isinstance(val, (int, float)):
-                                    return val
-                                if isinstance(val, tuple) and len(val) > 0 and isinstance(val[0], (int, float)):
-                                    return val[0]
-                                return 0
-                            ep = safe_num(edge_pos)
-                            tsp = safe_num(theta_under_3_start_pos)
-                            distance = abs(ep - tsp)
-                            if distance >= 500:
-                                current_base_speed = 100
-                            else:
-                                current_base_speed = BASE_SPEED
-                        else:
-                            theta_under_3_start_pos = None
-                            current_base_speed = BASE_SPEED
+                    current_base_speed = 100
                 else:
                     current_base_speed = BASE_SPEED
 
