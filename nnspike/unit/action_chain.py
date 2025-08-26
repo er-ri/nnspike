@@ -147,8 +147,12 @@ class ActionChain(object):
                 pos = status.motors[motor_key].relative_position
                 if isinstance(pos, int):
                     return abs(pos)
-                elif isinstance(pos, tuple) and len(pos) > 0 and isinstance(pos[0], int):
-                    return abs(pos[0])
+                elif isinstance(pos, tuple):
+                    # すべての要素がint型の場合は先頭要素を返す
+                    if len(pos) > 0 and isinstance(pos[0], int):
+                        return abs(pos[0])
+                    # tupleの中身がint型でない場合は0
+                    return 0
                 else:
                     print(f"[get_motor_position] {motor_key} position invalid: {pos} (return 0)")
                     return 0
