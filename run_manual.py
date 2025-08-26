@@ -470,7 +470,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                             if theta_under_3_start_pos is None:
                                 theta_under_3_start_pos = edge_pos
                             distance = abs(edge_pos - theta_under_3_start_pos)
-                            if distance >= 500:
+                            if distance >= 1000:
                                 current_base_speed = 100
                             else:
                                 current_base_speed = BASE_SPEED
