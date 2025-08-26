@@ -406,13 +406,14 @@ class ActionChain(object):
         status = self._status
 
         if phase.get_phase() == 0:
-            # エッジトレース
-            target_x = self.get_target_x_by_course(image, offset_y=ROI_CNN, course=self.course)
-            _, _, yellow_pixel_count = find_bottle_center(image, "yellow")
-            if yellow_pixel_count > 3000 and yellow_cx is not None:
+            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+            _, _, red_pixel_count = find_bottle_center(image=image, color="red")
+            if red_pixel_count > 3000:
                 phase.next_phase()
+                # phase1用 右モーター相対位置記録（絶対値）
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
-            return target_x, None, Mode.HIGH_SPEED_AVOID
+            else:
+                return target_x, None, Mode.HIGH_SPEED_AVOID
 
         print("[avoid_obstacle] Unexpected state reached.")
         return None, None, Mode.HIGH_SPEED_AVOID
