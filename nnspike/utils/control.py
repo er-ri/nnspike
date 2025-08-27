@@ -932,3 +932,56 @@ def fill_green_with_white(image):
         image = image.copy()
         image[green_mask != 0] = [255, 255, 255]
     return image
+
+def is_fast_corner_detected(image, roi=ROI_LINE_CORNER) -> bool:
+    """
+    ROI内で条件を満たす物体が検出されたらTrueを返す。
+    可視化・printは行わない。
+    image: 入力画像（2D or 3D ndarray）
+    roi: (x0, y0, x1, y1) のタプル
+    """
+
+    x_center = 320
+    y_center = 150
+    left_x = 50
+    x_tolerance = 100
+    min_area = 10000
+    if image.ndim == 3:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    x0, y0, x1, y1 = roi
+    roi_mask = image[y0:y1, x0:x1]
+    if roi_mask.dtype != np.uint8:
+        roi_mask = roi_mask.astype(np.uint8)
+    if len(roi_mask.shape) == 3:
+        roi_mask = cv2.cvtColor(roi_mask, cv2.COLOR_BGR2GRAY)
+    _, mask_roi = cv2.threshold(roi_mask, 127, 255, cv2.THRESH_BINARY)
+    mask_roi = cv2.bitwise_not(mask_roi)
+    contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    roi_x_center = x_center - x0
+    roi_y_center = y_center - y0
+    roi_left_x = left_x - x0
+    roi_x_min = max(roi_x_center - x_tolerance, 0)
+    roi_x_max = min(roi_x_center + x_tolerance, mask_roi.shape[1]-1)
+
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area < min_area:
+            continue
+        crosses_x_hit = np.any(mask_roi[:, roi_x_min:roi_x_max] == 255)
+        cond_area = area >= min_area
+        y_line = mask_roi[roi_y_center:, roi_left_x] == 255
+        max_run = 0
+        run = 0
+        for val in y_line:
+            if val:
+                run += 1
+                if run > max_run:
+                    max_run = run
+            else:
+                run = 0
+        crosses_y_hit = max_run >= 10
+        all_conditions = cond_area and crosses_x_hit and crosses_y_hit
+        if all_conditions:
+            return True
+    return False
