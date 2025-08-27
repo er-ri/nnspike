@@ -10,7 +10,8 @@ from nnspike.constants import (
     ROI_LINE_HORIZON1,
     ROI_LINE_HORIZON2,
     ROI_LINE_HORIZON3,
-    ROI_LINE_VERTICAL1
+    ROI_LINE_VERTICAL1,
+    ROI_LINE_CORNER
 )
 
 # --- offset_pixels計算用 ---
@@ -916,7 +917,7 @@ def get_color_mask(image, color, pattern=None) -> np.ndarray:
     return mask
 
 # --- 緑領域を白で塗りつぶす独立メソッド ---
-def fill_green_with_white(image):
+def fill_green_with_white(image) -> np.ndarray:
     """
     画像の緑領域（HSV指定）を白で塗りつぶす。
     パラメータ:
@@ -941,36 +942,45 @@ def is_fast_corner_detected(image, roi=ROI_LINE_CORNER) -> bool:
     roi: (x0, y0, x1, y1) のタプル
     """
 
-    x_center = 320
-    y_center = 150
-    left_x = 50
-    x_tolerance = 100
-    min_area = 10000
-    if image.ndim == 3:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    x0, y0, x1, y1 = roi
-    roi_mask = image[y0:y1, x0:x1]
-    if roi_mask.dtype != np.uint8:
-        roi_mask = roi_mask.astype(np.uint8)
-    if len(roi_mask.shape) == 3:
-        roi_mask = cv2.cvtColor(roi_mask, cv2.COLOR_BGR2GRAY)
-    _, mask_roi = cv2.threshold(roi_mask, 127, 255, cv2.THRESH_BINARY)
-    mask_roi = cv2.bitwise_not(mask_roi)
+    # 判定パラメータ（他関数と同じ形式でまとめて定義）
+    _center_x = 320
+    _center_y = 150
+    _left_x = 50
+    _x_tolerance = 100
+    _min_area = 10000
+
+    # 画像前処理（他関数と統一）
+    image = fill_green_with_white(image)
+    mask_full = control_preprocess_image(
+        image,
+        use_hsv=False,
+        grayscale=True,
+        clahe=True,
+        clahe_clipLimit=3.0,
+        blur_type="median",
+        blur_ksize=7,
+        binarize_mode="binary_inv",
+        binarize_value=120,
+        noise_removal=["close7x7"]
+    )
+
+    x1, y1, x2, y2 = roi
+    mask_roi = np.zeros_like(mask_full)
+    mask_roi[y1:y2, x1:x2] = mask_full[y1:y2, x1:x2]
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    roi_x_center = x_center - x0
-    roi_y_center = y_center - y0
-    roi_left_x = left_x - x0
-    roi_x_min = max(roi_x_center - x_tolerance, 0)
-    roi_x_max = min(roi_x_center + x_tolerance, mask_roi.shape[1]-1)
+    roi_x_min = max(_center_x - _x_tolerance, x1)
+    roi_x_max = min(_center_x + _x_tolerance, x2-1)
+    roi_left_x = _left_x
 
     for contour in contours:
         area = cv2.contourArea(contour)
-        if area < min_area:
+        if area < _min_area:
             continue
         crosses_x_hit = np.any(mask_roi[:, roi_x_min:roi_x_max] == 255)
-        cond_area = area >= min_area
-        y_line = mask_roi[roi_y_center:, roi_left_x] == 255
+        cond_area = area >= _min_area
+        # y方向判定（絶対座標y_center以上のみ）
+        y_line = mask_roi[_center_y:y2, roi_left_x] == 255
         max_run = 0
         run = 0
         for val in y_line:
