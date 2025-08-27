@@ -26,6 +26,7 @@ from nnspike.utils import (
     is_upper_horizontal_line_detected,  # 上部水平黒ライン検出
     get_blue_line_pixel,  # 青オブジェクト面積検出
     get_color_mask,  # 色マスク生成
+    is_fast_corner_detected,  # コーナー検出
 )
 from nnspike.constants import (
     ROI_CNN,
@@ -132,11 +133,18 @@ def main():
         right_info.append(f"is_vertical_black_line_detected: {is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120)}")
         right_info.append(f"get_is_blue_line_at_y: {get_is_blue_line_at_y(image)}")
         right_info.append(f"get_blue_line_pixel: {get_blue_line_pixel(image)}")
+        # コーナー検出結果を右側情報に追加
+        fast_corner = is_fast_corner_detected(image)
+        right_info.append(f"is_fast_corner_detected: {fast_corner}")
         info["right_info"] = right_info
 
         # 画像表示モード切替（if/elif/else構造で正しく分岐）
         if show_mode == 1:
             image_to_show = image.copy()
+            # コーナー検出Trueなら右上に赤丸で可視化
+            if 'fast_corner' in locals() and fast_corner:
+                h, w = image_to_show.shape[:2]
+                cv2.circle(image_to_show, (w-30, 30), 20, (0,0,255), -1)
         elif show_mode == 2:
             image_to_show = fill_green_with_white(image)
         elif show_mode == 3:
