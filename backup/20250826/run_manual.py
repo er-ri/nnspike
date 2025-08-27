@@ -38,7 +38,7 @@ from nnspike.unit import ETRobot, ActionChain, KeyboardController
 import cv2
 import numpy as np
 from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode, NUM_MODES
-from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x, get_offset_pixels
+from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x
 
 # User defined constants
 x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
@@ -129,7 +129,7 @@ def wait_for_start(et, keyboard, state_flags):
                 et.stop()
                 keyboard.cleanup()
                 return None
-            time.sleep(0.02)
+            time.sleep(0.03)
         # スタート決定後に一度だけモード切替有効化/無効化を判定
         if started:
             if first_key == "__force__":
@@ -150,23 +150,15 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     def unpack_action_result(result, default_mode=Mode.PAUSE):
         # Noneや不正な戻り値も吸収して安全にアンパック
         if result is None:
-            return None, (0, 0, 0), default_mode
+            return None, (0, 0), default_mode
         if len(result) == 3:
             target_x, speeds, mode = result
-            # speedsが2要素なら3要素化（currentはBASE_SPEED）
             if speeds is None:
-                speeds = (0, 0, 0)
-            elif len(speeds) == 2:
-                speeds = (speeds[0], speeds[1], BASE_SPEED)
-            elif len(speeds) == 3:
-                left, right, current = speeds
-                if current is None or current == 0:
-                    current = BASE_SPEED
-                speeds = (left, right, current)
+                speeds = (0, 0)
             if mode is None:
                 mode = default_mode
             return target_x, speeds, mode
-        return None, (0, 0, 0), default_mode
+        return None, (0, 0), default_mode
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
@@ -273,9 +265,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             # Send video stream and driving info if enabled (must be after frame, target_x, etc. are set)
             if send_video_stream and client_socket is not None:
                 info = dict()
-                mx = target_x - x1 if target_x is not None else None  # Relative to ROI
-                my = OFFSET_Y - y1 if target_x is not None else None  # Relative to ROI
-                offset_y = y1 + my if my is not None else None  # offset_yを明示的にセット
+                # target_x, offset_yがNoneの場合は0にして送信（video/可視化側でNoneを扱わない）
                 safe_target_x = int(target_x) if isinstance(target_x, (int, float)) and target_x is not None else 0
                 safe_offset_y = int(offset_y) if isinstance(offset_y, (int, float)) and offset_y is not None else 0
                 info["target_x"] = safe_target_x
@@ -291,7 +281,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 }
 
                 # Create visualization frame
-                max_contour = np.array([[[mx, my]]], dtype=np.int32) if mx is not None and my is not None else None
                 gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
                 gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
                 # Draw contour on the visualization if found
@@ -331,15 +320,16 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             match mode:
                 case Mode.DOUBLE_LOOP:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.execute_double_loop(frame))
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.execute_double_loop(frame))
                 case Mode.TURN_LEFT_RELATIVE:
-                    _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.turn_left_relative(frame))
+                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.turn_left_relative(frame))
                 case Mode.TURN_RIGHT_RELATIVE:
-                    _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.turn_right_relative(frame))
+                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.turn_right_relative(frame))
                 case Mode.BLUE_BOTTLE_CATCH:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.blue_bottle_catch(frame))
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.blue_bottle_catch(frame))
                 case Mode.FOLLOW_LEFT_EDGE:
                     yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, "yellow")
+                    left_x, _, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     # left_posが7000を超えたらNVIDIA_FOLLOWに切り替え
                     if left_pos is not None and abs(left_pos) >= 7000:
                         mode = Mode.DOUBLE_LOOP
@@ -351,11 +341,14 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         state_flags.set_yellow_blocked(True)
                     elif not state_flags.is_yellow_blocked() and yellow_pixel_count > 3000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
                         target_x = yellow_cx[0]  # X座標のみを取得
+                    elif left_x is not None:
+                        target_x = left_x
                     else:
-                        target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, course)
+                        target_x = (x1 + x2) // 2
                 case Mode.FOLLOW_RIGHT_EDGE:
                     yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, "yellow")
                     # シンプルに右モーターの相対位置はright_posを使う
+                    _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
                     # right_posが7000を超えたらDOUBLE_LOOPに切り替え
                     if right_pos is not None and abs(right_pos) >= 7000:
                         mode = Mode.DOUBLE_LOOP
@@ -367,38 +360,40 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         state_flags.set_yellow_blocked(True)
                     elif not state_flags.is_yellow_blocked() and yellow_pixel_count > 3000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         target_x = yellow_cx[0]  # X座標のみを取得
+                    elif right_x is not None:
+                        target_x = right_x
                     else:
-                        target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, course)
+                        target_x = (x1 + x2) // 2
                 case Mode.AVOID_OBSTACLE:
-                    _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.avoid_obstacle_relative(frame))
+                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.avoid_obstacle_relative(frame))
                 case Mode.SMALL_TURN_LEFT:
-                    _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.small_turn_left())
+                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.small_turn_left())
                 case Mode.HIGH_SPEED_AVOID:
-                    target_x, (left_speed, right_speed, current_base_speed), mode = unpack_action_result(action_chain.high_speed_avoid(frame))
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.high_speed_avoid(frame))
                 case Mode.HIGH_SPEED:
                     # ハイスピードモード（右エッジ追従＋高速）
-                    target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, course)
-                    current_base_speed = 100
+                    _, right_x, _ = get_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+                    target_x = right_x if right_x is not None else (x1 + x2) // 2
                 case Mode.SMALL_TURN_RIGHT:
-                    _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.small_turn_right())
+                    _, (left_speed, right_speed), mode = unpack_action_result(action_chain.small_turn_right())
                 case Mode.CARRY_BOTTLE1:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.carry_bottle1_relative(frame))
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.carry_bottle1_relative(frame))
                 case Mode.BACK_AND_TURN1:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.back_and_turn1_relative(frame))
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.back_and_turn1_relative(frame))
                     # 後退フェーズ（両輪とも正方向速度）の場合はset_motor_backward_speedを使う
                     if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
                         et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
                         continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.CARRY_BOTTLE2:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.carry_bottle2_relative(frame))
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.carry_bottle2_relative(frame))
                 case Mode.BACK_AND_TURN2:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.back_and_turn2_relative(frame))
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.back_and_turn2_relative(frame))
                     # 後退フェーズ（両輪とも正方向速度）の場合はset_motor_backward_speedを使う
                     if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
                         et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
                         continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.HEAD_GOAL:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.heading_goal_relative(frame))
+                    target_x, (left_speed, right_speed), mode = unpack_action_result(action_chain.heading_goal_relative(frame))
                 case Mode.FORWARD:
                     # 赤色重心に向かって進む（find_bottle_center使用）。イエロー・ブルー検知は行わない。
                     red_cx, _, red_pixel_count = find_bottle_center(frame, "red")
@@ -442,23 +437,61 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             # target_xがNoneのときのみ可視化・送信用変数をリセット
             if target_x is None:
-                theta = steering_correction = None
+                mx = my = theta = steering_correction = None
+                max_contour = None
             else:
-                offset_pixels = get_offset_pixels(target_x, ROI_CNN)
-                theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use simplified speed control
+                # Calculate position relative to ROI
+                mx = target_x - x1  # Relative to ROI
+                my = OFFSET_Y - y1  # Relative to ROI
+                offset_y = y1 + my  # offset_yを明示的にセット
 
-                # current_base_speedは各分岐でセット。HIGH_SPEED/HIGH_SPEED_AVOID以外はBASE_SPEED。
-                if mode not in (Mode.HIGH_SPEED, Mode.HIGH_SPEED_AVOID):
+                # Calculate offset from ROI center
+                roi_center_x = (x2 - x1) // 2
+                offset_pixels = mx - roi_center_x
+
+                # Create a simple contour for visualization (approximate target point)
+                max_contour = np.array([[[mx, my]]], dtype=np.int32)
+
+                theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use simplified speed control
+                # HIGH_SPEEDモードのみbase_speedを255に変更
+                if mode == Mode.HIGH_SPEED:
+                    current_base_speed = 100
+                elif mode == Mode.HIGH_SPEED_AVOID:
+                    # courseに応じてposを切り替え（int型のみ）
+                    # edge_pos: courseに応じてint/float/tuple/list/Noneを直接受ける
+                    edge_pos = left_pos if course == "left" else right_pos
+                    edge_pos = 0 if edge_pos is None else (edge_pos[0] if type(edge_pos) in (tuple, list) else edge_pos)
+                    theta = 0 if theta is None else (theta[0] if type(theta) in (tuple, list) else theta)
+                    if edge_pos < 4000:
+                        current_base_speed = 100
+                        theta_under_3_start_pos = None
+                    else:
+                        if abs(theta) < 0.3:
+                            if theta_under_3_start_pos is None:
+                                theta_under_3_start_pos = edge_pos
+                            distance = abs(edge_pos - theta_under_3_start_pos)
+                            if distance >= 2000:
+                                current_base_speed = 100
+                            else:
+                                current_base_speed = BASE_SPEED
+                        else:
+                            theta_under_3_start_pos = None
+                            current_base_speed = BASE_SPEED
+                        print(f"[DEBUG] HIGH_SPEED_AVOID: theta={theta}, edge_pos={edge_pos}, speed={current_base_speed}, offset_pixels={offset_pixels}")
+                else:
                     current_base_speed = BASE_SPEED
 
-                # 分岐外で一括してPID制御・速度計算
                 steering_correction = pid.update(theta)
+
+                # Apply simple differential steering
                 left_speed = current_base_speed - steering_correction
                 right_speed = current_base_speed + steering_correction
 
             # left_speed/right_speedがNoneなら0に（int()前に必ず実施）
-            left_speed = 0 if left_speed is None else left_speed
-            right_speed = 0 if right_speed is None else right_speed
+            if left_speed is None:
+                left_speed = 0
+            if right_speed is None:
+                right_speed = 0
             # Clamp speed values to valid range（上限255、0未満は0に）
             left_speed = int(max(0, min(255, left_speed)))
             right_speed = int(max(0, min(255, right_speed)))

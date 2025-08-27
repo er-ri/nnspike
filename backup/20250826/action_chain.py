@@ -1,11 +1,5 @@
-from typing import Optional, Tuple
-# 型ヒント用: 3要素タプル明示
-SpeedTuple = Tuple[int, int, int]
 import time  # 時間計測用
 from typing import Optional, Tuple  # 型ヒント用
-
-# 型ヒント用: 3要素タプル明示
-SpeedTuple = Tuple[int, int, int]
 
 import numpy as np  # 画像処理用
 
@@ -182,7 +176,7 @@ class ActionChain(object):
             target_x = (self.x1 + self.x2) // 2
         return target_x
 
-    def small_turn_left(self) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def small_turn_left(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """短時間（0.3秒）左旋回アクション.
 
         0.3秒間、左モータ:0・右モータ:50で旋回し、0.3秒経過後にPAUSEへ遷移。
@@ -193,11 +187,11 @@ class ActionChain(object):
 
         elapsed_time = self.current_time - self.start_time
         if elapsed_time < 0.3:
-            return None, (0, 50, 0), Mode.SMALL_TURN_LEFT
+            return None, (0, 50), Mode.SMALL_TURN_LEFT
         self.start_time = 0.0
         return None, None, Mode.PAUSE
 
-    def small_turn_right(self) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def small_turn_right(self) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """短時間（0.3秒）右旋回アクション.
 
         0.3秒間、左モータ:50・右モータ:0で旋回し、0.3秒経過後にPAUSEへ遷移。
@@ -208,11 +202,11 @@ class ActionChain(object):
 
         elapsed_time = self.current_time - self.start_time
         if elapsed_time < 0.3:
-            return None, (50, 0, 0), Mode.SMALL_TURN_RIGHT
+            return None, (50, 0), Mode.SMALL_TURN_RIGHT
         self.start_time = 0.0
         return None, None, Mode.PAUSE
 
-    def blue_bottle_catch(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def blue_bottle_catch(self, image: np.ndarray) -> tuple:
         """青ボトルキャッチモード.
 
         ・phase0: 青ターゲット中心x座標へ追従（青ピクセル数1000超えたらphase1へ）
@@ -274,7 +268,7 @@ class ActionChain(object):
         print("[blue_bottle_catch] Unexpected state reached.")
         return None, None, Mode.PAUSE
 
-    def turn_left_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def turn_left_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         左旋回（右モーターBの相対位置差分で判定）。430未満の間は左:0,右:30で継続。430超えたらPAUSE。
         """
@@ -288,9 +282,9 @@ class ActionChain(object):
         if abs(right_position - self._right_position_start) > 430:
             self._right_position_start = 0
             return None, None, Mode.PAUSE
-        return None, (0, 30, 0), Mode.TURN_LEFT_RELATIVE
+        return None, (0, 30), Mode.TURN_LEFT_RELATIVE
 
-    def turn_right_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def turn_right_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         右旋回（左モーターAの相対位置差分で判定）。430未満の間は左:30,右:0で継続。430超えたらPAUSE。
         """
@@ -305,9 +299,9 @@ class ActionChain(object):
             self._left_position_start = 0
             # デバッグ出力完全削除
             return None, None, Mode.PAUSE
-        return None, (30, 0, 0), Mode.TURN_RIGHT_RELATIVE
+        return None, (30, 0), Mode.TURN_RIGHT_RELATIVE
 
-    def avoid_obstacle_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def avoid_obstacle_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         障害物回避の相対位置判定バージョン。
         ・phase0: 左旋回（右モーター500未満まで、左:40,右:70/左:70,右:40）。到達でphase1へ、右モーター位置記録。
@@ -329,9 +323,9 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 500:
                 if self.course == "right":
-                    return None, (40, 70, 0), Mode.AVOID_OBSTACLE
+                    return None, (40, 70), Mode.AVOID_OBSTACLE
                 else:
-                    return None, (70, 40, 0), Mode.AVOID_OBSTACLE
+                    return None, (70, 40), Mode.AVOID_OBSTACLE
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -343,17 +337,17 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             if position_diff < 400:
                 if self.course == "right":
-                    return None, (70, 40, 0), Mode.AVOID_OBSTACLE
+                    return None, (70, 40), Mode.AVOID_OBSTACLE
                 else:
-                    return None, (40, 70, 0), Mode.AVOID_OBSTACLE
+                    return None, (40, 70), Mode.AVOID_OBSTACLE
             if is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
                 if self.course == "right":
-                    return None, (70, 40, 0), Mode.AVOID_OBSTACLE
+                    return None, (70, 40), Mode.AVOID_OBSTACLE
                 else:
-                    return None, (40, 70, 0), Mode.AVOID_OBSTACLE
+                    return None, (40, 70), Mode.AVOID_OBSTACLE
 
         # phase2: 右モーター移動距離300未満なら中央追従、300以上でphase3へ、右モーター位置記録。
         if phase.get_phase() == 2:
@@ -362,9 +356,9 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             if position_diff < 150:
                 if self.course == "right":
-                    return None, (70, 40, 0), Mode.AVOID_OBSTACLE
+                    return None, (70, 40), Mode.AVOID_OBSTACLE
                 else:
-                    return None, (40, 70, 0), Mode.AVOID_OBSTACLE
+                    return None, (40, 70), Mode.AVOID_OBSTACLE
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -376,17 +370,17 @@ class ActionChain(object):
             distance = abs(current_pos - position_start)
             if distance < 50:
                 if self.course == "right":
-                    return None, (30, 60, 0), Mode.AVOID_OBSTACLE
+                    return None, (30, 60), Mode.AVOID_OBSTACLE
                 else:
-                    return None, (60, 30, 0), Mode.AVOID_OBSTACLE
+                    return None, (60, 30), Mode.AVOID_OBSTACLE
             elif distance < 500:
                 if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                     phase.next_phase()
                 else:
                     if self.course == "right":
-                        return None, (30, 60, 0), Mode.AVOID_OBSTACLE
+                        return None, (30, 60), Mode.AVOID_OBSTACLE
                     else:
-                        return None, (60, 30, 0), Mode.AVOID_OBSTACLE
+                        return None, (60, 30), Mode.AVOID_OBSTACLE
             else:
                 phase.next_phase()
 
@@ -402,7 +396,7 @@ class ActionChain(object):
         print("[avoid_obstacle_relative] Unexpected state reached.")
         return None, None, Mode.AVOID_OBSTACLE
 
-    def high_speed_avoid(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def high_speed_avoid(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
 
         if not self._init:
             self.initialize_action(motor_side=self.course)
@@ -438,9 +432,9 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 600:
                 if self.course == "right":
-                    return None, (50, 75, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (50, 75), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (75, 50, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (75, 50), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -453,17 +447,17 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             if position_diff < 400:
                 if self.course == "right":
-                    return None, (70, 40, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (70, 40), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (40, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (40, 70), Mode.HIGH_SPEED_AVOID
             if is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
                 if self.course == "right":
-                    return None, (70, 40, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (70, 40), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (40, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (40, 70), Mode.HIGH_SPEED_AVOID
 
         # phase2: 右モーター移動距離300未満なら中央追従、300以上でphase3へ、右モーター位置記録。
         if phase.get_phase() == 4:
@@ -473,9 +467,9 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             if position_diff < 100:
                 if self.course == "right":
-                    return None, (70, 40, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (70, 40), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (40, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (40, 70), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -488,17 +482,17 @@ class ActionChain(object):
             distance = abs(current_pos - position_start)
             if distance < 50:
                 if self.course == "right":
-                    return None, (40, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (40, 70), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (70, 40, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (70, 40), Mode.HIGH_SPEED_AVOID
             elif distance < 500:
                 if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                     phase.next_phase()
                 else:
                     if self.course == "right":
-                        return None, (30, 60, 0), Mode.HIGH_SPEED_AVOID
+                        return None, (30, 60), Mode.HIGH_SPEED_AVOID
                     else:
-                        return None, (60, 30, 0), Mode.HIGH_SPEED_AVOID
+                        return None, (60, 30), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
 
@@ -516,7 +510,7 @@ class ActionChain(object):
         print("[avoid_obstacle] Unexpected state reached.")
         return None, None, Mode.HIGH_SPEED_AVOID
     
-    def carry_bottle1_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def carry_bottle1_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         carry_bottle1の位置判定バージョン。
         実装内容に完全一致:
@@ -595,9 +589,9 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 390:
                 if self.course == "right":
-                    return None, (0, 30, 0), Mode.CARRY_BOTTLE1
+                    return None, (0, 30), Mode.CARRY_BOTTLE1
                 else:
-                    return None, (30, 0, 0), Mode.CARRY_BOTTLE1
+                    return None, (30, 0), Mode.CARRY_BOTTLE1
             # 390超えたら次フェーズへ
             phase.next_phase()
             # phase4用 右モーター相対位置記録（絶対値）
@@ -608,7 +602,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 200:
-                return None, (BASE_SPEED, BASE_SPEED, 0), Mode.CARRY_BOTTLE1
+                return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE1
             # 300超えたら次フェーズへ
             phase.next_phase()
             # phase5用 右モーター相対位置記録（絶対値）
@@ -639,7 +633,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 1300:
-                return None, (BASE_SPEED, BASE_SPEED, 0), Mode.CARRY_BOTTLE1
+                return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE1
             # 1300超えたら次フェーズへ
             phase.next_phase()
             # phase7用 右モーター相対位置記録（絶対値）
@@ -665,9 +659,9 @@ class ActionChain(object):
                     phase.next_phase()
             else:
                 if self.course == "right":
-                    return None, (0, 30, 0), Mode.CARRY_BOTTLE1
+                    return None, (0, 30), Mode.CARRY_BOTTLE1
                 else:
-                    return None, (30, 0, 0), Mode.CARRY_BOTTLE1
+                    return None, (30, 0), Mode.CARRY_BOTTLE1
 
         # 8. 青検出（青ピクセル数1000超えたらphase9へ）
         if phase.get_phase() == 8:
@@ -720,7 +714,7 @@ class ActionChain(object):
         print("[carry_bottle1_relative] Unexpected state reached.")
         return None, None, Mode.CARRY_BOTTLE1
 
-    def back_and_turn1_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def back_and_turn1_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         back_and_turn1の位置判定バージョン。
         実装内容に完全一致:
@@ -740,7 +734,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 600:
-                return None, (BASE_SPEED, BASE_SPEED, 0), Mode.BACK_AND_TURN1
+                return None, (BASE_SPEED, BASE_SPEED), Mode.BACK_AND_TURN1
             phase.next_phase()
             # phase1用 右モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -760,15 +754,15 @@ class ActionChain(object):
             # 最低450ユニットは必ず旋回
             if not minimum_position_reached:
                 if self.course == "right":
-                    return None, (0, 30, 0), Mode.BACK_AND_TURN1
+                    return None, (0, 30), Mode.BACK_AND_TURN1
                 else:
-                    return None, (30, 0, 0), Mode.BACK_AND_TURN1
+                    return None, (30, 0), Mode.BACK_AND_TURN1
             # 450ユニット超えてから、ターゲット検出または940ユニット到達まで継続
             if (not red_target_detected) and (not position_limit_reached):
                 if self.course == "right":
-                    return None, (0, 30, 0), Mode.BACK_AND_TURN1
+                    return None, (0, 30), Mode.BACK_AND_TURN1
                 else:
-                    return None, (30, 0, 0), Mode.BACK_AND_TURN1
+                    return None, (30, 0), Mode.BACK_AND_TURN1
             phase.next_phase()
 
         # 2. 終了: 状態リセットしCARRY_BOTTLE2へ遷移
@@ -779,7 +773,7 @@ class ActionChain(object):
         print("[back_and_turn1_relative] Unexpected state reached.")
         return None, None, Mode.BACK_AND_TURN1
 
-    def carry_bottle2_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def carry_bottle2_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         carry_bottle2の位置判定バージョン。
         実装内容に完全一致:
@@ -856,18 +850,18 @@ class ActionChain(object):
             # 500未満は検知開始しない
             if position_delta < min_limit and not position_limit_reached:
                 if self.course == "right":
-                    return None, (0, 30, 0), Mode.CARRY_BOTTLE2
+                    return None, (0, 30), Mode.CARRY_BOTTLE2
                 else:
-                    return None, (30, 0, 0), Mode.CARRY_BOTTLE2
+                    return None, (30, 0), Mode.CARRY_BOTTLE2
 
             # 500以上になったら判定開始
             line_detected = is_left_black_line_detected(image, self.course)
 
             if (not line_detected) and (not position_limit_reached):
                 if self.course == "right":
-                    return None, (0, 30, 0), Mode.CARRY_BOTTLE2
+                    return None, (0, 30), Mode.CARRY_BOTTLE2
                 else:
-                    return None, (30, 0, 0), Mode.CARRY_BOTTLE2
+                    return None, (30, 0), Mode.CARRY_BOTTLE2
             phase.next_phase()
             # phase4用 右モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -878,7 +872,7 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             threshold = 870 if self.course_type == "upper" else 1300
             if abs(current_pos - position_start) < threshold:
-                return None, (BASE_SPEED, BASE_SPEED, 0), Mode.CARRY_BOTTLE2
+                return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
             phase.next_phase()
             # phase5用 右モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -889,9 +883,9 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 350:
                 if self.course == "right":
-                    return None, (0, 30, 0), Mode.CARRY_BOTTLE2
+                    return None, (0, 30), Mode.CARRY_BOTTLE2
                 else:
-                    return None, (30, 0, 0), Mode.CARRY_BOTTLE2
+                    return None, (30, 0), Mode.CARRY_BOTTLE2
             phase.next_phase()
             # phase6用 右モーター相対位置記録（絶対値）
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -901,7 +895,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 100:
-                return None, (BASE_SPEED, BASE_SPEED, 0), Mode.CARRY_BOTTLE2
+                return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
             phase.next_phase()
             # phase7用 右モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -929,7 +923,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 400:
-                return None, (BASE_SPEED, BASE_SPEED, 0), Mode.CARRY_BOTTLE2
+                return None, (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
             phase.next_phase()
             # phase9用 右モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -947,15 +941,15 @@ class ActionChain(object):
             # 最低300ユニットは必ず旋回
             if not minimum_position_reached:
                 if self.course == "right":
-                    return None, (0, 30, 0), Mode.CARRY_BOTTLE2
+                    return None, (0, 30), Mode.CARRY_BOTTLE2
                 else:
-                    return None, (30, 0, 0), Mode.CARRY_BOTTLE2
+                    return None, (30, 0), Mode.CARRY_BOTTLE2
             # 300ユニット超えてから、ターゲット検出または500ユニット到達まで継続
             if (not blue_target_detected) and (not position_limit_reached):
                 if self.course == "right":
-                    return None, (0, 30, 0), Mode.CARRY_BOTTLE2
+                    return None, (0, 30), Mode.CARRY_BOTTLE2
                 else:
-                    return None, (30, 0, 0), Mode.CARRY_BOTTLE2
+                    return None, (30, 0), Mode.CARRY_BOTTLE2
             phase.next_phase()
             # phase10用 右モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -1023,7 +1017,7 @@ class ActionChain(object):
         print("[carry_bottle2_relative] Unexpected state reached.")
         return None, None, Mode.CARRY_BOTTLE2
 
-    def back_and_turn2_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def back_and_turn2_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         back_and_turn2の位置判定バージョン。
         実装内容に完全一致:
@@ -1043,7 +1037,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.opposite_course, status=status)
             if abs(current_pos - position_start) < 570:
-                return None, (BASE_SPEED, BASE_SPEED, 0), Mode.BACK_AND_TURN2
+                return None, (BASE_SPEED, BASE_SPEED), Mode.BACK_AND_TURN2
             phase.next_phase()
             # phase1用 左モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position(self.opposite_course, status=status))
@@ -1059,15 +1053,15 @@ class ActionChain(object):
             # 最低200ユニットは必ず旋回
             if not minimum_position_reached:
                 if self.course == "right":
-                    return None, (30, 0, 0), Mode.BACK_AND_TURN2
+                    return None, (30, 0), Mode.BACK_AND_TURN2
                 else:
-                    return None, (0, 30, 0), Mode.BACK_AND_TURN2
+                    return None, (0, 30), Mode.BACK_AND_TURN2
             # 200ユニット超えてから、水平ライン検出または400ユニット到達まで継続
             if (not horizontal_line_detected) and (not position_limit_reached):
                 if self.course == "right":
-                    return None, (30, 0, 0), Mode.BACK_AND_TURN2
+                    return None, (30, 0), Mode.BACK_AND_TURN2
                 else:
-                    return None, (0, 30, 0), Mode.BACK_AND_TURN2
+                    return None, (0, 30), Mode.BACK_AND_TURN2
             # 条件を満たしたので次のフェーズへ
             phase.next_phase()
 
@@ -1079,7 +1073,7 @@ class ActionChain(object):
         print("[back_and_turn2_relative] Unexpected state reached.")
         return None, None, Mode.BACK_AND_TURN2
 
-    def heading_goal_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def heading_goal_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
         """
         heading_goalの位置判定バージョン。
         実装内容に完全一致:
@@ -1128,9 +1122,9 @@ class ActionChain(object):
             # 常に左旋回。垂直黒ライン検出または600到達でphase3へ
             if (not vertical_line_detected) and (not position_limit_reached):
                 if self.course == "right":
-                    return None, (0, 30, 0), Mode.HEAD_GOAL
+                    return None, (0, 30), Mode.HEAD_GOAL
                 else:
-                    return None, (30, 0, 0), Mode.HEAD_GOAL
+                    return None, (30, 0), Mode.HEAD_GOAL
             phase.next_phase()
 
         # 3. 左エッジトレース（青ライン検出でphase4へ。左エッジがなければ中央。青ライン検出時に右モーター位置記録）
@@ -1170,7 +1164,7 @@ class ActionChain(object):
         print("[heading_goal_relative] Unexpected state reached.")
         return None, None, Mode.HEAD_GOAL
 
-    def execute_double_loop(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def execute_double_loop(self, image: np.ndarray) -> tuple:
 
         if not self._init:
             self.initialize_action(motor_side=self.course)
@@ -1326,7 +1320,7 @@ class ActionChain(object):
         print("[execute_double_loop] Unexpected state reached.")
         return None, None, Mode.DOUBLE_LOOP
 
-    def high_speed_cornering(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def high_speed_cornering(self, image: np.ndarray) -> tuple:
         """
         ハイスピードでコーナリングする関数。
         フェーズ0: コースに応じて左右エッジトレース、最大距離制限500で切り替え。
@@ -1356,9 +1350,9 @@ class ActionChain(object):
             # 常に左旋回。垂直黒ライン検出または600到達でphase3へ
             if (not vertical_line_detected) and (not position_limit_reached):
                 if self.course == "right":
-                    return None, (40, 70, 0), Mode.HEAD_GOAL
+                    return None, (40, 70), Mode.HEAD_GOAL
                 else:
-                    return None, (70, 40, 0), Mode.HEAD_GOAL
+                    return None, (70, 40), Mode.HEAD_GOAL
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             phase.next_phase()
 
@@ -1382,9 +1376,9 @@ class ActionChain(object):
             # 常に左旋回。垂直黒ライン検出または600到達でphase3へ
             if (not vertical_line_detected) and (not position_limit_reached):
                 if self.course == "right":
-                    return None, (40, 70, 0), Mode.HIGH_SPEED
+                    return None, (40, 70), Mode.HIGH_SPEED
                 else:
-                    return None, (70, 40, 0), Mode.HIGH_SPEED
+                    return None, (70, 40), Mode.HIGH_SPEED
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             phase.next_phase()
 

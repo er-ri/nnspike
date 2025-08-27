@@ -196,6 +196,20 @@ def main():
                 noise_removal=["close7x7"]
             )
             image_to_show = cv2.merge([bottle_mask, bottle_mask, bottle_mask])
+        elif show_mode == 7:
+            color = "yellow"
+            color_mask = get_color_mask(image, color, pattern="bottle")
+            bottle_mask = control_preprocess_image(
+                color_mask,
+                use_hsv=False,
+                grayscale=False,
+                clahe=False,
+                blur_type="median",
+                blur_ksize=7,
+                binarize_mode=None,
+                noise_removal=["close7x7"]
+            )
+            image_to_show = cv2.merge([bottle_mask, bottle_mask, bottle_mask])
         else:
             image_to_show = image.copy()
 
@@ -283,6 +297,8 @@ def main():
             show_mode = 5
         elif key == ord("6"):
             show_mode = 6
+        elif key == ord("7"):
+            show_mode = 7
         elif key == ord("a"):
             roi_mode = (roi_mode + 1) % len(roi_list)  # 0→1→2→...→0で切り替え
         elif key == ord("d"):

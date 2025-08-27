@@ -13,20 +13,6 @@ from nnspike.constants import (
     ROI_LINE_VERTICAL1
 )
 
-# --- offset_pixels計算用 ---
-def get_offset_pixels(target_x, roi):
-    """
-    ROI内の中心からのX方向オフセットピクセル数を計算する
-    :param target_x: 対象座標X
-    :param roi: (x1, y1, x2, y2) のタプル（例: ROI_CNN）
-    :return: offset_pixels (int)
-    """
-    x1, _, x2, _ = roi
-    roi_center_x = (x2 - x1) // 2
-    mx = target_x - x1
-    offset_pixels = mx - roi_center_x
-    return offset_pixels
-
 def get_line_edges_at_y(image, roi, target_y, threshold_value=80) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """
     指定Y座標で黒ラインの左右端点（X座標）と幅を検出する。

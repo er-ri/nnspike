@@ -16,6 +16,7 @@ from .control import (
     control_preprocess_image,
     fill_green_with_white,
     get_color_mask,
+    get_offset_pixels,
 )
 from .image import draw_driving_info, extract_video_frames, normalize_image
 from .pid import PIDController
@@ -42,4 +43,5 @@ __all__ = [
     "draw_driving_info",
     "PIDController",
     "SensorRecorder",
+    "get_offset_pixels",
 ]
