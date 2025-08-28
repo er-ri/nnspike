@@ -54,30 +54,16 @@ def get_line_edges_at_y(image, roi, target_y, threshold_value=80) -> Tuple[Optio
         return None, None, None  # ROI外の場合はNone
 
     # --- backup: 元の前処理 ---
-    # mask_full = control_preprocess_image(
-    #     image,
-    #     use_hsv=False,
-    #     grayscale=True,
-    #     clahe=False,
-    #     blur_type="gaussian",
-    #     blur_ksize=5,
-    #     binarize_mode="binary_inv",
-    #     binarize_value=threshold_value,
-    #     noise_removal=None
-    # )
-    # --- 新前処理: fill_green_with_white + CLAHE + median + binary_inv + noise_removal ---
-    image = fill_green_with_white(image)
     mask_full = control_preprocess_image(
         image,
         use_hsv=False,
         grayscale=True,
-        clahe=True,
-        clahe_clipLimit=3.0,
-        blur_type="median",
-        blur_ksize=7,
+        clahe=False,
+        blur_type="gaussian",
+        blur_ksize=5,
         binarize_mode="binary_inv",
-        binarize_value=120,
-        noise_removal=["dilate", "close7x7"]
+        binarize_value=threshold_value,
+        noise_removal=None
     )
     binary = mask_full[y1 : y2, x1 : x2]  # ROI抽出
     roi_row = target_y - y1  # ROI内のY座標
