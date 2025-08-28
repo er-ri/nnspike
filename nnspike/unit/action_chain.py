@@ -435,7 +435,7 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=2 position_diff={position_diff}")
-            if position_diff < 180:
+            if position_diff < 200:
                 if self.course == "right":
                     return None, (0, 30, 0), Mode.HIGH_SPEED_AVOID
                 else:
