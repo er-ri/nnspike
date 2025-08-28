@@ -511,19 +511,21 @@ class ActionChain(object):
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, (0, 0, BASE_SPEED), Mode.HIGH_SPEED_AVOID
 
-        # phase7: 右モーター移動距離・垂直黒ライン判定で旋回継続または次フェーズへ
+        # phase7: 右モーター700までは必ず旋回し、その後垂直黒ライン判定で次フェーズへ
         if phase.get_phase() == 7:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=7 position_diff={position_diff}")
-            if position_diff < 700 and not is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
+            if position_diff < 400:
                 if self.course == "right":
                     return None, (45, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
                     return None, (70, 45, 0), Mode.HIGH_SPEED_AVOID
-            phase.next_phase()
-            phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            # 700以上進んだら、垂直黒ライン判定
+            if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
         # phase8: 青面積判定で状態リセット・DOUBLE_LOOPまたはHIGH_SPEED_AVOID継続
         if phase.get_phase() == 8:
@@ -540,19 +542,21 @@ class ActionChain(object):
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, (0, 0, 100), Mode.HIGH_SPEED_AVOID
 
-        # phase9: 右モーター移動距離・垂直黒ライン判定で旋回継続または次フェーズへ
+        # phase9: 右モーター700までは必ず旋回し、その後垂直黒ライン判定で次フェーズへ
         if phase.get_phase() == 9:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=9 position_diff={position_diff}")
-            if position_diff < 700 and not is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
+            if position_diff < 400:
                 if self.course == "right":
                     return None, (45, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
                     return None, (70, 45, 0), Mode.HIGH_SPEED_AVOID
-            phase.next_phase()
-            phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            # 700以上進んだら、垂直黒ライン判定
+            if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
         # phase10: 青面積判定または右モーター500進んだらDOUBLE_LOOP、そうでなければHIGH_SPEED_AVOID継続
         if phase.get_phase() == 10:
