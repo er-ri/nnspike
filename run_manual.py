@@ -331,6 +331,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             match mode:
                 case Mode.DOUBLE_LOOP:
+                    # 設定を元に戻す
+                    current_base_speed = BASE_SPEED
+                    pid.Kp = 50
+                    pid.Ki = 0
+                    pid.Kd = 5
+                    pid.output_limits = (-BASE_SPEED, BASE_SPEED)
                     target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.execute_double_loop(frame))
                 case Mode.TURN_LEFT_RELATIVE:
                     _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.turn_left_relative(frame))
@@ -374,6 +380,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.SMALL_TURN_LEFT:
                     _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.small_turn_left())
                 case Mode.HIGH_SPEED_AVOID:
+                    # さらに曲がらない（ほぼ直進のみ）
+                    current_base_speed = 100
+                    pid.Kp = 2
+                    pid.Ki = 0
+                    pid.Kd = 0.5
+                    pid.output_limits = (-5, 5)
                     target_x, (left_speed, right_speed, current_base_speed), mode = unpack_action_result(action_chain.high_speed_avoid(frame))
                 case Mode.HIGH_SPEED:
                     # ハイスピードモード（右エッジ追従＋高速）
