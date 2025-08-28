@@ -427,7 +427,7 @@ class ActionChain(object):
                     target_x = yellow_cx[0]
                 else:
                     target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-                return target_x, (0, 0, 80), Mode.HIGH_SPEED_AVOID
+                return target_x, (0, 0, BASE_SPEED), Mode.HIGH_SPEED_AVOID
 
         # phase2: 右モーター位置差分判定で旋回または次フェーズへ
         if phase.get_phase() == 2:
