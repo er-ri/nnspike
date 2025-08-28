@@ -944,7 +944,7 @@ def is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course='right') -> bool:
 
     # 判定パラメータ（他関数と同じ形式でまとめて定義）
     _center_x = 320
-    _center_y = 150
+    _center_y = 200
     _left_x = 50
     _x_tolerance = 100
     _min_area = 10000
