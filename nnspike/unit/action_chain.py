@@ -453,7 +453,7 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=3 position_diff={position_diff}")
-            if position_diff < 600:
+            if position_diff < 650:
                 return None, (BASE_SPEED, BASE_SPEED, 0), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
@@ -481,7 +481,7 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=5 position_diff={position_diff}")
             if position_diff < 100:
-                return None, (BASE_SPEED, BASE_SPEED, 0), Mode.HIGH_SPEED_AVOID
+                return None, (30, 30, 0), Mode.HIGH_SPEED_AVOID
             else:
                 intersection_detected = is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3)
                 print(f"[DEBUG] phase=5 intersection_detected={intersection_detected}")
