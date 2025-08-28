@@ -555,12 +555,16 @@ class ActionChain(object):
             phase.next_phase()
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
-        # phase11: 青面積判定で状態リセット・DOUBLE_LOOPまたはHIGH_SPEED_AVOID継続
+        # phase11: 青面積判定または右モーター500進んだらDOUBLE_LOOP、そうでなければHIGH_SPEED_AVOID継続
         if phase.get_phase() == 11:
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             blue_area = get_blue_line_pixel(image)
             print(f"[DEBUG] phase=11 blue_area={blue_area}")
-            if blue_area > BLUE_AREA_MAX_THRESHOLD:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)
+            print(f"[DEBUG] phase=11 position_diff={position_diff}")
+            if blue_area > BLUE_AREA_MAX_THRESHOLD or position_diff >= 500:
                 self.reset_action()
                 return target_x, None, Mode.DOUBLE_LOOP
             else:
