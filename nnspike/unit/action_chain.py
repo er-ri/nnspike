@@ -487,9 +487,13 @@ class ActionChain(object):
 
         # phase6: コーナー検出（is_fast_corner_detected）で次フェーズへ。未検出時は中央追従・HIGH_SPEED_AVOID返却
         if phase.get_phase() == 6:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)
+            print(f"[DEBUG] phase=6 position_diff={position_diff}")
             corner_detected = is_fast_corner_detected(image, course=self.course)
             print(f"[DEBUG] phase=6 コーナー検出: {corner_detected}")
-            if corner_detected:
+            if corner_detected and position_diff >= 400:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
@@ -512,9 +516,13 @@ class ActionChain(object):
 
         # phase8: コーナー検出（is_fast_corner_detected）で次フェーズへ。未検出時は中央追従・HIGH_SPEED_AVOID返却
         if phase.get_phase() == 8:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)
+            print(f"[DEBUG] phase=8 position_diff={position_diff}")
             corner_detected = is_fast_corner_detected(image, course=self.course)
             print(f"[DEBUG] phase=8 コーナー検出: {corner_detected}")
-            if corner_detected:
+            if corner_detected and position_diff >= 1000:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
