@@ -1,0 +1,174 @@
+    def high_speed_avoid(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+
+        if not self._init:
+            self.initialize_action(motor_side=self.course)
+        phase = self._phase
+        status = self._status
+
+        # phase0: 黄色領域検出で次フェーズへ。未検出時は中央追従・HIGH_SPEED_AVOID返却
+        if phase.get_phase() == 0:
+            print(f"[DEBUG] phase=0 yellow_pixel_count={find_bottle_center(image=image, color='yellow')[2]}")
+            _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow")
+            if yellow_pixel_count > 5000:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            else:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                return target_x, (0, 0, 100), Mode.HIGH_SPEED_AVOID
+
+        # phase1: 黄色領域検出で次フェーズへ。未検出時は中心または中央追従・HIGH_SPEED_AVOID返却
+        if phase.get_phase() == 1:
+            yellow_cx, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow")
+            print(f"[DEBUG] phase=1 yellow_pixel_count={yellow_pixel_count} yellow_cx={yellow_cx}")
+            if yellow_pixel_count > 18000:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            else:
+                if yellow_cx is not None:
+                    target_x = yellow_cx[0]
+                else:
+                    target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                return target_x, (0, 0, BASE_SPEED), Mode.HIGH_SPEED_AVOID
+
+        # phase0: 左旋回（右モーター500未満まで、左:40,右:70/左:70,右:40）。到達でphase1へ、右モーター位置記録。
+        if phase.get_phase() == 0:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            if abs(current_pos - position_start) < 500:
+                if self.course == "right":
+                    return None, (40, 70, 0), Mode.AVOID_OBSTACLE
+                else:
+                    return None, (70, 40, 0), Mode.AVOID_OBSTACLE
+            else:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+
+        # phase1: intersection_y=450で黒水平ライン検出まで中央追従（最低500進める）。500未満は中央追従、500以上で黒ライン検出判定。検出でphase2へ、右モーター位置記録。
+        if phase.get_phase() == 1:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)
+            if position_diff < 400:
+                if self.course == "right":
+                    return None, (70, 40, 0), Mode.AVOID_OBSTACLE
+                else:
+                    return None, (40, 70, 0), Mode.AVOID_OBSTACLE
+            if is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3):
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            else:
+                if self.course == "right":
+                    return None, (70, 40, 0), Mode.AVOID_OBSTACLE
+                else:
+                    return None, (40, 70, 0), Mode.AVOID_OBSTACLE
+
+        # phase2: 右モーター移動距離300未満なら中央追従、300以上でphase3へ、右モーター位置記録。
+        if phase.get_phase() == 2:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)
+            if position_diff < 150:
+                if self.course == "right":
+                    return None, (70, 40, 0), Mode.AVOID_OBSTACLE
+                else:
+                    return None, (40, 70, 0), Mode.AVOID_OBSTACLE
+            else:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+
+        # phase3: 左旋回（50未満は(30,60)/(60,30)、500未満は(30,60)/(60,30)、500以上で次フェーズへ。500未満かつ垂直黒ライン検出で次フェーズへ）
+        if phase.get_phase() == 3:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            distance = abs(current_pos - position_start)
+            if distance < 50:
+                if self.course == "right":
+                    return None, (30, 60, 0), Mode.AVOID_OBSTACLE
+                else:
+                    return None, (60, 30, 0), Mode.AVOID_OBSTACLE
+            elif distance < 500:
+                if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
+                    phase.next_phase()
+                else:
+                    if self.course == "right":
+                        return None, (30, 60, 0), Mode.AVOID_OBSTACLE
+                    else:
+                        return None, (60, 30, 0), Mode.AVOID_OBSTACLE
+            else:
+                phase.next_phase()
+
+        # phase7: コーナー検出（is_fast_corner_detected）で次フェーズへ。未検出時は中央追従・HIGH_SPEED_AVOID返却
+        if phase.get_phase() == 7:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)
+            print(f"[DEBUG] phase=7 position_diff={position_diff}")
+            corner_detected = is_fast_corner_detected(image, course=self.course)
+            print(f"[DEBUG] phase=7 コーナー検出: {corner_detected}")
+            if corner_detected and position_diff >= 400:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            else:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                return target_x, (0, 0, BASE_SPEED), Mode.HIGH_SPEED_AVOID
+
+        # phase8: 右モーター移動距離・垂直黒ライン判定で旋回継続または次フェーズへ
+        if phase.get_phase() == 8:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)
+            print(f"[DEBUG] phase=8 position_diff={position_diff}")
+            if position_diff < 700 and not is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
+                if self.course == "right":
+                    return None, (40, 70, 0), Mode.HIGH_SPEED_AVOID
+                else:
+                    return None, (70, 40, 0), Mode.HIGH_SPEED_AVOID
+            phase.next_phase()
+            phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+
+        # phase9: 青面積判定で状態リセット・DOUBLE_LOOPまたはHIGH_SPEED_AVOID継続
+        if phase.get_phase() == 9:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)
+            print(f"[DEBUG] phase=9 position_diff={position_diff}")
+            corner_detected = is_fast_corner_detected(image, course=self.course)
+            print(f"[DEBUG] phase=9 コーナー検出: {corner_detected}")
+            if corner_detected and position_diff >= 2500:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            else:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                return target_x, (0, 0, 100), Mode.HIGH_SPEED_AVOID
+
+        # phase10: 右モーター移動距離・垂直黒ライン判定で旋回継続または次フェーズへ
+        if phase.get_phase() == 10:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)
+            print(f"[DEBUG] phase=10 position_diff={position_diff}")
+            if position_diff < 700 and not is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
+                if self.course == "right":
+                    return None, (40, 70, 0), Mode.HIGH_SPEED_AVOID
+                else:
+                    return None, (70, 40, 0), Mode.HIGH_SPEED_AVOID
+            phase.next_phase()
+            phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+
+        # phase11: 青面積判定または右モーター500進んだらDOUBLE_LOOP、そうでなければHIGH_SPEED_AVOID継続
+        if phase.get_phase() == 11:
+            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+            blue_area = get_blue_line_pixel(image)
+            print(f"[DEBUG] phase=11 blue_area={blue_area}")
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)
+            print(f"[DEBUG] phase=11 position_diff={position_diff}")
+            if blue_area > BLUE_AREA_MAX_THRESHOLD or position_diff >= 500:
+                self.reset_action()
+                return target_x, None, Mode.DOUBLE_LOOP
+            else:
+                return target_x, (0, 0, 100), Mode.HIGH_SPEED_AVOID
+
+        print("[high_speed_avoid] Unexpected state reached.")
+        return None, None, Mode.HIGH_SPEED_AVOID
