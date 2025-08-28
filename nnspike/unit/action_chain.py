@@ -552,7 +552,7 @@ class ActionChain(object):
                 self.reset_action()
                 return target_x, None, Mode.DOUBLE_LOOP
             else:
-                return target_x, None, Mode.HIGH_SPEED_AVOID
+                return target_x, (0, 0, 100), Mode.HIGH_SPEED_AVOID
 
         print("[high_speed_avoid] Unexpected state reached.")
         return None, None, Mode.HIGH_SPEED_AVOID
