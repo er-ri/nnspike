@@ -437,9 +437,9 @@ class ActionChain(object):
             print(f"[DEBUG] phase=2 position_diff={position_diff}")
             if position_diff < 180:
                 if self.course == "right":
-                    return None, (0, BASE_SPEED, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (0, 30, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (BASE_SPEED, 0, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (30, 0, 0), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -450,7 +450,7 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=3 position_diff={position_diff}")
-            if position_diff < 650:
+            if position_diff < 700:
                 return None, (BASE_SPEED, BASE_SPEED, 0), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
@@ -464,9 +464,9 @@ class ActionChain(object):
             print(f"[DEBUG] phase=4 position_diff={position_diff}")
             if position_diff < 250:
                 if self.course == "right":
-                    return None, (BASE_SPEED, 0, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (30, 0, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (0, BASE_SPEED, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (0, 30, 0), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -491,9 +491,9 @@ class ActionChain(object):
             print(f"[DEBUG] phase=6 position_diff={position_diff}")
             if position_diff < 100 and not is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                 if self.course == "right":
-                    return None, (0, BASE_SPEED, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (0, 30, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (BASE_SPEED, 0, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (30, 0, 0), Mode.HIGH_SPEED_AVOID
             phase.next_phase()
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
