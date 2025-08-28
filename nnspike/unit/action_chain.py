@@ -435,9 +435,9 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 500:
                 if self.course == "right":
-                    return None, (40, 70, 0), Mode.AVOID_OBSTACLE
+                    return None, (40, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (70, 40, 0), Mode.AVOID_OBSTACLE
+                    return None, (70, 40, 0), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -449,17 +449,17 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             if position_diff < 400:
                 if self.course == "right":
-                    return None, (70, 40, 0), Mode.AVOID_OBSTACLE
+                    return None, (70, 40, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (40, 70, 0), Mode.AVOID_OBSTACLE
+                    return None, (40, 70, 0), Mode.HIGH_SPEED_AVOID
             if is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
                 if self.course == "right":
-                    return None, (70, 40, 0), Mode.AVOID_OBSTACLE
+                    return None, (70, 40, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (40, 70, 0), Mode.AVOID_OBSTACLE
+                    return None, (40, 70, 0), Mode.HIGH_SPEED_AVOID
 
         # phase4: 右モーター移動距離150未満なら中央追従、150以上でphase5へ、右モーター位置記録。
         if phase.get_phase() == 4:
@@ -468,9 +468,9 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             if position_diff < 150:
                 if self.course == "right":
-                    return None, (70, 40, 0), Mode.AVOID_OBSTACLE
+                    return None, (70, 40, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (40, 70, 0), Mode.AVOID_OBSTACLE
+                    return None, (40, 70, 0), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -482,17 +482,17 @@ class ActionChain(object):
             distance = abs(current_pos - position_start)
             if distance < 50:
                 if self.course == "right":
-                    return None, (30, 60, 0), Mode.AVOID_OBSTACLE
+                    return None, (30, 60, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (60, 30, 0), Mode.AVOID_OBSTACLE
+                    return None, (60, 30, 0), Mode.HIGH_SPEED_AVOID
             elif distance < 500:
                 if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                     phase.next_phase()
                 else:
                     if self.course == "right":
-                        return None, (30, 60, 0), Mode.AVOID_OBSTACLE
+                        return None, (30, 60, 0), Mode.HIGH_SPEED_AVOID
                     else:
-                        return None, (60, 30, 0), Mode.AVOID_OBSTACLE
+                        return None, (60, 30, 0), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
 
