@@ -457,12 +457,12 @@ class ActionChain(object):
                 return None, (BASE_SPEED, BASE_SPEED, 0), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+                phase.set_position_start("position_start", self.get_motor_position(self.opposite_course, status=status))
 
         # phase4: 右モーター移動距離が閾値未満なら高速障害物回避、閾値以上で次フェーズへ
         if phase.get_phase() == 4:
             position_start = phase.get_position_start("position_start")
-            current_pos = self.get_motor_position(self.course, status=status)
+            current_pos = self.get_motor_position(self.opposite_course, status=status)
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=4 position_diff={position_diff}")
             if position_diff < 400:
