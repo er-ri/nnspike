@@ -518,7 +518,7 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=9 position_diff={position_diff}")
-            if position_diff < 500 and not is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
+            if position_diff < 800 and not is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                 if self.course == "right":
                     return None, (40, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
