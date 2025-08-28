@@ -510,7 +510,7 @@ class ActionChain(object):
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-                return target_x, (0, 0, 70), Mode.HIGH_SPEED_AVOID
+                return target_x, (0, 0, BASE_SPEED), Mode.HIGH_SPEED_AVOID
 
         # phase8: 右モーター移動距離・垂直黒ライン判定で旋回継続または次フェーズへ
         if phase.get_phase() == 8:
