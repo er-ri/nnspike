@@ -455,9 +455,9 @@ class ActionChain(object):
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
                 if self.course == "right":
-                    return None, (70, 60, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (70, 40, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (60, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (40, 70, 0), Mode.HIGH_SPEED_AVOID
 
         # phase4: 右モーター移動距離判定で中央追従またはphase5へ
         if phase.get_phase() == 4:
