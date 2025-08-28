@@ -519,9 +519,9 @@ class ActionChain(object):
             print(f"[DEBUG] phase=7 position_diff={position_diff}")
             if position_diff < 700 and not is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                 if self.course == "right":
-                    return None, (40, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (45, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (70, 40, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (70, 45, 0), Mode.HIGH_SPEED_AVOID
             phase.next_phase()
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
@@ -548,9 +548,9 @@ class ActionChain(object):
             print(f"[DEBUG] phase=9 position_diff={position_diff}")
             if position_diff < 700 and not is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                 if self.course == "right":
-                    return None, (40, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (45, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (70, 40, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (70, 45, 0), Mode.HIGH_SPEED_AVOID
             phase.next_phase()
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
