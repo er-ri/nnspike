@@ -438,11 +438,11 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=2 position_diff={position_diff}")
-            if position_diff < 250:
+            if position_diff < 200:
                 if self.course == "right":
-                    return None, (0, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (0, BASE_SPEED, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (70, 0, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (BASE_SPEED, 0, 0), Mode.HIGH_SPEED_AVOID
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -455,9 +455,9 @@ class ActionChain(object):
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
                 if self.course == "right":
-                    return None, (70, 50, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (70, 60, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (50, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (60, 70, 0), Mode.HIGH_SPEED_AVOID
 
         # phase4: 右モーター移動距離判定で中央追従またはphase5へ
         if phase.get_phase() == 4:
