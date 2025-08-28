@@ -487,8 +487,9 @@ class ActionChain(object):
 
         # phase6: コーナー検出（is_fast_corner_detected）で次フェーズへ。未検出時は中央追従・HIGH_SPEED_AVOID返却
         if phase.get_phase() == 6:
-            print(f"[DEBUG] phase=6 yellow_pixel_count={find_bottle_center(image=image, color='yellow')[2]}")
-            if is_fast_corner_detected(image):
+            corner_detected = is_fast_corner_detected(image)
+            print(f"[DEBUG] phase=6 コーナー検出: {corner_detected}")
+            if corner_detected:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
