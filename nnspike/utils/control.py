@@ -934,7 +934,7 @@ def fill_green_with_white(image) -> np.ndarray:
         image[green_mask != 0] = [255, 255, 255]
     return image
 
-def is_fast_corner_detected(image, roi=ROI_LINE_CORNER) -> bool:
+def is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course='right') -> bool:
     """
     ROI内で条件を満たす物体が検出されたらTrueを返す。
     可視化・printは行わない。
@@ -948,6 +948,9 @@ def is_fast_corner_detected(image, roi=ROI_LINE_CORNER) -> bool:
     _left_x = 50
     _x_tolerance = 100
     _min_area = 10000
+
+    if course == 'left':
+        image = cv2.flip(image, 1)
 
     # 画像前処理（他関数と統一）
     image = fill_green_with_white(image)

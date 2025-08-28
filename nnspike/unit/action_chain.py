@@ -4,7 +4,7 @@ from typing import Optional, Tuple  # 型ヒント用
 import numpy as np  # 画像処理用
 
 # 定数・モード・ROI設定
-from nnspike.constants import OFFSET_Y, ROI_CNN, Mode, BASE_SPEED, ROI_LINE_HORIZON3, ROI_LOOP
+from nnspike.constants import OFFSET_Y, ROI_CNN, Mode, BASE_SPEED, ROI_LINE_HORIZON3, ROI_LOOP, ROI_LINE_CORNER
 
 # --- 閾値定数（全体で統一管理） ---
 BLUE_AREA_MAX_THRESHOLD = 18000
@@ -487,7 +487,7 @@ class ActionChain(object):
 
         # phase6: コーナー検出（is_fast_corner_detected）で次フェーズへ。未検出時は中央追従・HIGH_SPEED_AVOID返却
         if phase.get_phase() == 6:
-            corner_detected = is_fast_corner_detected(image)
+            corner_detected = is_fast_corner_detected(image, course=self.course)
             print(f"[DEBUG] phase=6 コーナー検出: {corner_detected}")
             if corner_detected:
                 phase.next_phase()
@@ -512,8 +512,9 @@ class ActionChain(object):
 
         # phase8: コーナー検出（is_fast_corner_detected）で次フェーズへ。未検出時は中央追従・HIGH_SPEED_AVOID返却
         if phase.get_phase() == 8:
-            print(f"[DEBUG] phase=8 yellow_pixel_count={find_bottle_center(image=image, color='yellow')[2]}")
-            if is_fast_corner_detected(image):
+            corner_detected = is_fast_corner_detected(image, course=self.course)
+            print(f"[DEBUG] phase=8 コーナー検出: {corner_detected}")
+            if corner_detected:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
