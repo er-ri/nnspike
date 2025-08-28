@@ -276,15 +276,18 @@ class ActionChain(object):
         """
         左旋回（右モーターBの相対位置差分で判定）。430未満の間は左:0,右:30で継続。430超えたらPAUSE。
         """
-        status = self.get_motor_position(mode="status")
-        # 右モーターの初期位置を記録
-        if not hasattr(self, '_right_position_start') or self._right_position_start is None:
-            self._right_position_start = self.get_motor_position('right', status=status)
+        # 右モーターの初回呼び出し時のみstatus取得とset_position_startで初期位置を記録
+        if not hasattr(self, '_right_position_initialized') or not self._right_position_initialized:
+            status = self.get_motor_position(mode="status")
+            self._phase.set_position_start('right_position_start', self.get_motor_position('right', status=status))
+            self._right_position_initialized = True
+        else:
+            status = self.get_motor_position(mode="status")
 
         right_position = self.get_motor_position('right', status=status)
         # 右(B)の開始～現在の差分が430を超えたら停止
-        if abs(right_position - self._right_position_start) > 430:
-            self._right_position_start = 0
+        if abs(right_position - self._phase.get_position_start('right_position_start')) > 430:
+            self._right_position_initialized = False
             return None, None, Mode.PAUSE
         return None, (0, 30, 0), Mode.TURN_LEFT_RELATIVE
 
@@ -292,16 +295,18 @@ class ActionChain(object):
         """
         右旋回（左モーターAの相対位置差分で判定）。430未満の間は左:30,右:0で継続。430超えたらPAUSE。
         """
-        status = self.get_motor_position(mode="status")
-        # 左モーターの初期位置を記録
-        if not hasattr(self, '_left_position_start') or self._left_position_start is None:
-            self._left_position_start = self.get_motor_position('left', status=status)
+        # 左モーターの初回呼び出し時のみstatus取得とset_position_startで初期位置を記録
+        if not hasattr(self, '_left_position_initialized') or not self._left_position_initialized:
+            status = self.get_motor_position(mode="status")
+            self._phase.set_position_start('left_position_start', self.get_motor_position('left', status=status))
+            self._left_position_initialized = True
+        else:
+            status = self.get_motor_position(mode="status")
 
         left_position = self.get_motor_position('left', status=status)
         # 左(A)の開始～現在の差分が430を超えたら停止
-        if abs(left_position - self._left_position_start) > 430:
-            self._left_position_start = 0
-            # デバッグ出力完全削除
+        if abs(left_position - self._phase.get_position_start('left_position_start')) > 430:
+            self._left_position_initialized = False
             return None, None, Mode.PAUSE
         return None, (30, 0, 0), Mode.TURN_RIGHT_RELATIVE
 
