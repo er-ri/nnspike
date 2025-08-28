@@ -422,7 +422,7 @@ class ActionChain(object):
         if phase.get_phase() == 1:
             yellow_cx, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow")
             print(f"[DEBUG] phase=1 yellow_pixel_count={yellow_pixel_count} yellow_cx={yellow_cx}")
-            if yellow_pixel_count > 14000:
+            if yellow_pixel_count > 18000:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
