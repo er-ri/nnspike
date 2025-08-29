@@ -1,3 +1,6 @@
 *
 !.gitignore
-!train.ipynb
+!train_regression.ipynb
+!train_classification.ipynb
+!train_multi_task.ipynb
+!prepare.ipynb

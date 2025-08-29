@@ -22,7 +22,7 @@ class PIDController:
         Ki: float,
         Kd: float,
         setpoint: float,
-        output_limits: tuple[float, float] = (None, None),
+        output_limits: tuple[float | None, float | None] = (None, None),
     ):
         """
         Initializes the PIDController with the specified gains, setpoint, and output limits.
@@ -40,14 +40,14 @@ class PIDController:
         self.setpoint = setpoint
         self.output_limits = output_limits
 
-        self._last_time = None
+        self._last_time = time.time()
         self._last_error = 0.0
         self._integral = 0.0
 
     def set_output_limits(self, new_output_limits: tuple[float, float]):
         self.output_limits = new_output_limits
 
-    def update(self, measured_value: float) -> int:
+    def update(self, measured_value: float) -> float:
         """
         Calculate the control variable based on the measured value.
 
@@ -55,14 +55,12 @@ class PIDController:
             measured_value (float): The current value of the process variable.
 
         Returns:
-            int: Control output, typically used for wheel steering or other control mechanisms.
+            float: Control output, typically used for wheel steering or other control mechanisms.
         """
         current_time = time.time()
         error = self.setpoint - measured_value  # Cross Track Error
 
-        delta_time = (
-            current_time - self._last_time if self._last_time is not None else 0
-        )
+        delta_time = current_time - self._last_time if self._last_time is not None else 0
         delta_error = error - self._last_error
 
         self._integral += error * delta_time
