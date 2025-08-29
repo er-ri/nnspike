@@ -14,10 +14,9 @@ Functions:
         Extracts frames from a video file and saves them as individual image files in the specified directory.
 """
 
-from pathlib import Path
-
 import cv2
 import numpy as np
+from pathlib import Path
 
 
 def normalize_image(image: np.ndarray) -> np.ndarray:
@@ -45,7 +44,9 @@ def normalize_image(image: np.ndarray) -> np.ndarray:
     return image
 
 
-def draw_driving_info(image: np.ndarray, info: dict, roi: tuple[int, int, int, int]) -> np.ndarray:
+def draw_driving_info(
+    image: np.ndarray, info: dict, roi: tuple[int, int, int, int]
+) -> np.ndarray:
     """Draws driving information on an image.
 
     This function overlays driving-related information onto a given image. It draws a tracing point,
@@ -63,16 +64,12 @@ def draw_driving_info(image: np.ndarray, info: dict, roi: tuple[int, int, int, i
     Returns:
         np.ndarray: The image with the overlaid driving information.
     """
-    target_x, offset_y = int(info["target_x"]), int(info["offset_y"])
+    offset_x, offset_y = int(info["offset_x"]), int(info["offset_y"])
     x1, y1, x2, y2 = roi
 
-    # Draw a cross line in (target_x, offset_y)
-    if target_x != 0:
-        image = cv2.circle(image, (target_x, offset_y), 5, (255, 255, 0), -1)  # Tracing point
-
-        cv2.line(image, (target_x - 100, offset_y), (target_x + 100, offset_y), (255, 255, 0), 1)
-        cv2.line(image, (target_x, offset_y - 100), (target_x, offset_y + 100), (255, 255, 0), 1)
-
+    image = cv2.circle(
+        image, (offset_x, offset_y), 3, (255, 255, 0), -1
+    )  # Tracing point
     image = cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)  # ROI
 
     for index, key in enumerate(info["text"]):
@@ -82,12 +79,50 @@ def draw_driving_info(image: np.ndarray, info: dict, roi: tuple[int, int, int, i
         image = cv2.putText(
             image,
             f"{key} : {text}",
-            (50, 20 + index * 20),
+            (50, 370 + index * 20),
             cv2.FONT_HERSHEY_PLAIN,
             1,
-            (255, 255, 255),  # Font color
+            (255, 255, 255),
             1,
             cv2.LINE_4,
         )
 
     return image
+
+
+def extract_video_frames(video_path: str, frame_path: str) -> None:
+    """
+    Extracts frames from a video file and saves them as individual image files.
+
+    Args:
+        video_path (str): The path to the input video file.
+        frame_path (str): The directory where the extracted frames will be saved.
+                          This directory must already exist.
+
+    Raises:
+        Exception: If the specified frame_path directory does not exist.
+
+    Example:
+        extract_video_frames("input_video.mp4", "output_frames/")
+        This will save frames from 'input_video.mp4' into the 'output_frames/' directory
+        with filenames like 'frame_1.png', 'frame_2.png', etc.
+    """
+
+    cap = cv2.VideoCapture(video_path)
+
+    path = Path(frame_path)
+    if path.is_dir() != True:
+        raise Exception("Directory not exists.")
+
+    # Check whether the frame was successfully extracted
+    success = 1
+
+    while success:
+        success, image = cap.read()
+
+        if not success:
+            break
+
+        frame_count = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+        # Saves the frames with frame-count
+        cv2.imwrite(f"{frame_path}frame_{frame_count}.png", image)

@@ -1,9 +1,8 @@
-import pickle
+import cv2
 import socket
+import pickle
 import struct
 import time
-
-import cv2
 import numpy as np
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -18,8 +17,8 @@ payload_size = struct.calcsize("Q")  # Use "Q" for unsigned long long (8 bytes)
 FILE_LABEL = time.strftime("%Y%m%d%H%M%S", time.localtime())
 
 # Define the codec and create VideoWriter object
-fourcc = cv2.VideoWriter_fourcc(*"XVID")  # type: ignore[attr-defined]
-out = cv2.VideoWriter(f"storage/records/{FILE_LABEL}.avi", fourcc, 20.0, (640, 480))
+fourcc = cv2.VideoWriter_fourcc(*"XVID")
+out = cv2.VideoWriter(f"storage/record/{FILE_LABEL}.avi", fourcc, 20.0, (640, 480))
 
 while True:
     while len(data) < payload_size:

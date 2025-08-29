@@ -1,16 +1,21 @@
+import cv2
 import torch
+import numpy as np
 import torchvision.transforms as transforms
-
-from nnspike.constants import ROI_CNN
 from nnspike.utils import normalize_image
-
-# User defined constants
-x1, y1, x2, y2 = ROI_CNN  # Region of Interest
+from nnspike.models import NvidiaModel
 
 transform = transforms.ToTensor()
 
 
-def process_image(image, roi, device):
+def load_and_prepare_model(model_path, device):
+    model = NvidiaModel()
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.eval()
+    return model
+
+
+def process_image(image, device, roi):
     x1, y1, x2, y2 = roi
 
     roi_area = image[y1:y2, x1:x2]
@@ -23,24 +28,19 @@ def process_image(image, roi, device):
     return roi_area
 
 
-def model_inference(model, roi_area, tensor_relative_position):
-    """
-    Perform inference using the model on the given ROI area and relative position.
+def get_dominant_color(image):
+    pixels = np.float32(image.reshape(-1, 3))
+    n_colors = 1
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 200, 0.1)
+    flags = cv2.KMEANS_RANDOM_CENTERS
+    _, labels, palette = cv2.kmeans(pixels, n_colors, None, criteria, 10, flags)
+    dominant_color = palette[0]
 
-    Args:
-        model: The trained model for inference.
-        roi_area: The region of interest image tensor.
-        relative_position: The relative position tensor.
+    # Determine if the dominant color is closer to blue or red
+    blue_distance = np.linalg.norm(dominant_color - np.array([255, 0, 0]))
+    red_distance = np.linalg.norm(dominant_color - np.array([0, 0, 255]))
 
-    Returns:
-        The model's output predictions.
-    """
-    with torch.no_grad():
-        outputs = model(roi_area, tensor_relative_position)
-
-    prob, mode = torch.max(outputs[0], dim=1)
-    prob_value = round(prob[0].item(), 2)
-    mode_value = mode.item()  # Convert to Python integer
-    predicted_x = x1 + (outputs[1][0][0] * (x2 - x1)).detach().item()
-
-    return predicted_x, (mode_value, prob_value)
+    if blue_distance < red_distance:
+        return "blue"
+    else:
+        return "red"
