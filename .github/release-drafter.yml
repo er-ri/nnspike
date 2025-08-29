@@ -4,7 +4,7 @@ update-changelog: true  # This automatically updates CHANGELOG.md
 
 template: |
   ## What's Changed
-  
+
   $CHANGES
 
 categories:
