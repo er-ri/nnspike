@@ -1,2 +1,5 @@
-from .nvidia import NvidiaModel, NvidiaModelV2
-from .mobilenetv2 import MobileNetV2Regression
+from .customized import SimpleNetClassification25
+from .loss import MultiTaskLoss
+from .nvidia import NvidiaModelMultiTask, NvidiaModelRegression
+
+__all__ = ["SimpleNetClassification25", "NvidiaModelMultiTask", "NvidiaModelRegression", "MultiTaskLoss"]
