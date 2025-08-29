@@ -78,20 +78,18 @@ def get_line_edges_at_y(image, roi, target_y, threshold_value=80) -> Tuple[Optio
             return left_x, right_x, line_width
     return None, None, None  # ラインが検出できない場合
 
-def find_bottle_center(image, color, min_area: int = 500, roi=ROI_CNN) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
+def find_bottle_center(image, color, min_area: int = 500) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
     """
     指定色（yellow, blue, red）の物体中心座標・面積・色ピクセル数を返す。
-    roi指定時はROI内で検出し、中心座標は元画像座標で返す。
     
     パラメータ:
         image (np.ndarray): 入力画像（BGR）
         color (str): 検出色（'yellow', 'blue', 'red'）
         min_area (int): 輪郭面積の最小値（デフォルト500）
-        roi (tuple or None): ROI (x1, y1, x2, y2) 指定時はその範囲で検出
     前処理:
-        HSVマスク→メディアンブラー→ノイズ除去→ROI適用
+        HSVマスク→メディアンブラー→ノイズ除去
     戻り値:
-        center (tuple or None): 物体中心座標 (x, y) ※元画像座標
+        center (tuple or None): 物体中心座標 (x, y)
         area (float or None): 面積
         color_pixel_count (int): 色ピクセル数
     例外:
@@ -103,6 +101,7 @@ def find_bottle_center(image, color, min_area: int = 500, roi=ROI_CNN) -> Tuple[
     if image is None or image.size == 0:
         return None, None, 0
     color_mask = get_color_mask(image, color, pattern="bottle")
+    color_pixel_count = cv2.countNonZero(color_mask)
     bottle_mask = control_preprocess_image(
         color_mask,
         use_hsv=False,
@@ -113,43 +112,31 @@ def find_bottle_center(image, color, min_area: int = 500, roi=ROI_CNN) -> Tuple[
         binarize_mode=None,
         noise_removal=["close7x7"]
     )
-    # ROI適用（roiは必ず指定される前提）
-    x1, y1, x2, y2 = roi
-    mask_roi = np.zeros_like(bottle_mask)
-    mask_roi[y1:y2, x1:x2] = bottle_mask[y1:y2, x1:x2]
-    bottle_mask = mask_roi
     contours, _ = cv2.findContours(bottle_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
-        return None, None, 0
+        return None, None, color_pixel_count
     max_area = 0
-    best_rect = None
-    color_pixel_count = 0
+    best_contour = None
     for contour in contours:
         area = cv2.contourArea(contour)
         x, y, w, h = cv2.boundingRect(contour)
-        # アスペクト比条件は完全に除去
+        aspect_ratio = h / w if w > 0 else 0
         M = cv2.moments(contour)
         m00 = M["m00"]
-        # 面積・重心・色ピクセル条件
         if area < min_area:
+            continue
+        if aspect_ratio < 0.8:
             continue
         if m00 == 0:
             continue
-        # 外接矩形範囲内の色ピクセル数
-        rect_mask = color_mask[y:y+h, x:x+w]
-        rect_color_pixel_count = cv2.countNonZero(rect_mask)
-        if area <= rect_color_pixel_count / 2:
-            continue
         if area > max_area:
             max_area = area
-            best_rect = (x, y, w, h)
-            color_pixel_count = rect_color_pixel_count
-    if best_rect is None:
-        # 検知対象外の場合はすべてNone/0で返す
-        return None, None, 0
-    # 外接矩形の中心座標
-    cx = best_rect[0] + best_rect[2] / 2
-    cy = best_rect[1] + best_rect[3] / 2
+            best_contour = contour
+    if best_contour is None:
+        return None, None, color_pixel_count
+    M = cv2.moments(best_contour)
+    cx = int(M["m10"] / M["m00"])
+    cy = int(M["m01"] / M["m00"])
     return (cx, cy), max_area, color_pixel_count
 
 def calculate_attitude_angle(
@@ -926,7 +913,7 @@ def get_color_mask(image, color, pattern=None) -> np.ndarray:
         mask2 = cv2.inRange(hsv, lower2, upper2)
         mask = cv2.bitwise_or(mask1, mask2)
     else:
-        mask = np.zeros(image.shape[:2], dtype=np.uint8)
+        mask = np.zeros(img.shape[:2], dtype=np.uint8)
     return mask
 
 # --- 緑領域を白で塗りつぶす独立メソッド ---
