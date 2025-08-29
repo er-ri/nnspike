@@ -1,12 +1,22 @@
 name-template: 'v$NEXT_PATCH_VERSION'
 tag-template: 'v$NEXT_PATCH_VERSION'
+update-changelog: true  # This automatically updates CHANGELOG.md
+
+template: |
+  ## Changes
+  
+  $CHANGES
+
 
 categories:
   - title: '🚀 Features'
     labels:
       - 'feature'
+      - 'enhancement'
   - title: '🐛 Bug Fixes'
     labels:
+      - 'fix'
+      - 'bugfix'
       - 'bug'
   - title: '🧰 Maintenance'
     labels:
