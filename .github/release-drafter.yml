@@ -3,10 +3,9 @@ tag-template: 'v$NEXT_PATCH_VERSION'
 update-changelog: true  # This automatically updates CHANGELOG.md
 
 template: |
-  ## Changes
+  ## What's Changed
   
   $CHANGES
-
 
 categories:
   - title: '🚀 Features'
