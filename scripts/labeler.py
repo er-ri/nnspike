@@ -30,6 +30,7 @@ from nnspike.utils import (
 )
 from nnspike.constants import (
     ROI_CNN,
+    ROI_LINE_TRACING,
     ROI_VIRTUAL,
     ROI_LOOP,
     ROI_LINE_LEFT,
@@ -37,6 +38,7 @@ from nnspike.constants import (
     ROI_LINE_HORIZON2,
     ROI_LINE_HORIZON3,
     ROI_LINE_VERTICAL1,
+    ROI_LINE_CORNER,
     ROI_COLOER
 )
 
@@ -73,6 +75,7 @@ def main():
     roi_mode = 0  # 0:なし, 1以降はROI枠
     roi_list = [
         None,
+        ROI_LINE_TRACING,
         ROI_VIRTUAL,
         ROI_LOOP,
         ROI_LINE_LEFT,
@@ -80,6 +83,7 @@ def main():
         ROI_LINE_HORIZON2,
         ROI_LINE_HORIZON3,
         ROI_LINE_VERTICAL1,
+        ROI_LINE_CORNER,
         ROI_COLOER,  # 最後尾に追加
     ]
     show_info_text = True  # 0キーで切り替え
@@ -229,6 +233,7 @@ def main():
             cv2.rectangle(image_to_show, (rx1, ry1), (rx2, ry2), (0, 255, 255), 2)
             # ROI名称を右上隅（外側）に黄色文字で描画
             roi_names = [
+                "ROI_LINE_TRACING",
                 "ROI_VIRTUAL",
                 "ROI_LOOP",
                 "ROI_LINE_LEFT",
@@ -236,6 +241,7 @@ def main():
                 "ROI_LINE_HORIZON2",
                 "ROI_LINE_HORIZON3",
                 "ROI_LINE_VERTICAL1",
+                "ROI_LINE_CORNER",
                 "ROI_COLOER",  # 最後尾に追加
             ]
             # ROI枠の右上隅（外側）にROI名称を黄色文字で描画

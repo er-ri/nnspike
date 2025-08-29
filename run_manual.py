@@ -37,14 +37,11 @@ from nnspike.unit import ETRobot, ActionChain, KeyboardController
 
 import cv2
 import numpy as np
-from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode, NUM_MODES
+from nnspike.constants import BASE_SPEED, HIGH_SPEED_BASE, CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode, ROI_COLOER
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x, get_offset_pixels
 
 # User defined constants
 x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
-
-# Simplified Speed Control Parameters (Easy to tune)
-BASE_SPEED = 45  # Base speed for straight lines (adjust this first)
 
 # Socket connection settings
 HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
@@ -344,7 +341,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.BLUE_BOTTLE_CATCH:
                     target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.blue_bottle_catch(frame))
                 case Mode.FOLLOW_LEFT_EDGE:
-                    yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, "yellow")
+                    yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, "yellow", roi=ROI_COLOER)
                     # left_posが7000を超えたらNVIDIA_FOLLOWに切り替え
                     if left_pos is not None and abs(left_pos) >= 7000:
                         mode = Mode.DOUBLE_LOOP
@@ -359,7 +356,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     else:
                         target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, course)
                 case Mode.FOLLOW_RIGHT_EDGE:
-                    yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, "yellow")
+                    yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, "yellow", roi=ROI_COLOER)
                     # シンプルに右モーターの相対位置はright_posを使う
                     # right_posが7000を超えたらDOUBLE_LOOPに切り替え
                     if right_pos is not None and abs(right_pos) >= 7000:
@@ -387,7 +384,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.HIGH_SPEED:
                     # ハイスピードモード（右エッジ追従＋高速）
                     target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, course)
-                    current_base_speed = 100
+                    current_base_speed = HIGH_SPEED_BASE
                 case Mode.SMALL_TURN_RIGHT:
                     _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.small_turn_right())
                 case Mode.CARRY_BOTTLE1:
@@ -410,7 +407,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.heading_goal_relative(frame))
                 case Mode.FORWARD:
                     # 赤色重心に向かって進む（find_bottle_center使用）。イエロー・ブルー検知は行わない。
-                    red_cx, _, red_pixel_count = find_bottle_center(frame, "red")
+                    red_cx, _, red_pixel_count = find_bottle_center(frame, "red", roi=ROI_COLOER)
                     if red_pixel_count > 3000:
                         if red_cx is not None:
                             target_x = red_cx[0]  # X座標のみを取得

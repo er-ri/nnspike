@@ -78,7 +78,7 @@ def get_line_edges_at_y(image, roi, target_y, threshold_value=80) -> Tuple[Optio
             return left_x, right_x, line_width
     return None, None, None  # ラインが検出できない場合
 
-def find_bottle_center(image, color, min_area: int = 500, roi=ROI_CNN) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
+def find_bottle_center(image, color, roi=ROI_CNN) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
     """
     指定色（yellow, blue, red）の物体中心座標・面積・色ピクセル数を返す。
     roi指定時はROI内で検出し、中心座標は元画像座標で返す。
@@ -86,7 +86,6 @@ def find_bottle_center(image, color, min_area: int = 500, roi=ROI_CNN) -> Tuple[
     パラメータ:
         image (np.ndarray): 入力画像（BGR）
         color (str): 検出色（'yellow', 'blue', 'red'）
-        min_area (int): 輪郭面積の最小値（デフォルト500）
         roi (tuple or None): ROI (x1, y1, x2, y2) 指定時はその範囲で検出
     前処理:
         HSVマスク→メディアンブラー→ノイズ除去→ROI適用
@@ -97,6 +96,8 @@ def find_bottle_center(image, color, min_area: int = 500, roi=ROI_CNN) -> Tuple[
     例外:
         ValueError: colorが未対応の場合
     """
+
+    min_area = 500  # 輪郭面積の最小値（内部定数）
 
     if color not in ["yellow", "blue", "red"]:
         return None, None, 0
@@ -127,13 +128,19 @@ def find_bottle_center(image, color, min_area: int = 500, roi=ROI_CNN) -> Tuple[
     for contour in contours:
         area = cv2.contourArea(contour)
         x, y, w, h = cv2.boundingRect(contour)
-        # アスペクト比条件は完全に除去
         M = cv2.moments(contour)
         m00 = M["m00"]
         # 面積・重心・色ピクセル条件
         if area < min_area:
             continue
         if m00 == 0:
+            continue
+        rect_area = w * h
+        if rect_area == 0:
+            continue
+        ratio = area / rect_area
+        # 物体面積/外接矩形面積比率が0.5以下は除外
+        if ratio <= 0.5:
             continue
         # 外接矩形範囲内の色ピクセル数
         rect_mask = color_mask[y:y+h, x:x+w]
@@ -209,18 +216,24 @@ def find_blue_target_center(image) -> Tuple[Optional[Tuple[int, int]], Optional[
     for cnt in contours_blue:
         if len(cnt) >= 5:
             area = cv2.contourArea(cnt)
-            if area > 20:
-                try:
-                    ellipse = cv2.fitEllipse(cnt)
-                    (cx, cy), (major, minor), angle = ellipse
-                    ratio = major/minor if minor > 0 else 0
-                    if 0.2 < ratio < 2.0 and major > 5 and minor > 3:
-                        if area > max_blue_area:
-                            best_blue_ellipse = ellipse
-                            max_blue_area = area
-                            best_center = (int(cx), int(cy))
-                except:
-                    continue
+            if area < 500:
+                continue
+            ellipse = None
+            try:
+                ellipse = cv2.fitEllipse(cnt)
+            except:
+                continue
+            (cx, cy), (major, minor), angle = ellipse
+            rect = cv2.boundingRect(cnt)
+            x, y, w, h = rect
+            rect_area = w * h
+            rect_ratio = area / rect_area if rect_area > 0 else 0
+            if rect_ratio < 0.4:
+                continue
+            if area > max_blue_area:
+                best_blue_ellipse = ellipse
+                max_blue_area = area
+                best_center = (int(cx), int(cy))
     blue_pixel_count = cv2.countNonZero(mask_blue)
     if best_blue_ellipse is not None:
         return best_center, max_blue_area, blue_pixel_count  # 中心座標・面積・青ピクセル数
@@ -333,17 +346,23 @@ def is_x320_on_blue_target(image, x_tolerance=60) -> bool:
     for cnt in contours_blue:
         if len(cnt) >= 5:
             area = cv2.contourArea(cnt)
-            if area > 5:
-                try:
-                    ellipse = cv2.fitEllipse(cnt)
-                    (cx, cy), (major, minor), angle = ellipse
-                    ratio = major/minor if minor > 0 else 0
-                    if 0.2 < ratio < 5.0 and major > 5 and minor > 3:
-                        if area > max_blue_area:
-                            max_blue_area = area
-                            best_center = (int(cx), int(cy))
-                except:
-                    continue
+            if area < 500:
+                continue
+            ellipse = None
+            try:
+                ellipse = cv2.fitEllipse(cnt)
+            except:
+                continue
+            (cx, cy), (major, minor), angle = ellipse
+            rect = cv2.boundingRect(cnt)
+            x, y, w, h = rect
+            rect_area = w * h
+            rect_ratio = area / rect_area if rect_area > 0 else 0
+            if rect_ratio < 0.4:
+                continue
+            if area > max_blue_area:
+                max_blue_area = area
+                best_center = (int(cx), int(cy))
     if best_center is None:
         return False
     cx, cy = best_center
@@ -384,17 +403,23 @@ def is_x320_on_red_target(image, x_tolerance=60) -> bool:
     for cnt in contours_red:
         if len(cnt) >= 5:
             area = cv2.contourArea(cnt)
-            if area > 5:
-                try:
-                    ellipse = cv2.fitEllipse(cnt)
-                    (cx, cy), (major, minor), angle = ellipse
-                    ratio = major/minor if minor > 0 else 0
-                    if 0.2 < ratio < 5.0 and major > 5 and minor > 3:
-                        if area > max_red_area:
-                            max_red_area = area
-                            best_center = (int(cx), int(cy))
-                except:
-                    continue
+            if area < 500:
+                continue
+            ellipse = None
+            try:
+                ellipse = cv2.fitEllipse(cnt)
+            except:
+                continue
+            (cx, cy), (major, minor), angle = ellipse
+            rect = cv2.boundingRect(cnt)
+            x, y, w, h = rect
+            rect_area = w * h
+            rect_ratio = area / rect_area if rect_area > 0 else 0
+            if rect_ratio < 0.4:
+                continue
+            if area > max_red_area:
+                max_red_area = area
+                best_center = (int(cx), int(cy))
     if best_center is None:
         return False
     cx, cy = best_center
@@ -428,24 +453,32 @@ def get_red_target_center_x(image) -> Optional[int]:
         noise_removal=["close5x5_ellipse"]
     )
     contours_red, _ = cv2.findContours(mask_red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    best_center_x = None
+    best_center = None
     max_red_area = 0
     for cnt in contours_red:
         if len(cnt) >= 5:
             area = cv2.contourArea(cnt)
-            if area > 5:
-                try:
-                    ellipse = cv2.fitEllipse(cnt)
-                    (cx, cy), (major, minor), angle = ellipse
-                    ratio = major/minor if minor > 0 else 0
-                    # is_x320_on_red_targetと同じ条件
-                    if 0.2 < ratio < 5.0 and major > 5 and minor > 3:
-                        if area > max_red_area:
-                            max_red_area = area
-                            best_center_x = int(cx)
-                except Exception:
-                    continue
-    return best_center_x
+            if area < 500:
+                continue
+            ellipse = None
+            try:
+                ellipse = cv2.fitEllipse(cnt)
+            except Exception as e:
+                print(f"fitEllipse例外: {e}")
+                continue
+            (cx, cy), (major, minor), angle = ellipse
+            rect = cv2.boundingRect(cnt)
+            x, y, w, h = rect
+            rect_area = w * h
+            rect_ratio = area / rect_area if rect_area > 0 else 0
+            if rect_ratio < 0.4:
+                continue
+            if area > max_red_area:
+                max_red_area = area
+                best_center = (int(cx), int(cy))
+    if best_center is not None:
+        return best_center[0]
+    return None
 
 # 黒ラインの長さや位置で判定する関数（画像直接渡し、条件はプライベート変数）
 def is_left_black_line_detected(image, course) -> bool:
