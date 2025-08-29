@@ -1,0 +1,31 @@
+name: Conventional Commit Lint
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install commitizen
+        run: pip install commitizen
+      - name: Check commit messages
+        run: |
+          # Count commits in the range
+          COMMIT_COUNT=$(git rev-list --count origin/main~1..HEAD 2>/dev/null || echo "0")
+          if [ "$COMMIT_COUNT" -eq 0 ]; then
+            echo "No commits to check"
+            exit 0
+          fi
+
+          echo "Checking $COMMIT_COUNT commit(s) pushed to main"
+          cz check --rev-range origin/main~1..HEAD
