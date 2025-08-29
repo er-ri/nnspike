@@ -12,6 +12,7 @@ categories:
     labels:
       - 'feature'
       - 'enhancement'
+      - 'feat'
   - title: '🐛 Bug Fixes'
     labels:
       - 'fix'
@@ -20,9 +21,28 @@ categories:
   - title: '🧰 Maintenance'
     labels:
       - 'chore'
+  - title: '📚 Documentation'
+    labels:
+      - 'docs'
+      - 'documentation'
 
 change-template: '- $TITLE (#$NUMBER)'
 no-changes-template: 'No significant changes.'
 
 exclude-labels:
   - 'skip-changelog'
+
+# Auto-categorize based on conventional commit prefixes
+autolabeler:
+  - label: 'feat'
+    title:
+      - '/^feat(\(.+\))?\!?:.+$/'
+  - label: 'fix'
+    title:
+      - '/^fix(\(.+\))?\!?:.+$/'
+  - label: 'chore'
+    title:
+      - '/^chore(\(.+\))?\!?:.+$/'
+  - label: 'docs'
+    title:
+      - '/^docs(\(.+\))?\!?:.+$/'
