@@ -6,11 +6,6 @@ A LEGO SPIKE Robot using Neural Network
 
 This project combines a LEGO SPIKE Prime Hub with a Raspberry Pi to create an robot. Using a neural network model inspired by NVIDIA's self-driving car research[1], the robot predicts the path to follow based on camera input. The system processes both straight lines and curves automatically through computer vision, with additional manual labeling for complex intersections. This robot was developed for participation in a Japanese robotics competition[2].
 
-
-<p align="center">
-  <img width="500" height="400" src="./docs/img/demo.png">
-</p>
-
 ## Environment
 - LEGO: HubOS Legacy
 - OS: Raspberry Pi OS Bookworm 64-bit
