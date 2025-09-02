@@ -403,7 +403,7 @@ def is_x320_on_red_target(image, x_tolerance=60) -> bool:
     for cnt in contours_red:
         if len(cnt) >= 5:
             area = cv2.contourArea(cnt)
-            if area < 500:
+            if area < 300:
                 continue
             ellipse = None
             try:
