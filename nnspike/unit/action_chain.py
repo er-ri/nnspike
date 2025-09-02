@@ -1220,7 +1220,7 @@ class ActionChain(object):
         if phase.get_phase() == 4:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            position_limit_reached = abs(current_pos - position_start) >= 400
+            position_limit_reached = abs(current_pos - position_start) >= 500
             if position_limit_reached:
                 phase.next_phase()
             else:
@@ -1231,7 +1231,7 @@ class ActionChain(object):
         if phase.get_phase() == 5:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            position_limit_reached = abs(current_pos - position_start) >= 200  # 直進距離判定
+            position_limit_reached = abs(current_pos - position_start) >= 250  # 直進距離判定
             if position_limit_reached:
                 phase.next_phase()
             else:
