@@ -1389,9 +1389,13 @@ class ActionChain(object):
             if current_pos < FOURTH_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, None, Mode.DOUBLE_LOOP
+
             if current_pos >= DOUBLE_LOOP_LIMIT:
                 print(f"[DEBUG] phase9→phase10: current_pos={current_pos} >= {DOUBLE_LOOP_LIMIT}")
                 self._phase.next_phase()
+            else:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                return target_x, None, Mode.DOUBLE_LOOP
 
         # phase10: CARRY_BOTTLE1へ
         if phase.get_phase() == 10:
