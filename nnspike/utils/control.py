@@ -216,7 +216,7 @@ def find_blue_target_center(image) -> Tuple[Optional[Tuple[int, int]], Optional[
     for cnt in contours_blue:
         if len(cnt) >= 5:
             area = cv2.contourArea(cnt)
-            if area < 500:
+            if area < 300:
                 continue
             ellipse = None
             try:
@@ -346,7 +346,7 @@ def is_x320_on_blue_target(image, x_tolerance=60) -> bool:
     for cnt in contours_blue:
         if len(cnt) >= 5:
             area = cv2.contourArea(cnt)
-            if area < 500:
+            if area < 300:
                 continue
             ellipse = None
             try:
@@ -458,7 +458,7 @@ def get_red_target_center_x(image) -> Optional[int]:
     for cnt in contours_red:
         if len(cnt) >= 5:
             area = cv2.contourArea(cnt)
-            if area < 500:
+            if area < 300:
                 continue
             ellipse = None
             try:
