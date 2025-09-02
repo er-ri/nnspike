@@ -530,7 +530,7 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=8 position_diff={position_diff} current_pos={current_pos}")
-            if position_diff < 500:
+            if position_diff < 400:
                 if self.course == "right":
                     return None, (50, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
@@ -565,7 +565,7 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=10 position_diff={position_diff} current_pos={current_pos}")
-            if position_diff < 500:
+            if position_diff < 400:
                 if self.course == "right":
                     return None, (50, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
@@ -588,7 +588,7 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=11 position_diff={position_diff} blue_area={blue_area} current_pos={current_pos}")
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-            if blue_area > BLUE_AREA_MAX_THRESHOLD or position_diff >= 500:
+            if blue_area > BLUE_AREA_MAX_THRESHOLD or position_diff >= 400:
                 self.reset_action()
                 return target_x, None, Mode.DOUBLE_LOOP
             else:
@@ -1389,13 +1389,9 @@ class ActionChain(object):
             if current_pos < FOURTH_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, None, Mode.DOUBLE_LOOP
-
-            if current_pos >= DOUBLE_LOOP_LIMIT:
+            else:   
                 print(f"[DEBUG] phase9→phase10: current_pos={current_pos} >= {DOUBLE_LOOP_LIMIT}")
                 self._phase.next_phase()
-            else:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-                return target_x, None, Mode.DOUBLE_LOOP
 
         # phase10: CARRY_BOTTLE1へ
         if phase.get_phase() == 10:

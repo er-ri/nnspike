@@ -224,6 +224,20 @@ def main():
                 noise_removal=["close7x7"]
             )
             image_to_show = cv2.merge([bottle_mask, bottle_mask, bottle_mask])
+        elif show_mode == 8:
+            # 赤ターゲットマスク画像表示
+            mask_red = get_color_mask(image, "red", pattern="target")
+            mask_red = control_preprocess_image(
+                mask_red,
+                use_hsv=False,
+                grayscale=False,
+                clahe=False,
+                blur_type="median",
+                blur_ksize=5,
+                binarize_mode=None,
+                noise_removal=["close5x5_ellipse"]
+            )
+            image_to_show = cv2.merge([mask_red, mask_red, mask_red])
         else:
             image_to_show = image.copy()
 
