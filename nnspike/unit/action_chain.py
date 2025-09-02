@@ -1337,7 +1337,7 @@ class ActionChain(object):
         if phase.get_phase() == 5:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
-                print(f"[DEBUG] phase5→phase6(直進): blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD}")
+                print(f"[DEBUG] phase5->phase6(straight): blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD}")
                 self._phase.next_phase()  # phase6(直進)へ
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             elif current_pos < THIRD_INTERSECTION_LIMIT:
@@ -1355,7 +1355,7 @@ class ActionChain(object):
 
             # 150距離進んだら次のフェーズへ
             if abs(current_pos - position_start) >= 150:
-                print(f"[DEBUG] phase6(直進)→phase7: 150距離進行完了 (current_pos={current_pos})")
+                print(f"[DEBUG] phase6->phase7(straight): 150 units moved (current_pos={current_pos})")
                 self._phase.next_phase()
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             return target_x, None, Mode.DOUBLE_LOOP
