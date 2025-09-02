@@ -53,6 +53,7 @@ def get_line_edges_at_y(image, roi, target_y, threshold_value=80) -> Tuple[Optio
     if target_y < y1 or target_y >= y2:
         return None, None, None  # ROI外の場合はNone
 
+    image = fill_green_with_white(image)
     mask_full = control_preprocess_image(
         image,
         use_hsv=False,
