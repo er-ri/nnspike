@@ -761,7 +761,7 @@ class ActionChain(object):
                 target_x = center[0]
             else:
                 target_x = (self.x1 + self.x2) // 2
-            if blue_pixel_count <= 500:
+            if blue_pixel_count <= 300:
                 phase.next_phase()
                 # phase10用 右モーター相対位置記録（get_motor_positionで統一）
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -779,7 +779,7 @@ class ActionChain(object):
             # 右モーター位置差分で継続判定（upper:300, lower:200）
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            threshold = 300 if self.course_type == "upper" else 200
+            threshold = 300 if self.course_type == "upper" else 250
             if abs(current_pos - position_start) < threshold:
                 return target_x, None, Mode.CARRY_BOTTLE1
             else:
@@ -1074,7 +1074,7 @@ class ActionChain(object):
             threshold = 400 if self.course_type == "upper" else 1000
             position_limit_reached = abs(current_pos - position_start) >= threshold
 
-            if blue_pixel_count <= 500 or position_limit_reached:
+            if blue_pixel_count <= 300 or position_limit_reached:
                 phase.next_phase()
                 # phase12用 右モーター相対位置記録（get_motor_positionで統一）
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
