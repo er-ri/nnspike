@@ -329,6 +329,8 @@ def main():
             show_mode = 6
         elif key == ord("7"):
             show_mode = 7
+        elif key == ord("8"):
+            show_mode = 8
         elif key == ord("a"):
             roi_mode = (roi_mode + 1) % len(roi_list)  # 0→1→2→...→0で切り替え
         elif key == ord("d"):
