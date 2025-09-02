@@ -20,8 +20,8 @@ OFFSET_Y = 470  # 0.20 meters to the ground
 BASE_SPEED = 45
 
 # High speed for robot movement (used for high speed mode)
-HIGH_SPEED_BASE = 98
-
+#HIGH_SPEED_BASE = 98
+HIGH_SPEED_BASE = 70
 
 # Behavior Mode
 class Mode(Enum):
