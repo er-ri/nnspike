@@ -285,7 +285,7 @@ class ActionChain(object):
         if abs(right_position - phase.get_position_start('position_start')) > 430:
             self.reset_action()
             return None, None, Mode.PAUSE
-        return None, (0, 30, 0), Mode.TURN_LEFT_RELATIVE
+        return None, (45, 70, 0), Mode.TURN_LEFT_RELATIVE
 
     def turn_right_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
         # 初回呼び出し時のみ初期化
