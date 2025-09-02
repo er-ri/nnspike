@@ -379,7 +379,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     pid.Kp = 5
                     pid.Ki = 0
                     pid.Kd = 5
-                    pid.output_limits = (-10, 10)  # さらに狭く
+                    pid.output_limits = (-15, 15)  # さらに狭く
                     target_x, (left_speed, right_speed, current_base_speed), mode = unpack_action_result(action_chain.high_speed_avoid(frame))
                 case Mode.HIGH_SPEED:
                     # ハイスピードモード（右エッジ追従＋高速）
