@@ -530,7 +530,7 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=8 position_diff={position_diff} current_pos={current_pos}")
-            if position_diff < 400:
+            if position_diff < 500:
                 if self.course == "right":
                     return None, (45, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
@@ -565,7 +565,7 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=10 position_diff={position_diff} current_pos={current_pos}")
-            if position_diff < 400:
+            if position_diff < 500:
                 if self.course == "right":
                     return None, (45, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
