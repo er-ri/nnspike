@@ -517,7 +517,7 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=7 position_diff={position_diff} current_pos={current_pos}")
             corner_detected = is_fast_corner_detected(image, course=self.course)
-            if corner_detected and position_diff >= 300:
+            if corner_detected and position_diff >= 200:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
@@ -532,18 +532,18 @@ class ActionChain(object):
             print(f"[DEBUG] phase=8 position_diff={position_diff} current_pos={current_pos}")
             if position_diff < 400:
                 if self.course == "right":
-                    return None, (50, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (45, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (70, 50, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (70, 45, 0), Mode.HIGH_SPEED_AVOID
             # 一定距離進んだら、垂直黒ライン判定
             if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
                 if self.course == "right":
-                    return None, (50, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (45, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (70, 50, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (70, 45, 0), Mode.HIGH_SPEED_AVOID
 
         # phase9: corner検出で状態リセット、他はHIGH_SPEED_AVOID継続
         if phase.get_phase() == 9:
@@ -567,18 +567,18 @@ class ActionChain(object):
             print(f"[DEBUG] phase=10 position_diff={position_diff} current_pos={current_pos}")
             if position_diff < 400:
                 if self.course == "right":
-                    return None, (50, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (45, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (70, 50, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (70, 45, 0), Mode.HIGH_SPEED_AVOID
             # 700以上進んだら、垂直黒ライン判定
             if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
                 if self.course == "right":
-                    return None, (50, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (45, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (70, 50, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (70, 45, 0), Mode.HIGH_SPEED_AVOID
 
         # phase11: 青面積判定または右モーターが一定距離進んだらDOUBLE_LOOP、そうでなければHIGH_SPEED_AVOID継続
         if phase.get_phase() == 11:
