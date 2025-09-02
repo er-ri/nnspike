@@ -282,7 +282,7 @@ class ActionChain(object):
         左旋回（右モーターBの相対位置差分で判定）。430未満の間は左:0,右:30で継続。430超えたらPAUSE。
         """
         right_position = self.get_motor_position('right', status=status)
-        if abs(right_position - phase.get_position_start('position_start')) > 700:
+        if abs(right_position - phase.get_position_start('position_start')) > 900:
             self.reset_action()
             return None, None, Mode.PAUSE
         return None, (45, 70, 0), Mode.TURN_LEFT_RELATIVE
