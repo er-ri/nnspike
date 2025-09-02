@@ -884,11 +884,13 @@ class ActionChain(object):
             if blue_pixel_count < 18000:
                 # 赤ターゲット中心追従
                 red_center_x = get_red_target_center_x(image)
-                if red_center_x is None and blue_pixel_count >= 5000:
-                    # 赤センターがNoneかつ青ピクセル5000以上なら青センター追従
-                    target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
+                # 赤センター最優先
+                if red_center_x is not None:
+                    target_x = red_center_x
+                elif blue_pixel_count >= 5000 and center is not None:
+                    target_x = center[0]
                 else:
-                    target_x = red_center_x if red_center_x is not None else (self.x1 + self.x2) // 2
+                    target_x = (self.x1 + self.x2) // 2
                 return target_x, None, Mode.CARRY_BOTTLE2
             else:
                 phase.next_phase()
