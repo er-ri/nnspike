@@ -588,11 +588,11 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=11 position_diff={position_diff} blue_area={blue_area} current_pos={current_pos}")
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-            if blue_area > BLUE_AREA_MAX_THRESHOLD or position_diff >= 400:
+            if blue_area > BLUE_AREA_MAX_THRESHOLD or position_diff >= 200:
                 self.reset_action()
                 return target_x, None, Mode.DOUBLE_LOOP
             else:
-                return target_x, (0, 0, HIGH_SPEED_BASE), Mode.HIGH_SPEED_AVOID
+                return target_x, (0, 0, 70), Mode.HIGH_SPEED_AVOID
 
         print("[high_speed_avoid] Unexpected state reached.")
         return None, None, Mode.HIGH_SPEED_AVOID
