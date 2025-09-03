@@ -180,11 +180,12 @@ class ActionChain(object):
             target_x = (self.x1 + self.x2) // 2
         return target_x
 
-    def get_target_x_by_course_safe(self, image, offset_y, course="right"):
+    def get_target_x_by_course_safe(self, image, course="right"):
         """
         Safe version: Returns target_x for given image, offset_y, and course ("right"/"left").
         Handles None values robustly, no exceptions.
         """
+        offset_y = 450
         if course == "right":
             _, right_x, _ = get_line_edges_at_y(image, ROI_LINE_STRAIGHT, offset_y, 80)
             if right_x is not None:
@@ -433,7 +434,7 @@ class ActionChain(object):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
-                target_x = self.get_target_x_by_course_safe(image, 450, self.opposite_course)
+                target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                 return target_x, (0, 0, HIGH_SPEED_BASE), Mode.HIGH_SPEED_AVOID
 
         # phase1: 黄色領域検出で次フェーズへ。未検出時は中心または中央追従・HIGH_SPEED_AVOID返却
@@ -447,7 +448,7 @@ class ActionChain(object):
                 if yellow_cx is not None:
                     target_x = yellow_cx[0]
                 else:
-                    target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                    target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                 return target_x, (0, 0, BASE_SPEED), Mode.HIGH_SPEED_AVOID
 
         # phase2: 左旋回（一定距離まで、左右モーター速度調整）。到達でphase3へ、右モーター位置記録。
@@ -577,7 +578,7 @@ class ActionChain(object):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                 return target_x, (0, 0, HIGH_SPEED_BASE), Mode.HIGH_SPEED_AVOID
 
         # phase10: 右モーターは必ず一定距離旋回し、その後垂直黒ライン判定で次フェーズへ

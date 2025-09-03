@@ -251,12 +251,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             # forceセンサーでスタートした場合のみ、forceセンサーによるモード切替を有効化（フラグ廃止のため直接判定）
             if state_flags.is_force_sensor_mode_switch_enabled():
                 if not state_flags.is_force_sensor_switched() and status.sensors.force is not None and status.sensors.force > 0:
-                    if course == "right":
-                        mode = Mode.FOLLOW_RIGHT_EDGE
-                        print("\nForce sensor pressed: Switched to FOLLOW_RIGHT_EDGE mode")
-                    else:
-                        mode = Mode.FOLLOW_LEFT_EDGE
-                        print("\nForce sensor pressed: Switched to FOLLOW_LEFT_EDGE mode")
+                    mode = Mode.HIGH_SPEED_AVOID
+                    print("\nForce sensor pressed: Switched to HIGH_SPEED_AVOID mode")
                     state_flags.set_force_sensor_switched(True)
 
             # Log sensor data using the recorder if enabled
