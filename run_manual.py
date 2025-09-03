@@ -24,6 +24,7 @@ PID Tuning Parameters:
     - Start with: 2-10
 """
 import argparse
+import signal
 import math
 import pickle
 
@@ -499,6 +500,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             print(f"Total frames recorded: {sensor_recorder.get_frame_count()}")
         # Restore terminal settings on exit
         keyboard.cleanup()
+
+def sigint_handler(signum, frame):
+    print("SIGINT (Ctrl+C) detected. 強制終了します。")
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, sigint_handler)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the OpenCV-based line following robot with optional sensor recording and video saving")
