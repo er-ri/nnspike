@@ -58,8 +58,11 @@ RELATIVE_POSITION_SCALE = 80000
 OBSTACLE_AVOIDANCE_THRESHOLD = 14000
 
 # Camera and Robot Geometry Constants
-CAMERA_HEIGHT = 0.20  # Camera height above ground in meters
-CAMERA_FOCAL_LENGTH_PIXELS = 640  # Approximate focal length in pixels
+CAMERA_HEIGHT_METERS = 0.20  # Camera height above ground in meters
+CAMERA_WIDTH = 640  # Camera frame width in pixels
+CAMERA_HEIGHT = 480  # Camera frame height in pixels  
+CAMERA_FPS = 30  # Camera frames per second
+CAMERA_FOCAL_LENGTH_PIXELS = CAMERA_WIDTH  # Approximate focal length in pixels (using width for simplicity)
 WHEELBASE = 0.11  # Distance between wheels in meters
 
 

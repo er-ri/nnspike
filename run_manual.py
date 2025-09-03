@@ -37,7 +37,7 @@ from nnspike.unit import ETRobot, ActionChain, KeyboardController
 
 import cv2
 import numpy as np
-from nnspike.constants import BASE_SPEED, HIGH_SPEED_BASE, CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode, ROI_COLOER
+from nnspike.constants import BASE_SPEED, HIGH_SPEED_BASE, CAMERA_HEIGHT_METERS, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS, OFFSET_Y, ROI_CNN, Mode, ROI_COLOER
 from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x, get_offset_pixels
 
 # User defined constants
@@ -48,9 +48,60 @@ HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry P
 
 # Camera setup
 cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FPS, 30)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+cap.set(cv2.CAP_PROP_FPS, CAMERA_FPS)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+
+def handle_status_and_video(frame, status, mode, target_x, theta, steering_correction, left_speed, right_speed,
+                           record_sensor_data, sensor_recorder, send_video_stream, client_socket, 
+                           save_camera_video, video_writer):
+    """status取得・センサー記録・動画送信処理"""
+    if record_sensor_data and sensor_recorder is not None:
+        sensor_recorder.log_frame_data(status, mode)
+    
+    if send_video_stream and client_socket is not None:
+        left_pos = status.motors["A"].relative_position
+        right_pos = status.motors["B"].relative_position
+        mx = target_x - x1 if target_x is not None else None
+        my = OFFSET_Y - y1 if target_x is not None else None
+        offset_y = y1 + my if my is not None else None
+        
+        info = {
+            "target_x": int(target_x) if isinstance(target_x, (int, float)) and target_x is not None else 0,
+            "offset_y": int(offset_y) if isinstance(offset_y, (int, float)) and offset_y is not None else 0,
+            "text": {
+                "mode": mode.name,
+                "left_relative_position": int(left_pos) if left_pos is not None else 0,
+                "right_relative_position": int(right_pos) if right_pos is not None else 0,
+                "theta_deg": round(math.degrees(theta), 2) if theta is not None else 0,
+                "steering_correction": round(steering_correction, 2) if steering_correction is not None else 0,
+                "left_speed": int(left_speed) if left_speed is not None else 0,
+                "right_speed": int(right_speed) if right_speed is not None else 0,
+            }
+        }
+
+        max_contour = np.array([[[mx, my]]], dtype=np.int32) if mx is not None and my is not None else None
+        gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
+        gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
+        
+        if max_contour is not None and mx is not None and my is not None:
+            adjusted_contour = max_contour + np.array([x1, y1])
+            cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)
+            cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
+
+        try:
+            ret, buffer = cv2.imencode(".jpg", gray)
+            img_encoded = buffer.tobytes()
+            data = pickle.dumps(img_encoded)
+            client_socket.sendall(struct.pack("L", len(data)) + data)
+        except Exception as e:
+            print(f"Socket error: {e}")
+            # エラーでもループを継続
+    
+    if save_camera_video and video_writer is not None:
+        video_writer.write(frame)
+    
+    return True
     
 # StateFlagsクラス（バックアップより）
 class StateFlags:
@@ -186,16 +237,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     if save_camera_video:
         fourcc = cv2.VideoWriter_fourcc(*"XVID")  # type: ignore[attr-defined]
         video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
-        # フレームサイズがNoneや不正な場合はデフォルト(640,480)を使う
-        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        if not frame_width or not frame_height:
-            frame_width, frame_height = 640, 480
         video_writer = cv2.VideoWriter(
             filename=video_filename,
             fourcc=fourcc,
-            fps=30,
-            frameSize=(frame_width, frame_height),
+            fps=CAMERA_FPS,
+            frameSize=(CAMERA_WIDTH, CAMERA_HEIGHT),
         )
 
     client_socket = None
@@ -247,98 +293,41 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     pre_target_x = (x1 + x2) // 2  # GATE_PASS用の前回値
     # --- ここまで ---
 
+    min_interval = 0.04  # 40ms
+    last_debug_print = 0.0  # debug出力制御用
     try:
-        start_time = time.time()
-        prev_elapsed = None
         while et.is_running:
-            elapsed = int((time.time() - start_time) * 1000)
-            if prev_elapsed is not None:
-                diff = elapsed - prev_elapsed
-                print(f"[DEBUG] et.is_running={et.is_running} [elapsed={elapsed}ms] [+{diff}ms since last debug]")
-            else:
-                print(f"[DEBUG] et.is_running={et.is_running} [elapsed={elapsed}ms]")
-            prev_elapsed = elapsed
+            loop_start = time.time()
+            
             ret, frame = cap.read()
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
 
-            # status取得は必要な場合のみ、None初期化せず1回だけ取得・使い回し
+            # status取得・センサー記録・動画送信処理
             if (record_sensor_data and sensor_recorder is not None) or (send_video_stream and client_socket is not None):
                 status = et.get_spike_status()
-                if record_sensor_data and sensor_recorder is not None:
-                    sensor_recorder.log_frame_data(status, mode)
-                if send_video_stream and client_socket is not None:
-                    left_pos = status.motors["A"].relative_position
-                    right_pos = status.motors["B"].relative_position
-                    info = dict()
-                    mx = target_x - x1 if target_x is not None else None  # Relative to ROI
-                    my = OFFSET_Y - y1 if target_x is not None else None  # Relative to ROI
-                    offset_y = y1 + my if my is not None else None  # offset_yを明示的にセット
-                    safe_target_x = int(target_x) if isinstance(target_x, (int, float)) and target_x is not None else 0
-                    safe_offset_y = int(offset_y) if isinstance(offset_y, (int, float)) and offset_y is not None else 0
-                    info["target_x"] = safe_target_x
-                    info["offset_y"] = safe_offset_y
-                    info["text"] = {
-                        "mode": mode.name,
-                        "left_relative_position": int(left_pos) if left_pos is not None else 0,
-                        "right_relative_position": int(right_pos) if right_pos is not None else 0,
-                        "theta_deg": round(math.degrees(theta), 2) if theta is not None else 0,
-                        "steering_correction": round(steering_correction, 2) if steering_correction is not None else 0,
-                        "left_speed": int(left_speed) if left_speed is not None else 0,
-                        "right_speed": int(right_speed) if right_speed is not None else 0,
-                    }
+                handle_status_and_video(frame, status, mode, target_x, theta, steering_correction, left_speed, right_speed,
+                                      record_sensor_data, sensor_recorder, send_video_stream, client_socket,
+                                      save_camera_video, video_writer)
 
-                    # Create visualization frame
-                    max_contour = np.array([[[mx, my]]], dtype=np.int32) if mx is not None and my is not None else None
-                    gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
-                    gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
-                    # Draw contour on the visualization if found
-                    if max_contour is not None and mx is not None and my is not None:
-                        # Adjust contour coordinates to full frame
-                        adjusted_contour = max_contour + np.array([x1, y1])
-                        cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)  # Draw centroid
-                        cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
-
-                    try:
-                        ret, buffer = cv2.imencode(".jpg", gray)
-                        img_encoded = buffer.tobytes()
-                        data = pickle.dumps(img_encoded)
-                        client_socket.sendall(struct.pack("L", len(data)) + data)
-                    except Exception as e:
-                        print(f"Socket error: {e}")
-                        break
-
-            # 動画保存は frame のみでOK
-            if save_camera_video and video_writer is not None:
-                video_writer.write(frame)
-
-            # manual_mode時はfirst_keyを優先して使い、消費後はget_key()に切り替える
-            if manual_mode:
-                if not state_flags.first_key_used:
-                    key = first_key
-                    state_flags.first_key_used = True
-                else:
-                    key = keyboard.get_key()
-                mode_result, msg = keyboard.get_mode_from_key(key)
-                if mode_result == "quit":
-                    print(msg)
-                    keyboard.running = False
-                    break
-                elif mode_result is not None:
-                    mode = mode_result
-                    print(msg)
+            # キー処理とモード切替（統合版）
+            if manual_mode and not state_flags.first_key_used:
+                key = first_key
+                state_flags.first_key_used = True
             else:
-                if not state_flags.first_key_used:
-                    # manual_mode以外のときは初回ループでスタートダッシュ
-                    et.set_motor_forward_speed(left_speed=HIGH_SPEED_BASE, right_speed=HIGH_SPEED_BASE)
-                    state_flags.first_key_used = True
                 key = keyboard.get_key()
-                mode_result, msg = keyboard.get_mode_from_key(key)
-                if mode_result == "quit":
-                    print(msg)
-                    keyboard.running = False
-                    break
+                if not manual_mode and not state_flags.first_key_used:
+                    state_flags.first_key_used = True
+            
+            mode_result, msg = keyboard.get_mode_from_key(key)
+            if mode_result == "quit":
+                print(msg)
+                keyboard.running = False
+                break
+            elif manual_mode and mode_result is not None:
+                mode = mode_result
+                print(msg)
 
             # --- ここから未定義エラー防止のための初期化 ---
             target_x, offset_y, theta, steering_correction, left_speed, right_speed, mx, my, max_contour = reset_frame_vars()
@@ -445,7 +434,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 theta = steering_correction = None
             else:
                 offset_pixels = get_offset_pixels(target_x, ROI_CNN)
-                theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)
+                theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT_METERS, CAMERA_WIDTH)
                 steering_correction = pid.update(theta)
                 left_speed = current_base_speed - steering_correction
                 right_speed = current_base_speed + steering_correction
@@ -465,6 +454,20 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     left_speed=left_speed,
                     right_speed=right_speed,
                 )
+
+            # --- ループ周期制限とdebug出力（最後） ---
+            loop_elapsed = (time.time() - loop_start)
+            sleep_time = min_interval - loop_elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+            
+            # debug出力（100msごと）
+            now = time.time()
+            if now - last_debug_print > 0.1:
+                elapsed_ms = int(loop_elapsed * 1000)
+                sleep_ms = int(max(sleep_time, 0) * 1000)
+                print(f"[DEBUG] et.is_running=True [elapsed={elapsed_ms}ms] [sleep={sleep_ms}ms]")
+                last_debug_print = now
 
     except Exception as e:
         print(f"Error: {e}")
