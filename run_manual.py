@@ -253,60 +253,55 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
 
-            # 毎ループ1回だけstatusを取得
-            status = et.get_spike_status()
-            left_raw = status.motors["A"].relative_position
-            right_raw = status.motors["B"].relative_position
-            left_pos = left_raw[0] if isinstance(left_raw, tuple) else left_raw
-            right_pos = right_raw[0] if isinstance(right_raw, tuple) else right_raw
+            # status取得は必要な場合のみ、None初期化せず1回だけ取得・使い回し
+            if (record_sensor_data and sensor_recorder is not None) or (send_video_stream and client_socket is not None):
+                status = et.get_spike_status()
+                if record_sensor_data and sensor_recorder is not None:
+                    sensor_recorder.log_frame_data(status, mode)
+                if send_video_stream and client_socket is not None:
+                    left_pos = status.motors["A"].relative_position
+                    right_pos = status.motors["B"].relative_position
+                    info = dict()
+                    mx = target_x - x1 if target_x is not None else None  # Relative to ROI
+                    my = OFFSET_Y - y1 if target_x is not None else None  # Relative to ROI
+                    offset_y = y1 + my if my is not None else None  # offset_yを明示的にセット
+                    safe_target_x = int(target_x) if isinstance(target_x, (int, float)) and target_x is not None else 0
+                    safe_offset_y = int(offset_y) if isinstance(offset_y, (int, float)) and offset_y is not None else 0
+                    info["target_x"] = safe_target_x
+                    info["offset_y"] = safe_offset_y
+                    info["text"] = {
+                        "mode": mode.name,
+                        "left_relative_position": int(left_pos) if left_pos is not None else 0,
+                        "right_relative_position": int(right_pos) if right_pos is not None else 0,
+                        "theta_deg": round(math.degrees(theta), 2) if theta is not None else 0,
+                        "steering_correction": round(steering_correction, 2) if steering_correction is not None else 0,
+                        "left_speed": int(left_speed) if left_speed is not None else 0,
+                        "right_speed": int(right_speed) if right_speed is not None else 0,
+                    }
 
-            # Log sensor data using the recorder if enabled
-            if record_sensor_data and sensor_recorder is not None:
-                sensor_recorder.log_frame_data(status, mode)
+                    # Create visualization frame
+                    max_contour = np.array([[[mx, my]]], dtype=np.int32) if mx is not None and my is not None else None
+                    gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
+                    gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
+                    # Draw contour on the visualization if found
+                    if max_contour is not None and mx is not None and my is not None:
+                        # Adjust contour coordinates to full frame
+                        adjusted_contour = max_contour + np.array([x1, y1])
+                        cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)  # Draw centroid
+                        cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
 
-            # Save video frame if enabled
+                    try:
+                        ret, buffer = cv2.imencode(".jpg", gray)
+                        img_encoded = buffer.tobytes()
+                        data = pickle.dumps(img_encoded)
+                        client_socket.sendall(struct.pack("L", len(data)) + data)
+                    except Exception as e:
+                        print(f"Socket error: {e}")
+                        break
+
+            # 動画保存は frame のみでOK
             if save_camera_video and video_writer is not None:
                 video_writer.write(frame)
-
-            # Send video stream and driving info if enabled (must be after frame, target_x, etc. are set)
-            if send_video_stream and client_socket is not None:
-                info = dict()
-                mx = target_x - x1 if target_x is not None else None  # Relative to ROI
-                my = OFFSET_Y - y1 if target_x is not None else None  # Relative to ROI
-                offset_y = y1 + my if my is not None else None  # offset_yを明示的にセット
-                safe_target_x = int(target_x) if isinstance(target_x, (int, float)) and target_x is not None else 0
-                safe_offset_y = int(offset_y) if isinstance(offset_y, (int, float)) and offset_y is not None else 0
-                info["target_x"] = safe_target_x
-                info["offset_y"] = safe_offset_y
-                info["text"] = {
-                    "mode": mode.name,
-                    "left_relative_position": int(left_pos) if left_pos is not None else 0,
-                    "right_relative_position": int(right_pos) if right_pos is not None else 0,
-                    "theta_deg": round(math.degrees(theta), 2) if theta is not None else 0,
-                    "steering_correction": round(steering_correction, 2) if steering_correction is not None else 0,
-                    "left_speed": int(left_speed) if left_speed is not None else 0,
-                    "right_speed": int(right_speed) if right_speed is not None else 0,
-                }
-
-                # Create visualization frame
-                max_contour = np.array([[[mx, my]]], dtype=np.int32) if mx is not None and my is not None else None
-                gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
-                gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
-                # Draw contour on the visualization if found
-                if max_contour is not None and mx is not None and my is not None:
-                    # Adjust contour coordinates to full frame
-                    adjusted_contour = max_contour + np.array([x1, y1])
-                    cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)  # Draw centroid
-                    cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
-
-                try:
-                    ret, buffer = cv2.imencode(".jpg", gray)
-                    img_encoded = buffer.tobytes()
-                    data = pickle.dumps(img_encoded)
-                    client_socket.sendall(struct.pack("L", len(data)) + data)
-                except Exception as e:
-                    print(f"Socket error: {e}")
-                    break
 
             # manual_mode時はfirst_keyを優先して使い、消費後はget_key()に切り替える
             if manual_mode:
@@ -332,14 +327,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     print(msg)
                     keyboard.running = False
                     break
-                # manual_mode以外ではq以外のキー入力によるモード変更は完全に無効化（何もしない）
 
             # --- ここから未定義エラー防止のための初期化 ---
             target_x, offset_y, theta, steering_correction, left_speed, right_speed, mx, my, max_contour = reset_frame_vars()
-            # --- ここまで ---
-            # --- ここから速度基準値初期化 ---
             current_base_speed = BASE_SPEED
-            # --- ここまで速度基準値初期化 ---
+            # --- ここまで ---
 
             match mode:
                 case Mode.DOUBLE_LOOP:
@@ -356,36 +348,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.BLUE_BOTTLE_CATCH:
                     target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.blue_bottle_catch(frame))
                 case Mode.FOLLOW_LEFT_EDGE:
-                    yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, "yellow", roi=ROI_COLOER)
-                    # left_posが7000を超えたらNVIDIA_FOLLOWに切り替え
-                    if left_pos is not None and abs(left_pos) >= 7000:
-                        mode = Mode.DOUBLE_LOOP
-                        target_x = (x1 + x2) // 2
-                        print("Switched to DOUBLE_LOOP mode (left_pos >= 7000)")
-                    elif yellow_pixel_count > 18000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
-                        mode = Mode.AVOID_OBSTACLE
-                        target_x = (x1 + x2) // 2
-                        state_flags.yellow_blocked = True
-                    elif not state_flags.yellow_blocked and yellow_pixel_count > 3000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
-                        target_x = yellow_cx[0]  # X座標のみを取得
-                    else:
-                        target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, course)
+                    # 単純な左エッジトレースのみ（course='left'を明示的に指定）
+                    target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, 'left')
                 case Mode.FOLLOW_RIGHT_EDGE:
-                    yellow_cx, _, yellow_pixel_count = find_bottle_center(frame, "yellow", roi=ROI_COLOER)
-                    # シンプルに右モーターの相対位置はright_posを使う
-                    # right_posが7000を超えたらDOUBLE_LOOPに切り替え
-                    if right_pos is not None and abs(right_pos) >= 7000:
-                        mode = Mode.DOUBLE_LOOP
-                        target_x = (x1 + x2) // 2
-                        print("Switched to DOUBLE_LOOP mode (left_pos >= 7000)")
-                    elif yellow_pixel_count > 18000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
-                        mode = Mode.AVOID_OBSTACLE
-                        target_x = (x1 + x2) // 2
-                        state_flags.yellow_blocked = True
-                    elif not state_flags.yellow_blocked and yellow_pixel_count > 3000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
-                        target_x = yellow_cx[0]  # X座標のみを取得
-                    else:
-                        target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, course)
+                    # 単純な右エッジトレースのみ（course='right'を明示的に指定）
+                    target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, 'right')
                 case Mode.AVOID_OBSTACLE:
                     _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.avoid_obstacle_relative(frame))
                 case Mode.SMALL_TURN_LEFT:
