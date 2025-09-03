@@ -326,6 +326,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     print(msg)
             else:
                 if not state_flags.first_key_used:
+                    # manual_mode以外のときは初回ループでスタートダッシュ
+                    et.set_motor_forward_speed(left_speed=HIGH_SPEED_BASE, right_speed=HIGH_SPEED_BASE)
                     state_flags.first_key_used = True
                 key = keyboard.get_key()
                 mode_result, msg = keyboard.get_mode_from_key(key)
