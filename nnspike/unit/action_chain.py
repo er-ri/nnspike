@@ -420,6 +420,25 @@ class ActionChain(object):
         return None, None, Mode.AVOID_OBSTACLE
 
     def high_speed_avoid(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    """
+    高速障害回避モードの制御。
+    各フェーズで以下の処理を行う:
+        
+    - phase0: 黄色領域検出で次フェーズへ。未検出時はget_target_x_by_course_safeでHIGH_SPEED_AVOID返却。
+    - phase1: 黄色領域検出で次フェーズへ。未検出時は黄色重心またはget_target_x_by_course_safeでHIGH_SPEED_AVOID返却。
+    - phase2: 左旋回。所定距離未満は左右速度調整、到達で次フェーズへ。
+    - phase3: 直進。所定距離未満は定速走行、到達で次フェーズへ。
+    - phase4: intersection_y付近で黒水平ライン検出まで定速走行。所定距離未満は定速走行、以上で黒ライン検出判定。検出で次フェーズへ。
+    - phase5: 右モーター移動距離が所定値未満なら定速走行、以上で次フェーズへ。
+    - phase6: 左旋回。短距離は低速、長距離は高速。一定距離未満かつ垂直黒ライン検出で次フェーズへ。
+    - phase7: コーナー検出で次フェーズへ。未検出時はget_target_x_by_courseでHIGH_SPEED_AVOID返却。
+    - phase8: 右モーターが所定距離進行後、垂直黒ライン判定で次フェーズへ。
+    - phase9: コーナー検出で状態リセット、他はHIGH_SPEED_AVOID継続。
+    - phase10: 右モーターが所定距離進行後、垂直黒ライン判定で次フェーズへ。
+    - phase11: 青面積判定または右モーターが所定距離進行でDOUBLE_LOOP、そうでなければHIGH_SPEED_AVOID継続。
+        
+    各フェーズで条件に応じて速度・モード・ターゲット座標を返却する。
+    """
 
         if not self._init:
             self.initialize_action(motor_side=self.course)
@@ -478,7 +497,7 @@ class ActionChain(object):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.opposite_course, status=status))
 
-        # phase4: intersection_y付近で黒水平ライン検出まで中央追従。一定距離未満は中央追従、以上で黒ライン検出判定。検出でphase5へ、右モーター位置記録。
+        # phase4: intersection_y付近で黒水平ライン検出まで定速走行。一定距離未満は定速走行、以上で黒ライン検出判定。検出でphase5へ、右モーター位置記録。
         if phase.get_phase() == 4:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.opposite_course, status=status)
@@ -532,7 +551,7 @@ class ActionChain(object):
             else:
                 phase.next_phase()
 
-        # phase7: コーナー検出で次フェーズへ。未検出時は中央追従・HIGH_SPEED_AVOID返却
+        # phase7: コーナー検出で次フェーズへ。未検出時はエッジ追従（get_target_x_by_course）・HIGH_SPEED_AVOID返却
         if phase.get_phase() == 7:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
@@ -543,7 +562,7 @@ class ActionChain(object):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, (0, 0, BASE_SPEED), Mode.HIGH_SPEED_AVOID
 
         # phase8: 右モーターは必ず一定距離旋回し、その後垂直黒ライン判定で次フェーズへ
@@ -581,7 +600,7 @@ class ActionChain(object):
                 target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                 return target_x, (0, 0, HIGH_SPEED_BASE), Mode.HIGH_SPEED_AVOID
 
-        # phase10: 右モーターは必ず一定距離旋回し、その後垂直黒ライン判定で次フェーズへ
+        # phase10: 右モーターが所定距離進行後、垂直黒ライン判定で次フェーズへ
         if phase.get_phase() == 10:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
@@ -592,7 +611,7 @@ class ActionChain(object):
                     return None, (49, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
                     return None, (70, 49, 0), Mode.HIGH_SPEED_AVOID
-            # 700以上進んだら、垂直黒ライン判定
+            # 所定距離進行後、垂直黒ライン判定
             if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -609,7 +628,7 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             print(f"[DEBUG] phase=11 position_diff={position_diff} blue_area={blue_area} current_pos={current_pos}")
-            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
             if blue_area > BLUE_AREA_MAX_THRESHOLD or position_diff >= 200:
                 self.reset_action()
                 return target_x, None, Mode.DOUBLE_LOOP
