@@ -294,8 +294,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     need_status = (record_sensor_data and sensor_recorder is not None) or (send_video_stream and client_socket is not None)
 
     min_interval = 0.04  # 40ms
-    last_debug_print = 0.0  # debug出力制御用
     debug_counter = 0  # ループ回数カウンター
+    last_debug_print = time.time()  # 初回異常値防止のため現在時刻で初期化
     try:
         while et.is_running:
             loop_start = time.time()
