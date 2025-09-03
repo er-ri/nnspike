@@ -223,9 +223,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
-    if manual_mode:
-        # manualモード時のみバッファクリア
-        _ = keyboard.get_key()
     first_key = wait_for_start(et, keyboard, state_flags)
     if first_key is None:
         cap.release()
@@ -233,7 +230,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     # --- ここから未定義エラー防止のための宣言（関数スコープ） ---
     target_x, offset_y, theta, steering_correction, left_speed, right_speed, mx, my, max_contour = reset_frame_vars()
-    theta_under_3_start_pos = None
     pre_target_x = (x1 + x2) // 2  # GATE_PASS用の前回値
     # --- ここまで ---
 
@@ -306,12 +302,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     print(f"Socket error: {e}")
                     break
 
-            # 最初の1回だけfirst_keyを使い、以降はget_key()（manual_modeのみ有効）
-            if not state_flags.is_first_key_used() and first_key is not None:
-                key = first_key
-                state_flags.set_first_key_used(True)
-            elif manual_mode:
-                key = keyboard.get_key()
+            # manual_mode時はfirst_keyを優先して使い、消費後はget_key()に切り替える
+            if manual_mode:
+                if not state_flags.is_first_key_used():
+                    key = first_key
+                    state_flags.set_first_key_used(True)
+                else:
+                    key = keyboard.get_key()
                 mode_result, msg = keyboard.get_mode_from_key(key)
                 if mode_result == "quit":
                     print(msg)
@@ -320,10 +317,16 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 elif mode_result is not None:
                     mode = mode_result
                     print(msg)
+            else:
+                if not state_flags.is_first_key_used():
+                    state_flags.set_first_key_used(True)
 
             # --- ここから未定義エラー防止のための初期化 ---
             target_x, offset_y, theta, steering_correction, left_speed, right_speed, mx, my, max_contour = reset_frame_vars()
             # --- ここまで ---
+            # --- ここから速度基準値初期化 ---
+            current_base_speed = BASE_SPEED
+            # --- ここまで速度基準値初期化 ---
 
             match mode:
                 case Mode.DOUBLE_LOOP:
@@ -450,13 +453,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 theta = steering_correction = None
             else:
                 offset_pixels = get_offset_pixels(target_x, ROI_CNN)
-                theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)  # Use simplified speed control
-
-                # current_base_speedは各分岐でセット。HIGH_SPEED/HIGH_SPEED_AVOID以外はBASE_SPEED。
-                if mode not in (Mode.HIGH_SPEED, Mode.HIGH_SPEED_AVOID):
-                    current_base_speed = BASE_SPEED
-
-                # 分岐外で一括してPID制御・速度計算
+                theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS)
                 steering_correction = pid.update(theta)
                 left_speed = current_base_speed - steering_correction
                 right_speed = current_base_speed + steering_correction
