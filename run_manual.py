@@ -48,7 +48,7 @@ HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry P
 
 # Camera setup
 cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FPS, 25)
+cap.set(cv2.CAP_PROP_FPS, 30)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     
