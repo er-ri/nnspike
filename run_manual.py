@@ -198,9 +198,6 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
     return first_key
 
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", course_type="upper", manual_mode=False):
-    def reset_frame_vars():
-        return None, None, None, None, None, None, None, None, None
-
     def unpack_action_result(result, default_mode=Mode.PAUSE):
         # Noneや不正な戻り値も吸収して安全にアンパック
         if result is None:
@@ -288,10 +285,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     else:
         mode = Mode.PAUSE
 
-    # --- ここから未定義エラー防止のための宣言（関数スコープ） ---
-    target_x, offset_y, theta, steering_correction, left_speed, right_speed, mx, my, max_contour = reset_frame_vars()
+    # --- 変数初期化 ---
+    target_x = theta = steering_correction = left_speed = right_speed = None
     pre_target_x = (x1 + x2) // 2  # GATE_PASS用の前回値
-    # --- ここまで ---
 
     min_interval = 0.04  # 40ms
     last_debug_print = 0.0  # debug出力制御用
@@ -329,10 +325,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 mode = mode_result
                 print(msg)
 
-            # --- ここから未定義エラー防止のための初期化 ---
-            target_x, offset_y, theta, steering_correction, left_speed, right_speed, mx, my, max_contour = reset_frame_vars()
+            # --- 変数初期化 ---
+            target_x = theta = steering_correction = left_speed = right_speed = None
             current_base_speed = BASE_SPEED
-            # --- ここまで ---
 
             match mode:
                 case Mode.DOUBLE_LOOP:
@@ -429,10 +424,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     # Default to center if invalid edge specified
                     target_x = (x1 + x2) // 2
 
-            # target_xがNoneのときのみ可視化・送信用変数をリセット
-            if target_x is None:
-                theta = steering_correction = None
-            else:
+            # PID制御処理（target_xが設定されかつ速度が未設定の場合のみ）
+            if target_x is not None and left_speed is None:
                 offset_pixels = get_offset_pixels(target_x, ROI_CNN)
                 theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT_METERS, CAMERA_WIDTH)
                 steering_correction = pid.update(theta)
