@@ -429,8 +429,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     # Default to center if invalid edge specified
                     target_x = center_x
 
-            # PID制御処理（target_xが設定されかつ速度が未設定の場合のみ）
-            if target_x is not None and left_speed is None:
+            # PID制御処理（target_xが設定されている場合）
+            if target_x is not None:
                 offset_pixels = get_offset_pixels(target_x, ROI_CNN)
                 theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT_METERS, CAMERA_WIDTH)
                 steering_correction = pid.update(theta)
