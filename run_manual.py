@@ -46,11 +46,14 @@ x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
 # Socket connection settings
 HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
 
-# Camera setup
+# Camera setup with venue-safe settings (no auto-adjustments)
 cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FPS, CAMERA_FPS)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+
+cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce latency for venue
+# Camera format settings removed - minimal impact, default format is sufficient
 
 def handle_status_and_video(frame, status, mode, target_x, theta, steering_correction, left_speed, right_speed,
                            record_sensor_data, sensor_recorder, send_video_stream, client_socket, 
