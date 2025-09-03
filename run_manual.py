@@ -111,6 +111,7 @@ def wait_for_start(et, keyboard, state_flags):
             status = et.get_spike_status()
             force_val = getattr(status.sensors, "force", None)
             key = keyboard.get_key()
+            print(f"[DEBUG] key={key} keyboard.running={keyboard.running}")
             # forceセンサー押下でスタート
             if (force_val is not None and force_val > 0):
                 print("Start!")
