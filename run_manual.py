@@ -219,6 +219,22 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             return target_x, speeds, mode
         return None, (0, 0, 0), default_mode
 
+    def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.04):
+        """debug出力処理（40ms周期監視）"""
+        loop_elapsed = loop_end - loop_start
+        sleep_time = min_interval - loop_elapsed
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+        
+        debug_state['counter'] += 1
+        if debug_state['counter'] >= 25:
+            elapsed_ms = int(loop_elapsed * 1000)
+            sleep_ms = int(max(sleep_time, 0) * 1000)
+            actual_interval = (loop_end - debug_state['last_print']) / debug_state['counter'] * 1000
+            print(f"[DEBUG] 25loops avg={actual_interval:.1f}ms [last={elapsed_ms}ms] [sleep={sleep_ms}ms]")
+            debug_state['last_print'] = loop_end
+            debug_state['counter'] = 0
+
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
     TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
@@ -293,9 +309,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     # 毎回判定する必要のないフラグを事前計算
     need_status = (record_sensor_data and sensor_recorder is not None) or (send_video_stream and client_socket is not None)
 
-    min_interval = 0.04  # 40ms
-    debug_counter = 0  # ループ回数カウンター
-    last_debug_print = time.time()  # 初回異常値防止のため現在時刻で初期化
+    # debug状態を辞書で管理（エレガントな状態管理）
+    debug_state = {
+        'counter': 0,
+        'last_print': time.time()
+    }
     try:
         while et.is_running:
             loop_start = time.time()
@@ -377,6 +395,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     # 後退フェーズ（両輪とも正方向速度）の場合はset_motor_backward_speedを使う
                     if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
                         et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
+                        # debug出力処理
+                        loop_end = time.time()
+                        handle_debug_output(loop_start, loop_end, debug_state)
                         continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.CARRY_BOTTLE2:
                     target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.carry_bottle2_relative(frame))
@@ -385,6 +406,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     # 後退フェーズ（両輪とも正方向速度）の場合はset_motor_backward_speedを使う
                     if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
                         et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
+                        # debug出力処理
+                        loop_end = time.time()
+                        handle_debug_output(loop_start, loop_end, debug_state)
                         continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.HEAD_GOAL:
                     target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.heading_goal_relative(frame))
@@ -421,6 +445,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     left_speed = BASE_SPEED
                     right_speed = BASE_SPEED
                     et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
+                    # debug出力処理
+                    loop_end = time.time()
+                    handle_debug_output(loop_start, loop_end, debug_state)
                     continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
@@ -455,20 +482,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             # --- ループ周期制限とdebug出力（最後） ---
             loop_end = time.time()
-            loop_elapsed = loop_end - loop_start
-            sleep_time = min_interval - loop_elapsed
-            if sleep_time > 0:
-                time.sleep(sleep_time)
-            
-            # debug出力（25回ごと≒1秒間隔で40ms周期チェック）
-            debug_counter += 1
-            if debug_counter >= 25:
-                elapsed_ms = int(loop_elapsed * 1000)
-                sleep_ms = int(max(sleep_time, 0) * 1000)
-                actual_interval = (loop_end - last_debug_print) / debug_counter * 1000  # 平均間隔(ms)
-                print(f"[DEBUG] 25loops avg={actual_interval:.1f}ms [last={elapsed_ms}ms] [sleep={sleep_ms}ms]")
-                last_debug_print = loop_end
-                debug_counter = 0
+            handle_debug_output(loop_start, loop_end, debug_state)
 
     except Exception as e:
         print(f"Error: {e}")
