@@ -140,7 +140,7 @@ def wait_for_start(et, keyboard, state_flags):
         return None
     return first_key
 
-def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", course_type="upper"):
+def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", course_type="upper", manual_mode=False):
     def reset_frame_vars():
         return None, None, None, None, None, None, None, None, None
 
@@ -303,20 +303,20 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     print(f"Socket error: {e}")
                     break
 
-            # 最初の1回だけfirst_keyを使い、以降はget_key()
+            # 最初の1回だけfirst_keyを使い、以降はget_key()（manual_modeのみ有効）
             if not state_flags.is_first_key_used() and first_key is not None:
                 key = first_key
                 state_flags.set_first_key_used(True)
-            else:
+            elif manual_mode:
                 key = keyboard.get_key()
-            mode_result, msg = keyboard.get_mode_from_key(key)
-            if mode_result == "quit":
-                print(msg)
-                keyboard.running = False
-                break
-            elif mode_result is not None:
-                mode = mode_result
-                print(msg)
+                mode_result, msg = keyboard.get_mode_from_key(key)
+                if mode_result == "quit":
+                    print(msg)
+                    keyboard.running = False
+                    break
+                elif mode_result is not None:
+                    mode = mode_result
+                    print(msg)
 
             # --- ここから未定義エラー防止のための初期化 ---
             target_x, offset_y, theta, steering_correction, left_speed, right_speed, mx, my, max_contour = reset_frame_vars()
@@ -499,7 +499,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         # Restore terminal settings on exit
         keyboard.cleanup()
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the OpenCV-based line following robot with optional sensor recording and video saving")
     parser.add_argument("--record-sensor", action="store_true", help="Record sensor data to file")
@@ -507,8 +506,7 @@ if __name__ == "__main__":
     parser.add_argument("--send-video", action="store_true", help="Send video stream to host PC")
     parser.add_argument("--course", choices=["left", "right"], default="right", help="Initial course to follow: 'left' for left edge, 'right' for right edge (default: right)")
     parser.add_argument("--course-type", choices=["upper", "lower"], default="upper", help="Course type: 'upper' or 'lower' (default: upper)")
-    # NVIDIA関連の引数を削除
-
+    parser.add_argument("--manual", action="store_true", help="Enable manual key input control mode")
     args = parser.parse_args()
     print("Starting OpenCV-based line following robot...")
     print(f"Using ROI: {ROI_CNN}")
@@ -518,11 +516,8 @@ if __name__ == "__main__":
     print("Controls:")
     print("  'a' - Follow left edge")
     print("  'd' - Follow right edge")
-    print("  'l' - Turn left")
-    print("  'r' - Turn right")
-    print("  'k' - Small turn left")
-    print("  'j' - Small turn right")
     print("  'f' - Forward")
+    print("  'b' - Backward")
     print("  'q' - Quit")
     print("Press Ctrl+C to stop")
 
@@ -532,4 +527,5 @@ if __name__ == "__main__":
         send_video_stream=args.send_video,
         course=args.course,
         course_type=args.course_type,
+        manual_mode=args.manual,
     )
