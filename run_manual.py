@@ -234,6 +234,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     try:
         while et.is_running:
+            print(f"[DEBUG] et.is_running={et.is_running}")  # ループ進行確認
             ret, frame = cap.read()
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
