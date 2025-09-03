@@ -234,7 +234,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     # --- ここまで ---
 
     try:
-        while et.is_running and keyboard.running:
+        while et.is_running:
             ret, frame = cap.read()
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
@@ -476,7 +476,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     except KeyboardInterrupt:
         print("Interrupted by user")
-        keyboard.running = False
+        et.is_running = False
     except Exception as e:
         print(f"Error: {e}")
     finally:
