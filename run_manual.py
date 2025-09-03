@@ -287,10 +287,15 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     # --- 変数初期化 ---
     target_x = theta = steering_correction = left_speed = right_speed = None
-    pre_target_x = (x1 + x2) // 2  # GATE_PASS用の前回値
+    center_x = (x1 + x2) // 2  # ROI中心X座標（複数箇所で使用）
+    pre_target_x = center_x  # GATE_PASS用の前回値
+
+    # 毎回判定する必要のないフラグを事前計算
+    need_status = (record_sensor_data and sensor_recorder is not None) or (send_video_stream and client_socket is not None)
 
     min_interval = 0.04  # 40ms
     last_debug_print = 0.0  # debug出力制御用
+    debug_counter = 0  # ループ回数カウンター
     try:
         while et.is_running:
             loop_start = time.time()
@@ -301,7 +306,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 break
 
             # status取得・センサー記録・動画送信処理
-            if (record_sensor_data and sensor_recorder is not None) or (send_video_stream and client_socket is not None):
+            if need_status:
                 status = et.get_spike_status()
                 handle_status_and_video(frame, status, mode, target_x, theta, steering_correction, left_speed, right_speed,
                                       record_sensor_data, sensor_recorder, send_video_stream, client_socket,
@@ -390,9 +395,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         if red_cx is not None:
                             target_x = red_cx[0]  # X座標のみを取得
                         else:
-                            target_x = (x1 + x2) // 2
+                            target_x = center_x
                     else:
-                        target_x = (x1 + x2) // 2
+                        target_x = center_x
                 case Mode.GATE_PASS:
                     # ゲートを潜る: 仮想ラインエッジを使う
                     temp_x = get_virtual_line_target_x(frame, previous_center_x=pre_target_x)
@@ -402,7 +407,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     elif pre_target_x is not None:
                         target_x = pre_target_x
                     else:
-                        target_x = (x1 + x2) // 2
+                        target_x = center_x
                         pre_target_x = target_x
                 case Mode.EYE_BLUE:
                     # ブルーアイズ（青重心）に向かう: find_blue_target_centerを使用
@@ -410,7 +415,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     if center is not None:
                         target_x = center[0]
                     else:
-                        target_x = (x1 + x2) // 2
+                        target_x = center_x
                 case Mode.BACKWARD:
                     # set_motor_backward_speedで後退（左右は入れ替えない）
                     left_speed = BASE_SPEED
@@ -422,7 +427,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 # NVIDIA_FOLLOWモード分岐を一時的に削除
                 case _:
                     # Default to center if invalid edge specified
-                    target_x = (x1 + x2) // 2
+                    target_x = center_x
 
             # PID制御処理（target_xが設定されかつ速度が未設定の場合のみ）
             if target_x is not None and left_speed is None:
@@ -449,18 +454,21 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 )
 
             # --- ループ周期制限とdebug出力（最後） ---
-            loop_elapsed = (time.time() - loop_start)
+            loop_end = time.time()
+            loop_elapsed = loop_end - loop_start
             sleep_time = min_interval - loop_elapsed
             if sleep_time > 0:
                 time.sleep(sleep_time)
             
-            # debug出力（100msごと）
-            now = time.time()
-            if now - last_debug_print > 0.1:
+            # debug出力（25回ごと≒1秒間隔で40ms周期チェック）
+            debug_counter += 1
+            if debug_counter >= 25:
                 elapsed_ms = int(loop_elapsed * 1000)
                 sleep_ms = int(max(sleep_time, 0) * 1000)
-                print(f"[DEBUG] et.is_running=True [elapsed={elapsed_ms}ms] [sleep={sleep_ms}ms]")
-                last_debug_print = now
+                actual_interval = (loop_end - last_debug_print) / debug_counter * 1000  # 平均間隔(ms)
+                print(f"[DEBUG] 25loops avg={actual_interval:.1f}ms [last={elapsed_ms}ms] [sleep={sleep_ms}ms]")
+                last_debug_print = loop_end
+                debug_counter = 0
 
     except Exception as e:
         print(f"Error: {e}")
