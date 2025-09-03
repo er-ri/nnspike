@@ -316,6 +316,14 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             else:
                 if not state_flags.is_first_key_used():
                     state_flags.set_first_key_used(True)
+                # manual_modeでなくてもqキーでquitできるようにする
+                key = keyboard.get_key()
+                mode_result, msg = keyboard.get_mode_from_key(key)
+                if mode_result == "quit":
+                    print(msg)
+                    keyboard.running = False
+                    break
+                # manual_mode以外ではq以外のキー入力によるモード変更は無効化
 
             # --- ここから未定義エラー防止のための初期化 ---
             target_x, offset_y, theta, steering_correction, left_speed, right_speed, mx, my, max_contour = reset_frame_vars()
@@ -513,7 +521,6 @@ if __name__ == "__main__":
     print("  'f' - Forward")
     print("  'b' - Backward")
     print("  'q' - Quit")
-    print("Press Ctrl+C to stop")
 
     main(
         record_sensor_data=args.record_sensor,
