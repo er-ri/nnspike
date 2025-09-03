@@ -475,9 +475,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 )
 
     except KeyboardInterrupt:
-        print("Interrupted by user")
+        print("Interrupted by user (KeyboardInterrupt発生)")
         et.is_running = False
-        sys.exit(0)
     except Exception as e:
         print(f"Error: {e}")
     finally:
