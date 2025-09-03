@@ -14,6 +14,42 @@ from nnspike.constants import (
     ROI_LINE_CORNER
 )
 
+# HSV色範囲定数（メモリ最適化：毎回のnp.array作成を回避）
+_HSV_RANGES = {
+    "yellow": {
+        "bottle": (np.array([15, 100, 100], dtype=np.uint8), np.array([35, 255, 255], dtype=np.uint8))
+    },
+    "blue": {
+        "line": (np.array([95, 100, 50], dtype=np.uint8), np.array([145, 255, 255], dtype=np.uint8)),
+        "target": (np.array([100, 80, 80], dtype=np.uint8), np.array([140, 255, 255], dtype=np.uint8)),
+        "bottle": (np.array([90, 60, 40], dtype=np.uint8), np.array([140, 255, 255], dtype=np.uint8))
+    },
+    "red": {
+        "target": (
+            (np.array([0, 90, 60], dtype=np.uint8), np.array([15, 255, 210], dtype=np.uint8)),
+            (np.array([175, 90, 60], dtype=np.uint8), np.array([180, 255, 210], dtype=np.uint8))
+        ),
+        "bottle": (
+            (np.array([0, 90, 60], dtype=np.uint8), np.array([12, 255, 255], dtype=np.uint8)),
+            (np.array([170, 90, 60], dtype=np.uint8), np.array([180, 255, 255], dtype=np.uint8))
+        )
+    }
+}
+
+# 緑色範囲定数
+_GREEN_RANGE = (np.array([35, 120, 60], dtype=np.uint8), np.array([90, 255, 220], dtype=np.uint8))
+
+# モルフォロジー演算カーネル定数（事前計算でカーネル作成コストを削減）
+_MORPHOLOGY_KERNELS = {
+    'dilate_5x5': np.ones((5, 5), np.uint8),
+    'dilate_7x7': np.ones((7, 7), np.uint8),
+    'close_3x3': np.ones((3, 3), np.uint8),
+    'close_7x7': np.ones((7, 7), np.uint8),
+    'close_11x11': np.ones((11, 11), np.uint8),
+    'ellipse_5x5': cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)),
+    'open_3x3': np.ones((3, 3), np.uint8)
+}
+
 # --- offset_pixels計算用 ---
 def get_offset_pixels(target_x, roi):
     """
@@ -116,9 +152,7 @@ def find_bottle_center(image, color, roi=ROI_CNN) -> Tuple[Optional[Tuple[float,
     )
     # ROI適用（roiは必ず指定される前提）
     x1, y1, x2, y2 = roi
-    mask_roi = np.zeros_like(bottle_mask)
-    mask_roi[y1:y2, x1:x2] = bottle_mask[y1:y2, x1:x2]
-    bottle_mask = mask_roi
+    bottle_mask = bottle_mask[y1:y2, x1:x2]
     contours, _ = cv2.findContours(bottle_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
         return None, None, 0
@@ -126,18 +160,26 @@ def find_bottle_center(image, color, roi=ROI_CNN) -> Tuple[Optional[Tuple[float,
     best_rect = None
     color_pixel_count = 0
     for contour in contours:
-        area = cv2.contourArea(contour)
+        # 軽い計算を先に実行（計算順序最適化）
         x, y, w, h = cv2.boundingRect(contour)
-        M = cv2.moments(contour)
-        m00 = M["m00"]
-        # 面積・重心・色ピクセル条件
-        if area < min_area:
-            continue
-        if m00 == 0:
-            continue
         rect_area = w * h
+        
+        # 軽い条件での早期除外
         if rect_area == 0:
             continue
+        if rect_area < min_area * 0.5:  # 矩形面積が小さすぎる場合除外
+            continue
+        
+        # 重い計算は必要な輪郭のみ実行
+        area = cv2.contourArea(contour)
+        if area < min_area:
+            continue
+            
+        M = cv2.moments(contour)
+        m00 = M["m00"]
+        if m00 == 0:
+            continue
+            
         ratio = area / rect_area
         # 物体面積/外接矩形面積比率が0.5以下は除外
         if ratio <= 0.5:
@@ -521,8 +563,7 @@ def is_left_black_line_detected(image, course) -> bool:
         binarize_value=120,
         noise_removal=["dilate", "close7x7"]
     )
-    mask_roi = np.zeros_like(mask_full)
-    mask_roi[y1:y2, x1:x2] = mask_full[y1:y2, x1:x2]
+    mask_roi = mask_full[y1:y2, x1:x2]
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
@@ -574,8 +615,7 @@ def is_upper_horizontal_line_detected(image) -> bool:
         noise_removal=["dilate", "close7x7"]
     )
     # ROI適用
-    mask_roi = np.zeros_like(mask_full)
-    mask_roi[y1:y2, x1:x2] = mask_full[y1:y2, x1:x2]
+    mask_roi = mask_full[y1:y2, x1:x2]
     
     # 輪郭検出
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -649,8 +689,7 @@ def is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HO
         noise_removal=["dilate", "close7x7"]
     )
     # ROI適用
-    mask_roi = np.zeros_like(mask_full)
-    mask_roi[y1:y2, x1:x2] = mask_full[y1:y2, x1:x2]
+    mask_roi = mask_full[y1:y2, x1:x2]
 
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     for contour in contours:
@@ -705,26 +744,31 @@ def is_vertical_black_line_detected(image, roi=ROI_LINE_VERTICAL1, center_tolera
         noise_removal=["close7x7"]
     )
     # ROI適用
-    mask_roi = np.zeros_like(mask_full)
-    mask_roi[y1:y2, x1:x2] = mask_full[y1:y2, x1:x2]
+    mask_roi = mask_full[y1:y2, x1:x2]
     
     # 輪郭検出
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     for contour in contours:
+        # 軽い計算を先に実行（計算順序最適化）
         x, y, w, h = cv2.boundingRect(contour)
-        area = cv2.contourArea(contour)
+        
+        # 軽い条件での早期除外
+        if w < _min_width or h < _min_height:
+            continue
+            
         aspect_ratio = h / w if w > 0 else float('inf')
-        # x=320±center_toleranceを通るか
+        if aspect_ratio < _min_aspect:
+            continue
+            
         line_center_x = x + w // 2
         crosses_center = abs(line_center_x - _center_x) <= center_tolerance
-        if (
-            w >= _min_width and 
-            h >= _min_height and 
-            aspect_ratio >= _min_aspect and 
-            area >= _min_area and 
-            crosses_center
-        ):
+        if not crosses_center:
+            continue
+        
+        # 重い計算は最後に実行
+        area = cv2.contourArea(contour)
+        if area >= _min_area:
             return True
     return False
 
@@ -906,21 +950,21 @@ def control_preprocess_image(
             if nr == "none" or nr is None:
                 continue
             elif nr == "dilate":
-                image = cv2.dilate(image, np.ones((5, 5), np.uint8), iterations=1)
+                image = cv2.dilate(image, _MORPHOLOGY_KERNELS['dilate_5x5'], iterations=1)
             elif nr == "dilate7x2":
-                image = cv2.dilate(image, np.ones((7, 7), np.uint8), iterations=2)
+                image = cv2.dilate(image, _MORPHOLOGY_KERNELS['dilate_7x7'], iterations=2)
             elif nr == "dilate7x3":
-                image = cv2.dilate(image, np.ones((7, 7), np.uint8), iterations=3)
+                image = cv2.dilate(image, _MORPHOLOGY_KERNELS['dilate_7x7'], iterations=3)
             elif nr == "close3x3":
-                image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+                image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, _MORPHOLOGY_KERNELS['close_3x3'])
             elif nr == "close5x5_ellipse":
-                image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+                image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, _MORPHOLOGY_KERNELS['ellipse_5x5'])
             elif nr == "close7x7":
-                image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+                image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, _MORPHOLOGY_KERNELS['close_7x7'])
             elif nr == "close11x11":
-                image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, np.ones((11, 11), np.uint8))
+                image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, _MORPHOLOGY_KERNELS['close_11x11'])
             elif nr == "open3x3":
-                image = cv2.morphologyEx(image, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+                image = cv2.morphologyEx(image, cv2.MORPH_OPEN, _MORPHOLOGY_KERNELS['open_3x3'])
     return image
 
 def get_color_mask(image, color, pattern=None) -> np.ndarray:
@@ -929,32 +973,26 @@ def get_color_mask(image, color, pattern=None) -> np.ndarray:
     patternはbottle/line/targetのみ。未指定時はbottle。
     """
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    
     if color == "yellow":
-        lower = np.array([15, 100, 100], dtype=np.uint8)
-        upper = np.array([35, 255, 255], dtype=np.uint8)
+        lower, upper = _HSV_RANGES["yellow"]["bottle"]
         mask = cv2.inRange(hsv, lower, upper)
     elif color == "blue":
+        # patternのデフォルト処理（既存の動作と完全一致）
         if pattern == "line":
-            lower = np.array([95, 100, 50], dtype=np.uint8)
-            upper = np.array([145, 255, 255], dtype=np.uint8)
+            lower, upper = _HSV_RANGES["blue"]["line"]
         elif pattern == "target":
-            lower = np.array([100, 80, 80], dtype=np.uint8)
-            upper = np.array([140, 255, 255], dtype=np.uint8)
+            lower, upper = _HSV_RANGES["blue"]["target"]
         else: # bottle or 未指定
-            lower = np.array([90, 60, 40], dtype=np.uint8)
-            upper = np.array([140, 255, 255], dtype=np.uint8)
+            lower, upper = _HSV_RANGES["blue"]["bottle"]
         mask = cv2.inRange(hsv, lower, upper)
     elif color == "red":
         if pattern == "target":
-            lower1 = np.array([0, 90, 60], dtype=np.uint8)
-            upper1 = np.array([15, 255, 210], dtype=np.uint8)
-            lower2 = np.array([175, 90, 60], dtype=np.uint8)
-            upper2 = np.array([180, 255, 210], dtype=np.uint8)
+            ranges = _HSV_RANGES["red"]["target"]
         else: # bottle or 未指定
-            lower1 = np.array([0, 90, 60], dtype=np.uint8)
-            upper1 = np.array([12, 255, 255], dtype=np.uint8)
-            lower2 = np.array([170, 90, 60], dtype=np.uint8)
-            upper2 = np.array([180, 255, 255], dtype=np.uint8)
+            ranges = _HSV_RANGES["red"]["bottle"]
+        lower1, upper1 = ranges[0]
+        lower2, upper2 = ranges[1]
         mask1 = cv2.inRange(hsv, lower1, upper1)
         mask2 = cv2.inRange(hsv, lower2, upper2)
         mask = cv2.bitwise_or(mask1, mask2)
@@ -973,10 +1011,8 @@ def fill_green_with_white(image) -> np.ndarray:
     """
     if image.ndim == 3 and image.shape[2] == 3:
         hsv_img = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        lower_green = np.array([35, 120, 60], dtype=np.uint8)
-        upper_green = np.array([90, 255, 220], dtype=np.uint8)
+        lower_green, upper_green = _GREEN_RANGE
         green_mask = cv2.inRange(hsv_img, lower_green, upper_green)
-        image = image.copy()
         image[green_mask != 0] = [255, 255, 255]
     return image
 
@@ -1014,8 +1050,7 @@ def is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course='right') -> bool:
     )
 
     x1, y1, x2, y2 = roi
-    mask_roi = np.zeros_like(mask_full)
-    mask_roi[y1:y2, x1:x2] = mask_full[y1:y2, x1:x2]
+    mask_roi = mask_full[y1:y2, x1:x2]
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     roi_x_min = max(_center_x - _x_tolerance, x1)
