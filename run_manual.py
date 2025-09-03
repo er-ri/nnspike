@@ -106,34 +106,33 @@ def wait_for_start(et, keyboard, state_flags):
     print("Press the force sensor or any mode key to start...")
     started = False
     first_key = None
-    try:
-        while not started and keyboard.running:
-            status = et.get_spike_status()
-            force_val = getattr(status.sensors, "force", None)
-            key = keyboard.get_key()
-            # forceセンサー押下でスタート
-            if (force_val is not None and force_val > 0):
-                print("Start!")
-                started = True
-                first_key = "__force__"  # forceセンサーでスタートした場合はダミー値をセット
-            # 有効なモードキーでスタート
-            elif key is not None and keyboard.is_mode_key(key):
-                print("Start!")
-                first_key = key
-                started = True
-            if not keyboard.running:
-                print("Quitting before start. Exiting...")
-                et.stop()
-                keyboard.cleanup()
-                return None
-            time.sleep(0.02)
-        # スタート決定後に一度だけモード切替有効化/無効化を判定
-        if started:
-            if first_key == "__force__":
-                state_flags.enable_force_sensor_mode_switch()
-            else:
-                state_flags.disable_force_sensor_mode_switch()
-    # KeyboardInterrupt例外処理を削除
+    while not started and keyboard.running:
+        status = et.get_spike_status()
+        force_val = getattr(status.sensors, "force", None)
+        key = keyboard.get_key()
+        # forceセンサー押下でスタート
+        if (force_val is not None and force_val > 0):
+            print("Start!")
+            started = True
+            first_key = "__force__"  # forceセンサーでスタートした場合はダミー値をセット
+        # 有効なモードキーでスタート
+        elif key is not None and keyboard.is_mode_key(key):
+            print("Start!")
+            first_key = key
+            started = True
+        if not keyboard.running:
+            print("Quitting before start. Exiting...")
+            et.stop()
+            keyboard.cleanup()
+            return None
+        time.sleep(0.02)
+    # スタート決定後に一度だけモード切替有効化/無効化を判定
+    if started:
+        if first_key == "__force__":
+            state_flags.enable_force_sensor_mode_switch()
+        else:
+            state_flags.disable_force_sensor_mode_switch()
+
     return first_key
 
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", course_type="upper", manual_mode=False):
