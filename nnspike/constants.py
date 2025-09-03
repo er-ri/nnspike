@@ -4,6 +4,7 @@ from enum import Enum
 # Region of Interest for CNN model
 ROI_CNN = (0, 0, 640, 480)
 ROI_LINE_TRACING = (0, 250, 640, 480)
+ROI_LINE_STRAIGHT = (100, 250, 540, 480)
 ROI_VIRTUAL = (100, 100, 540, 330)
 ROI_LOOP = (100, 200, 540, 480)
 ROI_LINE_LEFT = (0, 80, 140, 420)

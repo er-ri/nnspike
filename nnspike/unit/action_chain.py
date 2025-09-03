@@ -4,7 +4,7 @@ from typing import Optional, Tuple  # 型ヒント用
 import numpy as np  # 画像処理用
 
 # 定数・モード・ROI設定
-from nnspike.constants import OFFSET_Y, ROI_CNN, ROI_LINE_TRACING, Mode, BASE_SPEED, HIGH_SPEED_BASE, ROI_LINE_HORIZON3, ROI_LOOP, ROI_LINE_CORNER, ROI_COLOER
+from nnspike.constants import OFFSET_Y, ROI_CNN, ROI_LINE_TRACING, Mode, BASE_SPEED, HIGH_SPEED_BASE, ROI_LINE_HORIZON3, ROI_LOOP, ROI_LINE_CORNER, ROI_COLOER, ROI_LINE_STRAIGHT
 
 # --- 閾値定数（全体で統一管理） ---
 BLUE_AREA_MAX_THRESHOLD = 18000
@@ -180,6 +180,27 @@ class ActionChain(object):
             target_x = (self.x1 + self.x2) // 2
         return target_x
 
+    def get_target_x_by_course_safe(self, image, offset_y, course="right"):
+        """
+        Safe version: Returns target_x for given image, offset_y, and course ("right"/"left").
+        Handles None values robustly, no exceptions.
+        """
+        if course == "right":
+            _, right_x, _ = get_line_edges_at_y(image, ROI_LINE_STRAIGHT, offset_y, 80)
+            if right_x is not None:
+                self.pre_target_x = right_x
+                return right_x
+            else:
+                return self.pre_target_x
+        elif course == "left":
+            left_x, _, _ = get_line_edges_at_y(image, ROI_LINE_STRAIGHT, offset_y, 80)
+            if left_x is not None:
+                self.pre_target_x = left_x
+                return left_x
+            else:
+                return self.pre_target_x
+        return self.pre_target_x
+    
     def small_turn_left(self) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
         """短時間（0.3秒）左旋回アクション.
 

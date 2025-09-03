@@ -31,6 +31,7 @@ from nnspike.utils import (
 from nnspike.constants import (
     ROI_CNN,
     ROI_LINE_TRACING,
+    ROI_LINE_STRAIGHT,
     ROI_VIRTUAL,
     ROI_LOOP,
     ROI_LINE_LEFT,
@@ -76,6 +77,7 @@ def main():
     roi_list = [
         None,
         ROI_LINE_TRACING,
+        ROI_LINE_STRAIGHT,
         ROI_VIRTUAL,
         ROI_LOOP,
         ROI_LINE_LEFT,
@@ -139,9 +141,16 @@ def main():
         right_info.append(f"is_vertical_black_line_detected: {is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120)}")
         right_info.append(f"get_is_blue_line_at_y: {get_is_blue_line_at_y(image)}")
         right_info.append(f"get_blue_line_pixel: {get_blue_line_pixel(image)}")
-        # コーナー検出結果を右側情報に追加
         fast_corner = is_fast_corner_detected(image)
         right_info.append(f"is_fast_corner_detected: {fast_corner}")
+        line_edges = get_line_edges_at_y(image, roi=ROI_LINE_TRACING, target_y=OFFSET_Y, threshold_value=80)
+        right_info.append(f"get_line_edges_at_y: {line_edges}")
+        line_edges = get_line_edges_at_y(image, roi=ROI_LINE_STRAIGHT, target_y=450, threshold_value=80)
+        if line_edges is not None and any(x is not None for x in line_edges):
+            right_info.append(f"get_line_edges_at_y_safe: {line_edges}")
+            pre_line_edges = line_edges
+        else:
+            right_info.append(f"get_line_edges_at_y_safe: {pre_line_edges} (use previous)")
         info["right_info"] = right_info
 
         # 画像表示モード切替（if/elif/else構造で正しく分岐）
@@ -248,6 +257,7 @@ def main():
             # ROI名称を右上隅（外側）に黄色文字で描画
             roi_names = [
                 "ROI_LINE_TRACING",
+                "ROI_LINE_STRAIGHT",
                 "ROI_VIRTUAL",
                 "ROI_LOOP",
                 "ROI_LINE_LEFT",
@@ -304,7 +314,7 @@ def main():
                 x = right_x - text_size[0]
                 y = start_y + i * line_height
                 cv2.putText(image_to_show, text, (x, y), font, font_scale, right_text_color, font_thickness, cv2.LINE_AA)
-            if show_mode in [3, 4, 5, 6]:
+            if show_mode in [3, 4, 5, 6, 7, 8]:
                 left_text_color = (255, 255, 255)
             else:
                 left_text_color = (0, 0, 0)
