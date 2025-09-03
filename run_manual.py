@@ -24,7 +24,6 @@ PID Tuning Parameters:
     - Start with: 2-10
 """
 import argparse
-import signal
 import math
 import pickle
 
@@ -134,11 +133,7 @@ def wait_for_start(et, keyboard, state_flags):
                 state_flags.enable_force_sensor_mode_switch()
             else:
                 state_flags.disable_force_sensor_mode_switch()
-    except KeyboardInterrupt:
-        print("Interrupted before start. Exiting...")
-        et.stop()
-        keyboard.cleanup()
-        return None
+    # KeyboardInterrupt例外処理を削除
     return first_key
 
 def main(record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="right", course_type="upper", manual_mode=False):
@@ -475,9 +470,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     right_speed=right_speed,
                 )
 
-    except KeyboardInterrupt:
-        print("Interrupted by user (KeyboardInterrupt発生)")
-        et.is_running = False
     except Exception as e:
         print(f"Error: {e}")
     finally:
@@ -500,12 +492,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             print(f"Total frames recorded: {sensor_recorder.get_frame_count()}")
         # Restore terminal settings on exit
         keyboard.cleanup()
-
-def sigint_handler(signum, frame):
-    print("SIGINT (Ctrl+C) detected. 強制終了します。")
-    sys.exit(0)
-
-signal.signal(signal.SIGINT, sigint_handler)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the OpenCV-based line following robot with optional sensor recording and video saving")
