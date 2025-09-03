@@ -86,7 +86,7 @@ class StateFlags:
     def disable_force_sensor_mode_switch(self):
         self.force_sensor_mode_switch_enabled = False
 
-def wait_for_start(et, keyboard, state_flags):
+def wait_for_start(et, keyboard, state_flags, manual_mode=False):
     """
     起動時にフォースセンサーの接続状態を確認し、
     フォースセンサーまたは有効なモードキーでロボットをスタートさせる。
@@ -125,8 +125,8 @@ def wait_for_start(et, keyboard, state_flags):
                 started = True
                 first_key = "__force__"  # forceセンサーでスタートした場合はダミー値をセット
                 break
-            # 有効なモードキーでスタート
-            elif key is not None and keyboard.is_mode_key(key):
+            # manual_mode時のみ有効なモードキーでスタート
+            elif manual_mode and key is not None and keyboard.is_mode_key(key):
                 print("Start!")
                 first_key = key
                 started = True
@@ -227,7 +227,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
-    first_key = wait_for_start(et, keyboard, state_flags)
+    first_key = wait_for_start(et, keyboard, state_flags, manual_mode=manual_mode)
     if first_key is None:
         cap.release()
         return
@@ -324,14 +324,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             else:
                 if not state_flags.first_key_used:
                     state_flags.first_key_used = True
-                # manual_modeでなくてもqキーでquitできるようにする
                 key = keyboard.get_key()
                 mode_result, msg = keyboard.get_mode_from_key(key)
                 if mode_result == "quit":
                     print(msg)
                     keyboard.running = False
                     break
-                # manual_mode以外ではq以外のキー入力によるモード変更は無効化
+                # manual_mode以外ではq以外のキー入力によるモード変更は完全に無効化（何もしない）
 
             # --- ここから未定義エラー防止のための初期化 ---
             target_x, offset_y, theta, steering_correction, left_speed, right_speed, mx, my, max_contour = reset_frame_vars()
