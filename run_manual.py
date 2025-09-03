@@ -56,28 +56,35 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 class StateFlags:
 
     def __init__(self):
-        self.yellow_blocked = False
-        self.force_sensor_switched = False
-        self.first_key_used = False
-        self.force_sensor_mode_switch_enabled = False
+        self._yellow_blocked = False
+        self._first_key_used = False
+        self._force_sensor_mode_switch_enabled = False
+
+    @property
+    def yellow_blocked(self):
+        return self._yellow_blocked
+    @yellow_blocked.setter
+    def yellow_blocked(self, value: bool):
+        self._yellow_blocked = value
+
+    @property
+    def first_key_used(self):
+        return self._first_key_used
+    @first_key_used.setter
+    def first_key_used(self, value: bool):
+        self._first_key_used = value
+
+    @property
+    def force_sensor_mode_switch_enabled(self):
+        return self._force_sensor_mode_switch_enabled
+    @force_sensor_mode_switch_enabled.setter
+    def force_sensor_mode_switch_enabled(self, value: bool):
+        self._force_sensor_mode_switch_enabled = value
+
     def enable_force_sensor_mode_switch(self):
         self.force_sensor_mode_switch_enabled = True
     def disable_force_sensor_mode_switch(self):
         self.force_sensor_mode_switch_enabled = False
-    def is_force_sensor_mode_switch_enabled(self):
-        return self.force_sensor_mode_switch_enabled
-    def set_first_key_used(self, value: bool):
-        self.first_key_used = value
-    def is_first_key_used(self):
-        return self.first_key_used
-    def set_yellow_blocked(self, value: bool):
-        self.yellow_blocked = value
-    def is_yellow_blocked(self):
-        return self.yellow_blocked
-    def set_force_sensor_switched(self, value: bool):
-        self.force_sensor_switched = value
-    def is_force_sensor_switched(self):
-        return self.force_sensor_switched
 
 def wait_for_start(et, keyboard, state_flags):
     """
@@ -205,8 +212,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     et = ETRobot()
     action_chain = ActionChain(et, course, course_type)
 
-    mode = Mode.PAUSE
-
     # Initialize robot, PID controller, and keyboard controller
     keyboard = KeyboardController()
     pid = PIDController(
@@ -227,6 +232,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         cap.release()
         return
 
+    # wait_for_start()の後にmodeの初期値を決定
+    if state_flags.force_sensor_mode_switch_enabled:
+        mode = Mode.HIGH_SPEED_AVOID
+    else:
+        mode = Mode.PAUSE
+
     # --- ここから未定義エラー防止のための宣言（関数スコープ） ---
     target_x, offset_y, theta, steering_correction, left_speed, right_speed, mx, my, max_contour = reset_frame_vars()
     pre_target_x = (x1 + x2) // 2  # GATE_PASS用の前回値
@@ -246,13 +257,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             right_raw = status.motors["B"].relative_position
             left_pos = left_raw[0] if isinstance(left_raw, tuple) else left_raw
             right_pos = right_raw[0] if isinstance(right_raw, tuple) else right_raw
-
-            # forceセンサーでスタートした場合のみ、forceセンサーによるモード切替を有効化（フラグ廃止のため直接判定）
-            if state_flags.is_force_sensor_mode_switch_enabled():
-                if not state_flags.is_force_sensor_switched() and status.sensors.force is not None and status.sensors.force > 0:
-                    mode = Mode.HIGH_SPEED_AVOID
-                    print("\nForce sensor pressed: Switched to HIGH_SPEED_AVOID mode")
-                    state_flags.set_force_sensor_switched(True)
 
             # Log sensor data using the recorder if enabled
             if record_sensor_data and sensor_recorder is not None:
@@ -304,9 +308,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
             # manual_mode時はfirst_keyを優先して使い、消費後はget_key()に切り替える
             if manual_mode:
-                if not state_flags.is_first_key_used():
+                if not state_flags.first_key_used:
                     key = first_key
-                    state_flags.set_first_key_used(True)
+                    state_flags.first_key_used = True
                 else:
                     key = keyboard.get_key()
                 mode_result, msg = keyboard.get_mode_from_key(key)
@@ -318,8 +322,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     mode = mode_result
                     print(msg)
             else:
-                if not state_flags.is_first_key_used():
-                    state_flags.set_first_key_used(True)
+                if not state_flags.first_key_used:
+                    state_flags.first_key_used = True
                 # manual_modeでなくてもqキーでquitできるようにする
                 key = keyboard.get_key()
                 mode_result, msg = keyboard.get_mode_from_key(key)
@@ -360,8 +364,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     elif yellow_pixel_count > 18000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
                         target_x = (x1 + x2) // 2
-                        state_flags.set_yellow_blocked(True)
-                    elif not state_flags.is_yellow_blocked() and yellow_pixel_count > 3000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
+                        state_flags.yellow_blocked = True
+                    elif not state_flags.yellow_blocked and yellow_pixel_count > 3000 and yellow_cx is not None and left_pos is not None and abs(left_pos) < 7000:
                         target_x = yellow_cx[0]  # X座標のみを取得
                     else:
                         target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, course)
@@ -376,8 +380,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     elif yellow_pixel_count > 18000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         mode = Mode.AVOID_OBSTACLE
                         target_x = (x1 + x2) // 2
-                        state_flags.set_yellow_blocked(True)
-                    elif not state_flags.is_yellow_blocked() and yellow_pixel_count > 3000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
+                        state_flags.yellow_blocked = True
+                    elif not state_flags.yellow_blocked and yellow_pixel_count > 3000 and yellow_cx is not None and right_pos is not None and abs(right_pos) < 7000:
                         target_x = yellow_cx[0]  # X座標のみを取得
                     else:
                         target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, course)
