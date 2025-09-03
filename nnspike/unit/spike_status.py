@@ -237,47 +237,48 @@ class SpikeStatus:
                         "power": (motor_arm_entries[0][1][3] if len(motor_arm_entries[0][1]) > 3 else None),
                     }
 
-                # Force sensor - Port 63
+                # Force sensor - Port 63 (ESSENTIAL - USED)
                 force_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 63]
                 if force_entries:
                     result["sensors"]["force"] = force_entries[0][1][1] if len(force_entries[0][1]) > 2 else None
 
-                # Distance sensor - Port 62
-                distance_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 62]
-                if distance_entries:
-                    result["sensors"]["distance"] = distance_entries[0][1][0] if len(distance_entries[0][1]) > 0 else None
+                # PERFORMANCE OPTIMIZATION: Comment out unused sensors to reduce parsing time
+                # Distance sensor - Port 62 (UNUSED - disabled for performance)
+                # distance_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 62]
+                # if distance_entries:
+                #     result["sensors"]["distance"] = distance_entries[0][1][0] if len(distance_entries[0][1]) > 0 else None
 
-                # Color sensor - Port 61
-                color_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 61]
-                if color_entries and len(color_entries[0][1]) > 4:
-                    result["sensors"]["color"] = {
-                        "reflected": (color_entries[0][1][2] if len(color_entries[0][1]) > 2 else None),
-                        "ambient": (color_entries[0][1][3] if len(color_entries[0][1]) > 3 else None),
-                        "color": (color_entries[0][1][4] if len(color_entries[0][1]) > 4 else None),
-                    }
+                # Color sensor - Port 61 (UNUSED - disabled for performance)
+                # color_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 61]
+                # if color_entries and len(color_entries[0][1]) > 4:
+                #     result["sensors"]["color"] = {
+                #         "reflected": (color_entries[0][1][2] if len(color_entries[0][1]) > 2 else None),
+                #         "ambient": (color_entries[0][1][3] if len(color_entries[0][1]) > 3 else None),
+                #         "color": (color_entries[0][1][4] if len(color_entries[0][1]) > 4 else None),
+                #     }
 
-                # Gyro sensor information (typically index 7-8 in payload)
-                if len(payload) > 7 and isinstance(payload[7], list) and len(payload[7]) >= 3:
-                    result["sensors"]["gyro"] = {
-                        "x": payload[7][0],
-                        "y": payload[7][1],
-                        "z": payload[7][2],
-                    }
+                # Gyro sensor information (UNUSED - disabled for performance)
+                # if len(payload) > 7 and isinstance(payload[7], list) and len(payload[7]) >= 3:
+                #     result["sensors"]["gyro"] = {
+                #         "x": payload[7][0],
+                #         "y": payload[7][1],
+                #         "z": payload[7][2],
+                #     }
 
-                # Accelerometer information (typically index 8 in payload)
-                if len(payload) > 8 and isinstance(payload[8], list) and len(payload[8]) >= 3:
-                    result["sensors"]["accelerometer"] = {
-                        "x": payload[8][0],
-                        "y": payload[8][1],
-                        "z": payload[8][2],
-                    }
+                # Accelerometer information (UNUSED - disabled for performance)
+                # if len(payload) > 8 and isinstance(payload[8], list) and len(payload[8]) >= 3:
+                #     result["sensors"]["accelerometer"] = {
+                #         "x": payload[8][0],
+                #         "y": payload[8][1],
+                #         "z": payload[8][2],
+                #     }
 
-                # Position from sensors (derived from payload[6] for coordinates)
-                if len(payload) > 6 and isinstance(payload[6], list) and len(payload[6]) >= 3:
-                    result["sensors"]["position"] = {
-                        "x": payload[6][1],
-                        "y": payload[6][2],
-                    }
+                # Position from sensors (UNUSED - disabled for performance)
+                # if len(payload) > 6 and isinstance(payload[6], list) and len(payload[6]) >= 3:
+                #     result["sensors"]["position"] = {
+                #         "x": payload[6][1],
+                #         "y": payload[6][2],
+                #     }
 
             elif message_type == 2:  # Battery status message
                 # Extract battery information if available
