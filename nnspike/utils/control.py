@@ -133,7 +133,7 @@ def find_bottle_center(image, color, roi=ROI_CNN) -> Tuple[Optional[Tuple[float,
         ValueError: colorが未対応の場合
     """
 
-    min_area = 500  # 輪郭面積の最小値（内部定数）
+    min_area = 490  # 輪郭面積の最小値（内部定数）
 
     if color not in ["yellow", "blue", "red"]:
         return None, None, 0
@@ -194,31 +194,6 @@ def find_bottle_center(image, color, roi=ROI_CNN) -> Tuple[Optional[Tuple[float,
     cx = best_rect[0] + best_rect[2] / 2
     cy = best_rect[1] + best_rect[3] / 2
     return (cx, cy), max_area, color_pixel_count
-
-def calculate_attitude_angle(
-    offset_pixels: float,
-    roi_bottom_y: int,
-    camera_height: float = 0.20,
-    focal_length_pixels: float = 640,
-) -> float:
-    """
-    ピクセルオフセットからカメラ幾何で姿勢角（theta）を算出。
-    画像中心からの横方向オフセットを実世界の角度に変換。
-    パラメータ:
-        offset_pixels (float): 画像中心からの横方向オフセット（ピクセル）
-        roi_bottom_y (int): ROI下端y座標
-        camera_height (float, optional): カメラ高さ[m]（デフォルト0.20）
-        focal_length_pixels (float, optional): 焦点距離[px]（デフォルト640）
-    戻り値:
-        float: 姿勢角（theta, ラジアン）。右が正、左が負。
-    備考:
-        カメラパラメータはロボットごとに要調整。
-    """
-    image_height = 480  # 標準カメラ解像度
-    ground_distance = camera_height * focal_length_pixels / (image_height - roi_bottom_y)
-    lateral_offset_meters = offset_pixels * ground_distance / focal_length_pixels
-    theta = math.atan2(lateral_offset_meters, ground_distance)
-    return theta
 
 # --- backup/20250724/control.pyより ---
 def find_blue_target_center(image) -> Tuple[Optional[Tuple[int, int]], Optional[float], int]:

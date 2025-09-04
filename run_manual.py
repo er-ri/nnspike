@@ -38,7 +38,7 @@ from nnspike.unit import ETRobot, ActionChain, KeyboardController
 import cv2
 import numpy as np
 from nnspike.constants import BASE_SPEED, HIGH_SPEED_BASE, CAMERA_HEIGHT_METERS, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS, OFFSET_Y, ROI_CNN, Mode, ROI_COLOER
-from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x, get_offset_pixels
+from nnspike.utils import PIDController, SensorRecorder, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x, get_offset_pixels
 
 # User defined constants
 x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
@@ -460,7 +460,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             # PID制御処理（target_xが設定されている場合）
             if target_x is not None:
                 offset_pixels = get_offset_pixels(target_x, ROI_CNN)
-                theta = calculate_attitude_angle(offset_pixels, OFFSET_Y, CAMERA_HEIGHT_METERS, CAMERA_WIDTH)
+                theta = math.atan2(offset_pixels, CAMERA_WIDTH)  # 簡素化: 直接計算
                 steering_correction = pid.update(theta)
                 left_speed = current_base_speed - steering_correction
                 right_speed = current_base_speed + steering_correction
