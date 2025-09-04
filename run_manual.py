@@ -51,9 +51,7 @@ cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FPS, CAMERA_FPS)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
-
 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce latency for venue
-# Camera format settings removed - minimal impact, default format is sufficient
 
 def handle_status_and_video(frame, status, mode, target_x, theta, steering_correction, left_speed, right_speed,
                            record_sensor_data, sensor_recorder, send_video_stream, client_socket, 
