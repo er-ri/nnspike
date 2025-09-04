@@ -167,10 +167,10 @@ def find_bottle_center(image, color, roi=ROI_CNN) -> Tuple[Optional[Tuple[float,
         if area < min_area:
             continue
         x, y, w, h = cv2.boundingRect(contour)
-        M = cv2.moments(contour)
-        m00 = M["m00"]
-        if m00 == 0:
-            continue
+        # M = cv2.moments(contour)  # 不要：重心計算を使用していないため
+        # m00 = M["m00"]            # 不要：areaと同じ値
+        # if m00 == 0:              # 不要：既にarea < min_areaでフィルタ済み
+        #     continue
         rect_area = w * h
         if rect_area == 0:
             continue
