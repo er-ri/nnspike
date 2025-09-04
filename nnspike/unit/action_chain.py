@@ -1207,11 +1207,11 @@ class ActionChain(object):
         """
         heading_goalの位置判定バージョン。
         実装内容に完全一致:
-        0. intersection_y=450で黒水平ライン検出まで中央追従（右モーター距離制限なし）。検出でphase1へ、右モーター位置記録。
-        1. 右モーターBの移動距離が300未満なら中央追従、300以上でphase2へ遷移。300到達で右モーター位置記録。
-        2. 左旋回（右モーターBの移動距離100未満は常に左旋回。100以上で垂直黒ライン検出開始。600未満の間は左:0,右:30で継続。垂直ライン検出または600到達でphase3へ）
+        0. 水平ライン検出まで中央追従（移動距離制限なし）。検出でphase1へ、右モーター位置記録。
+        1. 中央追従から左旋回へ遷移判定（移動距離による遷移制御）
+        2. 左旋回（左旋回継続。垂直黒ライン検出または移動距離上限到達でphase3へ）
         3. 左エッジトレース（青ライン検出でphase4へ。左エッジがなければ中央。青ライン検出時に右モーター位置記録）
-        4. 青ライン検出後、右モーターBの移動距離600未満の間は左エッジトレース、600到達でPAUSE（状態リセット）
+        4. 青ライン検出後、移動距離制限内で左エッジトレース、制限到達でPAUSE（状態リセット）
         戻り値: (target_x, (左速度, 右速度), モード)
         各行コメントも実装内容と完全一致させること。
         """
@@ -1242,14 +1242,14 @@ class ActionChain(object):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
-        # 2. 左旋回（右モーターBの移動距離100未満は常に courseに応じて左:0,右:30または左:30,右:0で左旋回。100以上で垂直黒ライン検出開始。600未満の間は courseに応じて左:0,右:30または左:30,右:0で継続。垂直ライン検出または600到達でphase3へ）
+        # 2. 左旋回（courseに応じて左旋回。垂直黒ライン検出または移動距離上限到達でphase3へ）
         if phase.get_phase() == 2:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             position_limit_reached = position_diff >= 500
             vertical_line_detected = is_vertical_black_line_detected(image)
-            # 常に左旋回。垂直黒ライン検出または600到達でphase3へ
+            # 左旋回継続。垂直黒ライン検出または移動距離上限到達でphase3へ
             if (not vertical_line_detected) and (not position_limit_reached):
                 if self.course == "right":
                     return None, (0, 30, 0), Mode.HEAD_GOAL
