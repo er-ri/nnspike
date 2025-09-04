@@ -103,9 +103,9 @@ def main():
 
         offset_y = OFFSET_Y
 
-        yellow_center_x, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow")
-        blue_center_x, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
-        red_center_x, _, red_pixel_count = find_bottle_center(image=image, color="red")
+        yellow_center_x, _, yellow_pixel_count = find_bottle_center(image=image.copy(), color="yellow")
+        blue_center_x, _, blue_pixel_count = find_bottle_center(image=image.copy(), color="blue")
+        red_center_x, _, red_pixel_count = find_bottle_center(image=image.copy(), color="red")
 
         info = dict()
         info["target_x"] = target_x
@@ -129,23 +129,23 @@ def main():
         }
 
         right_info = []
-        right_info.append(f"get_virtual_line_target_x: {get_virtual_line_target_x(image)}")
-        right_info.append(f"find_blue_target_center: {find_blue_target_center(image)}")
-        right_info.append(f"is_x320_on_blue_target: {is_x320_on_blue_target(image)}")
-        right_info.append(f"is_x320_on_red_target: {is_x320_on_red_target(image)}")
-        right_info.append(f"get_red_target_center_x: {get_red_target_center_x(image)}")
+        right_info.append(f"get_virtual_line_target_x: {get_virtual_line_target_x(image.copy())}")
+        right_info.append(f"find_blue_target_center: {find_blue_target_center(image.copy())}")
+        right_info.append(f"is_x320_on_blue_target: {is_x320_on_blue_target(image.copy())}")
+        right_info.append(f"is_x320_on_red_target: {is_x320_on_red_target(image.copy())}")
+        right_info.append(f"get_red_target_center_x: {get_red_target_center_x(image.copy())}")
         course_value = row["course"] if "course" in row else "left"
-        right_info.append(f"is_left_black_line_detected(course={course_value}): {is_left_black_line_detected(image, course_value)}")
-        right_info.append(f"is_upper_horizontal_line_detected: {is_upper_horizontal_line_detected(image)}")
-        right_info.append(f"is_lower_horizontal_line_detected: {is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3)}")
-        right_info.append(f"is_vertical_black_line_detected: {is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120)}")
-        right_info.append(f"get_is_blue_line_at_y: {get_is_blue_line_at_y(image)}")
-        right_info.append(f"get_blue_line_pixel: {get_blue_line_pixel(image)}")
-        fast_corner = is_fast_corner_detected(image)
+        right_info.append(f"is_left_black_line_detected(course={course_value}): {is_left_black_line_detected(image.copy(), course_value)}")
+        right_info.append(f"is_upper_horizontal_line_detected: {is_upper_horizontal_line_detected(image.copy())}")
+        right_info.append(f"is_lower_horizontal_line_detected: {is_lower_horizontal_line_detected(image.copy(), intersection_y=450, roi=ROI_LINE_HORIZON3)}")
+        right_info.append(f"is_vertical_black_line_detected: {is_vertical_black_line_detected(image.copy(), roi=ROI_LOOP, center_tolerance=120)}")
+        right_info.append(f"get_is_blue_line_at_y: {get_is_blue_line_at_y(image.copy())}")
+        right_info.append(f"get_blue_line_pixel: {get_blue_line_pixel(image.copy())}")
+        fast_corner = is_fast_corner_detected(image.copy())
         right_info.append(f"is_fast_corner_detected: {fast_corner}")
-        line_edges = get_line_edges_at_y(image, roi=ROI_LINE_TRACING, target_y=OFFSET_Y, threshold_value=80)
+        line_edges = get_line_edges_at_y(image.copy(), roi=ROI_LINE_TRACING, target_y=OFFSET_Y, threshold_value=80)
         right_info.append(f"get_line_edges_at_y: {line_edges}")
-        line_edges = get_line_edges_at_y(image, roi=ROI_LINE_STRAIGHT, target_y=450, threshold_value=80)
+        line_edges = get_line_edges_at_y(image.copy(), roi=ROI_LINE_STRAIGHT, target_y=450, threshold_value=80)
         if line_edges is not None and any(x is not None for x in line_edges):
             right_info.append(f"get_line_edges_at_y_safe: {line_edges}")
             pre_line_edges = line_edges
@@ -161,11 +161,11 @@ def main():
                 h, w = image_to_show.shape[:2]
                 cv2.circle(image_to_show, (w-30, 30), 20, (0,0,255), -1)
         elif show_mode == 2:
-            image_to_show = fill_green_with_white(image)
+            image_to_show = fill_green_with_white(image.copy())
         elif show_mode == 3:
             threshold = 80
             mask_full = control_preprocess_image(
-                image,
+                image.copy(),
                 use_hsv=False,
                 grayscale=True,
                 clahe=False,
@@ -178,7 +178,7 @@ def main():
             image_to_show = cv2.cvtColor(mask_full, cv2.COLOR_GRAY2BGR)
         elif show_mode == 4:
             mask_full = control_preprocess_image(
-                image,
+                image.copy(),
                 use_hsv=False,
                 grayscale=True,
                 clahe=True,
@@ -191,7 +191,7 @@ def main():
             )
             image_to_show = cv2.cvtColor(mask_full, cv2.COLOR_GRAY2BGR)
         elif show_mode == 5:
-            img = fill_green_with_white(image)
+            img = fill_green_with_white(image.copy())
             mask_full = control_preprocess_image(
                 img,
                 use_hsv=False,
@@ -207,7 +207,7 @@ def main():
             image_to_show = cv2.cvtColor(mask_full, cv2.COLOR_GRAY2BGR)
         elif show_mode == 6:
             color = "blue"
-            color_mask = get_color_mask(image, color, pattern="bottle")
+            color_mask = get_color_mask(image.copy(), color, pattern="bottle")
             bottle_mask = control_preprocess_image(
                 color_mask,
                 use_hsv=False,
@@ -221,7 +221,7 @@ def main():
             image_to_show = cv2.merge([bottle_mask, bottle_mask, bottle_mask])
         elif show_mode == 7:
             color = "yellow"
-            color_mask = get_color_mask(image, color, pattern="bottle")
+            color_mask = get_color_mask(image.copy(), color, pattern="bottle")
             bottle_mask = control_preprocess_image(
                 color_mask,
                 use_hsv=False,
@@ -235,7 +235,7 @@ def main():
             image_to_show = cv2.merge([bottle_mask, bottle_mask, bottle_mask])
         elif show_mode == 8:
             # 赤ターゲットマスク画像表示
-            mask_red = get_color_mask(image, "red", pattern="target")
+            mask_red = get_color_mask(image.copy(), "red", pattern="target")
             mask_red = control_preprocess_image(
                 mask_red,
                 use_hsv=False,
