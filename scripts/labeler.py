@@ -40,7 +40,7 @@ from nnspike.constants import (
     ROI_LINE_HORIZON3,
     ROI_LINE_VERTICAL1,
     ROI_LINE_CORNER,
-    ROI_COLOER
+    ROI_COLOR
 )
 
 
@@ -86,7 +86,7 @@ def main():
         ROI_LINE_HORIZON3,
         ROI_LINE_VERTICAL1,
         ROI_LINE_CORNER,
-        ROI_COLOER,  # 最後尾に追加
+        ROI_COLOR,  # 最後尾に追加
     ]
     show_info_text = True  # 0キーで切り替え
     while True:
@@ -266,7 +266,7 @@ def main():
                 "ROI_LINE_HORIZON3",
                 "ROI_LINE_VERTICAL1",
                 "ROI_LINE_CORNER",
-                "ROI_COLOER",  # 最後尾に追加
+                "ROI_COLOR",  # 最後尾に追加
             ]
             # ROI枠の右上隅（外側）にROI名称を黄色文字で描画
             if roi_mode > 0 and roi_list[roi_mode] is not None:

@@ -37,7 +37,7 @@ from nnspike.unit import ETRobot, ActionChain, KeyboardController
 
 import cv2
 import numpy as np
-from nnspike.constants import BASE_SPEED, HIGH_SPEED_BASE, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS, OFFSET_Y, ROI_CNN, Mode, ROI_COLOER
+from nnspike.constants import BASE_SPEED, HIGH_SPEED_BASE, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS, OFFSET_Y, ROI_CNN, Mode, ROI_COLOR
 from nnspike.utils import PIDController, SensorRecorder, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x, get_offset_pixels
 
 # User defined constants
@@ -415,7 +415,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.heading_goal_relative(frame))
                 case Mode.FORWARD:
                     # 赤色重心に向かって進む（find_bottle_center使用）。イエロー・ブルー検知は行わない。
-                    red_cx, _, red_pixel_count = find_bottle_center(frame, "red", roi=ROI_COLOER)
+                    red_cx, _, red_pixel_count = find_bottle_center(frame, "red", roi=ROI_COLOR)
                     if red_pixel_count > 3000:
                         if red_cx is not None:
                             target_x = red_cx[0]  # X座標のみを取得
@@ -452,7 +452,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
-                # NVIDIA_FOLLOWモード分岐を一時的に削除
                 case _:
                     # Default to center if invalid edge specified
                     target_x = center_x

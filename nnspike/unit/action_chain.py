@@ -4,7 +4,7 @@ from typing import Optional, Tuple  # 型ヒント用
 import numpy as np  # 画像処理用
 
 # 定数・モード・ROI設定
-from nnspike.constants import OFFSET_Y, ROI_CNN, ROI_LINE_TRACING, Mode, BASE_SPEED, HIGH_SPEED_BASE, ROI_LINE_HORIZON3, ROI_LOOP, ROI_LINE_CORNER, ROI_COLOER, ROI_LINE_STRAIGHT
+from nnspike.constants import OFFSET_Y, ROI_CNN, ROI_LINE_TRACING, Mode, BASE_SPEED, HIGH_SPEED_BASE, ROI_LINE_HORIZON3, ROI_LOOP, ROI_LINE_CORNER, ROI_COLOR, ROI_LINE_STRAIGHT
 
 # --- 閾値定数（全体で統一管理） ---
 BLUE_AREA_MAX_THRESHOLD = 18000
@@ -446,7 +446,7 @@ class ActionChain(object):
 
         # phase0: 領域検出で次フェーズへ。未検出時は中央追従・回避モード返却
         if phase.get_phase() == 0:
-            _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow", roi=ROI_COLOER)
+            _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow", roi=ROI_COLOR)
             if yellow_pixel_count > 5000:
                 print(f"[DEBUG] phase0→phase1: yellow_pixel_count={yellow_pixel_count} > 5000")
                 phase.next_phase()
@@ -457,7 +457,7 @@ class ActionChain(object):
 
         # phase1: 領域検出で次フェーズへ。未検出時は中心または中央追従・回避モード返却
         if phase.get_phase() == 1:
-            yellow_cx, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow", roi=ROI_COLOER)
+            yellow_cx, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow", roi=ROI_COLOR)
             if yellow_pixel_count > 18000:
                 print(f"[DEBUG] phase1→phase2: yellow_pixel_count={yellow_pixel_count} yellow_cx={yellow_cx} > 18000")
                 phase.next_phase()
@@ -667,7 +667,7 @@ class ActionChain(object):
         # 0. 右エッジトレース（赤ピクセル数が一定値を超えたらphase1へ、右モーター初期位置記録）
         if phase.get_phase() == 0:
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-            _, _, red_pixel_count = find_bottle_center(image=image, color="red", roi=ROI_COLOER)
+            _, _, red_pixel_count = find_bottle_center(image=image, color="red", roi=ROI_COLOR)
             if red_pixel_count > 3000:
                 phase.next_phase()
                 # phase1用 右モーター相対位置記録（絶対値）
@@ -677,7 +677,7 @@ class ActionChain(object):
 
         # 1. 赤ボトル中心追従（右モーター相対位置差分が一定値未満の間、赤ピクセルが条件を満たせばcenter、満たさなければ中央。一定値を超えたらphase2へ、右モーター位置記録）
         if phase.get_phase() == 1:
-            center, _, red_px = find_bottle_center(image=image, color="red", roi=ROI_COLOER)
+            center, _, red_px = find_bottle_center(image=image, color="red", roi=ROI_COLOR)
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             # 右モーター相対位置差分で継続判定（一定値未満の間、赤ピクセルが条件を満たせばcenter、満たさなければ中央）
@@ -923,7 +923,7 @@ class ActionChain(object):
 
         # 0. 赤ターゲット中心追従（青ピクセル数が閾値未満の間は赤中心追従、閾値以上で次フェーズへ）
         if phase.get_phase() == 0:
-            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOER)
+            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
             if blue_pixel_count < 18000:
                 # 赤ターゲット中心追従
                 red_center_x = get_red_target_center_x(image)
@@ -940,7 +940,7 @@ class ActionChain(object):
 
         # 1. 青ボトル中心追従（青ピクセル数が十分な間はcenter追従、少なくなったらphase2へ移行し右モーター位置記録）
         if phase.get_phase() == 1:
-            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOER)
+            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
             target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
             if blue_pixel_count >= 5000:
                 # 青ボトル中心x座標へ追従
@@ -953,7 +953,7 @@ class ActionChain(object):
 
         # 2. 右モーターが所定値移動までcenter追従。所定値超えたら次フェーズへ、右モーター位置記録
         if phase.get_phase() == 2:
-            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOER)
+            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 200:
@@ -1127,7 +1127,7 @@ class ActionChain(object):
 
         # 12. コース側モーターが所定値移動までcenter追従。所定値超えたらphase13へ
         if phase.get_phase() == 12:
-            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOER)
+            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             if abs(current_pos - position_start) < 300:
