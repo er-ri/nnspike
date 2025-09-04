@@ -163,12 +163,12 @@ def find_bottle_center(image, color, roi=ROI_CNN) -> Tuple[Optional[Tuple[float,
     color_pixel_count = 0
     for contour in contours:
         area = cv2.contourArea(contour)
-        x, y, w, h = cv2.boundingRect(contour)
-        M = cv2.moments(contour)
-        m00 = M["m00"]
         # 面積・重心・色ピクセル条件
         if area < min_area:
             continue
+        x, y, w, h = cv2.boundingRect(contour)
+        M = cv2.moments(contour)
+        m00 = M["m00"]
         if m00 == 0:
             continue
         rect_area = w * h
