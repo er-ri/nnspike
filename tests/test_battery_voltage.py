@@ -1,113 +1,100 @@
 #!/usr/bin/env python3
 """
-SPIKE Battery Voltage Test Program
-
-このプログラムはSPIKEハブのバッテリー電圧を測定します。
-バッテリー情報がコメントアウトされていても、raw dataから直接取得します。
+SPIKEハブのバッテリー残量チェックプログラム（本番前確認用）
 """
 
 import sys
 import time
-import json
-import os
+from pathlib import Path
 
-# test_force_sensor.pyと同じパス設定
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# nnspike モジュールのパスを追加
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
-from nnspike.unit import ETRobot
+from nnspike.unit.etrobot import ETRobot
 
 
-def test_battery_voltage():
-    """SPIKEハブのバッテリー電圧を測定する（test_force_sensor.pyベース）"""
+def check_battery():
+    """SPIKEハブのバッテリー残量をチェック（本番前確認用）"""
     
-    print("SPIKE Battery Voltage Test")
-    print("=" * 40)
+    print("=" * 50)
+    print("SPIKE Hub Battery Check - 本番前バッテリー確認")
+    print("=" * 50)
     
-    # test_force_sensor.pyと同じETRobot作成方法
     et = ETRobot()
     
     try:
-        # test_force_sensor.pyと同じ初期化チェック
-        print("SPIKEハブ初期化チェック...")
-        status_init = et.get_spike_status()
-        force_val_init = getattr(status_init.sensors, "force", None)
-        battery_voltage_init = getattr(status_init.battery, 'voltage', None)
+        print("SPIKEハブに接続中...")
+        time.sleep(1)  # 初期化待ち
         
-        if force_val_init is None:
-            time.sleep(1)
-            status_init = et.get_spike_status()
-            force_val_init = getattr(status_init.sensors, "force", None)
-            battery_voltage_init = getattr(status_init.battery, 'voltage', None)
-        
-        if force_val_init is not None:
-            print("✓ フォースセンサー稼働中")
-        else:
-            print("✗ フォースセンサー未検出")
-        
-        if battery_voltage_init is not None:
-            print("✓ バッテリー情報取得成功")
-        else:
-            print("✗ バッテリー情報未取得")
-        
-        print("\nバッテリー情報監視開始...")
-        print("フォースセンサーを押すとバッテリー情報が更新される可能性があります")
-        print("Ctrl+Cで終了")
-        
+        # バッテリー情報を5回測定して平均を取る
         voltage_readings = []
         percent_readings = []
-        message_counts = {}
         
-        count = 0
-        while count < 50:  # 50回測定
-            count += 1
+        for i in range(5):
             status = et.get_spike_status()
-            
-            # フォースセンサー値
-            force_val = getattr(status.sensors, "force", None)
-            
-            # バッテリー情報
             battery_voltage = getattr(status.battery, 'voltage', None)
             battery_percent = getattr(status.battery, 'percent', None)
             
-            # raw data解析
-            raw_data = getattr(status, 'raw_data', {})
-            message_type = raw_data.get('m', -1)
-            
-            message_counts[message_type] = message_counts.get(message_type, 0) + 1
-            
-            print(f"[{count:2d}] MSG={message_type}, フォース={force_val}, ", end="")
-            
             if battery_voltage is not None:
-                print(f"★電圧={battery_voltage:.2f}V, 残量={battery_percent:.1f}%★")
                 voltage_readings.append(battery_voltage)
                 percent_readings.append(battery_percent)
+                print(f"測定{i+1}: {battery_voltage:.2f}V, {battery_percent:.1f}%")
             else:
-                print("バッテリー情報なし")
+                print(f"測定{i+1}: バッテリー情報取得失敗")
             
-            time.sleep(0.2)  # test_force_sensor.pyより少し長めに
+            time.sleep(0.5)
         
-        # 結果表示
-        print("\n" + "=" * 40)
-        print("測定完了")
-        print(f"メッセージタイプ統計: {message_counts}")
+        print("\n" + "=" * 50)
         
         if voltage_readings:
             avg_voltage = sum(voltage_readings) / len(voltage_readings)
             avg_percent = sum(percent_readings) / len(percent_readings)
-            print(f"バッテリー情報取得成功: {len(voltage_readings)}回")
-            print(f"平均電圧: {avg_voltage:.2f}V")
-            print(f"平均残量: {avg_percent:.1f}%")
+            
+            print(f"📊 バッテリー状態:")
+            print(f"   電圧: {avg_voltage:.2f}V")
+            print(f"   残量: {avg_percent:.1f}%")
+            
+            # バッテリー状態判定と推奨設定
+            print(f"\n🔋 バッテリー判定:")
+            if avg_voltage >= 8.5:
+                status_msg = "🟢 フル充電 - 最高性能"
+                recommended_speed = 95
+                run_recommendation = "✅ 本番実行OK"
+            elif avg_voltage >= 8.0:
+                status_msg = "🟡 良好 - 通常性能"
+                recommended_speed = 85
+                run_recommendation = "✅ 本番実行OK"
+            elif avg_voltage >= 7.5:
+                status_msg = "🟠 中程度 - 性能低下"
+                recommended_speed = 75
+                run_recommendation = "⚠️  本番実行注意（充電推奨）"
+            else:
+                status_msg = "🔴 要充電 - 大幅性能低下"
+                recommended_speed = 65
+                run_recommendation = "❌ 本番実行非推奨（要充電）"
+            
+            print(f"   {status_msg}")
+            print(f"\n⚙️  推奨HIGH_SPEED_BASE: {recommended_speed}")
+            print(f"🏃 本番実行判定: {run_recommendation}")
+            
         else:
-            print("バッテリー情報を取得できませんでした")
+            print("❌ バッテリー情報を取得できませんでした")
+            print("   - SPIKEハブの電源を確認してください")
+            print("   - USB接続を確認してください")
+        
+        print("\n" + "=" * 50)
     
     except KeyboardInterrupt:
-        print("\nテスト中断")
+        print("\n中断されました")
     except Exception as e:
-        print(f"エラー: {e}")
+        print(f"❌ エラー: {e}")
+        print("SPIKEハブとの接続を確認してください")
     finally:
         et.stop()
-        print("テスト完了")
+        print("バッテリーチェック完了\n")
 
 
 if __name__ == "__main__":
-    test_battery_voltage()
+    check_battery()
+
