@@ -220,8 +220,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             return target_x, speeds, mode
         return None, (0, 0, 0), default_mode
 
-    def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.04):
-        """debug出力処理（40ms周期監視）"""
+    def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.05):
+        """debug出力処理（50ms周期監視）"""
         loop_elapsed = loop_end - loop_start
         sleep_time = min_interval - loop_elapsed
         if sleep_time > 0:
