@@ -836,10 +836,10 @@ def get_virtual_line_target_x(image, previous_center_x=None) -> int:
 
         if edge_label == 'right':
             edge_x = right_edge_x
-            target_x = edge_x + 150
+            target_x = edge_x + 170
         elif edge_label == 'left':
             edge_x = left_edge_x
-            target_x = edge_x - 150
+            target_x = edge_x - 170
         else:
             # 物体中心には絶対向かわない。安全なデフォルト値。
             target_x = 320
