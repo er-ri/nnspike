@@ -822,7 +822,8 @@ class ActionChain(object):
             # 右モーター位置差分で継続判定（一定値）
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            threshold = 300 if self.course_type == "upper" else 400
+            # threshold = 300 if self.course_type == "upper" else 400
+            threshold = 300
             if abs(current_pos - position_start) < threshold:
                 return target_x, None, Mode.CARRY_BOTTLE1
             else:
