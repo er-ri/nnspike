@@ -228,11 +228,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             time.sleep(sleep_time)
         
         debug_state['counter'] += 1
-        if debug_state['counter'] >= 100:
+        if debug_state['counter'] >= 25:
             elapsed_ms = int(loop_elapsed * 1000)
             sleep_ms = int(max(sleep_time, 0) * 1000)
             actual_interval = (loop_end - debug_state['last_print']) / debug_state['counter'] * 1000
-            print(f"[DEBUG] 100loops avg={actual_interval:.1f}ms [last={elapsed_ms}ms] [sleep={sleep_ms}ms]")
+            print(f"[DEBUG] 25loops avg={actual_interval:.1f}ms [last={elapsed_ms}ms] [sleep={sleep_ms}ms]")
             debug_state['last_print'] = loop_end
             debug_state['counter'] = 0
 
