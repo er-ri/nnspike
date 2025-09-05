@@ -144,6 +144,16 @@ class ETRobot(object):
             if current.motors[motor_id].power is not None:
                 last.motors[motor_id].power = current.motors[motor_id].power
 
+        # Update battery data (for HIGH_SPEED_BASE optimization)
+        if current.battery.voltage is not None:
+            last.battery.voltage = current.battery.voltage
+        if current.battery.percent is not None:
+            last.battery.percent = current.battery.percent
+        
+        # Also update message_type and raw_data for debugging
+        last.message_type = current.message_type
+        last.raw_data = current.raw_data
+
     def get_spike_status(self):
         """
         Get the spike status with last known good sensor values.
