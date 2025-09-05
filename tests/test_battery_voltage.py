@@ -32,18 +32,29 @@ def test_battery_voltage():
         
         # まず基本的な接続確認
         print("接続状態チェック...")
-        for i in range(5):
+        connection_established = False
+        
+        for i in range(10):  # より多くの回数でリトライ
             status = et.get_spike_status()
             message_type = getattr(status, 'message_type', -1)
-            print(f"接続テスト {i+1}: メッセージタイプ = {message_type}")
             
-            if message_type != -1:
+            # フォースセンサーの値も確認（接続確認の指標として）
+            force_val = getattr(status.sensors, "force", None)
+            
+            print(f"接続テスト {i+1}: メッセージタイプ = {message_type}, フォース = {force_val}")
+            
+            if message_type != -1 or force_val is not None:
                 print("✓ SPIKEハブとの通信確立")
+                connection_established = True
                 break
-            time.sleep(1)
-        else:
+            time.sleep(2)  # 長めに待機
+        
+        if not connection_established:
             print("✗ SPIKEハブとの通信が確立できません")
-            print("SPIKEハブのプログラムが動作しているか確認してください")
+            print("以下を確認してください:")
+            print("1. SPIKEハブでプログラムが実行中か")
+            print("2. run_manual.py などを先に起動してみてください")
+            print("3. フォースセンサーテストが動作した時と同じ状況か")
             return
         
         print("\nバッテリー情報取得中...")
