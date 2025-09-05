@@ -938,19 +938,25 @@ class ActionChain(object):
                 return target_x, None, Mode.CARRY_BOTTLE2
             else:
                 phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
         # 1. 青ボトル中心追従（青ピクセル数が十分な間はcenter追従、少なくなったらphase2へ移行し右モーター位置記録）
         if phase.get_phase() == 1:
             center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
             target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
-            if blue_pixel_count >= 5000:
-                # 青ボトル中心x座標へ追従
-                return target_x, None, Mode.CARRY_BOTTLE2
-            else:
-                # 青ピクセル数が閾値未満になった瞬間phase2へ移行
+            # 上限距離チェック
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course, status=status)
+            position_diff = abs(current_pos - position_start)
+            
+            if position_diff >= 1000 or blue_pixel_count < 5000:
+                # 上限距離到達 または 青ピクセル数不足でphase2へ移行
                 phase.next_phase()
                 # phase2用 右モーター相対位置記録（get_motor_positionで統一）
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            else:
+                # 青ボトル中心x座標へ追従
+                return target_x, None, Mode.CARRY_BOTTLE2
 
         # 2. 右モーターが所定値移動までcenter追従。所定値超えたら次フェーズへ、右モーター位置記録
         if phase.get_phase() == 2:
