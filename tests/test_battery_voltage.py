@@ -30,45 +30,58 @@ def test_battery_voltage():
     try:
         print("SPIKEハブに接続中...")
         
+        # まず基本的な接続確認
+        print("接続状態チェック...")
+        for i in range(5):
+            status = et.get_spike_status()
+            message_type = getattr(status, 'message_type', -1)
+            print(f"接続テスト {i+1}: メッセージタイプ = {message_type}")
+            
+            if message_type != -1:
+                print("✓ SPIKEハブとの通信確立")
+                break
+            time.sleep(1)
+        else:
+            print("✗ SPIKEハブとの通信が確立できません")
+            print("SPIKEハブのプログラムが動作しているか確認してください")
+            return
+        
+        print("\nバッテリー情報取得中...")
+        
         # 複数回測定して平均を取る
         voltage_readings = []
         percent_readings = []
         
-        for i in range(10):
+        for i in range(15):  # 回数を増やしてバッテリー情報待ち
             status = et.get_spike_status()
             
-            # Method 1: 通常のバッテリー情報取得
-            battery_voltage = getattr(status.battery, 'voltage', None)
-            battery_percent = getattr(status.battery, 'percent', None)
-            
-            # Method 2: raw dataから直接取得
+            # raw dataの詳細チェック
             raw_data = getattr(status, 'raw_data', {})
             message_type = raw_data.get('m', -1)
             payload = raw_data.get('p', [])
             
-            raw_voltage = None
-            raw_percent = None
+            print(f"測定 {i+1:2d}: MSG={message_type}, payload_len={len(payload)}")
             
-            if message_type == 2 and len(payload) >= 2:
-                raw_voltage = payload[0]
-                raw_percent = payload[1]
-            
-            print(f"測定 {i+1:2d}: ", end="")
-            
-            if battery_voltage is not None:
-                print(f"電圧={battery_voltage:.2f}V, 残量={battery_percent:.1f}%", end="")
-                voltage_readings.append(battery_voltage)
-                percent_readings.append(battery_percent)
-            elif raw_voltage is not None:
-                print(f"電圧={raw_voltage:.2f}V, 残量={raw_percent:.1f}% (raw)", end="")
-                voltage_readings.append(raw_voltage)
-                percent_readings.append(raw_percent)
+            # すべてのメッセージタイプの詳細を表示
+            if message_type == 0:
+                print(f"  → センサーデータ: payload={payload}")
+            elif message_type == 2:
+                print(f"  → バッテリーデータ: payload={payload}")
+                if len(payload) >= 2:
+                    voltage = payload[0]
+                    percent = payload[1]
+                    print(f"  → 電圧={voltage:.2f}V, 残量={percent:.1f}%")
+                    voltage_readings.append(voltage)
+                    percent_readings.append(percent)
             else:
-                print("バッテリー情報なし", end="")
+                print(f"  → 未知のメッセージ: payload={payload}")
             
-            print(f" (メッセージタイプ: {message_type})")
+            # バッテリー情報の状態も確認
+            battery_voltage = getattr(status.battery, 'voltage', None)
+            battery_percent = getattr(status.battery, 'percent', None)
+            print(f"  → status.battery: voltage={battery_voltage}, percent={battery_percent}")
             
-            time.sleep(0.5)
+            time.sleep(1)
         
         # 結果の集計
         print("\n" + "=" * 40)
