@@ -47,12 +47,14 @@ def test_battery_voltage():
             return
         
         print("\nバッテリー情報取得中...")
+        print("メッセージタイプ0（センサーデータ）とメッセージタイプ2（バッテリー）を監視中...")
         
         # 複数回測定して平均を取る
         voltage_readings = []
         percent_readings = []
+        message_type_counts = {}
         
-        for i in range(15):  # 回数を増やしてバッテリー情報待ち
+        for i in range(30):  # 30回に増やしてバッテリー情報を待つ
             status = et.get_spike_status()
             
             # raw dataの詳細チェック
@@ -60,32 +62,43 @@ def test_battery_voltage():
             message_type = raw_data.get('m', -1)
             payload = raw_data.get('p', [])
             
-            print(f"測定 {i+1:2d}: MSG={message_type}, payload_len={len(payload)}")
+            # メッセージタイプをカウント
+            message_type_counts[message_type] = message_type_counts.get(message_type, 0) + 1
+            
+            print(f"測定 {i+1:2d}: MSG={message_type}")
             
             # すべてのメッセージタイプの詳細を表示
             if message_type == 0:
-                print(f"  → センサーデータ: payload={payload}")
+                print(f"  → センサーデータ受信 (payload_len={len(payload)})")
+                # フォースセンサーの値も確認
+                force_val = getattr(status.sensors, "force", None)
+                if force_val is not None:
+                    print(f"  → フォースセンサー: {force_val}")
             elif message_type == 2:
-                print(f"  → バッテリーデータ: payload={payload}")
+                print(f"  → ★バッテリーデータ発見★: payload={payload}")
                 if len(payload) >= 2:
                     voltage = payload[0]
                     percent = payload[1]
                     print(f"  → 電圧={voltage:.2f}V, 残量={percent:.1f}%")
                     voltage_readings.append(voltage)
                     percent_readings.append(percent)
+            elif message_type == -1:
+                print(f"  → 通信エラー")
             else:
-                print(f"  → 未知のメッセージ: payload={payload}")
+                print(f"  → 未知のメッセージタイプ: {message_type}")
             
             # バッテリー情報の状態も確認
             battery_voltage = getattr(status.battery, 'voltage', None)
             battery_percent = getattr(status.battery, 'percent', None)
-            print(f"  → status.battery: voltage={battery_voltage}, percent={battery_percent}")
+            if battery_voltage is not None:
+                print(f"  → ★status.battery有効★: voltage={battery_voltage}, percent={battery_percent}")
             
-            time.sleep(1)
+            time.sleep(0.5)  # 少し短くして監視頻度を上げる
         
         # 結果の集計
         print("\n" + "=" * 40)
         print("測定結果:")
+        print(f"メッセージタイプ統計: {message_type_counts}")
         
         if voltage_readings:
             avg_voltage = sum(voltage_readings) / len(voltage_readings)
