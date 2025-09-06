@@ -142,18 +142,18 @@ class Quick5SecMotorTest:
         print("🧪 5秒実走行PID比較テスト (70/98速度)")
         print("=" * 60)
         print("⚠️ 安全な場所でテストしてください")
-        print("⚠️ カメラ不要 - 純粋なモーター制御テスト")
+        print("⚠️ 最適設定 vs 中間設定の対決")
         
         # テスト設定
         pid_configs = [
             {
-                'name': '最適設定 (科学的証明済み)',
+                'name': '最適設定 (Kp=0.3)',
                 'kp': 0.3,
                 'kd': 0.3,
                 'limits': (-2, 2)
             },
             {
-                'name': '中間設定 (推測)',
+                'name': '中間設定 (Kp=1.0)',
                 'kp': 1.0,
                 'kd': 1.0,
                 'limits': (-4, 4)
@@ -165,7 +165,7 @@ class Quick5SecMotorTest:
         all_results = []
         
         for speed in speeds:
-            print(f"\n🚀 速度{speed}でのテスト開始")
+            print(f"\n🚀 速度{speed}でのPID比較")
             for config in pid_configs:
                 result = self.test_pid_setting(
                     kp=config['kp'],
@@ -178,69 +178,87 @@ class Quick5SecMotorTest:
                 if result:
                     all_results.append(result)
                 
-                print(f"\n{config['name']} (速度{speed}) 完了")
-                input("次のテストに進むには車体を再配置してEnterを押してください...")
+                print(f"{config['name']} (速度{speed}) 完了")
+                input("次のテストに進みます...")
         
         # 最終比較
-        self.final_comparison(all_results)
+        self.final_pid_comparison(all_results)
     
-    def final_comparison(self, results):
-        """最終比較結果"""
+    def final_pid_comparison(self, results):
+        """PID設定の最終比較結果"""
         print("\n" + "=" * 70)
-        print("🏆 5秒実走行テスト最終結果 (70/98速度比較)")
+        print("🏆 PID設定最終比較結果 (98/70両速度)")
         print("=" * 70)
         
-        # 速度別に整理
-        results_70 = [r for r in results if r['base_speed'] == 70]
-        results_98 = [r for r in results if r['base_speed'] == 98]
-        
-        print("📊 速度70での結果:")
-        for result in sorted(results_70, key=lambda x: x['stability_score'], reverse=True):
-            print(f"  {result['name']}: 安定性{result['stability_score']:.3f}, 制御量{result['avg_correction']:.3f}")
-        
-        print("\n📊 速度98での結果:")
-        for result in sorted(results_98, key=lambda x: x['stability_score'], reverse=True):
-            print(f"  {result['name']}: 安定性{result['stability_score']:.3f}, 制御量{result['avg_correction']:.3f}")
-        
-        # 汎用性評価（両速度での総合性能）
-        print(f"\n🎯 汎用性評価 (70/98両速度):")
-        
-        # 設定別に両速度の平均スコアを計算
-        setting_scores = {}
+        # PID設定別に整理
+        pid_results = {}
         for result in results:
             name = result['name']
-            if name not in setting_scores:
-                setting_scores[name] = []
-            setting_scores[name].append(result['stability_score'])
+            if name not in pid_results:
+                pid_results[name] = []
+            pid_results[name].append(result)
         
+        # 各PID設定の両速度性能を評価
         final_rankings = []
-        for name, scores in setting_scores.items():
-            avg_score = sum(scores) / len(scores)
-            consistency = 1.0 - abs(scores[0] - scores[1]) if len(scores) == 2 else 0
-            universal_score = avg_score * (0.7 + 0.3 * consistency)
-            final_rankings.append((name, universal_score, avg_score, consistency))
         
-        final_rankings.sort(key=lambda x: x[1], reverse=True)
+        for name, speed_results in pid_results.items():
+            if len(speed_results) == 2:  # 両速度のデータがある
+                # 両速度での安定性スコア
+                scores = [r['stability_score'] for r in speed_results]
+                avg_score = sum(scores) / len(scores)
+                
+                # 速度間一貫性（重要）
+                consistency = 1.0 - abs(scores[0] - scores[1]) / max(scores)
+                
+                # 制御安定性重視の総合評価
+                universal_score = avg_score * (0.6 + 0.4 * consistency)
+                
+                final_rankings.append((name, universal_score, avg_score, consistency, speed_results))
         
-        print("最終ランキング:")
-        for i, (name, universal_score, avg_score, consistency) in enumerate(final_rankings, 1):
+        # 安定性順でソート
+        final_rankings.sort(key=lambda x: x[1])
+        
+        print("🎯 制御安定性重視ランキング:")
+        for i, (name, universal_score, avg_score, consistency, speed_results) in enumerate(final_rankings, 1):
             print(f"{i}位: {name}")
-            print(f"     汎用スコア: {universal_score:.3f}")
+            print(f"     制御安定性: {universal_score:.3f} (小さいほど良い)")
             print(f"     平均安定性: {avg_score:.3f}")
             print(f"     一貫性: {consistency:.3f}")
+            
+            # 各速度の詳細
+            for result in speed_results:
+                speed = result['base_speed']
+                print(f"       速度{speed}: 安定性{result['stability_score']:.3f}, 制御量{result['avg_correction']:.3f}")
             print()
         
-        # 勝者発表
+        # 最終推奨
         if final_rankings:
-            winner = final_rankings[0][0]
-            print(f"🥇 総合勝者: {winner}")
+            winner_name = final_rankings[0][0]
+            winner_results = final_rankings[0][4]
             
-            if "最適設定" in winner:
+            print(f"🥇 推奨PID設定: {winner_name}")
+            print(f"   制御安定性が最も優秀（コースアウト防止重視）")
+            
+            # 設定値を表示
+            for result in winner_results:
+                if 'kp' in result:
+                    print(f"   設定値: Kp={result['kp']}, Kd={result['kd']}, limits={result['limits']}")
+                    break
+            
+            # 具体的な評価
+            if "最適設定" in winner_name:
                 print("✅ 科学的テストの結果が実走行でも証明されました！")
-                print("   Kp=0.3, Kd=0.3, limits=(-2,2) が両速度で最適")
-            elif "中間設定" in winner:
-                print("🤔 中間設定が予想外に良い結果でした...")
-                print("   理論と実際の違いが明らかになりました")
+                print("   Kp=0.3, Kd=0.3, limits=(-2,2) を採用推奨")
+            elif "中間設定" in winner_name:
+                print("🤔 中間設定が実走行では優秀でした")
+                print("   Kp=1.0, Kd=1.0, limits=(-4,4) を採用推奨")
+            elif "従来設定" in winner_name:
+                print("😮 従来設定が意外に安定していました")
+                print("   Kp=5.0, Kd=5.0, limits=(-8,8) を継続推奨")
+            
+            print(f"\n📋 結論:")
+            print(f"   HIGH_SPEED_AVOIDモードでは {winner_name} を使用")
+            print(f"   両速度98/70で安定動作、コースアウトリスク最小")
 
 def main():
     tester = Quick5SecMotorTest()

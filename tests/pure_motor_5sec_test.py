@@ -18,37 +18,50 @@ class Pure5SecMotorTest:
     def __init__(self):
         self.et = ETRobot()
         
-    def test_motor_stability(self, base_speed, name, duration=5.0):
-        """純粋なモーター安定性テスト（外乱あり）"""
-        print(f"\n=== {name} (速度{base_speed}) 安定性テスト ===")
+    def test_pid_setting(self, kp, kd, limits, name, base_speed, duration=5.0):
+        """PID設定テスト（外乱あり）"""
+        print(f"\n=== {name} (速度{base_speed}) PIDテスト ===")
+        print(f"設定: Kp={kp}, Kd={kd}, limits={limits}")
         print("車体を平らな場所にセットして準備...")
         input("準備完了したらEnterを押してください...")
         
+        # PID設定
+        from nnspike.utils import PIDController
+        pid = PIDController(
+            Kp=kp,
+            Ki=0,
+            Kd=kd,
+            setpoint=0,
+            output_limits=limits
+        )
+        
         # データ収集用
         positions = []
-        disturbances = []
+        corrections = []
         
-        print(f"🚗 {name} 5秒テスト開始！（意図的外乱あり）")
+        print(f"🚗 {name} 5秒PIDテスト開始！")
         start_time = time.time()
         
         try:
-            step = 0
             while time.time() - start_time < duration:
-                # 意図的な外乱を与える（実際のライン追従をシミュレート）
-                if step % 50 == 0:  # 1秒ごと
-                    # -3から+3の範囲でランダムな外乱
-                    disturbance = random.uniform(-3, 3)
-                    disturbances.append(disturbance)
+                # 微小外乱（ライン追従をシミュレート）
+                elapsed = time.time() - start_time
+                if elapsed > 1:  # 1秒後から外乱
+                    disturbance = random.uniform(-0.02, 0.02)  # ラジアン
                 else:
                     disturbance = 0
                 
-                # 外乱を加えた速度設定
-                left_speed = base_speed + disturbance
-                right_speed = base_speed - disturbance
+                # PID制御
+                steering_correction = pid.update(disturbance)
+                corrections.append(abs(steering_correction))
+                
+                # 速度設定
+                left_speed = base_speed - steering_correction
+                right_speed = base_speed + steering_correction
                 
                 # 速度制限
-                left_speed = max(10, min(120, left_speed))
-                right_speed = max(10, min(120, right_speed))
+                left_speed = max(0, min(255, left_speed))
+                right_speed = max(0, min(255, right_speed))
                 
                 # モーター制御
                 self.et.set_motor_forward_speed(
@@ -63,7 +76,6 @@ class Pure5SecMotorTest:
                     right_pos = status.motors["B"].relative_position
                     positions.append((left_pos, right_pos))
                 
-                step += 1
                 time.sleep(0.02)  # 50Hz
         
         except KeyboardInterrupt:
@@ -73,14 +85,18 @@ class Pure5SecMotorTest:
             time.sleep(0.5)
         
         # 結果分析
-        result = self.analyze_motor_results(name, base_speed, positions, disturbances)
+        result = self.analyze_pid_results(name, base_speed, positions, corrections)
         return result
     
-    def analyze_motor_results(self, name, base_speed, positions, disturbances):
-        """純粋なモーター結果分析"""
-        if not positions:
+    def analyze_pid_results(self, name, base_speed, positions, corrections):
+        """PID結果分析"""
+        if not positions or not corrections:
             print(f"❌ {name}: データ不足")
             return None
+        
+        # PID制御安定性
+        avg_correction = sum(corrections) / len(corrections)
+        max_correction = max(corrections)
         
         # 位置安定性分析
         left_positions = [p[0] for p in positions]
@@ -95,31 +111,65 @@ class Pure5SecMotorTest:
         # 左右差分析
         position_diffs = [abs(l - r) for l, r in positions]
         avg_diff = sum(position_diffs) / len(position_diffs) if position_diffs else 0
-        max_diff = max(position_diffs) if position_diffs else 0
         
-        # 直進性評価（理想的には左右同期）
-        left_total = left_positions[-1] - left_positions[0] if len(left_positions) > 1 else 0
-        right_total = right_positions[-1] - right_positions[0] if len(right_positions) > 1 else 0
-        straightness = abs(left_total - right_total)
-        
-        print(f"\n📊 {name} (速度{base_speed}) 結果:")
+        print(f"\n📊 {name} (速度{base_speed}) PID結果:")
+        print(f"   平均制御量: {avg_correction:.3f}")
+        print(f"   最大制御量: {max_correction:.3f}")
         print(f"   位置安定性: {position_stability:.1f}")
         print(f"   左右差平均: {avg_diff:.1f}")
-        print(f"   左右差最大: {max_diff:.1f}")
-        print(f"   直進性: {straightness:.1f} (小さいほど良い)")
         
-        # 総合スコア（小さいほど良い）
-        stability_score = position_stability + avg_diff * 0.5 + straightness * 0.1
-        print(f"   総合安定性: {stability_score:.2f} (小さいほど良い)")
+        # PID総合スコア（小さいほど良い）
+        pid_score = avg_correction * 1000 + position_stability * 0.1 + avg_diff * 0.01
+        print(f"   PID総合スコア: {pid_score:.2f} (小さいほど良い)")
         
         return {
+            'name': name,
             'speed': base_speed,
+            'avg_correction': avg_correction,
+            'max_correction': max_correction,
             'position_stability': position_stability,
             'avg_diff': avg_diff,
-            'max_diff': max_diff,
-            'straightness': straightness,
-            'stability_score': stability_score
+            'pid_score': pid_score
         }
+    
+    def test_motor_stability(self, name, base_speed, duration=3.0):
+        """基本モーター安定性テスト"""
+        print(f"\n⚙️ {name} (速度{base_speed}) テスト開始...")
+        
+        positions = []
+        disturbances = []
+        
+        try:
+            # ETRobotをインポート
+            from nnspike.unit.etrobot import ETRobot
+            robot = ETRobot()
+            
+            # 計測開始
+            duration_int = int(duration)
+            for second in range(duration_int):
+                print(f"   {second+1}秒...")
+                
+                # モーター速度設定（左右同期）
+                robot.set_motor_speed(base_speed, base_speed)
+                
+                # 1秒間動作
+                time.sleep(1.0)
+                
+                # モーター停止
+                robot.set_motor_speed(0, 0)
+                
+                # 位置取得（相対位置）
+                relative_pos = robot.retrieve_motors_relative_position()
+                positions.append((relative_pos, relative_pos))  # 簡易的に同じ値を使用
+                
+                time.sleep(0.1)
+            
+            print(f"   ✅ {name} 完了")
+            return positions, disturbances
+            
+        except Exception as e:
+            print(f"   ❌ {name} エラー: {e}")
+            return [], []
     
     def run_dual_speed_test(self):
         """70と98の両速度でテスト"""
