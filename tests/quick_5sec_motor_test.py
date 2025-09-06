@@ -142,7 +142,7 @@ class Quick5SecMotorTest:
         print("🧪 5秒実走行PID比較テスト (70/98速度)")
         print("=" * 60)
         print("⚠️ 安全な場所でテストしてください")
-        print("⚠️ 最適設定 vs 中間設定の対決")
+        print("⚠️ 3つのPID設定の完全比較")
         
         # テスト設定
         pid_configs = [
@@ -157,6 +157,12 @@ class Quick5SecMotorTest:
                 'kp': 1.0,
                 'kd': 1.0,
                 'limits': (-4, 4)
+            },
+            {
+                'name': '従来設定 (Kp=5.0)',
+                'kp': 5.0,
+                'kd': 5.0,
+                'limits': (-8, 8)
             }
         ]
         
@@ -255,6 +261,8 @@ class Quick5SecMotorTest:
             elif "従来設定" in winner_name:
                 print("😮 従来設定が意外に安定していました")
                 print("   Kp=5.0, Kd=5.0, limits=(-8,8) を継続推奨")
+            else:
+                print(f"📌 {winner_name} が最適設定として確認されました")
             
             print(f"\n📋 結論:")
             print(f"   HIGH_SPEED_AVOIDモードでは {winner_name} を使用")
