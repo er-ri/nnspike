@@ -280,13 +280,14 @@ class SpikeStatus:
                 #         "y": payload[6][2],
                 #     }
 
-            elif message_type == 2:  # Battery status message
-                # Extract battery information if available
-                if len(payload) > 1:
-                    result["battery"] = {
-                        "voltage": payload[0] if len(payload) > 0 else None,
-                        "percent": payload[1] if len(payload) > 1 else None,
-                    }
+            # elif message_type == 2:  # Battery status message
+            #     # Extract battery information if available
+            #     # コメントアウト：get_spike_statusの負荷軽減のため
+            #     if len(payload) > 1:
+            #         result["battery"] = {
+            #             "voltage": payload[0] if len(payload) > 0 else None,
+            #             "percent": payload[1] if len(payload) > 1 else None,
+            #         }
 
             return result
 

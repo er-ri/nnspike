@@ -145,10 +145,11 @@ class ETRobot(object):
                 last.motors[motor_id].power = current.motors[motor_id].power
 
         # Update battery data (for HIGH_SPEED_BASE optimization)
-        if current.battery.voltage is not None:
-            last.battery.voltage = current.battery.voltage
-        if current.battery.percent is not None:
-            last.battery.percent = current.battery.percent
+        # コメントアウト：get_spike_statusの負荷軽減のため
+        # if current.battery.voltage is not None:
+        #     last.battery.voltage = current.battery.voltage
+        # if current.battery.percent is not None:
+        #     last.battery.percent = current.battery.percent
         
         # Also update message_type and raw_data for debugging
         last.message_type = current.message_type

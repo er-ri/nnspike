@@ -1,17 +1,84 @@
 #!/usr/bin/env python3
 """
-SPIKEハブのバッテリー残量チェックプログラム（本番前確認用）
+SPIKEハブのバッテリー残量チェックプログム（本番前確認用）
+test内完結型 - utilsに依存しない独立実装
 """
 
 import sys
 import time
+import json
+import serial
 from pathlib import Path
 
 # nnspike モジュールのパスを追加
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from nnspike.unit.etrobot import ETRobot
+
+class BatteryChecker:
+    """バッテリー情報取得専用クラス（test内完結）"""
+    
+    def __init__(self, port="/dev/ttyACM0"):
+        self.serial_port = serial.Serial(port=port, baudrate=115200, timeout=2)
+        self.serial_port.reset_input_buffer()
+        self.serial_port.reset_output_buffer()
+        
+    def __parse_battery_message(self, data):
+        """バッテリー情報のみを抽出する軽量パーサー"""
+        try:
+            if isinstance(data, bytes):
+                data = data.decode("utf-8").strip()
+            
+            parsed = json.loads(data)
+            
+            if "m" in parsed and len(parsed["m"]) > 0:
+                message_type = parsed["m"][0]
+                payload = parsed["m"][1:] if len(parsed["m"]) > 1 else []
+                
+                # message_type == 2はバッテリー情報
+                if message_type == 2 and len(payload) > 1:
+                    return {
+                        "voltage": payload[0] if len(payload) > 0 else None,
+                        "percent": payload[1] if len(payload) > 1 else None,
+                    }
+                    
+        except (json.JSONDecodeError, KeyError, IndexError):
+            # エラーは無視してNoneを返す
+            pass
+            
+        return None
+    
+    def get_battery_info(self, max_attempts=10):
+        """
+        バッテリー情報を取得
+        
+        Args:
+            max_attempts (int): 最大試行回数
+            
+        Returns:
+            dict: {"voltage": float, "percent": int} または None
+        """
+        for attempt in range(max_attempts):
+            try:
+                # シリアルポートからデータを読み取り
+                received_data = self.serial_port.read_until(expected=b"\r")
+                
+                if received_data.startswith(b"{"):
+                    battery_info = self.__parse_battery_message(received_data)
+                    if battery_info:
+                        return battery_info
+                        
+                time.sleep(0.1)  # 短い待機
+                
+            except Exception as e:
+                print(f"Battery read attempt {attempt + 1} failed: {e}")
+                time.sleep(0.1)
+                
+        return None
+    
+    def close(self):
+        """シリアルポートを閉じる"""
+        self.serial_port.close()
 
 
 def check_battery():
@@ -21,10 +88,11 @@ def check_battery():
     print("SPIKE Hub Battery Check - 本番前バッテリー確認")
     print("=" * 50)
     
-    et = ETRobot()
+    battery_checker = None
     
     try:
         print("SPIKEハブに接続中...")
+        battery_checker = BatteryChecker()
         time.sleep(1)  # 初期化待ち
         
         # バッテリー情報を5回測定して平均を取る
@@ -32,14 +100,12 @@ def check_battery():
         percent_readings = []
         
         for i in range(5):
-            status = et.get_spike_status()
-            battery_voltage = getattr(status.battery, 'voltage', None)
-            battery_percent = getattr(status.battery, 'percent', None)
+            battery_info = battery_checker.get_battery_info()  # test内完結型バッテリー取得
             
-            if battery_voltage is not None:
-                voltage_readings.append(battery_voltage)
-                percent_readings.append(battery_percent)
-                print(f"測定{i+1}: {battery_voltage:.2f}V, {battery_percent:.1f}%")
+            if battery_info and battery_info.get('voltage') is not None:
+                voltage_readings.append(battery_info['voltage'])
+                percent_readings.append(battery_info['percent'])
+                print(f"測定{i+1}: {battery_info['voltage']:.2f}V, {battery_info['percent']:.1f}%")
             else:
                 print(f"測定{i+1}: バッテリー情報取得失敗")
             
@@ -91,7 +157,8 @@ def check_battery():
         print(f"❌ エラー: {e}")
         print("SPIKEハブとの接続を確認してください")
     finally:
-        et.stop()
+        if battery_checker:
+            battery_checker.close()
         print("バッテリーチェック完了\n")
 
 
