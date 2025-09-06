@@ -29,14 +29,22 @@ class BatteryChecker:
             if isinstance(data, bytes):
                 data = data.decode("utf-8").strip()
             
-            parsed = json.loads(data)
+            # Clean the data: remove any null bytes or invalid characters  
+            data = data.replace('\x00', '').strip()
             
-            if "m" in parsed and len(parsed["m"]) > 0:
-                message_type = parsed["m"][0]
-                payload = parsed["m"][1:] if len(parsed["m"]) > 1 else []
+            # Try to find JSON-like content
+            if '{' in data and '}' in data:
+                start = data.find('{')
+                end = data.rfind('}') + 1
+                json_str = data[start:end]
+                
+                parsed = json.loads(json_str)
+                
+                message_type = parsed.get("m", -1)
+                payload = parsed.get("p", [])
                 
                 # message_type == 2はバッテリー情報
-                if message_type == 2 and len(payload) > 1:
+                if message_type == 2 and isinstance(payload, list) and len(payload) > 1:
                     return {
                         "voltage": payload[0] if len(payload) > 0 else None,
                         "percent": payload[1] if len(payload) > 1 else None,
