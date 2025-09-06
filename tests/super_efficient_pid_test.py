@@ -848,7 +848,7 @@ if __name__ == "__main__":
 def main():
     tester = DetailedKpAnalysisTest()
     try:
-        tester.run_super_efficient_test()
+        tester.run_detailed_kp_analysis()
     finally:
         tester.et.stop()
 
