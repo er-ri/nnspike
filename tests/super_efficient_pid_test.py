@@ -117,26 +117,45 @@ class DetailedKpAnalysisTest:
             'balance_score': balance_score
         }
     
-    def run_detailed_kp_analysis(self):
+    def run_detailed_kp_analysis(self, test_mode="full"):
         """Kp=0.5～5.0詳細解析実行"""
         print("🔍 Kp=0.5～5.0 詳細バランス解析")
         print("=" * 50)
         print("🎯 効率と制御力のトレードオフ分析")
         print("⚖️ 最適バランスポイントを発見")
         
-        # 詳細Kp範囲
-                # 制御力重視範囲（Kp=0.5～5.0を細かく解析）
-        kd_values = [0, 0.3, 0.5, 1.0]  # Kd=0も検証、0.3は従来値
-        kp_values = [0.5, 0.8, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0]  # Kp=0.5～5.0を細かく
-        limits_values = [(-2, 2), (-4, 4), (-8, 8)]  # 制御範囲も幅広く
-        speeds = [70, 98]  # 2種類
+        # テストモード別設定
+        if test_mode == "quick":
+            # クイックテスト：1分程度
+            kd_values = [0.3]  # 既存設定のみ
+            kp_values = [0.8, 1.0, 1.5, 2.0]  # 重要4点
+            limits_values = [(-4, 4)]  # 現在設定のみ
+            speeds = [98]  # 高速のみ
+            print("🚀 クイックテスト（約1分）")
+        elif test_mode == "medium":
+            # 中程度テスト：2-3分程度  
+            kd_values = [0, 0.3, 0.5]
+            kp_values = [0.5, 0.8, 1.0, 1.5, 2.0, 3.0]  # 6点
+            limits_values = [(-2, 2), (-4, 4)]
+            speeds = [98]
+            print("⚖️ 中程度テスト（約2-3分）")
+        else:  # full
+            # フルテスト：4-5分（オリジナル）
+            kd_values = [0, 0.3, 0.5, 1.0]  # Kd=0も検証、0.3は従来値
+            kp_values = [0.5, 0.8, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0]  # Kp=0.5～5.0を細かく
+            limits_values = [(-2, 2), (-4, 4), (-8, 8)]  # 制御範囲も幅広く
+            speeds = [70, 98]  # 2種類
+            print("🎯 フルテスト（約4-5分）")
         
         total_tests = len(kd_values) * len(kp_values) * len(limits_values) * len(speeds)
-        print(f"📊 Kp=0.5～5.0細かい解析テスト数: {total_tests}")
-        print(f"   Kd: {kd_values} (Kd=0検証含む)")
-        print(f"   Kp: {kp_values} (0.5～5.0細かく)")
-        print(f"   limits: {limits_values} (制御範囲広め)")
-        print(f"⏱️ 推定時間: {total_tests * 1.0 / 60:.1f}分")
+        estimated_time = total_tests * 1.5 / 60  # 1.5秒/テスト
+        print(f"📊 テスト数: {total_tests}")
+        print(f"⏱️ 推定時間: {estimated_time:.1f}分")
+        print(f"   Kd: {kd_values}")
+        print(f"   Kp: {kp_values}")  
+        print(f"   制御範囲: {limits_values}")
+        print(f"   速度: {speeds}")
+        print(f"   1テスト: 1.5秒")
         
         if input("車輪浮かせてKp細かい解析テスト開始？ (y/N): ").lower() != 'y':
             return
@@ -846,9 +865,27 @@ if __name__ == "__main__":
             print(f"   効率スコア: {best['efficiency_score']:.3f}")
 
 def main():
+    """メイン関数 - テストモード選択付き"""
+    import sys
+    
+    # コマンドライン引数でモード選択
+    if len(sys.argv) > 1:
+        test_mode = sys.argv[1]
+    else:
+        # インタラクティブ選択
+        print("\n🔧 PIDテストモード選択:")
+        print("1. quick  - クイックテスト（約1分、4テスト）")
+        print("2. medium - 中程度テスト（約2-3分、36テスト）") 
+        print("3. full   - フルテスト（約4-5分、192テスト）")
+        
+        choice = input("\nモードを選択してください [1/2/3]: ").strip()
+        test_mode = {"1": "quick", "2": "medium", "3": "full"}.get(choice, "full")
+    
+    print(f"\n🚀 {test_mode}モードで実行します")
+    
     tester = DetailedKpAnalysisTest()
     try:
-        tester.run_detailed_kp_analysis()
+        tester.run_detailed_kp_analysis(test_mode)
     finally:
         tester.et.stop()
 
