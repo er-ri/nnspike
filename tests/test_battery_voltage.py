@@ -64,7 +64,7 @@ class BatteryChecker:
             
         return None
     
-    def get_battery_info(self, max_attempts=10):
+    def get_battery_info(self, max_attempts=25):  # 試行回数を増加
         """
         バッテリー情報を取得
         
@@ -79,19 +79,23 @@ class BatteryChecker:
                 # シリアルポートからデータを読み取り
                 received_data = self.serial_port.read_until(expected=b"\r")
                 
-                if self.debug:
-                    print(f"Attempt {attempt + 1}: Received {len(received_data)} bytes: {received_data[:50]}...")
+                if self.debug and attempt < 3:  # 最初の3回だけデバッグ表示
+                    print(f"Attempt {attempt + 1}: Received {len(received_data)} bytes")
                 
                 if received_data and len(received_data) > 10:  # 最小データサイズチェック
                     battery_info = self.__parse_battery_message(received_data)
                     if battery_info:
+                        if self.debug:
+                            print(f"✅ Battery found on attempt {attempt + 1}")
                         return battery_info
                         
-                time.sleep(0.2)  # 少し長めの待機
+                # バッテリー情報が見つからない場合は短時間待機
+                time.sleep(0.05)  # より短い待機でより多く試行
                 
             except Exception as e:
-                print(f"Battery read attempt {attempt + 1} failed: {e}")
-                time.sleep(0.2)
+                if self.debug:
+                    print(f"Battery read attempt {attempt + 1} failed: {e}")
+                time.sleep(0.1)
                 
         return None
     
@@ -111,12 +115,14 @@ def check_battery():
     
     try:
         print("SPIKEハブに接続中...")
-        battery_checker = BatteryChecker(debug=True)  # デバッグモード有効
+        battery_checker = BatteryChecker(debug=False)  # デバッグ無効化
         time.sleep(1)  # 初期化待ち
         
         # バッテリー情報を5回測定して平均を取る
         voltage_readings = []
         percent_readings = []
+        
+        print("バッテリー情報収集中...", end="", flush=True)
         
         for i in range(5):
             battery_info = battery_checker.get_battery_info()  # test内完結型バッテリー取得
@@ -124,11 +130,12 @@ def check_battery():
             if battery_info and battery_info.get('voltage') is not None:
                 voltage_readings.append(battery_info['voltage'])
                 percent_readings.append(battery_info['percent'])
-                print(f"測定{i+1}: {battery_info['voltage']:.2f}V, {battery_info['percent']:.1f}%")
+                print(f"\n測定{i+1}: {battery_info['voltage']:.2f}V, {battery_info['percent']:.1f}%")
             else:
-                print(f"測定{i+1}: バッテリー情報取得失敗")
+                print(f"\n測定{i+1}: バッテリー情報取得失敗")
             
-            time.sleep(0.5)
+            print(".", end="", flush=True)  # 進行状況表示
+            time.sleep(0.3)  # 少し短縮
         
         print("\n" + "=" * 50)
         
