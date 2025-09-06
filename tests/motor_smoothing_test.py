@@ -12,8 +12,21 @@ HIGH_SPEED_BASE=98を前提として、以下をテスト：
 
 import time
 import math
-import numpy as np
+import sys
+import os
 from typing import List, Tuple, Optional
+
+# パスを追加してパッケージをインポート
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    print("NumPyがインストールされていません。基本的な統計計算を使用します。")
+    HAS_NUMPY = False
+    np = None
+
 from nnspike.unit import ETRobot
 from nnspike.constants import HIGH_SPEED_BASE
 
@@ -167,6 +180,18 @@ class MotorSmoothingAnalyzer:
         self.et.brake()
         return results
     
+    def calculate_mean(self, data: List[float]) -> float:
+        """平均計算（NumPy非依存）"""
+        return sum(data) / len(data) if data else 0.0
+    
+    def calculate_std(self, data: List[float]) -> float:
+        """標準偏差計算（NumPy非依存）"""
+        if not data or len(data) < 2:
+            return 0.0
+        mean = self.calculate_mean(data)
+        variance = sum((x - mean) ** 2 for x in data) / (len(data) - 1)
+        return variance ** 0.5
+    
     def analyze_results(self, results: List[dict]) -> dict:
         """結果分析"""
         if not results:
@@ -179,13 +204,13 @@ class MotorSmoothingAnalyzer:
         
         analysis = {
             'total_samples': len(results),
-            'avg_speed_diff': np.mean(speed_diffs) if speed_diffs else 0,
-            'max_speed_diff': np.max(speed_diffs) if speed_diffs else 0,
-            'std_speed_diff': np.std(speed_diffs) if speed_diffs else 0,
-            'avg_motor_a_speed': np.mean(motor_a_speeds) if motor_a_speeds else 0,
-            'avg_motor_b_speed': np.mean(motor_b_speeds) if motor_b_speeds else 0,
-            'motor_a_variation': np.std(motor_a_speeds) if motor_a_speeds else 0,
-            'motor_b_variation': np.std(motor_b_speeds) if motor_b_speeds else 0
+            'avg_speed_diff': self.calculate_mean(speed_diffs),
+            'max_speed_diff': max(speed_diffs) if speed_diffs else 0,
+            'std_speed_diff': self.calculate_std(speed_diffs),
+            'avg_motor_a_speed': self.calculate_mean(motor_a_speeds),
+            'avg_motor_b_speed': self.calculate_mean(motor_b_speeds),
+            'motor_a_variation': self.calculate_std(motor_a_speeds),
+            'motor_b_variation': self.calculate_std(motor_b_speeds)
         }
         
         return analysis
@@ -290,23 +315,29 @@ def main():
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         import json
         
-        # JSONシリアライズのためにnumpyをfloatに変換
-        def convert_numpy(obj):
-            if isinstance(obj, np.integer):
-                return int(obj)
-            elif isinstance(obj, np.floating):
-                return float(obj)
-            elif isinstance(obj, np.ndarray):
-                return obj.tolist()
+        # JSONシリアライズのための型変換
+        def convert_types(obj):
+            if HAS_NUMPY and np is not None:
+                if isinstance(obj, np.integer):
+                    return int(obj)
+                elif isinstance(obj, np.floating):
+                    return float(obj)
+                elif isinstance(obj, np.ndarray):
+                    return obj.tolist()
             return obj
         
         # analysisのみをJSONに保存（データが大きすぎるため）
         summary = {test_name: test_data['analysis'] for test_name, test_data in results.items()}
         
-        with open(f'c:/Users/MSAD/github/nnspike/storage/motor_smoothing_test_{timestamp}.json', 'w') as f:
-            json.dump(summary, f, indent=2, default=convert_numpy)
+        # ファイル保存パスをOSに応じて決定
+        storage_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'storage')
+        os.makedirs(storage_dir, exist_ok=True)
+        output_file = os.path.join(storage_dir, f'motor_smoothing_test_{timestamp}.json')
         
-        print(f"\n結果を保存しました: motor_smoothing_test_{timestamp}.json")
+        with open(output_file, 'w') as f:
+            json.dump(summary, f, indent=2, default=convert_types)
+        
+        print(f"\n結果を保存しました: {output_file}")
         
     except Exception as e:
         print(f"エラーが発生しました: {e}")
