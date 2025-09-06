@@ -21,8 +21,9 @@ OFFSET_Y = 470  # 0.20 meters to the ground
 BASE_SPEED = 45
 
 # High speed for robot movement (used for high speed mode)
-#HIGH_SPEED_BASE = 98
-HIGH_SPEED_BASE = 95
+# テスト結果: 設定110が最適バランス (実速度95.5, パワー75.1%)
+# 物理限界: 実速度96, パワー76% (160以上は無効)
+HIGH_SPEED_BASE = 110
 
 # Behavior Mode
 class Mode(Enum):
