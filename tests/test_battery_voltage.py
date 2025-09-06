@@ -18,7 +18,8 @@ sys.path.insert(0, str(project_root))
 class BatteryChecker:
     """バッテリー情報取得専用クラス（test内完結）"""
     
-    def __init__(self, port="/dev/ttyACM0"):
+    def __init__(self, port="/dev/ttyACM0", debug=False):
+        self.debug = debug
         self.serial_port = serial.Serial(port=port, baudrate=115200, timeout=2)
         self.serial_port.reset_input_buffer()
         self.serial_port.reset_output_buffer()
@@ -32,6 +33,9 @@ class BatteryChecker:
             # Clean the data: remove any null bytes or invalid characters  
             data = data.replace('\x00', '').strip()
             
+            if self.debug:
+                print(f"Parsing data: {data[:100]}")
+            
             # Try to find JSON-like content
             if '{' in data and '}' in data:
                 start = data.find('{')
@@ -43,6 +47,9 @@ class BatteryChecker:
                 message_type = parsed.get("m", -1)
                 payload = parsed.get("p", [])
                 
+                if self.debug:
+                    print(f"Message type: {message_type}, Payload: {payload}")
+                
                 # message_type == 2はバッテリー情報
                 if message_type == 2 and isinstance(payload, list) and len(payload) > 1:
                     return {
@@ -50,8 +57,9 @@ class BatteryChecker:
                         "percent": payload[1] if len(payload) > 1 else None,
                     }
                     
-        except (json.JSONDecodeError, KeyError, IndexError):
-            # エラーは無視してNoneを返す
+        except (json.JSONDecodeError, KeyError, IndexError) as e:
+            if self.debug:
+                print(f"Parse error: {e}")
             pass
             
         return None
@@ -71,16 +79,19 @@ class BatteryChecker:
                 # シリアルポートからデータを読み取り
                 received_data = self.serial_port.read_until(expected=b"\r")
                 
-                if received_data.startswith(b"{"):
+                if self.debug:
+                    print(f"Attempt {attempt + 1}: Received {len(received_data)} bytes: {received_data[:50]}...")
+                
+                if received_data and len(received_data) > 10:  # 最小データサイズチェック
                     battery_info = self.__parse_battery_message(received_data)
                     if battery_info:
                         return battery_info
                         
-                time.sleep(0.1)  # 短い待機
+                time.sleep(0.2)  # 少し長めの待機
                 
             except Exception as e:
                 print(f"Battery read attempt {attempt + 1} failed: {e}")
-                time.sleep(0.1)
+                time.sleep(0.2)
                 
         return None
     
@@ -100,7 +111,7 @@ def check_battery():
     
     try:
         print("SPIKEハブに接続中...")
-        battery_checker = BatteryChecker()
+        battery_checker = BatteryChecker(debug=True)  # デバッグモード有効
         time.sleep(1)  # 初期化待ち
         
         # バッテリー情報を5回測定して平均を取る
