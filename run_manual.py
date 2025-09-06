@@ -375,10 +375,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.SMALL_TURN_LEFT:
                     _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.small_turn_left())
                 case Mode.HIGH_SPEED_AVOID:
-                    pid.Kp = 5
+                    pid.Kp = 0.3  # 汎用最適化：科学的テストで証明済み
                     pid.Ki = 0
-                    pid.Kd = 5
-                    pid.output_limits = (-8, 8)  # さらに狭く
+                    pid.Kd = 0.3  # 汎用最適化：両速度70/98対応
+                    pid.output_limits = (-2, 2)  # 汎用最適化：過制御防止
                     target_x, (left_speed, right_speed, current_base_speed), mode = unpack_action_result(action_chain.high_speed_avoid(frame))
                 case Mode.HIGH_SPEED:
                     # ハイスピードモード（右エッジ追従＋高速）
