@@ -141,8 +141,7 @@ class DetailedKpAnalysisTest:
         if input("車輪浮かせてKp細かい解析テスト開始？ (y/N): ").lower() != 'y':
             return
         
-        print(f"
-🚀 Kp=0.5～5.0細かい解析テスト開始！")
+        print(f"\n🚀 Kp=0.5～5.0細かい解析テスト開始！")
         all_results = []
         test_count = 0
         
