@@ -8,11 +8,10 @@ import sys
 import os
 import time
 import random
-
-# パスを追加してnnspike.etrobotをインポート
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 from nnspike.unit import ETRobot
-from simple_pid import PIDController
+from nnspike.utils import PIDController
 
 class StagedPIDTest:
     def __init__(self):
