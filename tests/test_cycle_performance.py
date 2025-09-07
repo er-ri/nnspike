@@ -76,22 +76,20 @@ class CyclePerformanceTester:
         }
         
     def setup_camera(self, optimized=False):
-        """カメラ初期化"""
-        print(f"📷 カメラ初期化 (最適化: {optimized})")
-        
+        """run_manual.pyと完全同一のカメラ初期化設定"""
+        print(f"📷 カメラ初期化 (run_manual.py完全一致, 最適化: {optimized})")
+        import cv2
+        from nnspike.constants import CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS
         self.cap = cv2.VideoCapture(0)
         if not self.cap.isOpened():
             raise RuntimeError("カメラ接続失敗")
-            
-        # 基本設定
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, constants.CAMERA_WIDTH)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, constants.CAMERA_HEIGHT)
-        self.cap.set(cv2.CAP_PROP_FPS, 30)
-        
+        # 完全一致: FPS, WIDTH, HEIGHT, BUFFERSIZE
+        self.cap.set(cv2.CAP_PROP_FPS, CAMERA_FPS)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         if optimized:
-            # 最適化設定
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # バッファ最小化
-            print("  ✅ 最適化設定適用")
+            print("  ✅ 最適化設定適用 (BUFFERSIZE=1)")
         
     def setup_spike_connection(self):
         """Spike Hub接続"""
@@ -589,6 +587,7 @@ class CyclePerformanceTester:
             print(f"  ❌ {test_name}: 測定データなし")
     
     def run_all_tests(self):
+        self.setup_camera()
         print("\n=== high_speed_avoid phase0 プロファイリングテスト ===")
         for i in range(10):
             self.high_speed_avoid_phase0_profile_cycle()
