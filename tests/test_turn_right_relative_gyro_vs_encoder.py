@@ -6,7 +6,7 @@ from nnspike.unit.etrobot import ETRobot
 from nnspike.unit.action_chain import ActionChain
 
 # テスト用速度リスト
-SPEED_LIST = [x * 0.5 for x in range(126, 131)]  # 63.0, 63.5, 64.0, 64.5, 65.0
+SPEED_LIST = [63, 64, 65]
 
 # 結果記録用
 results = []
@@ -37,7 +37,7 @@ for speed in SPEED_LIST:
             et.brake()
             finished = True
         else:
-            et.set_motor_forward_speed(speed, 0)
+            et.set_motor_forward_speed(int(speed), 0)
         time.sleep(0.02)
     time.sleep(1)
 
