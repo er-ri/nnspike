@@ -229,9 +229,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         
         debug_state['counter'] += 1
         # 毎ループ出力（間引きなし） - 本番時はコメントアウトで負荷軽減
-        elapsed_ms = int(loop_elapsed * 1000)
-        sleep_ms = int(max(sleep_time, 0) * 1000)
-        print(f"[DEBUG] loop={debug_state['counter']} time={elapsed_ms}ms [sleep={sleep_ms}ms]")
+        # elapsed_ms = int(loop_elapsed * 1000)
+        # sleep_ms = int(max(sleep_time, 0) * 1000)
+        # print(f"[DEBUG] loop={debug_state['counter']} time={elapsed_ms}ms [sleep={sleep_ms}ms]")
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
