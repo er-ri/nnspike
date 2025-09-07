@@ -64,6 +64,14 @@ for SPEED in SPEED_LIST:
             et.brake()
             et.set_motor_forward_speed(0, 0)
             finished = True
+        # 安全ガード：-400度以上回ったら強制停止
+        elif angle_deg <= -400:
+            print("[SAFETY] 角度-400度超えで強制停止")
+            print(f"speed={SPEED}, angle_sum={angle_sum}, angle_deg={angle_deg}, encoder={left_position}, GYRO_SCALE={GYRO_SCALE}")
+            results.append((SPEED, angle_deg, left_position, GYRO_SCALE))
+            et.brake()
+            et.set_motor_forward_speed(0, 0)
+            finished = True
         elif now - start_time > TIMEOUT:
             print("[TIMEOUT] 強制停止")
             print(f"speed={SPEED}, angle_sum={angle_sum}, angle_deg={angle_deg}, encoder={left_position}, GYRO_SCALE={GYRO_SCALE}")
