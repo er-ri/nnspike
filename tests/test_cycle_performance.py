@@ -20,6 +20,12 @@ sys.path.append(str(project_root))
 
 from nnspike.unit import ETRobot
 from nnspike import constants
+from nnspike.utils import (
+    get_line_edges_at_y, 
+    find_bottle_center, 
+    find_blue_target_center, 
+    get_virtual_line_target_x
+)
 
 
 class CyclePerformanceTester:
@@ -106,7 +112,7 @@ class CyclePerformanceTester:
         return cycle_time
     
     def optimized_v1_cycle(self):
-        """最適化v1: 画像処理高速化"""
+        """最適化v1: control.pyの実際の関数使用テスト"""
         start_time = time.perf_counter()
         
         # 1. カメラフレーム取得
@@ -114,32 +120,26 @@ class CyclePerformanceTester:
         if not ret:
             return None
             
-        # 2. 画像処理最適化
-        # ROI設定 (下半分のみ処理)
-        h, w = frame.shape[:2]
-        roi_frame = frame[h//2:, :]
+        # 2. 実際のcontrol.py関数使用
+        # ライン追従 (最も頻繁に使用される処理)
+        roi_cnn = constants.ROI_CNN
+        left_x, right_x, line_width = get_line_edges_at_y(
+            frame, roi_cnn, constants.OFFSET_Y, threshold_value=80
+        )
         
-        # 解像度1/2に縮小
-        small_frame = cv2.resize(roi_frame, (w//2, h//4))
-        
-        # HSV変換 (ROIのみ)
-        hsv = cv2.cvtColor(small_frame, cv2.COLOR_BGR2HSV)
-        
-        # 簡易色フィルタリング
-        blue_mask = cv2.inRange(hsv, np.array([100, 50, 50]), np.array([130, 255, 255]))
-        
-        # 簡易輪郭検出
-        contours, _ = cv2.findContours(blue_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # 制御値計算
+        if left_x is not None and right_x is not None:
+            center_x = (left_x + right_x) / 2
+            control_value = (center_x - constants.CAMERA_WIDTH//2) * 0.001
+        else:
+            control_value = 0
         
         # 3. Spike通信
         if self.etrobot:
             status = self.etrobot.get_spike_status()
         
-        # 4. 制御演算
-        control_value = self._calculate_control(contours)
-        
-        # 5. モーター出力
-        if self.etrobot and control_value is not None:
+        # 4. モーター出力
+        if self.etrobot:
             base_speed = 30
             steering_offset = int(abs(control_value * 50))
             left_speed = max(0, min(100, base_speed - steering_offset if control_value > 0 else base_speed + steering_offset))
@@ -150,41 +150,37 @@ class CyclePerformanceTester:
         return cycle_time
     
     def optimized_v2_cycle(self):
-        """最適化v2: 並列処理導入"""
+        """最適化v2: 複数の実際の関数組み合わせテスト"""
         start_time = time.perf_counter()
         
-        # 1. カメラフレーム取得 (別スレッドから)
-        if hasattr(self, 'frame_queue') and not self.frame_queue.empty():
-            frame = self.frame_queue.get_nowait()
+        # 1. カメラフレーム取得
+        ret, frame = self.cap.read()
+        if not ret:
+            return None
+        
+        # 2. 複数制御モードシミュレーション
+        roi_cnn = constants.ROI_CNN
+        
+        # ライン追従
+        left_x, right_x, line_width = get_line_edges_at_y(
+            frame, roi_cnn, constants.OFFSET_Y, threshold_value=80
+        )
+        
+        # ボトル検出も実行 (CARRY_BOTTLEモード想定)
+        bottle_result = find_bottle_center(frame, "blue")
+        
+        # 制御値統合
+        if left_x is not None and right_x is not None:
+            center_x = (left_x + right_x) / 2
+            control_value = (center_x - constants.CAMERA_WIDTH//2) * 0.001
+        elif bottle_result[0] is not None:
+            control_value = (bottle_result[0][0] - constants.CAMERA_WIDTH//2) * 0.001
         else:
-            ret, frame = self.cap.read()
-            if not ret:
-                return None
+            control_value = 0
         
-        # 2. 高速画像処理
-        h, w = frame.shape[:2]
-        roi_frame = frame[h//2:, :]
-        small_frame = cv2.resize(roi_frame, (w//4, h//8))  # さらに縮小
-        
-        # グレースケール処理のみ
-        gray = cv2.cvtColor(small_frame, cv2.COLOR_BGR2GRAY)
-        
-        # 簡易閾値処理
-        _, binary = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
-        
-        # 重心計算
-        moments = cv2.moments(binary)
-        control_value = 0
-        if moments['m00'] > 0:
-            cx = int(moments['m10'] / moments['m00'])
-            control_value = (cx - small_frame.shape[1]//2) * 0.1
-        
-        # 3. Spike通信 (キャッシュ利用)
-        if hasattr(self, 'cached_status'):
-            status = self.cached_status
-        elif self.etrobot:
+        # 3. Spike通信
+        if self.etrobot:
             status = self.etrobot.get_spike_status()
-            self.cached_status = status
         
         # 4. モーター出力
         if self.etrobot:
@@ -198,42 +194,47 @@ class CyclePerformanceTester:
         return cycle_time
     
     def optimized_v3_cycle(self):
-        """最適化v3: 全最適化適用"""
+        """最適化v3: 複数モード + 仮想ライン検出テスト"""
         start_time = time.perf_counter()
         
-        # フレームスキップ実装
-        if not hasattr(self, 'skip_counter'):
-            self.skip_counter = 0
+        # 1. カメラフレーム取得
+        ret, frame = self.cap.read()
+        if not ret:
+            return None
         
-        self.skip_counter += 1
+        # 2. 最も重い処理組み合わせシミュレーション
+        roi_cnn = constants.ROI_CNN
+        roi_virtual = constants.ROI_VIRTUAL
         
-        # 2フレームに1回だけ画像処理
-        if self.skip_counter % 2 == 0:
-            if hasattr(self, 'frame_queue') and not self.frame_queue.empty():
-                frame = self.frame_queue.get_nowait()
-                
-                # 最小限画像処理
-                h, w = frame.shape[:2]
-                tiny_frame = cv2.resize(frame[h//2:, :], (80, 40))
-                gray = cv2.cvtColor(tiny_frame, cv2.COLOR_BGR2GRAY)
-                _, binary = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
-                
-                # 重心のみ計算
-                moments = cv2.moments(binary)
-                if moments['m00'] > 0:
-                    cx = int(moments['m10'] / moments['m00'])
-                    self.last_control = (cx - 40) * 0.05
-                else:
-                    self.last_control = 0
+        # ライン追従
+        left_x, right_x, line_width = get_line_edges_at_y(
+            frame, roi_cnn, constants.OFFSET_Y, threshold_value=80
+        )
         
-        # 前回の制御値を使用
-        control_value = getattr(self, 'last_control', 0)
+        # 青ターゲット検出 (EYE_BLUEモード想定)
+        blue_target_result = find_blue_target_center(frame)
         
-        # Spike通信スキップ (10サイクルに1回)
-        if self.skip_counter % 10 == 0 and self.etrobot:
-            self.cached_status = self.etrobot.get_spike_status()
+        # 仮想ライン検出 (GATE_PASSモード想定)
+        virtual_target_x = get_virtual_line_target_x(
+            frame, roi_virtual, target_y=330
+        )
         
-        # モーター出力
+        # 制御値統合（最も複雑なケース）
+        if virtual_target_x is not None:
+            control_value = (virtual_target_x - constants.CAMERA_WIDTH//2) * 0.001
+        elif blue_target_result[0] is not None:
+            control_value = (blue_target_result[0][0] - constants.CAMERA_WIDTH//2) * 0.001
+        elif left_x is not None and right_x is not None:
+            center_x = (left_x + right_x) / 2
+            control_value = (center_x - constants.CAMERA_WIDTH//2) * 0.001
+        else:
+            control_value = 0
+        
+        # 3. Spike通信
+        if self.etrobot:
+            status = self.etrobot.get_spike_status()
+        
+        # 4. モーター出力
         if self.etrobot:
             base_speed = 30
             steering_offset = int(abs(control_value * 50))
@@ -368,15 +369,13 @@ class CyclePerformanceTester:
             # テスト1: ベースライン (現状)
             self.test_cycle_performance("Baseline", self.baseline_cycle, 50)
             
-            # テスト2: 画像処理最適化
+            # テスト2: ライン追従処理
             self.test_cycle_performance("Optimized_V1", self.optimized_v1_cycle, 50)
             
-            # テスト3: 並列処理導入
-            self.run_background_capture()  # バックグラウンド取得開始
-            time.sleep(1)  # 安定化待機
+            # テスト3: 複数制御モード
             self.test_cycle_performance("Optimized_V2", self.optimized_v2_cycle, 50)
             
-            # テスト4: 全最適化
+            # テスト4: 最重負荷処理
             self.test_cycle_performance("Optimized_V3", self.optimized_v3_cycle, 50)
             
             # 比較レポート
@@ -395,9 +394,9 @@ class CyclePerformanceTester:
         baseline_avg = statistics.mean(self.results.get('baseline', [60])) if self.results.get('baseline') else 60
         
         optimizations = [
-            ('optimized_v1', '画像処理最適化'),
-            ('optimized_v2', '並列処理導入'),
-            ('optimized_v3', '全最適化適用')
+            ('optimized_v1', 'ライン追従処理'),
+            ('optimized_v2', '複数制御モード'),
+            ('optimized_v3', '最重負荷処理')
         ]
         
         print(f"📊 ベースライン: {baseline_avg:.1f}ms")
