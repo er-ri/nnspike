@@ -23,7 +23,7 @@ def main():
             TIMEOUT = 5.0  # 秒
             prev_time = time.time()
             time.sleep(0.2)
-            ENCODER_DEG_PER_COUNT = 1.2  # 1カウントあたりの角度（曲がりすぎ抑制のため増加）
+            ENCODER_DEG_PER_COUNT = 1.5  # 1カウントあたりの角度（さらに曲がりすぎ抑制）
             # 目標エンコーダ値（右モーター）を基準値で設定
             if test_angle == -90:
                 target_encoder = -200
@@ -31,6 +31,7 @@ def main():
                 target_encoder = -100
             else:
                 target_encoder = int(test_angle / 0.45)
+            last_angle_deg = 0.0
             while not finished:
                 now = time.time()
                 dt = now - prev_time
@@ -40,6 +41,7 @@ def main():
                 _, _, z_now = et.get_gyro_xyz()
                 angle_sum += z_now * dt
                 angle_deg = angle_sum * GYRO_SCALE
+                last_angle_deg = angle_deg
                 encoder_angle = right_position * ENCODER_DEG_PER_COUNT
                 print(f"gyro_z={z_now}, angle_sum={angle_sum}, angle_deg={angle_deg}, left_enc={left_position}, right_enc={right_position}, encoder_angle={encoder_angle:.2f}, dt={dt}")
                 # エンコーダ値が目標値以下になったら停止（右旋回前提）
@@ -68,6 +70,10 @@ def main():
                 time.sleep(0.005)
             elapsed = time.time() - start_time
             print(f"[SUMMARY] {label} speed={SPEED} time={elapsed:.2f}s right_encoder={right_position} encoder_angle={encoder_angle:.2f}deg gyro_angle={angle_deg:.2f}deg ENCODER_DEG_PER_COUNT={ENCODER_DEG_PER_COUNT:.3f}")
+            # 90度テスト時はジャイロスケールを自動計算して出力
+            if test_angle == -90 and last_angle_deg != 0.0:
+                auto_gyro_scale = 90.0 / abs(last_angle_deg)
+                print(f"[AUTO] GYRO_SCALE（90度基準）: {auto_gyro_scale:.3f} (angle_deg={last_angle_deg:.2f})")
             time.sleep(2)
 
     et.stop()
