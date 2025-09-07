@@ -14,7 +14,6 @@ import numpy as np
 import time
 import os
 from pathlib import Path
-import psutil
 import sys
 
 # プロジェクトルートを追加
@@ -51,7 +50,7 @@ class CameraPerformanceTester:
         # MJPEG設定（テスト対象）
         mjpeg_success = False
         if use_mjpeg:
-            mjpeg_success = cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+            mjpeg_success = cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter.fourcc('M', 'J', 'P', 'G'))
             # 品質設定は行わず、MJPEGのデフォルト設定で効果を確認
             
             print(f"MJPEG設定結果: {'✅ 成功' if mjpeg_success else '❌ 失敗'}")
@@ -98,10 +97,6 @@ class CameraPerformanceTester:
         """フレーム取得パフォーマンス測定"""
         print(f"\n⏱️  パフォーマンス測定中... ({num_frames}フレーム)")
         
-        # メモリ使用量測定開始
-        process = psutil.Process()
-        memory_before = process.memory_info().rss / 1024 / 1024  # MB
-        
         frame_times = []
         frame_sizes = []
         successful_frames = 0
@@ -126,9 +121,6 @@ class CameraPerformanceTester:
         
         end_time = time.time()
         
-        # メモリ使用量測定終了
-        memory_after = process.memory_info().rss / 1024 / 1024  # MB
-        
         # 結果計算
         total_time = end_time - start_time
         avg_frame_time = np.mean(frame_times) if frame_times else 0
@@ -144,7 +136,6 @@ class CameraPerformanceTester:
             'avg_frame_time': avg_frame_time * 1000,  # ms
             'actual_fps': actual_fps,
             'avg_frame_size_mb': avg_frame_size / 1024 / 1024,
-            'memory_usage_mb': memory_after - memory_before,
             'bandwidth_mbps': (avg_frame_size * actual_fps) / 1024 / 1024 if actual_fps > 0 else 0
         }
         
@@ -156,7 +147,6 @@ class CameraPerformanceTester:
         print(f"  実際のFPS: {actual_fps:.2f}")
         print(f"  平均フレームサイズ: {results['avg_frame_size_mb']:.2f}MB")
         print(f"  推定帯域幅: {results['bandwidth_mbps']:.2f}MB/s")
-        print(f"  メモリ使用量変化: {results['memory_usage_mb']:.2f}MB")
         
         return results
     
@@ -233,8 +223,7 @@ class CameraPerformanceTester:
             ('平均フレーム時間', 'avg_frame_time', 'ms'),
             ('実際のFPS', 'actual_fps', 'fps'),
             ('フレームサイズ', 'avg_frame_size_mb', 'MB'),
-            ('推定帯域幅', 'bandwidth_mbps', 'MB/s'),
-            ('メモリ使用量', 'memory_usage_mb', 'MB')
+            ('推定帯域幅', 'bandwidth_mbps', 'MB/s')
         ]
         
         print(f"{'項目':<15} {'通常モード':<12} {'MJPEG':<12} {'改善率':<10}")
