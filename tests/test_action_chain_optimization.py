@@ -177,16 +177,12 @@ def test_memory_efficiency():
     for i in range(100):
         # テストフレーム作成
         test_frame = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
-        
-        # 最適化実行
-    optimized = test_frame.copy()
-        
+        # コピー実行
+        optimized = test_frame.copy()
         # メモリアドレス記録
         addr = optimized.__array_interface__['data'][0]
         memory_addresses.add(addr)
-        
         frames_processed += 1
-        
         # メモリリークチェック（10回ごと）
         if i % 10 == 0:
             gc.collect()
