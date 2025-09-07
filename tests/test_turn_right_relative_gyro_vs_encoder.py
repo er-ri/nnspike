@@ -8,78 +8,47 @@ SPEED_LIST = [40]
 
 def main():
     et = ETRobot()
-    results = []
+    SPEED = 40
+    ENCODER_DEG_PER_COUNT = 0.45  # 実験値
+    # 90度テスト: right_enc=200で停止
+    et.set_motor_relative_position(0, 0)
+    time.sleep(0.5)
+    print("\n--- [90度テスト] right_enc=200で停止 ---")
+    angle_sum = 0.0
+    prev_time = time.time()
+    et.set_motor_speed(-SPEED, SPEED)
+    while True:
+        gyro_z = et.get_gyro_xyz()[2]
+        left_enc, right_enc = et.get_motor_position()
+        curr_time = time.time()
+        dt = curr_time - prev_time
+        prev_time = curr_time
+        angle_sum += gyro_z * dt / 20.0
+        encoder_angle = right_enc * ENCODER_DEG_PER_COUNT
+        print(f"gyro_z={gyro_z}, angle_sum={angle_sum:.2f}, left_enc={left_enc}, right_enc={right_enc}, encoder_angle={encoder_angle:.2f}, dt={dt}")
+        if abs(right_enc) >= 200:
+            et.brake()
+            break
+    print(f"[RESULT] 90度: right_enc={right_enc}, encoder_angle={encoder_angle:.2f}, angle_sum(z値)={angle_sum:.2f}")
 
-    for idx, (test_angle, label) in enumerate([(-90, "90度"), (-45, "45度")]):
-        et.set_motor_relative_position(0, 0)
-        time.sleep(0.5)
-        for SPEED in SPEED_LIST:
-            print(f"\n--- {label}右旋回テスト speed={SPEED} ---")
-            GYRO_SCALE = 0.1  # 実験値・物理現象のみで調整。過去angle_deg等は一切参照しない。
-            print(f"[INFO] GYRO_SCALE={GYRO_SCALE}")
-            angle_sum = 0.0
-            finished = False
-            start_time = time.time()
-            TIMEOUT = 5.0
-            prev_time = time.time()
-            time.sleep(0.2)
-            ENCODER_DEG_PER_COUNT = 0.45  # 90度で-200カウントを絶対基準とした変換値
-            auto_encoder_deg_per_count = None
-            # 目標エンコーダ値（右モーター）
-            if test_angle == -90:
-                target_encoder = -200
-            elif test_angle == -45:
-                target_encoder = -100
-            else:
-                target_encoder = int(test_angle / 0.45)
-            last_angle_deg = 0.0
-            while not finished:
-                now = time.time()
-                dt = now - prev_time
-                prev_time = now
-                left_position = et.get_spike_status().motors["A"].relative_position or 0
-                right_position = et.get_spike_status().motors["B"].relative_position or 0
-                _, _, z_now = et.get_gyro_xyz()
-                angle_sum += z_now * dt
-                angle_deg = angle_sum * GYRO_SCALE
-                last_angle_deg = angle_deg
-                encoder_angle = right_position * ENCODER_DEG_PER_COUNT
-                print(f"gyro_z={z_now}, angle_sum={angle_sum}, left_enc={left_position}, right_enc={right_position}, encoder_angle={encoder_angle:.2f}, dt={dt}, GYRO_SCALE={GYRO_SCALE}")
-                if right_position <= target_encoder:
-                    print(f"[OK] speed={SPEED}, encoder_angle={encoder_angle:.2f}, right_enc={right_position}, target_enc={target_encoder}, angle_deg={angle_deg:.2f}")
-                    results.append((SPEED, angle_deg, right_position, GYRO_SCALE))
-                    et.brake()
-                    et.set_motor_forward_speed(0, 0)
-                    finished = True
-                elif angle_deg <= -400:
-                    print("[SAFETY] 角度-400度超えで強制停止")
-                    print(f"speed={SPEED}, angle_sum={angle_sum}, angle_deg={angle_deg}, left_enc={left_position}, right_enc={right_position}, GYRO_SCALE={GYRO_SCALE}")
-                    results.append((SPEED, angle_deg, right_position, GYRO_SCALE))
-                    et.brake()
-                    et.set_motor_forward_speed(0, 0)
-                    finished = True
-                elif now - start_time > TIMEOUT:
-                    print("[TIMEOUT] 強制停止")
-                    print(f"speed={SPEED}, angle_sum={angle_sum}, angle_deg={angle_deg}, left_enc={left_position}, right_enc={right_position}, GYRO_SCALE={GYRO_SCALE}")
-                    results.append((SPEED, angle_deg, right_position, GYRO_SCALE))
-                    et.brake()
-                    et.set_motor_forward_speed(0, 0)
-                    finished = True
-                else:
-                    et.set_motor_speed(int(SPEED), -int(SPEED))
-                time.sleep(0.005)
-            elapsed = time.time() - start_time
-            print(f"[SUMMARY] {label} speed={SPEED} time={elapsed:.2f}s right_encoder={right_position} encoder_angle={encoder_angle:.2f}deg GYRO_SCALE={GYRO_SCALE} ENCODER_DEG_PER_COUNT={ENCODER_DEG_PER_COUNT:.3f}")
-            # テスト終了時に最適なGYRO_SCALEを計算してprint（自動適用はしない）
-            if last_angle_deg != 0.0:
-                fixed_gyro_scale = abs(test_angle) / abs(last_angle_deg)
-                print(f"[FIXED] GYRO_SCALE（{label}基準）: {fixed_gyro_scale:.3f} ←この値を固定値として使え")
-            if right_position != 0:
-                auto_encoder_deg_per_count = abs(test_angle) / abs(right_position)
-                print(f"[AUTO] ENCODER_DEG_PER_COUNT（{label}基準）: {auto_encoder_deg_per_count:.3f} (right_enc={right_position})")
-            time.sleep(2)
+    # 45度テスト: right_enc=100で停止
+    et.set_motor_relative_position(0, 0)
+    time.sleep(0.5)
+    print("\n--- [45度テスト] right_enc=100で停止 ---")
+    angle_sum = 0.0
+    prev_time = time.time()
+    et.set_motor_speed(-SPEED, SPEED)
+    while True:
+        gyro_z = et.get_gyro_xyz()[2]
+        left_enc, right_enc = et.get_motor_position()
+        curr_time = time.time()
+        dt = curr_time - prev_time
+        prev_time = curr_time
+        angle_sum += gyro_z * dt / 20.0
+        encoder_angle = right_enc * ENCODER_DEG_PER_COUNT
+        print(f"gyro_z={gyro_z}, angle_sum={angle_sum:.2f}, left_enc={left_enc}, right_enc={right_enc}, encoder_angle={encoder_angle:.2f}, dt={dt}")
+        if abs(right_enc) >= 100:
+            et.brake()
+            break
+    print(f"[RESULT] 45度: right_enc={right_enc}, encoder_angle={encoder_angle:.2f}, angle_sum(z値)={angle_sum:.2f}")
 
-    et.stop()
-
-if __name__ == "__main__":
-    main()
