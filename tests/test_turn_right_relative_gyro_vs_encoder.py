@@ -10,18 +10,12 @@ def main():
     et = ETRobot()
     results = []
 
-    # 90度テストのあとに自動計算したGYRO_SCALEを保持
-    auto_gyro_scale = None
     for idx, (test_angle, label) in enumerate([(-90, "90度"), (-45, "45度")]):
         et.set_motor_relative_position(0, 0)
         time.sleep(0.5)
         for SPEED in SPEED_LIST:
             print(f"\n--- {label}右旋回テスト speed={SPEED} ---")
-            # 2回目以降は自動計算値を使う
-            if auto_gyro_scale is not None:
-                GYRO_SCALE = auto_gyro_scale
-            else:
-                GYRO_SCALE = 2.4
+            GYRO_SCALE = 2.38  # 45度テスト実測angle_deg=-18.96基準（実験値から算出）
             print(f"[INFO] GYRO_SCALE={GYRO_SCALE}")
             angle_sum = 0.0
             finished = False
@@ -76,14 +70,13 @@ def main():
                 time.sleep(0.005)
             elapsed = time.time() - start_time
             print(f"[SUMMARY] {label} speed={SPEED} time={elapsed:.2f}s right_encoder={right_position} encoder_angle={encoder_angle:.2f}deg gyro_angle={angle_deg:.2f}deg ENCODER_DEG_PER_COUNT={ENCODER_DEG_PER_COUNT:.3f}")
-            # 90度テスト時はジャイロスケール自動計算
-            if test_angle == -90:
-                if last_angle_deg != 0.0:
-                    auto_gyro_scale = 90.0 / abs(last_angle_deg)
-                    print(f"[AUTO] GYRO_SCALE（90度基準）: {auto_gyro_scale:.3f} (angle_deg={last_angle_deg:.2f})")
-                if right_position != 0:
-                    auto_encoder_deg_per_count = 90.0 / abs(right_position)
-                    print(f"[AUTO] ENCODER_DEG_PER_COUNT（90度基準）: {auto_encoder_deg_per_count:.3f} (right_enc={right_position})")
+            # テスト終了時に最適なGYRO_SCALEを計算してprint（自動適用はしない）
+            if last_angle_deg != 0.0:
+                fixed_gyro_scale = abs(test_angle) / abs(last_angle_deg)
+                print(f"[FIXED] GYRO_SCALE（{label}基準）: {fixed_gyro_scale:.3f} (angle_deg={last_angle_deg:.2f}) ←この値を固定値として使え")
+            if right_position != 0:
+                auto_encoder_deg_per_count = abs(test_angle) / abs(right_position)
+                print(f"[AUTO] ENCODER_DEG_PER_COUNT（{label}基準）: {auto_encoder_deg_per_count:.3f} (right_enc={right_position})")
             time.sleep(2)
 
     et.stop()
