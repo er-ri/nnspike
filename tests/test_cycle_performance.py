@@ -436,9 +436,15 @@ class CyclePerformanceTester:
         return 0
     
     def run_all_tests(self):
+        # 前半プロファイリング用にカメラ初期化
+        self.setup_camera(optimized=False)
         print("\n=== high_speed_avoid phase0 プロファイリングテスト ===")
         for i in range(10):
             self.high_speed_avoid_phase0_profile_cycle()
+        # プロファイリング後にカメラを解放
+        if self.cap:
+            self.cap.release()
+            self.cap = None
         """全パフォーマンステスト実行"""
         print("🎯 制御サイクル性能テスト開始")
         print("=" * 60)
@@ -449,7 +455,7 @@ class CyclePerformanceTester:
         print(f"  テスト環境: Windows/Linux")
         print()
         try:
-            # カメラ初期化
+            # 後半用に再度カメラ初期化
             self.setup_camera(optimized=False)
             # Spike Hub接続
             spike_connected = self.setup_spike_connection()
