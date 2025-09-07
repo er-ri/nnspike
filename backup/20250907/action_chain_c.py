@@ -1,9 +1,7 @@
+
 import time  # 時間計測用
 from typing import Optional, Tuple  # 型ヒント用
-
 import numpy as np  # 画像処理用
-
-# 定数・モード・ROI設定
 from nnspike.constants import OFFSET_Y, ROI_CNN, ROI_LINE_TRACING, Mode, BASE_SPEED, HIGH_SPEED_BASE, ROI_LINE_HORIZON3, ROI_LOOP, ROI_LINE_CORNER, ROI_COLOR, ROI_LINE_STRAIGHT
 
 # --- 閾値定数（全体で統一管理） ---
@@ -14,9 +12,7 @@ SECOND_INTERSECTION_LIMIT = 17000
 THIRD_INTERSECTION_LIMIT = 19000
 FOURTH_INTERSECTION_LIMIT = 21000
 
-# ロボット本体クラス
 from nnspike.unit.etrobot import ETRobot
-# 画像処理・ライン/ターゲット検出関数群
 from nnspike.utils.control import (
     find_bottle_center,  # ボトル中心抽出
     get_line_edges_at_y,  # ライン端抽出
@@ -33,6 +29,18 @@ from nnspike.utils.control import (
     get_blue_line_pixel,  # 青オブジェクト面積抽出
     is_fast_corner_detected,  # コーナー抽出
 )
+
+# --- C++拡張（pybind11）---
+import sys
+sys.path.append("/home/msad/nnspike/nnspike/utils/c/build")
+try:
+    import control_cpp_bottle
+except ImportError:
+    control_cpp_bottle = None
+try:
+    import control_cpp
+except ImportError:
+    control_cpp = None
 
 # 型ヒント用: 要素タプル明示
 SpeedTuple = Tuple[int, int, int]
@@ -185,6 +193,24 @@ class ActionChain(object):
         Handles None values robustly, no exceptions.
         """
         offset_y = 450
+        # C++拡張があればそちらを優先
+        if control_cpp is not None:
+            if course == "right":
+                _, right_x, _ = control_cpp.get_line_edges_at_y(image, ROI_LINE_STRAIGHT, offset_y, 80)
+                if right_x is not None:
+                    self.pre_target_x = right_x
+                    return right_x
+                else:
+                    return self.pre_target_x
+            elif course == "left":
+                left_x, _, _ = control_cpp.get_line_edges_at_y(image, ROI_LINE_STRAIGHT, offset_y, 80)
+                if left_x is not None:
+                    self.pre_target_x = left_x
+                    return left_x
+                else:
+                    return self.pre_target_x
+            return self.pre_target_x
+        # Python版 fallback
         if course == "right":
             _, right_x, _ = get_line_edges_at_y(image, ROI_LINE_STRAIGHT, offset_y, 80)
             if right_x is not None:
@@ -444,11 +470,14 @@ class ActionChain(object):
         phase = self._phase
         status = self._status
 
-        # phase0: 領域検出で次フェーズへ。未検出時は中央追従・回避モード返却
+        # phase0: C++拡張find_bottle_centerを使う
         if phase.get_phase() == 0:
-            _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow", roi=ROI_COLOR)
+            if control_cpp_bottle is not None:
+                _, _, yellow_pixel_count = control_cpp_bottle.find_bottle_center(image, "yellow", ROI_COLOR)
+            else:
+                _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow", roi=ROI_COLOR)
             if yellow_pixel_count > 5000:
-                print(f"[DEBUG] phase0→phase1: yellow_pixel_count={yellow_pixel_count} > 5000")
+                print(f"[DEBUG] phase0→phase1: yellow_pixel_count={yellow_pixel_count} > 5000 (C++版={control_cpp_bottle is not None})")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
