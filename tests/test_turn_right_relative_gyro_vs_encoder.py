@@ -7,6 +7,7 @@ from nnspike.unit.etrobot import ETRobot
 SPEED_LIST = [40]
 
 def main():
+    print("start")
     et = ETRobot()
     SPEED = 40
     ENCODER_DEG_PER_COUNT = 0.45  # 実験値
@@ -51,4 +52,7 @@ def main():
             et.brake()
             break
     print(f"[RESULT] 45度: right_enc={right_enc}, encoder_angle={encoder_angle:.2f}, angle_sum(z値)={angle_sum:.2f}")
+
+if __name__ == "__main__":
+    main()
 
