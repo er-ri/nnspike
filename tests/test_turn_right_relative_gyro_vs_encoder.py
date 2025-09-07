@@ -82,7 +82,7 @@ for i in range(4):
                 et.set_motor_forward_speed(0, 0)
                 finished = True
             else:
-                et.set_motor_speed(int(SPEED), -int(SPEED))
+                et.set_motor_forward_speed(int(SPEED), 0)
             time.sleep(0.005)
         time.sleep(2)  # インターバル2秒
 
