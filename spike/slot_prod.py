@@ -12,6 +12,7 @@ COMMAND_SET_MOTOR_BACKWARD_SPEED_ID = 202
 COMMAND_SET_MOTOR_RELATIVE_POSITION_ID = 203
 COMMAND_STOP_MOTOR_ID = 204
 COMMAND_MOVE_ARM_ID = 205
+COMMAND_SET_MOTOR_INDEPENDENT_SPEED_ID = 206  # 左右独立速度制御
 
 CMD_FLAG = b"CF:"
 
@@ -84,6 +85,11 @@ class LegoSpike(object):
             self._set_motor_speed(command_parameter1, command_parameter2)
         elif command_id == COMMAND_SET_MOTOR_BACKWARD_SPEED_ID:
             self._set_motor_speed(-command_parameter1, -command_parameter2)
+        elif command_id == COMMAND_SET_MOTOR_INDEPENDENT_SPEED_ID:
+            # 0～200を-100～100にマッピング
+            left_speed = int(command_parameter1) - 100
+            right_speed = int(command_parameter2) - 100
+            self._set_motor_speed(left_speed, right_speed)
         elif command_id == COMMAND_SET_MOTOR_RELATIVE_POSITION_ID:
             self._set_motor_relative_position(command_parameter1, command_parameter2)
         elif command_id == COMMAND_STOP_MOTOR_ID:

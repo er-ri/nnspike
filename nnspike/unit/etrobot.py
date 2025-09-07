@@ -13,6 +13,7 @@ class ETRobot(object):
     COMMAND_SET_MOTOR_RELATIVE_POSITION_ID = 203
     COMMAND_STOP_MOTOR_ID = 204
     COMMAND_MOVE_ARM_ID = 205
+    COMMAND_SET_MOTOR_INDEPENDENT_SPEED_ID = 206  # 新規: 左右独立前後進
 
     CMD_FLAG = b"CF:"
 
@@ -210,19 +211,24 @@ class ETRobot(object):
 
     def set_motor_speed(self, left_speed: int, right_speed: int) -> None:
         """
-        Set the ETRobot motor's speed.
+        Set the ETRobot motor's speed. 左右独立で前後進を1コマンドで制御。
 
         Args:
-            left_speed (int): Left motor speed (-100-100).
-            right_speed (int): Right motor speed (-100-100).
+            left_speed (int): Left motor speed (-100~100, 負:後退, 正:前進, 0:停止)
+            right_speed (int): Right motor speed (-100~100, 負:後退, 正:前進, 0:停止)
         """
         if left_speed < -100 or left_speed > 100 or right_speed < -100 or right_speed > 100:
             raise ValueError("Motor speeds must be between -100 and 100.")
 
-        if left_speed < 0 or right_speed < 0:
-            self.set_motor_backward_speed(-left_speed, -right_speed)
-        else:
-            self.set_motor_forward_speed(left_speed, right_speed)
+        # 206コマンド: 左右独立前後進
+        id_byte = self.COMMAND_SET_MOTOR_INDEPENDENT_SPEED_ID.to_bytes(1, "big")
+        # -100~100を0~200にマッピング（100=停止, 200=前進最大, 0=後退最大）
+        l = left_speed + 100
+        r = right_speed + 100
+        parameter1_byte = l.to_bytes(1, "big")
+        parameter2_byte = r.to_bytes(1, "big")
+        command = id_byte + parameter1_byte + parameter2_byte
+        self.__send_command(command)
 
     def set_motor_forward_speed(self, left_speed: int, right_speed: int) -> None:
         """
