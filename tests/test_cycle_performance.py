@@ -24,7 +24,10 @@ from nnspike.utils import (
     get_line_edges_at_y, 
     find_bottle_center, 
     find_blue_target_center, 
-    get_virtual_line_target_x
+    get_virtual_line_target_x,
+    get_color_mask,
+    control_preprocess_image,
+    fill_green_with_white
 )
 
 
@@ -166,8 +169,8 @@ class CyclePerformanceTester:
             frame, roi_cnn, constants.OFFSET_Y, threshold_value=80
         )
         
-        # ボトル検出も実行 (CARRY_BOTTLEモード想定)
-        bottle_result = find_bottle_center(frame, "blue")
+        # ボトル検出も実行 (CARRY_BOTTLEモード想定) - 実際のROI使用
+        bottle_result = find_bottle_center(frame, "blue", roi=constants.ROI_COLOR)
         
         # 制御値統合
         if left_x is not None and right_x is not None:
@@ -194,7 +197,7 @@ class CyclePerformanceTester:
         return cycle_time
     
     def optimized_v3_cycle(self):
-        """最適化v3: 複数モード + 仮想ライン検出テスト"""
+        """最適化v3: 実際のrun_manual.pyと同じ処理テスト"""
         start_time = time.perf_counter()
         
         # 1. カメラフレーム取得
@@ -202,24 +205,22 @@ class CyclePerformanceTester:
         if not ret:
             return None
         
-        # 2. 最も重い処理組み合わせシミュレーション
+        # 2. 実際のrun_manual.pyと同じ処理組み合わせシミュレーション
         roi_cnn = constants.ROI_CNN
-        roi_virtual = constants.ROI_VIRTUAL
         
-        # ライン追従
+        # ライン追従 (最頻出処理) - 実際のROI使用
         left_x, right_x, line_width = get_line_edges_at_y(
             frame, roi_cnn, constants.OFFSET_Y, threshold_value=80
         )
         
-        # 青ターゲット検出 (EYE_BLUEモード想定)
+        # 青ターゲット検出 (EYE_BLUEモード想定) - 内蔵ROI使用
         blue_target_result = find_blue_target_center(frame)
         
-        # 仮想ライン検出 (GATE_PASSモード想定)
-        virtual_target_x = get_virtual_line_target_x(
-            frame, previous_center_x=320
-        )
+        # 仮想ライン検出 (GATE_PASSモード想定) - 内蔵ROI_VIRTUAL使用
+        center_x = (roi_cnn[0] + roi_cnn[2]) // 2  # ROI中心X座標
+        virtual_target_x = get_virtual_line_target_x(frame, previous_center_x=center_x)
         
-        # 制御値統合（最も複雑なケース）
+        # 制御値統合（実際のrun_manual.pyと同じロジック）
         if virtual_target_x is not None:
             control_value = (virtual_target_x - constants.CAMERA_WIDTH//2) * 0.001
         elif blue_target_result[0] is not None:
@@ -244,6 +245,217 @@ class CyclePerformanceTester:
         
         cycle_time = (time.perf_counter() - start_time) * 1000
         return cycle_time
+    
+    def detailed_image_processing_test(self):
+        """画像処理関数の段階的負荷測定"""
+        start_time = time.perf_counter()
+        
+        # 1. カメラフレーム取得
+        ret, frame = self.cap.read()
+        if not ret:
+            return None
+        
+        capture_time = (time.perf_counter() - start_time) * 1000
+        
+        # 2. fill_green_with_white 負荷測定
+        fill_start = time.perf_counter()
+        frame_filled = fill_green_with_white(frame.copy())
+        fill_time = (time.perf_counter() - fill_start) * 1000
+        
+        # 3. get_color_mask 負荷測定 (青色)
+        color_start = time.perf_counter()
+        blue_mask = get_color_mask(frame, "blue", pattern="target")
+        color_time = (time.perf_counter() - color_start) * 1000
+        
+        # 4. control_preprocess_image 負荷測定 (軽量)
+        preprocess_light_start = time.perf_counter()
+        processed_light = control_preprocess_image(
+            frame.copy(),
+            use_hsv=False,
+            grayscale=True,
+            clahe=False,
+            blur_type="gaussian",
+            blur_ksize=5,
+            binarize_mode="binary_inv",
+            binarize_value=80,
+            noise_removal=None
+        )
+        preprocess_light_time = (time.perf_counter() - preprocess_light_start) * 1000
+        
+        # 5. control_preprocess_image 負荷測定 (重い - 仮想ライン用)
+        preprocess_heavy_start = time.perf_counter()
+        processed_heavy = control_preprocess_image(
+            frame.copy(),
+            use_hsv=False,
+            grayscale=True,
+            clahe=True,
+            clahe_clipLimit=3.0,
+            blur_type="median",
+            blur_ksize=7,
+            binarize_mode="binary_inv",
+            binarize_value=120,
+            noise_removal=["dilate", "close7x7"]
+        )
+        preprocess_heavy_time = (time.perf_counter() - preprocess_heavy_start) * 1000
+        
+        # 6. 組み合わせ処理 (実際のget_virtual_line_target_x相当)
+        combined_start = time.perf_counter()
+        # 緑塗りつぶし + 重い前処理
+        frame_combined = fill_green_with_white(frame.copy())
+        processed_combined = control_preprocess_image(
+            frame_combined,
+            use_hsv=False,
+            grayscale=True,
+            clahe=True,
+            clahe_clipLimit=3.0,
+            blur_type="median",
+            blur_ksize=7,
+            binarize_mode="binary_inv",
+            binarize_value=120,
+            noise_removal=["dilate", "close7x7"]
+        )
+        # ROI抽出 + 輪郭検出
+        roi_virtual = constants.ROI_VIRTUAL
+        x1, y1, x2, y2 = roi_virtual
+        mask_roi = processed_combined[y1:y2, x1:x2]
+        contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        combined_time = (time.perf_counter() - combined_start) * 1000
+        
+        # 7. Spike通信
+        if self.etrobot:
+            spike_start = time.perf_counter()
+            status = self.etrobot.get_spike_status()
+            spike_time = (time.perf_counter() - spike_start) * 1000
+        else:
+            spike_time = 0
+        
+        total_time = (time.perf_counter() - start_time) * 1000
+        
+        return {
+            'capture_time': capture_time,
+            'fill_green_time': fill_time,
+            'color_mask_time': color_time,
+            'preprocess_light_time': preprocess_light_time,
+            'preprocess_heavy_time': preprocess_heavy_time,
+            'combined_processing_time': combined_time,
+            'spike_comm_time': spike_time,
+            'total_time': total_time
+        }
+    
+    def _calculate_control(self, contours):
+        """制御値計算"""
+        if not contours:
+            return 0
+        
+        # 最大輪郭の重心
+        largest_contour = max(contours, key=cv2.contourArea)
+        moments = cv2.moments(largest_contour)
+        
+        if moments['m00'] > 0:
+            cx = int(moments['m10'] / moments['m00'])
+            # ステアリング値計算
+            return (cx - constants.CAMERA_WIDTH//2) * 0.001
+        return 0
+    
+    def test_detailed_image_processing(self, num_cycles=50):
+        """画像処理関数の詳細性能テスト"""
+        print(f"\n🔬 詳細画像処理性能テスト ({num_cycles}サイクル)")
+        print("=" * 60)
+        
+        results = {
+            'capture_times': [],
+            'fill_green_times': [],
+            'color_mask_times': [],
+            'preprocess_light_times': [],
+            'preprocess_heavy_times': [],
+            'combined_processing_times': [],
+            'spike_comm_times': [],
+            'total_times': []
+        }
+        
+        print("📊 測定中...")
+        
+        for i in range(num_cycles):
+            try:
+                result = self.detailed_image_processing_test()
+                if result:
+                    results['capture_times'].append(result['capture_time'])
+                    results['fill_green_times'].append(result['fill_green_time'])
+                    results['color_mask_times'].append(result['color_mask_time'])
+                    results['preprocess_light_times'].append(result['preprocess_light_time'])
+                    results['preprocess_heavy_times'].append(result['preprocess_heavy_time'])
+                    results['combined_processing_times'].append(result['combined_processing_time'])
+                    results['spike_comm_times'].append(result['spike_comm_time'])
+                    results['total_times'].append(result['total_time'])
+                
+                if (i + 1) % 10 == 0:
+                    print(f"  進行状況: {i+1}/{num_cycles}")
+                
+            except Exception as e:
+                print(f"  ⚠️ サイクル{i+1}でエラー: {e}")
+        
+        # 結果分析
+        if results['total_times']:
+            print(f"\n📈 詳細画像処理性能分析:")
+            print(f"  測定サイクル数: {len(results['total_times'])}")
+            print()
+            
+            analyses = [
+                ('capture_times', 'カメラフレーム取得'),
+                ('fill_green_times', 'fill_green_with_white'),
+                ('color_mask_times', 'get_color_mask(青)'),
+                ('preprocess_light_times', 'control_preprocess(軽量)'),
+                ('preprocess_heavy_times', 'control_preprocess(重い)'),
+                ('combined_processing_times', '組み合わせ処理(仮想ライン相当)'),
+                ('spike_comm_times', 'Spike Hub通信'),
+                ('total_times', '合計時間')
+            ]
+            
+            total_avg = statistics.mean(results['total_times'])
+            
+            for key, name in analyses:
+                if results[key]:
+                    avg_time = statistics.mean(results[key])
+                    min_time = min(results[key])
+                    max_time = max(results[key])
+                    percentage = (avg_time / total_avg) * 100
+                    
+                    print(f"🔧 {name}:")
+                    print(f"  平均: {avg_time:.2f}ms ({percentage:.1f}%)")
+                    print(f"  範囲: {min_time:.2f}ms - {max_time:.2f}ms")
+                    
+                    # ボトルネック判定
+                    if avg_time > 15:
+                        print(f"  ⚠️ 高負荷処理 - 最適化推奨")
+                    elif avg_time > 8:
+                        print(f"  📈 中程度負荷")
+                    else:
+                        print(f"  ✅ 軽量処理")
+                    print()
+            
+            # 最重負荷処理の特定
+            processing_loads = [
+                (statistics.mean(results['fill_green_times']), 'fill_green_with_white'),
+                (statistics.mean(results['preprocess_heavy_times']), 'control_preprocess(重い)'),
+                (statistics.mean(results['combined_processing_times']), '組み合わせ処理'),
+                (statistics.mean(results['color_mask_times']), 'get_color_mask')
+            ]
+            processing_loads.sort(reverse=True)
+            
+            print(f"🎯 処理負荷ランキング:")
+            for i, (load_time, name) in enumerate(processing_loads[:3], 1):
+                print(f"  {i}位: {name} ({load_time:.2f}ms)")
+            
+            print(f"\n💡 最適化提案:")
+            heaviest_load, heaviest_name = processing_loads[0]
+            if heaviest_load > 15:
+                print(f"  - {heaviest_name}の最適化が急務")
+                print(f"  - 現在{heaviest_load:.1f}ms → 目標10ms以下")
+            else:
+                print(f"  - 全体的に良好な性能")
+        
+        else:
+            print("❌ 詳細測定データなし")
     
     def _calculate_control(self, contours):
         """制御値計算"""
@@ -375,8 +587,11 @@ class CyclePerformanceTester:
             # テスト3: 複数制御モード
             self.test_cycle_performance("Optimized_V2", self.optimized_v2_cycle, 50)
             
-            # テスト4: 最重負荷処理
-            self.test_cycle_performance("Optimized_V3", self.optimized_v3_cycle, 50)
+            # テスト4: 実際のrun_manual.py処理
+            self.test_cycle_performance("Actual_RunManual", self.optimized_v3_cycle, 50)
+            
+            # テスト5: 詳細画像処理分析
+            self.test_detailed_image_processing(30)
             
             # 比較レポート
             self.generate_comparison_report()
@@ -396,7 +611,7 @@ class CyclePerformanceTester:
         optimizations = [
             ('optimized_v1', 'ライン追従処理'),
             ('optimized_v2', '複数制御モード'),
-            ('optimized_v3', '最重負荷処理')
+            ('actual_runmanual', '実際のrun_manual.py処理')
         ]
         
         print(f"📊 ベースライン: {baseline_avg:.1f}ms")
