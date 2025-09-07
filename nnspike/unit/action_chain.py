@@ -309,13 +309,9 @@ class ActionChain(object):
         return None, (45, 70, 0), Mode.TURN_LEFT_RELATIVE
 
     def turn_right_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
-        # 初回呼び出し時のみ初期化（開始時のエンコーダ・ジャイロzを記録）
         # 初回呼び出し時のみ初期化
         if not self._init:
             self.initialize_action(motor_side='left')
-            # ジャイロzの開始値も記録
-            _, _, z_start = self.et.get_gyro_xyz()
-            self._gyro_z_start = z_start
         phase = self._phase
         status = self._status
         """
@@ -323,13 +319,9 @@ class ActionChain(object):
         """
         left_position = self.get_motor_position('left', status=status)
         if abs(left_position - phase.get_position_start('position_start')) > 430:
-            # 430超えた瞬間のジャイロz変化量をprint
-            _, _, z_now = self.et.get_gyro_xyz()
-            z_diff = z_now - getattr(self, '_gyro_z_start', 0.0)
-            print(f"[turn_right_relative] encoder=430, gyro_z_diff={z_diff}")
             self.reset_action()
             return None, None, Mode.PAUSE
-        return None, (100, 0, 0), Mode.TURN_RIGHT_RELATIVE
+        return None, (30, 0, 0), Mode.TURN_RIGHT_RELATIVE
 
     def avoid_obstacle_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
         """
