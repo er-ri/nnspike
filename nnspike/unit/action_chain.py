@@ -29,6 +29,7 @@ from nnspike.utils.control import (
     is_left_black_line_detected,  # 左黒ライン抽出
     is_lower_horizontal_line_detected,  # 下部水平黒ライン抽出
     is_vertical_black_line_detected,  # 垂直黒ライン抽出
+    optimize_image_memory,  # 統一フレーム最適化
     is_upper_horizontal_line_detected,  # 上部水平黒ライン抽出
     get_blue_line_pixel,  # 青オブジェクト面積抽出
     is_fast_corner_detected,  # コーナー抽出
@@ -191,15 +192,14 @@ class ActionChain(object):
         """
         image, offset_y, course("right"/"left")を受けてtarget_xを返す共通メソッド
         
-        フレーム最適化が自動適用され、複数の画像処理関数使用時の
-        メモリアクセス効率が向上する。
+        外部（run_manual.py）と内部（各アクションメソッド）の両方から使用される。
+        内部から呼び出される際は、既に最適化済みフレームが渡される前提。
         """
-        optimized_frame = self._optimize_frame(image)
         if course == "right":
-            _, right_x, _ = get_line_edges_at_y(optimized_frame, ROI_LINE_TRACING, offset_y, 80)
+            _, right_x, _ = get_line_edges_at_y(image, ROI_LINE_TRACING, offset_y, 80)
             target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
         elif course == "left":
-            left_x, _, _ = get_line_edges_at_y(optimized_frame, ROI_LINE_TRACING, offset_y, 80)
+            left_x, _, _ = get_line_edges_at_y(image, ROI_LINE_TRACING, offset_y, 80)
             target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
         else:
             target_x = (self.x1 + self.x2) // 2
@@ -210,20 +210,19 @@ class ActionChain(object):
         Safe version: Returns target_x for given image, offset_y, and course ("right"/"left").
         Handles None values robustly, no exceptions.
         
-        フレーム最適化が自動適用され、複数の画像処理関数使用時の
-        メモリアクセス効率が向上する。
+        外部（run_manual.py）と内部（各アクションメソッド）の両方から使用される。
+        内部から呼び出される際は、既に最適化済みフレームが渡される前提。
         """
-        optimized_frame = self._optimize_frame(image)
         offset_y = 450
         if course == "right":
-            _, right_x, _ = get_line_edges_at_y(optimized_frame, ROI_LINE_STRAIGHT, offset_y, 80)
+            _, right_x, _ = get_line_edges_at_y(image, ROI_LINE_STRAIGHT, offset_y, 80)
             if right_x is not None:
                 self.pre_target_x = right_x
                 return right_x
             else:
                 return self.pre_target_x
         elif course == "left":
-            left_x, _, _ = get_line_edges_at_y(optimized_frame, ROI_LINE_STRAIGHT, offset_y, 80)
+            left_x, _, _ = get_line_edges_at_y(image, ROI_LINE_STRAIGHT, offset_y, 80)
             if left_x is not None:
                 self.pre_target_x = left_x
                 return left_x
