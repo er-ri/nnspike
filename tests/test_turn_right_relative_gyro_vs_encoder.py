@@ -37,13 +37,13 @@ for test_angle, label in [(-90, "90度"), (-180, "180度")]:
             GYRO_SCALE = 7.2  # 180度用（実機ログで調整済み）
         print(f"[INFO] GYRO_SCALE={GYRO_SCALE}")
         angle_sum = 0.0
-        finished = False
-        start_time = time.time()
-        TIMEOUT = 5.0  # 秒
-        prev_time = time.time()
+    finished = False
+    start_time = time.time()
+    TIMEOUT = 5.0  # 秒
+    prev_time = time.time()
     # ここでのリセットは不要
     time.sleep(0.2)
-        while not finished:
+    while not finished:
             now = time.time()
             dt = now - prev_time
             prev_time = now
