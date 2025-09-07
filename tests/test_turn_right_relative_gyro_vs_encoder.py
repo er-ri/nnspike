@@ -5,6 +5,7 @@ import time
 from nnspike.unit.etrobot import ETRobot
 
 def main():
+    et = ETRobot()
     for test_angle, label in [(-90, "90度"), (-45, "45度")]:
         # 各テスト角度の最初でエンコーダリセット
         et.set_motor_relative_position(0, 0)
