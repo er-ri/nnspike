@@ -71,6 +71,16 @@ class CameraPerformanceTester:
         print(f"  FOURCC: {actual_fourcc} ({fourcc_str})")
         if use_mjpeg:
             print(f"  MJPEGモード: {'MJPG' in fourcc_str or 'mjpg' in fourcc_str.lower()}")
+            print(f"  FOURCC詳細: バイナリ={bin(actual_fourcc)}, 16進数={hex(actual_fourcc)}")
+        else:
+            print(f"  通常モード FOURCC詳細: バイナリ={bin(actual_fourcc)}, 16進数={hex(actual_fourcc)}")
+        
+        # FOURCC情報を結果に保存
+        fourcc_info = {
+            'fourcc_int': actual_fourcc,
+            'fourcc_str': fourcc_str,
+            'fourcc_hex': hex(actual_fourcc)
+        }
         
         # ウォームアップ
         print("\n🔥 カメラウォームアップ中...")
@@ -83,6 +93,9 @@ class CameraPerformanceTester:
         
         # パフォーマンステスト
         results = self.measure_performance(cap, use_mjpeg)
+        
+        # FOURCC情報を結果に追加
+        results['fourcc_info'] = fourcc_info
         
         # サンプル画像保存
         ret, sample_frame = cap.read()
@@ -243,6 +256,20 @@ class CameraPerformanceTester:
         
         # 結論
         print(f"\n🎯 結論:")
+        
+        # FOURCC比較
+        normal_fourcc = normal_results.get('fourcc_info', {})
+        mjpeg_fourcc = mjpeg_results.get('fourcc_info', {})
+        
+        print(f"\n🔍 FOURCC比較:")
+        print(f"  通常モード: {normal_fourcc.get('fourcc_str', 'N/A')} ({normal_fourcc.get('fourcc_hex', 'N/A')})")
+        print(f"  MJPEGモード: {mjpeg_fourcc.get('fourcc_str', 'N/A')} ({mjpeg_fourcc.get('fourcc_hex', 'N/A')})")
+        
+        if normal_fourcc.get('fourcc_str') == mjpeg_fourcc.get('fourcc_str'):
+            print("  ❌ FOURCC値が同じ → MJPEG設定が反映されていません")
+        else:
+            print("  ✅ FOURCC値が変更されました")
+        
         if mjpeg_results['actual_fps'] > normal_results['actual_fps']:
             print("✅ MJPEG設定によりFPSが向上しました")
         else:
