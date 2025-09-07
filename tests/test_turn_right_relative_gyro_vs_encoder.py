@@ -65,24 +65,6 @@ def main():
             elapsed = time.time() - start_time
             print(f"[SUMMARY] {label} speed={SPEED} time={elapsed:.2f}s right_encoder={right_position} encoder_angle={encoder_angle:.2f}deg gyro_angle={angle_deg:.2f}deg ENCODER_DEG_PER_COUNT={ENCODER_DEG_PER_COUNT:.3f}")
             time.sleep(2)
-                elif now - start_time > TIMEOUT:
-                    print("[TIMEOUT] 強制停止")
-                    print(f"speed={SPEED}, angle_sum={angle_sum}, angle_deg={angle_deg}, left_enc={left_position}, right_enc={right_position}, GYRO_SCALE={GYRO_SCALE}")
-                    results.append((SPEED, angle_deg, right_position, GYRO_SCALE))
-                    et.brake()
-                    et.set_motor_forward_speed(0, 0)
-                    finished = True
-                else:
-                    et.set_motor_speed(int(SPEED), -int(SPEED))
-                time.sleep(0.005)
-            # テスト終了時に経過時間・エンコーダ値・ジャイロ積分値・エンコーダ角度推定値をまとめて出力
-            elapsed = time.time() - start_time
-            # エンコーダ値→角度変換（仮: 1回転=360度, ギア比や車輪径に応じて調整要）
-            # エンコーダ値→角度変換（物理角度とジャイロ角度の一致を目指して調整）
-            ENCODER_DEG_PER_COUNT = 0.45  # 物理基準: エンコーダ値-200で90度
-            encoder_angle = right_position * ENCODER_DEG_PER_COUNT
-            print(f"[SUMMARY] {label} speed={SPEED} time={elapsed:.2f}s right_encoder={right_position} encoder_angle={encoder_angle:.2f}deg gyro_angle={angle_deg:.2f}deg ENCODER_DEG_PER_COUNT={ENCODER_DEG_PER_COUNT:.3f}")
-            time.sleep(2)  # インターバル2秒
 
     et.stop()
 
