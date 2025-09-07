@@ -18,7 +18,7 @@ def main():
         # 各テスト角度の最初でエンコーダリセット
         et.set_motor_relative_position(0, 0)
         time.sleep(0.5)
-        et.reset_gyro()  # ジャイロリセット
+    # et.reset_gyro()  # ジャイロリセット（ETRobotに未実装のため呼び出さない）
         # ジャイロzオフセット（静止時の平均値）を取得
         offset_samples = []
         for _ in range(30):
