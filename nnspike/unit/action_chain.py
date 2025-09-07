@@ -329,7 +329,7 @@ class ActionChain(object):
             print(f"[turn_right_relative] encoder=430, gyro_z_diff={z_diff}")
             self.reset_action()
             return None, None, Mode.PAUSE
-        return None, (30, 0, 0), Mode.TURN_RIGHT_RELATIVE
+        return None, (100, 0, 0), Mode.TURN_RIGHT_RELATIVE
 
     def avoid_obstacle_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
         """
