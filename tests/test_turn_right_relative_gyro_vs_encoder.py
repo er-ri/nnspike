@@ -20,13 +20,14 @@ def main():
     et.set_motor_speed(-SPEED, SPEED)
     while True:
         gyro_z = et.get_gyro_xyz()[2]
-        pos = et.get_motor_position()
-        print("get_motor_position() ->", pos)
-        if not isinstance(pos, (tuple, list)) or len(pos) != 2:
-            print("[ERROR] get_motor_position()の戻り値が不正:", pos)
+        status = et.get_spike_status()
+        left_enc = status.motors["A"].relative_position
+        right_enc = status.motors["B"].relative_position
+        print(f"get_spike_status(): left_enc={left_enc}, right_enc={right_enc}")
+        if left_enc is None or right_enc is None:
+            print("[ERROR] relative_positionが取得できませんでした")
             et.brake()
             break
-        left_enc, right_enc = pos
         curr_time = time.time()
         dt = curr_time - prev_time
         prev_time = curr_time
@@ -47,13 +48,14 @@ def main():
     et.set_motor_speed(-SPEED, SPEED)
     while True:
         gyro_z = et.get_gyro_xyz()[2]
-        pos = et.get_motor_position()
-        print("get_motor_position() ->", pos)
-        if not isinstance(pos, (tuple, list)) or len(pos) != 2:
-            print("[ERROR] get_motor_position()の戻り値が不正:", pos)
+        status = et.get_spike_status()
+        left_enc = status.motors["A"].relative_position
+        right_enc = status.motors["B"].relative_position
+        print(f"get_spike_status(): left_enc={left_enc}, right_enc={right_enc}")
+        if left_enc is None or right_enc is None:
+            print("[ERROR] relative_positionが取得できませんでした")
             et.brake()
             break
-        left_enc, right_enc = pos
         curr_time = time.time()
         dt = curr_time - prev_time
         prev_time = curr_time
