@@ -6,6 +6,8 @@
 """
 
 import time
+import os
+import sys
 import cv2
 import numpy as np
 import threading
@@ -33,6 +35,16 @@ from nnspike.utils import (
 
 class CyclePerformanceTester:
 
+    class _SuppressStderr:
+        """spike_status.py等のprint出力を一時的に抑制するコンテキストマネージャ"""
+        def __enter__(self):
+            self._original_stderr = sys.stderr
+            self._devnull = open(os.devnull, 'w')
+            sys.stderr = self._devnull
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            sys.stderr = self._original_stderr
+            self._devnull.close()
+
     def test_cycle_performance(self, test_name, cycle_func, num_cycles=100):
         """サイクル性能テスト"""
         print(f"\n🧪 {test_name} テスト開始 ({num_cycles}サイクル)")
@@ -48,17 +60,18 @@ class CyclePerformanceTester:
         print("📊 測定中...")
         import time, statistics
         start_test = time.perf_counter()
-        for i in range(num_cycles):
-            try:
-                cycle_time = cycle_func()
-                if cycle_time is not None:
-                    cycle_times.append(cycle_time)
-                    successful_cycles += 1
-                if (i + 1) % 20 == 0:
-                    current_avg = statistics.mean(cycle_times[-20:]) if cycle_times else 0
-                    print(f"  進行状況: {i+1}/{num_cycles} (直近20回平均: {current_avg:.1f}ms)")
-            except Exception as e:
-                pass  # suppress warning
+        with self._SuppressStderr():
+            for i in range(num_cycles):
+                try:
+                    cycle_time = cycle_func()
+                    if cycle_time is not None:
+                        cycle_times.append(cycle_time)
+                        successful_cycles += 1
+                    if (i + 1) % 20 == 0:
+                        current_avg = statistics.mean(cycle_times[-20:]) if cycle_times else 0
+                        print(f"  進行状況: {i+1}/{num_cycles} (直近20回平均: {current_avg:.1f}ms)")
+                except Exception as e:
+                    pass  # suppress warning
         test_duration = time.perf_counter() - start_test
         if cycle_times:
             avg_time = statistics.mean(cycle_times)
