@@ -32,6 +32,34 @@ from nnspike.utils import (
 
 
 class CyclePerformanceTester:
+
+    def high_speed_avoid_phase0_profile_cycle(self):
+        """high_speed_avoid phase0相当の逐次プロファイリング"""
+        import time
+        from nnspike.utils.control import find_bottle_center
+        # get_target_x_by_course_safeはActionChain依存のため、ここでは模擬的にfind_bottle_centerを2回使う
+        # 必要ならActionChain経由で本物を呼び出すテストも追加可能
+
+        ret, frame = self.cap.read()
+        if not ret:
+            return None
+
+        t0 = time.perf_counter()
+        _, _, yellow_pixel_count = find_bottle_center(frame, "yellow", roi=constants.ROI_COLOR)
+        t1 = time.perf_counter()
+
+        if yellow_pixel_count > 5000:
+            print(f"[PROFILE] find_bottle_center: {(t1-t0)*1000:.2f} ms (yellow_pixel_count={yellow_pixel_count})")
+            # phase遷移時の処理は省略
+            return (t1-t0)*1000
+        else:
+            print(f"[PROFILE] find_bottle_center: {(t1-t0)*1000:.2f} ms (yellow_pixel_count={yellow_pixel_count})")
+            t2 = time.perf_counter()
+            # get_target_x_by_course_safe相当（ここでは再度find_bottle_centerを使う）
+            _ = find_bottle_center(frame, "yellow", roi=constants.ROI_COLOR)
+            t3 = time.perf_counter()
+            print(f"[PROFILE] get_target_x_by_course_safe: {(t3-t2)*1000:.2f} ms")
+            return (t1-t0)*1000, (t3-t2)*1000
     """制御サイクル性能測定クラス"""
     
     def __init__(self):
@@ -561,6 +589,9 @@ class CyclePerformanceTester:
             print(f"  ❌ {test_name}: 測定データなし")
     
     def run_all_tests(self):
+        print("\n=== high_speed_avoid phase0 プロファイリングテスト ===")
+        for i in range(10):
+            self.high_speed_avoid_phase0_profile_cycle()
         """全パフォーマンステスト実行"""
         print("🎯 制御サイクル性能テスト開始")
         print("=" * 60)
