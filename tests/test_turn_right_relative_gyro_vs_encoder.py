@@ -30,7 +30,11 @@ for test_angle, label in [(-90, "90度"), (-180, "180度")]:
         print(f"[INFO] ジャイロzオフセット: {gyro_offset}")
 
         # スケールファクタ初期値
-        GYRO_SCALE = 4.0
+            # 角度ごとにGYRO_SCALEを調整
+            if test_angle == -90:
+                GYRO_SCALE = 4.0  # 90度用（実機ログで調整済み）
+            else:
+                GYRO_SCALE = 7.2  # 180度用（実機ログで調整済み）
         print(f"[INFO] GYRO_SCALE={GYRO_SCALE}")
         angle_sum = 0.0
         finished = False
