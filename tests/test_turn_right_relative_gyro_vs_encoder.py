@@ -55,6 +55,8 @@ for i in range(4):
             prev_time = now
             left_position = et.get_spike_status().motors["A"].relative_position or 0
             _, _, z_now = et.get_gyro_xyz()
+            # デバッグ: ジャイロ値とオフセット、エンコーダ
+            print(f"[DEBUG] z_now={z_now}, gyro_offset={gyro_offset}, left_position={left_position}")
             # オフセット補正して積分
             angle_sum += (z_now - gyro_offset) * dt
             angle_deg = angle_sum * GYRO_SCALE
