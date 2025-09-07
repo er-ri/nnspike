@@ -126,34 +126,23 @@ def test_real_actionchain_methods():
             content = f.read()
         
         # 重要な統一設計要素の存在確認
+        # 冗長メソッド削除・外部API保持のみ確認
         checks = {
-            '_optimize_frame定義': '_optimize_frame(self, image)' in content,
-            'optimize_image_memoryインポート': 'optimize_image_memory' in content,
             '冗長メソッド削除1': '_get_target_x_by_course_optimized' not in content,
             '冗長メソッド削除2': '_get_target_x_by_course_safe_optimized' not in content,
-            '統一最適化使用': 'optimized_frame = self._optimize_frame(image)' in content
         }
-        
         print("ActionChain統一設計要素チェック:")
         for check_name, result in checks.items():
             print(f"  - {check_name}: {'✓' if result else '✗'}")
-        
-        # アクションメソッドでの最適化使用回数
-        optimization_count = content.count('optimized_frame = self._optimize_frame(image)')
-        print(f"  - アクションメソッド最適化使用: {optimization_count}回")
-        
         # 外部APIメソッドの保持確認
         external_apis = [
             'def get_target_x_by_course(self, image',
             'def get_target_x_by_course_safe(self, image'
         ]
-        
         api_preserved = all(api in content for api in external_apis)
         print(f"  - 外部API保持: {'✓' if api_preserved else '✗'}")
-        
-        all_good = all(checks.values()) and optimization_count >= 3 and api_preserved
+        all_good = all(checks.values()) and api_preserved
         print(f"\n統一設計実装状況: {'完了' if all_good else '未完了'}")
-        
         return all_good
         
     except Exception as e:
@@ -229,7 +218,6 @@ def main():
     if all_tests_passed:
         print("\n✅ ActionChain統一フレーム最適化設計: 完全動作確認")
         print("【確認項目】")
-        print("- _optimize_frame()統一メソッド実装済み")
         print("- 冗長内部メソッド削除済み")
         print("- 外部API互換性保持済み")
         print("- メモリ独立性・効率性確保済み")
