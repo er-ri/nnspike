@@ -1,3 +1,6 @@
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import time
 from nnspike.unit.etrobot import ETRobot
 from nnspike.unit.action_chain import ActionChain
