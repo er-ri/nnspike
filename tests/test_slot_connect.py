@@ -159,28 +159,48 @@ def test_motor_control(et):
         print("🔄 モーター制御シーケンステスト中...")
         
         # 1. 停止確認
+        print("  初期停止...")
         et.brake()
-        time.sleep(0.5)
+        time.sleep(0.2)  # 短縮
         status = et.get_spike_status()
-        print(f"  停止状態: モーターA={status.motors.get('A', {}).get('speed', 'N/A')}, モーターB={status.motors.get('B', {}).get('speed', 'N/A')}")
+        motor_a_speed = status.motors.get('A', {}).get('speed', 'N/A')
+        motor_b_speed = status.motors.get('B', {}).get('speed', 'N/A')
+        print(f"  停止状態: モーターA={motor_a_speed}, モーターB={motor_b_speed}")
         
-        # 2. 前進テスト
+        # 2. 前進テスト（短時間）
         print("  前進テスト...")
-        et.set_motor_speed(left_speed=30, right_speed=30)
-        time.sleep(1)
+        et.set_motor_speed(left_speed=20, right_speed=20)  # 速度を下げる
+        time.sleep(0.3)  # 短縮
         status = et.get_spike_status()
-        print(f"  前進状態: モーターA={status.motors.get('A', {}).get('speed', 'N/A')}, モーターB={status.motors.get('B', {}).get('speed', 'N/A')}")
+        motor_a_speed = status.motors.get('A', {}).get('speed', 'N/A')
+        motor_b_speed = status.motors.get('B', {}).get('speed', 'N/A')
+        print(f"  前進状態: モーターA={motor_a_speed}, モーターB={motor_b_speed}")
         
-        # 3. 停止
+        # 3. 即座に停止
+        print("  停止中...")
         et.brake()
-        time.sleep(0.5)
+        time.sleep(0.2)
         status = et.get_spike_status()
-        print(f"  最終停止: モーターA={status.motors.get('A', {}).get('speed', 'N/A')}, モーターB={status.motors.get('B', {}).get('speed', 'N/A')}")
+        motor_a_speed = status.motors.get('A', {}).get('speed', 'N/A')
+        motor_b_speed = status.motors.get('B', {}).get('speed', 'N/A')
+        print(f"  最終停止: モーターA={motor_a_speed}, モーターB={motor_b_speed}")
         
         print("✅ モーター制御テスト完了")
         
+    except KeyboardInterrupt:
+        print("\n⚠️  ユーザーによりテスト中断")
+        print("  安全停止中...")
+        try:
+            et.brake()
+        except:
+            pass
+        raise
     except Exception as e:
         print(f"❌ モーター制御エラー: {e}")
+        try:
+            et.brake()
+        except:
+            pass
 
 
 def test_sensor_stability(et):
