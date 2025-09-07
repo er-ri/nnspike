@@ -5,8 +5,8 @@ import time
 from nnspike.unit.etrobot import ETRobot
 from nnspike.unit.action_chain import ActionChain
 
-# テスト用速度リスト
-SPEED_LIST = [40, 60, 80, 100]
+# テスト用速度リスト（60度/秒のみ）
+SPEED_LIST = [60]
 
 # 結果記録用
 results = []
@@ -18,7 +18,7 @@ action_chain = ActionChain(et, course="right", course_type="upper")
 
 
 for SPEED in SPEED_LIST:
-    print(f"\n--- 360度右旋回テスト speed={SPEED} ---")
+    print(f"\n--- 90度右旋回テスト speed={SPEED} ---")
 
 
 
@@ -35,8 +35,8 @@ for SPEED in SPEED_LIST:
     gyro_offset = sum(offset_samples) / len(offset_samples)
     print(f"[INFO] ジャイロzオフセット: {gyro_offset}")
 
-    # スケールファクタ（例：1周半+45度=540度でangle_sum=-360なら scale=540/360=1.5）
-    GYRO_SCALE = 1.5  # 必要に応じて調整
+    # スケールファクタ（例：1周半+45度=540度でangle_sum=-90なら scale=540/90=6.0）
+    GYRO_SCALE = 6.0  # 必要に応じて調整（90度用の仮値）
 
     # 積分開始
     angle_sum = 0.0
@@ -54,8 +54,8 @@ for SPEED in SPEED_LIST:
         angle_sum += (z_now - gyro_offset) * dt
         angle_deg = angle_sum * GYRO_SCALE
         print(f"gyro_z={z_now}, angle_sum={angle_sum}, angle_deg={angle_deg}, encoder={left_position}, dt={dt}")
-        # 角度が-360度以下になったら停止（右旋回前提）
-        if angle_deg <= -360:
+        # 角度が-90度以下になったら停止（右旋回前提）
+        if angle_deg <= -90:
             print(f"speed={SPEED}, angle_sum={angle_sum}, angle_deg={angle_deg}, encoder={left_position}")
             results.append((SPEED, angle_deg, left_position))
             et.brake()
