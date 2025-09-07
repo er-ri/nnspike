@@ -21,12 +21,21 @@ def test_optimize_image_memory():
     # テスト用フレーム作成
     test_frame = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
     print(f"元フレーム形状: {test_frame.shape}")
+    print(f"元フレーム連続性: {test_frame.flags['C_CONTIGUOUS']}")
     
     # 最適化実行
     optimized = optimize_image_memory(test_frame)
     print(f"最適化フレーム形状: {optimized.shape}")
+    print(f"最適化フレーム連続性: {optimized.flags['C_CONTIGUOUS']}")
     print(f"内容一致: {np.array_equal(test_frame, optimized)}")
-    print(f"メモリアドレス変更: {test_frame.__array_interface__['data'][0] != optimized.__array_interface__['data'][0]}")
+    
+    # メモリ独立性確認
+    memory_independent = test_frame.__array_interface__['data'][0] != optimized.__array_interface__['data'][0]
+    print(f"メモリアドレス独立: {memory_independent}")
+    
+    # メモリ効率確認（連続配置）
+    is_contiguous = optimized.flags['C_CONTIGUOUS']
+    print(f"メモリ連続配置: {is_contiguous}")
     
     return optimized
 
@@ -74,20 +83,33 @@ def test_frame_independence():
     original = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
     original[100:200, 100:200] = [255, 0, 0]  # 赤色領域
     
+    # 元フレームのコピーを保存（比較用）
+    original_backup = original.copy()
+    
     # 最適化フレーム作成
     optimized = optimize_image_memory(original)
     
     print(f"1. 最適化前後同一: {np.array_equal(original, optimized)}")
+    print(f"2. メモリアドレス異なる: {original.__array_interface__['data'][0] != optimized.__array_interface__['data'][0]}")
     
     # 最適化フレームを変更
     optimized[200:300, 200:300] = [0, 0, 255]  # 青色領域追加
     
     # 元フレームが影響を受けないことを確認
-    is_independent = not np.array_equal(original, optimized)
-    print(f"2. フレーム独立性: {is_independent}")
-    print(f"   最適化フレーム変更が元フレームに影響しない: {is_independent}")
+    original_unchanged = np.array_equal(original, original_backup)
+    frames_independent = not np.array_equal(original, optimized)
     
-    return is_independent
+    print(f"3. 元フレーム未変更: {original_unchanged}")
+    print(f"4. フレーム独立性: {frames_independent}")
+    print(f"   最適化フレーム変更が元フレームに影響しない: {frames_independent}")
+    
+    # 詳細診断
+    if not original_unchanged:
+        print("   ⚠️  元フレームが予期せず変更されました")
+    if not frames_independent:
+        print("   ⚠️  フレーム間で予期しない共有が発生しています")
+    
+    return original_unchanged and frames_independent
 
 def main():
     """メインテスト実行"""
