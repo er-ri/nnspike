@@ -39,6 +39,7 @@ import cv2
 import numpy as np
 from nnspike.constants import BASE_SPEED, HIGH_SPEED_BASE, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS, OFFSET_Y, ROI_CNN, Mode, ROI_COLOR
 from nnspike.utils import PIDController, SensorRecorder, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x, get_offset_pixels
+from nnspike.utils.control import optimize_image_memory
 
 # User defined constants
 x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
@@ -321,6 +322,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
 
+            # 🚀 早期フレーム最適化（1回のみ）- 全ActionChainメソッドで共有
+            optimized_frame = optimize_image_memory(frame)
+
             # status取得・センサー記録・動画送信処理
             if need_status:
                 status = et.get_spike_status()
@@ -357,21 +361,21 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     pid.Ki = 0
                     pid.Kd = 5
                     pid.output_limits = (-BASE_SPEED, BASE_SPEED)
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.execute_double_loop(frame))
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.execute_double_loop(optimized_frame))
                 case Mode.TURN_LEFT_RELATIVE:
-                    _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.turn_left_relative(frame))
+                    _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.turn_left_relative(optimized_frame))
                 case Mode.TURN_RIGHT_RELATIVE:
-                    _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.turn_right_relative(frame))
+                    _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.turn_right_relative(optimized_frame))
                 case Mode.BLUE_BOTTLE_CATCH:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.blue_bottle_catch(frame))
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.blue_bottle_catch(optimized_frame))
                 case Mode.FOLLOW_LEFT_EDGE:
                     # 単純な左エッジトレースのみ（course='left'を明示的に指定）
-                    target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, 'left')
+                    target_x = action_chain.get_target_x_by_course(optimized_frame, OFFSET_Y, 'left')
                 case Mode.FOLLOW_RIGHT_EDGE:
                     # 単純な右エッジトレースのみ（course='right'を明示的に指定）
-                    target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, 'right')
+                    target_x = action_chain.get_target_x_by_course(optimized_frame, OFFSET_Y, 'right')
                 case Mode.AVOID_OBSTACLE:
-                    _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.avoid_obstacle_relative(frame))
+                    _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.avoid_obstacle_relative(optimized_frame))
                 case Mode.SMALL_TURN_LEFT:
                     _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.small_turn_left())
                 case Mode.HIGH_SPEED_AVOID:
@@ -379,17 +383,17 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     pid.Ki = 0
                     pid.Kd = 0.3  # 安定した微分制御で自然安定性向上
                     pid.output_limits = (-4, 4)  # テスト結果による最適制御範囲
-                    target_x, (left_speed, right_speed, current_base_speed), mode = unpack_action_result(action_chain.high_speed_avoid(frame))
+                    target_x, (left_speed, right_speed, current_base_speed), mode = unpack_action_result(action_chain.high_speed_avoid(optimized_frame))
                 case Mode.HIGH_SPEED:
                     # ハイスピードモード（右エッジ追従＋高速）
-                    target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, course)
+                    target_x = action_chain.get_target_x_by_course(optimized_frame, OFFSET_Y, course)
                     current_base_speed = HIGH_SPEED_BASE
                 case Mode.SMALL_TURN_RIGHT:
                     _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.small_turn_right())
                 case Mode.CARRY_BOTTLE1:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.carry_bottle1_relative(frame))
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.carry_bottle1_relative(optimized_frame))
                 case Mode.BACK_AND_TURN1:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.back_and_turn1_relative(frame))
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.back_and_turn1_relative(optimized_frame))
                     # 後退フェーズ（両輪とも正方向速度）の場合はset_motor_backward_speedを使う
                     if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
                         et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
@@ -398,9 +402,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         handle_debug_output(loop_start, loop_end, debug_state)
                         continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.CARRY_BOTTLE2:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.carry_bottle2_relative(frame))
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.carry_bottle2_relative(optimized_frame))
                 case Mode.BACK_AND_TURN2:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.back_and_turn2_relative(frame))
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.back_and_turn2_relative(optimized_frame))
                     # 後退フェーズ（両輪とも正方向速度）の場合はset_motor_backward_speedを使う
                     if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
                         et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
@@ -409,10 +413,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         handle_debug_output(loop_start, loop_end, debug_state)
                         continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.HEAD_GOAL:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.heading_goal_relative(frame))
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.heading_goal_relative(optimized_frame))
                 case Mode.FORWARD:
                     # 赤色重心に向かって進む（find_bottle_center使用）。イエロー・ブルー検知は行わない。
-                    red_cx, _, red_pixel_count = find_bottle_center(frame, "red", roi=ROI_COLOR)
+                    red_cx, _, red_pixel_count = find_bottle_center(optimized_frame, "red", roi=ROI_COLOR)
                     if red_pixel_count > 3000:
                         if red_cx is not None:
                             target_x = red_cx[0]  # X座標のみを取得
@@ -422,7 +426,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         target_x = center_x
                 case Mode.GATE_PASS:
                     # ゲートを潜る: 仮想ラインエッジを使う
-                    temp_x = get_virtual_line_target_x(frame, previous_center_x=pre_target_x)
+                    temp_x = get_virtual_line_target_x(optimized_frame, previous_center_x=pre_target_x)
                     if temp_x is not None:
                         target_x = temp_x
                         pre_target_x = temp_x
@@ -433,7 +437,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                         pre_target_x = target_x
                 case Mode.EYE_BLUE:
                     # ブルーアイズ（青重心）に向かう: find_blue_target_centerを使用
-                    center, area, blue_pixel_count = find_blue_target_center(frame)
+                    center, area, blue_pixel_count = find_blue_target_center(optimized_frame)
                     if center is not None:
                         target_x = center[0]
                     else:

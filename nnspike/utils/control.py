@@ -1077,5 +1077,6 @@ def optimize_image_memory(image):
         return image
     
     # 独立したメモリ領域を作成してレイアウト最適化
-    # np.copyで完全独立性を保証し、ascontiguousarrayでメモリ効率向上
-    return np.ascontiguousarray(np.copy(image))
+    # 🚀 高速化テスト: copyを省略してメモリレイアウトのみ最適化
+    # NOTE: 元画像の安全性は呼び出し側で確保される前提
+    return np.ascontiguousarray(image)
