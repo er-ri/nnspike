@@ -96,18 +96,17 @@ class ETRobot(object):
         #     if current.sensors.color.color is not None:
         #         last.sensors.color.color = current.sensors.color.color
 
-        # Gyro data (UNUSED - disabled for performance)
-        # if current.sensors.gyro:
-        #     if not last.sensors.gyro:
-        #         from .spike_status import VectorStatus
-        # 
-        #         last.sensors.gyro = VectorStatus()
-        #     if current.sensors.gyro.x is not None:
-        #         last.sensors.gyro.x = current.sensors.gyro.x
-        #     if current.sensors.gyro.y is not None:
-        #         last.sensors.gyro.y = current.sensors.gyro.y
-        #     if current.sensors.gyro.z is not None:
-        #         last.sensors.gyro.z = current.sensors.gyro.z
+        # Gyro data (ENABLE: always update gyro xyz)
+        if current.sensors.gyro:
+            if not last.sensors.gyro:
+                from .spike_status import VectorStatus
+                last.sensors.gyro = VectorStatus()
+            if current.sensors.gyro.x is not None:
+                last.sensors.gyro.x = current.sensors.gyro.x
+            if current.sensors.gyro.y is not None:
+                last.sensors.gyro.y = current.sensors.gyro.y
+            if current.sensors.gyro.z is not None:
+                last.sensors.gyro.z = current.sensors.gyro.z
 
         # Accelerometer data (UNUSED - disabled for performance)
         # if current.sensors.accelerometer:
@@ -163,6 +162,18 @@ class ETRobot(object):
             SpikeStatus: Spike status object with consistent sensor data
         """
         return self.last_spike_status
+
+    def get_gyro_xyz(self):
+        """
+        ジャイロセンサーのxyz値のみをタプルで返す。
+        Returns:
+            (x, y, z): float型のタプル。値がなければ0.0。
+        """
+        gyro = self.last_spike_status.sensors.gyro
+        if gyro:
+            return (gyro.x, gyro.y, gyro.z)
+        else:
+            return (0.0, 0.0, 0.0)
 
     def set_motor_relative_position(self, left_positon: int, right_position: int) -> None:
         id_byte = self.COMMAND_SET_MOTOR_RELATIVE_POSITION_ID.to_bytes(1, "big")

@@ -309,19 +309,29 @@ class ActionChain(object):
         return None, (45, 70, 0), Mode.TURN_LEFT_RELATIVE
 
     def turn_right_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
-        # 初回呼び出し時のみ初期化
+        # 初回呼び出し時のみ初期化（開始時のエンコーダ・ジャイロzを記録）
         if not self._init:
             self.initialize_action(motor_side='left')
-        phase = self._phase
-        status = self._status
-        """
-        右旋回（左モーターAの相対位置差分で判定）。一定値未満の間は旋回、一定値超えたらPAUSE。
-        """
-        left_position = self.get_motor_position('left', status=status)
-        if abs(left_position - phase.get_position_start('position_start')) > 430:
+            # エンコーダとジャイロzの開始値を記録
+            left_position = self.get_motor_position('left', status=self._status)
+            _, _, z_start = self.et.get_gyro_xyz()
+            self._left_position_start = left_position
+            self._gyro_z_start = z_start
+
+        # 現在の値
+        left_position = self.get_motor_position('left', status=self._status)
+        _, _, z_now = self.et.get_gyro_xyz()
+        left_diff = abs(left_position - getattr(self, '_left_position_start', 0))
+        z_diff = abs(z_now - getattr(self, '_gyro_z_start', 0.0))
+        # 閾値
+        encoder_threshold = 430
+        gyro_threshold = 90.0
+        # どちらかが閾値を超えたらPAUSE＋両方の差分をprint
+        if left_diff >= encoder_threshold or z_diff >= gyro_threshold:
+            print(f"[turn_right_relative] encoder_diff={left_diff}, gyro_z_diff={z_diff}")
             self.reset_action()
             return None, None, Mode.PAUSE
-        return None, (30, 0, 0), Mode.TURN_RIGHT_RELATIVE
+        return None, (70, 0, 0), Mode.TURN_RIGHT_RELATIVE
 
     def avoid_obstacle_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
         """

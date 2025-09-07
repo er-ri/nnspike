@@ -257,13 +257,13 @@ class SpikeStatus:
                 #         "color": (color_entries[0][1][4] if len(color_entries[0][1]) > 4 else None),
                 #     }
 
-                # Gyro sensor information (UNUSED - disabled for performance)
-                # if len(payload) > 7 and isinstance(payload[7], list) and len(payload[7]) >= 3:
-                #     result["sensors"]["gyro"] = {
-                #         "x": payload[7][0],
-                #         "y": payload[7][1],
-                #         "z": payload[7][2],
-                #     }
+                # Gyro sensor information (ENABLE: always extract gyro xyz)
+                if len(payload) > 7 and isinstance(payload[7], list) and len(payload[7]) >= 3:
+                    result["sensors"]["gyro"] = {
+                        "x": payload[7][0],
+                        "y": payload[7][1],
+                        "z": payload[7][2],
+                    }
 
                 # Accelerometer information (UNUSED - disabled for performance)
                 # if len(payload) > 8 and isinstance(payload[8], list) and len(payload[8]) >= 3:
