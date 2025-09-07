@@ -33,6 +33,59 @@ from nnspike.utils import (
 
 class CyclePerformanceTester:
 
+    def test_cycle_performance(self, test_name, cycle_func, num_cycles=100):
+        """サイクル性能テスト"""
+        print(f"\n🧪 {test_name} テスト開始 ({num_cycles}サイクル)")
+        print("=" * 50)
+        cycle_times = []
+        successful_cycles = 0
+        # ウォームアップ
+        for _ in range(10):
+            try:
+                cycle_func()
+            except:
+                pass
+        print("📊 測定中...")
+        import time, statistics
+        start_test = time.perf_counter()
+        for i in range(num_cycles):
+            try:
+                cycle_time = cycle_func()
+                if cycle_time is not None:
+                    cycle_times.append(cycle_time)
+                    successful_cycles += 1
+                if (i + 1) % 20 == 0:
+                    current_avg = statistics.mean(cycle_times[-20:]) if cycle_times else 0
+                    print(f"  進行状況: {i+1}/{num_cycles} (直近20回平均: {current_avg:.1f}ms)")
+            except Exception as e:
+                print(f"  ⚠️ サイクル{i+1}でエラー: {e}")
+        test_duration = time.perf_counter() - start_test
+        if cycle_times:
+            avg_time = statistics.mean(cycle_times)
+            median_time = statistics.median(cycle_times)
+            min_time = min(cycle_times)
+            max_time = max(cycle_times)
+            std_dev = statistics.stdev(cycle_times) if len(cycle_times) > 1 else 0
+            print(f"\n📈 {test_name} 結果:")
+            print(f"  成功率: {successful_cycles/num_cycles*100:.1f}% ({successful_cycles}/{num_cycles})")
+            print(f"  平均サイクル時間: {avg_time:.1f}ms")
+            print(f"  中央値: {median_time:.1f}ms")
+            print(f"  最速: {min_time:.1f}ms")
+            print(f"  最遅: {max_time:.1f}ms")
+            print(f"  標準偏差: {std_dev:.1f}ms")
+            print(f"  実効FPS: {1000/avg_time:.1f} Hz")
+            if avg_time <= 40:
+                print("  🎯 目標達成: 40ms以下")
+            elif avg_time <= 50:
+                print("  📈 改善良好: 50ms以下")
+            elif avg_time <= 60:
+                print("  ⚠️ 要改善: 60ms以下")
+            else:
+                print("  ❌ 要大幅改善: 60ms超過")
+            self.results[test_name.lower().replace(' ', '_').replace(':', '')] = cycle_times
+        else:
+            print(f"  ❌ {test_name}: 測定データなし")
+
     def high_speed_avoid_phase0_profile_cycle(self):
         """high_speed_avoid phase0相当の逐次プロファイリング"""
         import time
