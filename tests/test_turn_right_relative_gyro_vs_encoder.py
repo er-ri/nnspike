@@ -3,6 +3,8 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import time
 from nnspike.unit.etrobot import ETRobot
+# テスト用速度リスト（安定推奨値）
+SPEED_LIST = [40]
 
 def main():
     et = ETRobot()
