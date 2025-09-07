@@ -14,7 +14,7 @@ results = []
 et = ETRobot()
 
 def main():
-    for test_angle, label in [(180, "180度"), (90, "90度")]:
+    for test_angle, label in [(-180, "180度"), (-90, "90度")]:
         # 各テスト角度の最初でエンコーダリセット
         et.set_motor_relative_position(0, 0)
         time.sleep(0.5)
