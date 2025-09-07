@@ -23,7 +23,7 @@ def main():
             TIMEOUT = 5.0  # 秒
             prev_time = time.time()
             time.sleep(0.2)
-            ENCODER_DEG_PER_COUNT = 0.9  # 1カウントあたりの角度（物理基準で調整）
+            ENCODER_DEG_PER_COUNT = 1.2  # 1カウントあたりの角度（曲がりすぎ抑制のため増加）
             # 目標エンコーダ値（右モーター）を基準値で設定
             if test_angle == -90:
                 target_encoder = -200
