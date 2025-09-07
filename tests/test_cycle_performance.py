@@ -490,7 +490,7 @@ class CyclePerformanceTester:
     
     def run_all_tests(self):
         # 前半プロファイリング用にカメラ初期化
-        self.setup_camera(optimized=False)
+            # self.setup_camera(optimized=False) ← 以降は呼ばない
         print("\n=== high_speed_avoid phase0 プロファイリングテスト ===")
         for i in range(10):
             self.high_speed_avoid_phase0_profile_cycle()
@@ -511,7 +511,7 @@ class CyclePerformanceTester:
         print()
         try:
             # 後半用に再度カメラ初期化
-            self.setup_camera(optimized=False)
+                # self.setup_camera(optimized=False) ← 以降は呼ばない
             # Spike Hub接続
             spike_connected = self.setup_spike_connection()
             if not spike_connected:
