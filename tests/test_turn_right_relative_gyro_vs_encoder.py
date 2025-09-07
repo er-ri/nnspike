@@ -20,7 +20,13 @@ def main():
     et.set_motor_speed(-SPEED, SPEED)
     while True:
         gyro_z = et.get_gyro_xyz()[2]
-        left_enc, right_enc = et.get_motor_position()
+        pos = et.get_motor_position()
+        print("get_motor_position() ->", pos)
+        if not isinstance(pos, (tuple, list)) or len(pos) != 2:
+            print("[ERROR] get_motor_position()の戻り値が不正:", pos)
+            et.brake()
+            break
+        left_enc, right_enc = pos
         curr_time = time.time()
         dt = curr_time - prev_time
         prev_time = curr_time
@@ -41,7 +47,13 @@ def main():
     et.set_motor_speed(-SPEED, SPEED)
     while True:
         gyro_z = et.get_gyro_xyz()[2]
-        left_enc, right_enc = et.get_motor_position()
+        pos = et.get_motor_position()
+        print("get_motor_position() ->", pos)
+        if not isinstance(pos, (tuple, list)) or len(pos) != 2:
+            print("[ERROR] get_motor_position()の戻り値が不正:", pos)
+            et.brake()
+            break
+        left_enc, right_enc = pos
         curr_time = time.time()
         dt = curr_time - prev_time
         prev_time = curr_time
