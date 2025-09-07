@@ -78,7 +78,7 @@ def main():
             # テスト終了時に経過時間・エンコーダ値・ジャイロ積分値・エンコーダ角度推定値をまとめて出力
             elapsed = time.time() - start_time
             # エンコーダ値→角度変換（仮: 1回転=360度, ギア比や車輪径に応じて調整要）
-            ENCODER_DEG_PER_COUNT = 0.45  # 90度旋回でright_encoder=-200が正解なので修正
+            ENCODER_DEG_PER_COUNT = 0.324  # right_encoder=-279でgyro_angle=-90.36degに合わせて自動計算
             encoder_angle = right_position * ENCODER_DEG_PER_COUNT
             print(f"[SUMMARY] {label} speed={SPEED} time={elapsed:.2f}s right_encoder={right_position} encoder_angle={encoder_angle:.2f}deg gyro_angle={angle_deg:.2f}deg")
             time.sleep(2)  # インターバル2秒
