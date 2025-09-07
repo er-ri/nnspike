@@ -5,8 +5,8 @@ import time
 from nnspike.unit.etrobot import ETRobot
 from nnspike.unit.action_chain import ActionChain
 
-# テスト用速度リスト
-SPEED_LIST = list(range(50, 101, 5))  # 50, 55, ..., 100
+# テスト用速度（1つだけでOK）
+SPEED = 80
 
 # 結果記録用
 results = []
@@ -15,31 +15,30 @@ results = []
 et = ETRobot()
 action_chain = ActionChain(et, course="right", course_type="upper")
 
-for speed in SPEED_LIST:
-    print(f"\n--- Testing speed={speed} ---")
-    # 初期化
-    et.set_motor_relative_position(0, 0)
-    time.sleep(0.5)
-    # ジャイロz初期値
-    _, _, z_start = et.get_gyro_xyz()
-    # 旋回開始
-    finished = False
-    while not finished:
-        # 左モーターAの相対位置（参考値）
-        left_position = et.get_spike_status().motors["A"].relative_position or 0
-        # 現在のジャイロz
-        _, _, z_now = et.get_gyro_xyz()
-        z_diff = z_now - z_start
-        # ジャイロzが-90度以下になったら停止（右旋回前提）
-        if z_diff <= -90:
-            print(f"speed={speed}, gyro_z_diff={z_diff}, encoder={left_position}")
-            results.append((speed, z_diff, left_position))
-            et.brake()
-            finished = True
-        else:
-            et.set_motor_forward_speed(int(speed), 0)
-        time.sleep(0.02)
-    time.sleep(1)
+
+print(f"\n--- 360度右旋回テスト speed={SPEED} ---")
+# 初期化
+et.set_motor_relative_position(0, 0)
+time.sleep(0.5)
+# ジャイロz初期値
+_, _, z_start = et.get_gyro_xyz()
+# 旋回開始
+finished = False
+while not finished:
+    left_position = et.get_spike_status().motors["A"].relative_position or 0
+    _, _, z_now = et.get_gyro_xyz()
+    z_diff = z_now - z_start
+    # エンコーダ値が約860（90度時430の4倍）で停止
+    if left_position >= 1720:  # 2回転分（1回転で860なら2回転で1720）
+        print(f"speed={SPEED}, gyro_z_diff={z_diff}, encoder={left_position}")
+        results.append((SPEED, z_diff, left_position))
+        et.brake()
+        finished = True
+    else:
+        et.set_motor_forward_speed(int(SPEED), 0)
+    time.sleep(0.02)
+time.sleep(1)
+
 
 
 print("\n=== Summary ===")
