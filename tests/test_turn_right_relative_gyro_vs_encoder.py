@@ -6,7 +6,7 @@ from nnspike.unit.etrobot import ETRobot
 from nnspike.unit.action_chain import ActionChain
 
 # テスト用速度リスト
-SPEED_LIST = list(range(55, 76))  # 55〜75を1刻みでテスト
+SPEED_LIST = [x * 0.5 for x in range(126, 131)]  # 63.0, 63.5, 64.0, 64.5, 65.0
 
 # 結果記録用
 results = []
