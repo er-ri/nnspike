@@ -19,14 +19,7 @@ def main():
         et.set_motor_relative_position(0, 0)
         time.sleep(0.5)
     # et.reset_gyro()  # ジャイロリセット（ETRobotに未実装のため呼び出さない）
-        # ジャイロzオフセット（静止時の平均値）を取得
-        offset_samples = []
-        for _ in range(30):
-            _, _, z = et.get_gyro_xyz()
-            offset_samples.append(z)
-            time.sleep(0.01)
-        gyro_offset = sum(offset_samples) / len(offset_samples)
-        print(f"[INFO] ジャイロzオフセット: {gyro_offset}")
+    # slot側でalign_to_model()済みのため、バイアス補正は不要
 
         for SPEED in SPEED_LIST:
             print(f"\n--- {label}右旋回テスト speed={SPEED} ---")
@@ -47,8 +40,8 @@ def main():
                 left_position = et.get_spike_status().motors["A"].relative_position or 0
                 right_position = et.get_spike_status().motors["B"].relative_position or 0
                 _, _, z_now = et.get_gyro_xyz()
-                # オフセット補正して積分
-                angle_sum += (z_now - gyro_offset) * dt
+                # オフセット補正なしで積分
+                angle_sum += z_now * dt
                 angle_deg = angle_sum * GYRO_SCALE
                 print(f"gyro_z={z_now}, angle_sum={angle_sum}, angle_deg={angle_deg}, left_enc={left_position}, right_enc={right_position}, dt={dt}")
                 # 角度がtest_angle以下になったら停止（右旋回前提）
