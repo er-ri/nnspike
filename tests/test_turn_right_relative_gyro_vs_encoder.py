@@ -70,10 +70,14 @@ def main():
                 time.sleep(0.005)
             elapsed = time.time() - start_time
             print(f"[SUMMARY] {label} speed={SPEED} time={elapsed:.2f}s right_encoder={right_position} encoder_angle={encoder_angle:.2f}deg gyro_angle={angle_deg:.2f}deg ENCODER_DEG_PER_COUNT={ENCODER_DEG_PER_COUNT:.3f}")
-            # 90度テスト時はジャイロスケールを自動計算して出力
-            if test_angle == -90 and last_angle_deg != 0.0:
-                auto_gyro_scale = 90.0 / abs(last_angle_deg)
-                print(f"[AUTO] GYRO_SCALE（90度基準）: {auto_gyro_scale:.3f} (angle_deg={last_angle_deg:.2f})")
+            # 90度テスト時はジャイロスケール・エンコーダ角度変換係数を自動計算して出力
+            if test_angle == -90:
+                if last_angle_deg != 0.0:
+                    auto_gyro_scale = 90.0 / abs(last_angle_deg)
+                    print(f"[AUTO] GYRO_SCALE（90度基準）: {auto_gyro_scale:.3f} (angle_deg={last_angle_deg:.2f})")
+                if right_position != 0:
+                    auto_encoder_deg_per_count = 90.0 / abs(right_position)
+                    print(f"[AUTO] ENCODER_DEG_PER_COUNT（90度基準）: {auto_encoder_deg_per_count:.3f} (right_enc={right_position})")
             time.sleep(2)
 
     et.stop()
