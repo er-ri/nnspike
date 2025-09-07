@@ -22,27 +22,38 @@ print(f"\n--- 360度右旋回テスト speed={SPEED} ---")
 # 初期化
 et.set_motor_relative_position(0, 0)
 time.sleep(0.5)
-# ジャイロz積分用
-_, _, z_prev = et.get_gyro_xyz()
+
+# ジャイロzオフセット（静止時の平均値）を取得
+offset_samples = []
+for _ in range(30):
+    _, _, z = et.get_gyro_xyz()
+    offset_samples.append(z)
+    time.sleep(0.01)
+gyro_offset = sum(offset_samples) / len(offset_samples)
+print(f"[INFO] ジャイロzオフセット: {gyro_offset}")
+
+# 積分開始
 angle_sum = 0.0
 finished = False
 start_time = time.time()
 TIMEOUT = 5.0  # 秒
-dt = 0.02
+prev_time = time.time()
 while not finished:
+    now = time.time()
+    dt = now - prev_time
+    prev_time = now
     left_position = et.get_spike_status().motors["A"].relative_position or 0
     _, _, z_now = et.get_gyro_xyz()
-    # 角速度[dps]を積分して角度推定
-    angle_sum += z_now * dt
-    print(f"gyro_z={z_now}, angle_sum={angle_sum}, encoder={left_position}")
-    z_prev = z_now
+    # オフセット補正して積分
+    angle_sum += (z_now - gyro_offset) * dt
+    print(f"gyro_z={z_now}, angle_sum={angle_sum}, encoder={left_position}, dt={dt}")
     # 角度が-360度以下になったら停止（右旋回前提）
     if angle_sum <= -360:
         print(f"speed={SPEED}, angle_sum={angle_sum}, encoder={left_position}")
         results.append((SPEED, angle_sum, left_position))
         et.brake()
         finished = True
-    elif time.time() - start_time > TIMEOUT:
+    elif now - start_time > TIMEOUT:
         print("[TIMEOUT] 強制停止")
         print(f"speed={SPEED}, angle_sum={angle_sum}, encoder={left_position}")
         results.append((SPEED, angle_sum, left_position))
@@ -50,7 +61,7 @@ while not finished:
         finished = True
     else:
         et.set_motor_forward_speed(int(SPEED), 0)
-    time.sleep(dt)
+    time.sleep(0.005)
 time.sleep(1)
 
 
