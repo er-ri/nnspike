@@ -3,7 +3,6 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import time
 from nnspike.unit.etrobot import ETRobot
-from nnspike.unit.action_chain import ActionChain
 
 # テスト用速度リスト（安定推奨値）
 SPEED_LIST = [40]
@@ -13,16 +12,10 @@ results = []
 
 # ロボット初期化
 et = ETRobot()
+
 for test_angle, label in [(-90, "90度"), (-180, "180度")]:
-
-
-
-
-
-for i in range(4):
     for SPEED in SPEED_LIST:
-        print(f"\n--- 180度右旋回テスト {i+1}/4 speed={SPEED} ---")
-
+        print(f"\n--- {label}右旋回テスト speed={SPEED} ---")
         # 初期化
         et.set_motor_relative_position(0, 0)
         time.sleep(0.5)
@@ -38,9 +31,6 @@ for i in range(4):
 
         # スケールファクタ初期値
         GYRO_SCALE = 4.0
-        scale_step = 0.5
-        max_scale = 20.0
-        # 1回だけスケール探索（ぐるぐる回さない）
         print(f"[INFO] GYRO_SCALE={GYRO_SCALE}")
         angle_sum = 0.0
         finished = False
@@ -55,20 +45,17 @@ for i in range(4):
             prev_time = now
             left_position = et.get_spike_status().motors["A"].relative_position or 0
             _, _, z_now = et.get_gyro_xyz()
-            # 角度がtest_angle以下になったら停止（右旋回前提）
-            if angle_deg <= test_angle:
             # オフセット補正して積分
             angle_sum += (z_now - gyro_offset) * dt
             angle_deg = angle_sum * GYRO_SCALE
             print(f"gyro_z={z_now}, angle_sum={angle_sum}, angle_deg={angle_deg}, encoder={left_position}, dt={dt}")
-            # 角度が-180度以下になったら停止（右旋回前提）
-            if angle_deg <= -180:
+            # 角度がtest_angle以下になったら停止（右旋回前提）
+            if angle_deg <= test_angle:
                 print(f"[OK] speed={SPEED}, angle_sum={angle_sum}, angle_deg={angle_deg}, encoder={left_position}, GYRO_SCALE={GYRO_SCALE}")
                 results.append((SPEED, angle_deg, left_position, GYRO_SCALE))
                 et.brake()
                 et.set_motor_forward_speed(0, 0)
                 finished = True
-            # 安全ガード：-400度以上回ったら強制停止
             elif angle_deg <= -400:
                 print("[SAFETY] 角度-400度超えで強制停止")
                 print(f"speed={SPEED}, angle_sum={angle_sum}, angle_deg={angle_deg}, encoder={left_position}, GYRO_SCALE={GYRO_SCALE}")
@@ -84,17 +71,8 @@ for i in range(4):
                 et.set_motor_forward_speed(0, 0)
                 finished = True
             else:
-                # 左右同時送信（ID 206プロトコル）
                 et.set_motor_speed(int(SPEED), -int(SPEED))
             time.sleep(0.005)
         time.sleep(2)  # インターバル2秒
-
-
-
-
-print("\n=== Summary ===")
-print("speed,gyro_z_diff,encoder,gyro_scale")
-for speed, z_diff, left_position, gyro_scale in results:
-    print(f"{speed},{z_diff},{left_position},{gyro_scale}")
 
 et.stop()
