@@ -5,8 +5,8 @@ import time
 from nnspike.unit.etrobot import ETRobot
 from nnspike.unit.action_chain import ActionChain
 
-# テスト用速度リスト（65度/秒のみ）
-SPEED_LIST = [65]
+# テスト用速度リスト（安定推奨値）
+SPEED_LIST = [60, 50]
 
 # 結果記録用
 results = []
