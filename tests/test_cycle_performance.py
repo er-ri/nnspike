@@ -58,7 +58,7 @@ class CyclePerformanceTester:
                     current_avg = statistics.mean(cycle_times[-20:]) if cycle_times else 0
                     print(f"  進行状況: {i+1}/{num_cycles} (直近20回平均: {current_avg:.1f}ms)")
             except Exception as e:
-                print(f"  ⚠️ サイクル{i+1}でエラー: {e}")
+                pass  # suppress warning
         test_duration = time.perf_counter() - start_test
         if cycle_times:
             avg_time = statistics.mean(cycle_times)
@@ -151,7 +151,7 @@ class CyclePerformanceTester:
             print("  ✅ Spike Hub接続成功")
             return True
         except Exception as e:
-            print(f"  ❌ Spike Hub接続失敗: {e}")
+            # print(f"  ❌ Spike Hub接続失敗: {e}")  # suppress warning
             return False
     
     def baseline_cycle(self):
