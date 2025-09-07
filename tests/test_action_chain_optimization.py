@@ -232,6 +232,8 @@ def test_memory_efficiency():
     
     print(f"4. メモリリーク状況: {'良好' if memory_leak_ok else '疑いあり'}")
     
+    return memory_leak_ok
+    
 def main():
     """メインテスト実行（拡張版）"""
     print("ActionChain統一フレーム最適化テスト開始")
