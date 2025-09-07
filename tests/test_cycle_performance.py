@@ -442,9 +442,11 @@ class CyclePerformanceTester:
         for i in range(10):
             self.high_speed_avoid_phase0_profile_cycle()
         # プロファイリング後にカメラを解放
+        import time
         if self.cap:
             self.cap.release()
             self.cap = None
+            time.sleep(1)  # デバイス解放待ち
         """全パフォーマンステスト実行"""
         print("🎯 制御サイクル性能テスト開始")
         print("=" * 60)
