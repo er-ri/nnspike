@@ -216,7 +216,7 @@ class CyclePerformanceTester:
         
         # 仮想ライン検出 (GATE_PASSモード想定)
         virtual_target_x = get_virtual_line_target_x(
-            frame, roi_virtual, target_y=330
+            frame, previous_center_x=320
         )
         
         # 制御値統合（最も複雑なケース）
