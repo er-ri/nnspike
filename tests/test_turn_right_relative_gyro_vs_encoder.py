@@ -15,7 +15,7 @@ def main():
         time.sleep(0.5)
         for SPEED in SPEED_LIST:
             print(f"\n--- {label}右旋回テスト speed={SPEED} ---")
-            GYRO_SCALE = 2.38  # 45度テスト実測angle_deg=-18.96基準（実験値から算出）
+            GYRO_SCALE = 0.1  # 実験値・物理現象のみで調整。過去angle_deg等は一切参照しない。
             print(f"[INFO] GYRO_SCALE={GYRO_SCALE}")
             angle_sum = 0.0
             finished = False
@@ -44,7 +44,7 @@ def main():
                 angle_deg = angle_sum * GYRO_SCALE
                 last_angle_deg = angle_deg
                 encoder_angle = right_position * ENCODER_DEG_PER_COUNT
-                print(f"gyro_z={z_now}, angle_sum={angle_sum}, angle_deg={angle_deg}, left_enc={left_position}, right_enc={right_position}, encoder_angle={encoder_angle:.2f}, dt={dt}")
+                print(f"gyro_z={z_now}, angle_sum={angle_sum}, left_enc={left_position}, right_enc={right_position}, encoder_angle={encoder_angle:.2f}, dt={dt}, GYRO_SCALE={GYRO_SCALE}")
                 if right_position <= target_encoder:
                     print(f"[OK] speed={SPEED}, encoder_angle={encoder_angle:.2f}, right_enc={right_position}, target_enc={target_encoder}, angle_deg={angle_deg:.2f}")
                     results.append((SPEED, angle_deg, right_position, GYRO_SCALE))
@@ -69,11 +69,11 @@ def main():
                     et.set_motor_speed(int(SPEED), -int(SPEED))
                 time.sleep(0.005)
             elapsed = time.time() - start_time
-            print(f"[SUMMARY] {label} speed={SPEED} time={elapsed:.2f}s right_encoder={right_position} encoder_angle={encoder_angle:.2f}deg gyro_angle={angle_deg:.2f}deg ENCODER_DEG_PER_COUNT={ENCODER_DEG_PER_COUNT:.3f}")
+            print(f"[SUMMARY] {label} speed={SPEED} time={elapsed:.2f}s right_encoder={right_position} encoder_angle={encoder_angle:.2f}deg GYRO_SCALE={GYRO_SCALE} ENCODER_DEG_PER_COUNT={ENCODER_DEG_PER_COUNT:.3f}")
             # テスト終了時に最適なGYRO_SCALEを計算してprint（自動適用はしない）
             if last_angle_deg != 0.0:
                 fixed_gyro_scale = abs(test_angle) / abs(last_angle_deg)
-                print(f"[FIXED] GYRO_SCALE（{label}基準）: {fixed_gyro_scale:.3f} (angle_deg={last_angle_deg:.2f}) ←この値を固定値として使え")
+                print(f"[FIXED] GYRO_SCALE（{label}基準）: {fixed_gyro_scale:.3f} ←この値を固定値として使え")
             if right_position != 0:
                 auto_encoder_deg_per_count = abs(test_angle) / abs(right_position)
                 print(f"[AUTO] ENCODER_DEG_PER_COUNT（{label}基準）: {auto_encoder_deg_per_count:.3f} (right_enc={right_position})")
