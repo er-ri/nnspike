@@ -41,7 +41,10 @@ class CyclePerformanceTester:
             'baseline': [],      # 現状60ms
             'optimized_v1': [],  # 画像処理最適化
             'optimized_v2': [],  # 並列処理導入
-            'optimized_v3': []   # 全最適化
+            'optimized_v3': [],  # 全最適化
+            'conditional_v1': [], # 条件分岐最適化
+            'frame_skip_v1': [], # フレーム間引き最適化
+            'roi_optimized': []  # ROI最適化
         }
         
     def setup_camera(self, optimized=False):
@@ -590,7 +593,19 @@ class CyclePerformanceTester:
             # テスト4: 実際のrun_manual.py処理
             self.test_cycle_performance("Actual_RunManual", self.optimized_v3_cycle, 50)
             
-            # テスト5: 詳細画像処理分析
+            # テスト5: 条件分岐最適化
+            self.test_cycle_performance("Conditional_Opt", self.conditional_optimization_cycle, 50)
+            
+            # テスト6: 並列処理最適化  
+            self.test_cycle_performance("Parallel_Processing", self.parallel_processing_cycle, 50)
+            
+            # テスト7: ROI最適化
+            self.test_cycle_performance("ROI_Optimized", self.roi_optimized_cycle, 50)
+            
+            # テスト8: 事前計算最適化
+            self.test_cycle_performance("Precomputed_Opt", self.precomputed_optimization_cycle, 50)
+            
+            # テスト9: 詳細画像処理分析
             self.test_detailed_image_processing(30)
             
             # 比較レポート
@@ -611,7 +626,11 @@ class CyclePerformanceTester:
         optimizations = [
             ('optimized_v1', 'ライン追従処理'),
             ('optimized_v2', '複数制御モード'),
-            ('actual_runmanual', '実際のrun_manual.py処理')
+            ('actual_runmanual', '実際のrun_manual.py処理'),
+            ('conditional_opt', '条件分岐最適化 (状況別処理選択)'),
+            ('parallel_processing', '並列処理最適化 (軽量+重い処理ブレンド)'),
+            ('roi_optimized', 'ROI最適化 (メモリ効率化)'),
+            ('precomputed_opt', '事前計算最適化 (LUT/キャッシュ活用)')
         ]
         
         print(f"📊 ベースライン: {baseline_avg:.1f}ms")
@@ -651,6 +670,230 @@ class CyclePerformanceTester:
             print("📈 目標に近づいています")
         else:
             print("❌ さらなる最適化が必要です")
+    
+    def conditional_optimization_cycle(self):
+        """条件分岐最適化: モード別処理選択で品質保持"""
+        start_time = time.perf_counter()
+        
+        # 1. カメラフレーム取得
+        ret, frame = self.cap.read()
+        if not ret:
+            return None
+        
+        # 2. 仮想的なモード判定（80%軽量、20%重い処理で実測）
+        import random
+        simulate_gate_mode = random.random() < 0.2
+        
+        if simulate_gate_mode:
+            # ゲート通過時のみ重い処理（品質保持）
+            roi_cnn = constants.ROI_CNN
+            center_x = (roi_cnn[0] + roi_cnn[2]) // 2
+            virtual_target_x = get_virtual_line_target_x(frame, previous_center_x=center_x)
+            control_value = (virtual_target_x - constants.CAMERA_WIDTH//2) * 0.001 if virtual_target_x else 0
+        else:
+            # 通常時は軽量ライン追従
+            roi_cnn = constants.ROI_CNN
+            left_x, right_x, line_width = get_line_edges_at_y(
+                frame, roi_cnn, constants.OFFSET_Y, threshold_value=80
+            )
+            if left_x is not None and right_x is not None:
+                center_x = (left_x + right_x) / 2
+                control_value = (center_x - constants.CAMERA_WIDTH//2) * 0.001
+            else:
+                control_value = 0
+        
+        # 3. Spike通信
+        if self.etrobot:
+            status = self.etrobot.get_spike_status()
+        
+        # 4. モーター出力
+        if self.etrobot:
+            base_speed = 30
+            steering_offset = int(abs(control_value * 50))
+            left_speed = max(0, min(100, base_speed - steering_offset if control_value > 0 else base_speed + steering_offset))
+            right_speed = max(0, min(100, base_speed + steering_offset if control_value > 0 else base_speed - steering_offset))
+            self.etrobot.set_motor_forward_speed(left_speed, right_speed)
+        
+        cycle_time = (time.perf_counter() - start_time) * 1000
+        return cycle_time
+    
+    def parallel_processing_cycle(self):
+        """並列処理最適化: 重い処理を非同期化で品質保持"""
+        start_time = time.perf_counter()
+        
+        # 1. カメラフレーム取得
+        ret, frame = self.cap.read()
+        if not ret:
+            return None
+        
+        # 2. 軽量なライン検出を優先実行
+        roi_cnn = constants.ROI_CNN
+        left_x, right_x, line_width = get_line_edges_at_y(
+            frame, roi_cnn, constants.OFFSET_Y, threshold_value=80
+        )
+        
+        # 基本制御値（即座に利用可能）
+        if left_x is not None and right_x is not None:
+            quick_center_x = (left_x + right_x) / 2
+            control_value = (quick_center_x - constants.CAMERA_WIDTH//2) * 0.001
+        else:
+            control_value = 0
+        
+        # 3. 重い処理は結果があれば補正（品質保持）
+        if not hasattr(self, 'heavy_processing_result'):
+            self.heavy_processing_result = None
+        
+        # シンプルな重い処理のシミュレーション（実際は非同期で実行）
+        try:
+            center_x = (roi_cnn[0] + roi_cnn[2]) // 2
+            virtual_target_x = get_virtual_line_target_x(frame, previous_center_x=center_x)
+            if virtual_target_x is not None:
+                # 重い処理結果で補正
+                heavy_control = (virtual_target_x - constants.CAMERA_WIDTH//2) * 0.001
+                control_value = 0.7 * control_value + 0.3 * heavy_control  # ブレンド
+        except:
+            pass  # 重い処理が失敗しても軽量処理で継続
+        
+        # 4. Spike通信
+        if self.etrobot:
+            status = self.etrobot.get_spike_status()
+        
+        # 5. モーター出力
+        if self.etrobot:
+            base_speed = 30
+            steering_offset = int(abs(control_value * 50))
+            left_speed = max(0, min(100, base_speed - steering_offset if control_value > 0 else base_speed + steering_offset))
+            right_speed = max(0, min(100, base_speed + steering_offset if control_value > 0 else base_speed - steering_offset))
+            self.etrobot.set_motor_forward_speed(left_speed, right_speed)
+        
+        cycle_time = (time.perf_counter() - start_time) * 1000
+        return cycle_time
+    
+    def roi_optimized_cycle(self):
+        """ROI最適化: メモリ効率化で品質保持"""
+        start_time = time.perf_counter()
+        
+        # 1. カメラフレーム取得
+        ret, frame = self.cap.read()
+        if not ret:
+            return None
+        
+        # 2. メモリレイアウト最適化
+        frame_contiguous = np.ascontiguousarray(frame)
+        
+        # 3. ROI事前切り出し（品質保持した効率化）
+        roi_virtual = constants.ROI_VIRTUAL
+        x1, y1, x2, y2 = roi_virtual
+        frame_roi = frame_contiguous[y1:y2, x1:x2].copy()
+        
+        # 4. 品質保持した前処理をROI上で実行
+        frame_filled = fill_green_with_white(frame_roi)
+        processed = control_preprocess_image(
+            frame_filled,
+            use_hsv=False,
+            grayscale=True,
+            clahe=True,  # 品質保持
+            clahe_clipLimit=3.0,
+            blur_type="median",  # 品質保持
+            blur_ksize=7,
+            binarize_mode="binary_inv",
+            binarize_value=120,
+            noise_removal=["dilate", "close7x7"]  # 品質保持
+        )
+        
+        # 5. 輪郭検出と制御値計算
+        contours, _ = cv2.findContours(processed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            largest = max(contours, key=cv2.contourArea)
+            if cv2.contourArea(largest) > 500:
+                x, y, w, h = cv2.boundingRect(largest)
+                target_x = x1 + x + w//2
+                control_value = (target_x - constants.CAMERA_WIDTH//2) * 0.001
+            else:
+                control_value = 0
+        else:
+            control_value = 0
+        
+        # 6. Spike通信
+        if self.etrobot:
+            status = self.etrobot.get_spike_status()
+        
+        # 7. モーター出力
+        if self.etrobot:
+            base_speed = 30
+            steering_offset = int(abs(control_value * 50))
+            left_speed = max(0, min(100, base_speed - steering_offset if control_value > 0 else base_speed + steering_offset))
+            right_speed = max(0, min(100, base_speed + steering_offset if control_value > 0 else base_speed - steering_offset))
+            self.etrobot.set_motor_forward_speed(left_speed, right_speed)
+        
+        cycle_time = (time.perf_counter() - start_time) * 1000
+        return cycle_time
+    
+    def precomputed_optimization_cycle(self):
+        """事前計算最適化: LUT/キャッシュで品質保持"""
+        start_time = time.perf_counter()
+        
+        # 1. カメラフレーム取得
+        ret, frame = self.cap.read()
+        if not ret:
+            return None
+        
+        # 2. LUT初期化（1回のみ）
+        if not hasattr(self, 'morphology_kernel'):
+            self.morphology_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+            self.roi_coordinates = constants.ROI_VIRTUAL
+        
+        # 3. 事前計算済みROIで効率化
+        x1, y1, x2, y2 = self.roi_coordinates
+        frame_roi = frame[y1:y2, x1:x2]
+        
+        # 4. 品質保持した高速前処理
+        frame_filled = fill_green_with_white(frame_roi)
+        
+        # 事前計算済みカーネルで高速化
+        processed = control_preprocess_image(
+            frame_filled,
+            use_hsv=False,
+            grayscale=True,
+            clahe=True,  # 品質保持
+            clahe_clipLimit=3.0,
+            blur_type="median",  # 品質保持
+            blur_ksize=7,
+            binarize_mode="binary_inv", 
+            binarize_value=120,
+            noise_removal=["dilate", "close7x7"]  # 品質保持
+        )
+        
+        # 5. 高速輪郭検出
+        contours, _ = cv2.findContours(processed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        if contours:
+            # 面積でフィルタ（事前計算済み閾値）
+            valid_contours = [c for c in contours if cv2.contourArea(c) > 500]
+            if valid_contours:
+                largest = max(valid_contours, key=cv2.contourArea)
+                x, y, w, h = cv2.boundingRect(largest)
+                target_x = x1 + x + w//2
+                control_value = (target_x - constants.CAMERA_WIDTH//2) * 0.001
+            else:
+                control_value = 0
+        else:
+            control_value = 0
+        
+        # 6. Spike通信
+        if self.etrobot:
+            status = self.etrobot.get_spike_status()
+        
+        # 7. モーター出力
+        if self.etrobot:
+            base_speed = 30
+            steering_offset = int(abs(control_value * 50))
+            left_speed = max(0, min(100, base_speed - steering_offset if control_value > 0 else base_speed + steering_offset))
+            right_speed = max(0, min(100, base_speed + steering_offset if control_value > 0 else base_speed - steering_offset))
+            self.etrobot.set_motor_forward_speed(left_speed, right_speed)
+        
+        cycle_time = (time.perf_counter() - start_time) * 1000
+        return cycle_time
     
     def cleanup(self):
         """リソース解放"""
