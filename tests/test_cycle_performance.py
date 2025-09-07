@@ -357,65 +357,6 @@ class CyclePerformanceTester:
             spike_time = (time.perf_counter() - spike_start) * 1000
         else:
             spike_time = 0
-        
-        total_time = (time.perf_counter() - start_time) * 1000
-        
-        return {
-            'capture_time': capture_time,
-            'fill_green_time': fill_time,
-            'color_mask_time': color_time,
-            'preprocess_light_time': preprocess_light_time,
-            'preprocess_heavy_time': preprocess_heavy_time,
-            'combined_processing_time': combined_time,
-            'spike_comm_time': spike_time,
-            'total_time': total_time
-        }
-    
-    def _calculate_control(self, contours):
-        """制御値計算"""
-        if not contours:
-            return 0
-        
-        # 最大輪郭の重心
-        largest_contour = max(contours, key=cv2.contourArea)
-        moments = cv2.moments(largest_contour)
-        
-        if moments['m00'] > 0:
-            cx = int(moments['m10'] / moments['m00'])
-            # ステアリング値計算
-            return (cx - constants.CAMERA_WIDTH//2) * 0.001
-        return 0
-    
-    def test_detailed_image_processing(self, num_cycles=50):
-        """画像処理関数の詳細性能テスト"""
-        print(f"\n🔬 詳細画像処理性能テスト ({num_cycles}サイクル)")
-        print("=" * 60)
-        
-        results = {
-            'capture_times': [],
-            'fill_green_times': [],
-            'color_mask_times': [],
-            'preprocess_light_times': [],
-            'preprocess_heavy_times': [],
-            'combined_processing_times': [],
-            'spike_comm_times': [],
-            'total_times': []
-        }
-        
-        print("📊 測定中...")
-        
-        for i in range(num_cycles):
-            try:
-                result = self.detailed_image_processing_test()
-                if result:
-                    results['capture_times'].append(result['capture_time'])
-                    results['fill_green_times'].append(result['fill_green_time'])
-                    results['color_mask_times'].append(result['color_mask_time'])
-                    results['preprocess_light_times'].append(result['preprocess_light_time'])
-                    results['preprocess_heavy_times'].append(result['preprocess_heavy_time'])
-                    results['combined_processing_times'].append(result['combined_processing_time'])
-                    results['spike_comm_times'].append(result['spike_comm_time'])
-                    results['total_times'].append(result['total_time'])
                 
                 if (i + 1) % 10 == 0:
                     print(f"  進行状況: {i+1}/{num_cycles}")
@@ -501,51 +442,50 @@ class CyclePerformanceTester:
             return (cx - constants.CAMERA_WIDTH//2) * 0.001
         return 0
     
-    def run_background_capture(self):
-        """バックグラウンドフレーム取得"""
-        self.frame_queue = queue.Queue(maxsize=2)
-        
-        def capture_loop():
-            while getattr(self, 'capturing', True):
-                ret, frame = self.cap.read()
-                if ret:
-                    if self.frame_queue.full():
-                        try:
-                            self.frame_queue.get_nowait()  # 古いフレーム破棄
-                        except queue.Empty:
-                            pass
-                    self.frame_queue.put(frame)
-                time.sleep(0.01)  # 100FPS制限
-        
-        self.capture_thread = threading.Thread(target=capture_loop)
-        self.capture_thread.daemon = True
-        self.capture_thread.start()
-    
-    def test_cycle_performance(self, test_name, cycle_func, num_cycles=100):
-        """サイクル性能テスト"""
-        print(f"\n🧪 {test_name} テスト開始 ({num_cycles}サイクル)")
-        print("=" * 50)
-        
-        cycle_times = []
-        successful_cycles = 0
-        
-        # ウォームアップ
-        for _ in range(10):
-            try:
-                cycle_func()
-            except:
-                pass
-        
-        print("📊 測定中...")
-        start_test = time.perf_counter()
-        
-        for i in range(num_cycles):
-            try:
-                cycle_time = cycle_func()
-                if cycle_time is not None:
-                    cycle_times.append(cycle_time)
-                    successful_cycles += 1
-                
+    def run_all_tests(self):
+        print("\n=== high_speed_avoid phase0 プロファイリングテスト ===")
+        for i in range(10):
+            self.high_speed_avoid_phase0_profile_cycle()
+        """全パフォーマンステスト実行"""
+        print("🎯 制御サイクル性能テスト開始")
+        print("=" * 60)
+        print("目標: 60ms → 30-40ms短縮")
+        print()
+        # システム情報
+        print(f"🖥️ システム状態:")
+        print(f"  テスト環境: Windows/Linux")
+        print()
+        try:
+            # カメラ初期化
+            self.setup_camera(optimized=False)
+            # Spike Hub接続
+            spike_connected = self.setup_spike_connection()
+            if not spike_connected:
+                print("⚠️ Spike Hub未接続 - カメラテストのみ実行")
+            # テスト1: ベースライン (現状)
+            self.test_cycle_performance("Baseline", self.baseline_cycle, 50)
+            # テスト2: ライン追従処理
+            self.test_cycle_performance("Optimized_V1", self.optimized_v1_cycle, 50)
+            # テスト3: 複数制御モード
+            self.test_cycle_performance("Optimized_V2", self.optimized_v2_cycle, 50)
+            # テスト4: 実際のrun_manual.py処理
+            self.test_cycle_performance("Actual_RunManual", self.optimized_v3_cycle, 50)
+            # テスト5: 条件分岐最適化
+            self.test_cycle_performance("Conditional_Opt", self.conditional_optimization_cycle, 50)
+            # テスト6: 並列処理最適化  
+            self.test_cycle_performance("Parallel_Processing", self.parallel_processing_cycle, 50)
+            # テスト7: ROI最適化
+            self.test_cycle_performance("ROI_Optimized", self.roi_optimized_cycle, 50)
+            # テスト8: 事前計算最適化
+            self.test_cycle_performance("Precomputed_Opt", self.precomputed_optimization_cycle, 50)
+            # テスト9: 詳細画像処理分析
+            self.test_detailed_image_processing(30)
+            # 比較レポート
+            self.generate_comparison_report()
+        except Exception as e:
+            print(f"❌ テスト実行エラー: {e}")
+        finally:
+            self.cleanup()
                 if (i + 1) % 20 == 0:
                     current_avg = statistics.mean(cycle_times[-20:]) if cycle_times else 0
                     print(f"  進行状況: {i+1}/{num_cycles} (直近20回平均: {current_avg:.1f}ms)")
