@@ -60,7 +60,6 @@ class CyclePerformanceTester:
             t3 = time.perf_counter()
             print(f"[PROFILE] get_target_x_by_course_safe: {(t3-t2)*1000:.2f} ms")
             return (t1-t0)*1000, (t3-t2)*1000
-    """制御サイクル性能測定クラス"""
     
     def __init__(self):
         self.etrobot = None
@@ -357,12 +356,6 @@ class CyclePerformanceTester:
             spike_time = (time.perf_counter() - spike_start) * 1000
         else:
             spike_time = 0
-                
-                if (i + 1) % 10 == 0:
-                    print(f"  進行状況: {i+1}/{num_cycles}")
-                
-            except Exception as e:
-                print(f"  ⚠️ サイクル{i+1}でエラー: {e}")
         
         # 結果分析
         if results['total_times']:
@@ -486,45 +479,6 @@ class CyclePerformanceTester:
             print(f"❌ テスト実行エラー: {e}")
         finally:
             self.cleanup()
-                if (i + 1) % 20 == 0:
-                    current_avg = statistics.mean(cycle_times[-20:]) if cycle_times else 0
-                    print(f"  進行状況: {i+1}/{num_cycles} (直近20回平均: {current_avg:.1f}ms)")
-                
-            except Exception as e:
-                print(f"  ⚠️ サイクル{i+1}でエラー: {e}")
-        
-        test_duration = time.perf_counter() - start_test
-        
-        if cycle_times:
-            avg_time = statistics.mean(cycle_times)
-            median_time = statistics.median(cycle_times)
-            min_time = min(cycle_times)
-            max_time = max(cycle_times)
-            std_dev = statistics.stdev(cycle_times) if len(cycle_times) > 1 else 0
-            
-            print(f"\n📈 {test_name} 結果:")
-            print(f"  成功率: {successful_cycles/num_cycles*100:.1f}% ({successful_cycles}/{num_cycles})")
-            print(f"  平均サイクル時間: {avg_time:.1f}ms")
-            print(f"  中央値: {median_time:.1f}ms")
-            print(f"  最速: {min_time:.1f}ms")
-            print(f"  最遅: {max_time:.1f}ms")
-            print(f"  標準偏差: {std_dev:.1f}ms")
-            print(f"  実効FPS: {1000/avg_time:.1f} Hz")
-            
-            # 目標達成判定
-            if avg_time <= 40:
-                print("  🎯 目標達成: 40ms以下")
-            elif avg_time <= 50:
-                print("  📈 改善良好: 50ms以下")
-            elif avg_time <= 60:
-                print("  ⚠️ 要改善: 60ms以下")
-            else:
-                print("  ❌ 要大幅改善: 60ms超過")
-                
-            self.results[test_name.lower().replace(' ', '_').replace(':', '')] = cycle_times
-            
-        else:
-            print(f"  ❌ {test_name}: 測定データなし")
     
     def run_all_tests(self):
         self.setup_camera()
