@@ -465,56 +465,49 @@ class CyclePerformanceTester:
                 print("⚠️ Spike Hub未接続 - カメラテストのみ実行")
             # テスト1: ベースライン (現状)
             self.test_cycle_performance("Baseline", self.baseline_cycle, 50)
-            # テスト2: ライン追従処理
-            self.test_cycle_performance("Optimized_V1", self.optimized_v1_cycle, 50)
-            # テスト3: 複数制御モード
-            self.test_cycle_performance("Optimized_V2", self.optimized_v2_cycle, 50)
-            # テスト4: 実際のrun_manual.py処理
-            self.test_cycle_performance("Actual_RunManual", self.optimized_v3_cycle, 50)
-            # テスト5: 条件分岐最適化
-            self.test_cycle_performance("Conditional_Opt", self.conditional_optimization_cycle, 50)
-            # テスト6: 並列処理最適化  
-            self.test_cycle_performance("Parallel_Processing", self.parallel_processing_cycle, 50)
-            # テスト7: ROI最適化
-            self.test_cycle_performance("ROI_Optimized", self.roi_optimized_cycle, 50)
-            # テスト8: 事前計算最適化
-            self.test_cycle_performance("Precomputed_Opt", self.precomputed_optimization_cycle, 50)
-            # テスト9: 詳細画像処理分析
-            self.test_detailed_image_processing(30)
-            # 比較レポート
-            self.generate_comparison_report()
-        except Exception as e:
-            print(f"❌ テスト実行エラー: {e}")
-        finally:
-            self.cleanup()
-    
-    def run_all_tests(self):
-        self.setup_camera()
-        print("\n=== high_speed_avoid phase0 プロファイリングテスト ===")
-        for i in range(10):
-            self.high_speed_avoid_phase0_profile_cycle()
-        """全パフォーマンステスト実行"""
-        print("🎯 制御サイクル性能テスト開始")
-        print("=" * 60)
-        print("目標: 60ms → 30-40ms短縮")
-        print()
-        
-        # システム情報
-        print(f"🖥️ システム状態:")
-        print(f"  テスト環境: Windows/Linux")
-        print()
-        
-        try:
-            # カメラ初期化
+            # カメラ初期化は最初の1回だけ
             self.setup_camera(optimized=False)
-            
-            # Spike Hub接続
-            spike_connected = self.setup_spike_connection()
-            if not spike_connected:
-                print("⚠️ Spike Hub未接続 - カメラテストのみ実行")
-            
-            # テスト1: ベースライン (現状)
-            self.test_cycle_performance("Baseline", self.baseline_cycle, 50)
+            print("\n=== high_speed_avoid phase0 プロファイリングテスト ===")
+            for i in range(10):
+                self.high_speed_avoid_phase0_profile_cycle()
+            """全パフォーマンステスト実行"""
+            print("🎯 制御サイクル性能テスト開始")
+            print("=" * 60)
+            print("目標: 60ms → 30-40ms短縮")
+            print()
+            # システム情報
+            print(f"🖥️ システム状態:")
+            print(f"  テスト環境: Windows/Linux")
+            print()
+            try:
+                # Spike Hub接続
+                spike_connected = self.setup_spike_connection()
+                if not spike_connected:
+                    print("⚠️ Spike Hub未接続 - カメラテストのみ実行")
+                # テスト1: ベースライン (現状)
+                self.test_cycle_performance("Baseline", self.baseline_cycle, 50)
+                # テスト2: ライン追従処理
+                self.test_cycle_performance("Optimized_V1", self.optimized_v1_cycle, 50)
+                # テスト3: 複数制御モード
+                self.test_cycle_performance("Optimized_V2", self.optimized_v2_cycle, 50)
+                # テスト4: 実際のrun_manual.py処理
+                self.test_cycle_performance("Actual_RunManual", self.optimized_v3_cycle, 50)
+                # テスト5: 条件分岐最適化
+                self.test_cycle_performance("Conditional_Opt", self.conditional_optimization_cycle, 50)
+                # テスト6: 並列処理最適化  
+                self.test_cycle_performance("Parallel_Processing", self.parallel_processing_cycle, 50)
+                # テスト7: ROI最適化
+                self.test_cycle_performance("ROI_Optimized", self.roi_optimized_cycle, 50)
+                # テスト8: 事前計算最適化
+                self.test_cycle_performance("Precomputed_Opt", self.precomputed_optimization_cycle, 50)
+                # テスト9: 詳細画像処理分析
+                self.test_detailed_image_processing(30)
+                # 比較レポート
+                self.generate_comparison_report()
+            except Exception as e:
+                print(f"❌ テスト実行エラー: {e}")
+            finally:
+                self.cleanup()
             
             # テスト2: ライン追従処理
             self.test_cycle_performance("Optimized_V1", self.optimized_v1_cycle, 50)
