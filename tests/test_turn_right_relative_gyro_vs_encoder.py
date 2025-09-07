@@ -28,8 +28,8 @@ while not finished:
     left_position = et.get_spike_status().motors["A"].relative_position or 0
     _, _, z_now = et.get_gyro_xyz()
     z_diff = z_now - z_start
-    # エンコーダ値が約860（90度時430の4倍）で停止
-    if left_position >= 1720:  # 2回転分（1回転で860なら2回転で1720）
+    # ジャイロzの変化量が±360に達したら停止（右旋回前提: z_diff <= -360）
+    if z_diff <= -360:
         print(f"speed={SPEED}, gyro_z_diff={z_diff}, encoder={left_position}")
         results.append((SPEED, z_diff, left_position))
         et.brake()
