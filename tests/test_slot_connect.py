@@ -82,7 +82,7 @@ def test_basic_connection(port):
         if status:
             print("✅ Spikeステータス取得成功")
             print(f"  タイムスタンプ: {status.timestamp}")
-            print(f"  バッテリー: {status.battery}")
+            print(f"  メッセージタイプ: {status.message_type}")
             return et
         else:
             print("❌ Spikeステータス取得失敗")
@@ -163,8 +163,8 @@ def test_motor_control(et):
         et.brake()
         time.sleep(0.2)  # 短縮
         status = et.get_spike_status()
-        motor_a_speed = status.motors.get('A', {}).get('speed', 'N/A')
-        motor_b_speed = status.motors.get('B', {}).get('speed', 'N/A')
+        motor_a_speed = status.motors["A"].speed if status.motors["A"].speed is not None else 'N/A'
+        motor_b_speed = status.motors["B"].speed if status.motors["B"].speed is not None else 'N/A'
         print(f"  停止状態: モーターA={motor_a_speed}, モーターB={motor_b_speed}")
         
         # 2. 前進テスト（短時間）
@@ -172,8 +172,8 @@ def test_motor_control(et):
         et.set_motor_speed(left_speed=20, right_speed=20)  # 速度を下げる
         time.sleep(0.3)  # 短縮
         status = et.get_spike_status()
-        motor_a_speed = status.motors.get('A', {}).get('speed', 'N/A')
-        motor_b_speed = status.motors.get('B', {}).get('speed', 'N/A')
+        motor_a_speed = status.motors["A"].speed if status.motors["A"].speed is not None else 'N/A'
+        motor_b_speed = status.motors["B"].speed if status.motors["B"].speed is not None else 'N/A'
         print(f"  前進状態: モーターA={motor_a_speed}, モーターB={motor_b_speed}")
         
         # 3. 即座に停止
@@ -181,8 +181,8 @@ def test_motor_control(et):
         et.brake()
         time.sleep(0.2)
         status = et.get_spike_status()
-        motor_a_speed = status.motors.get('A', {}).get('speed', 'N/A')
-        motor_b_speed = status.motors.get('B', {}).get('speed', 'N/A')
+        motor_a_speed = status.motors["A"].speed if status.motors["A"].speed is not None else 'N/A'
+        motor_b_speed = status.motors["B"].speed if status.motors["B"].speed is not None else 'N/A'
         print(f"  最終停止: モーターA={motor_a_speed}, モーターB={motor_b_speed}")
         
         print("✅ モーター制御テスト完了")
@@ -220,12 +220,14 @@ def test_sensor_stability(et):
         try:
             status = et.get_spike_status()
             if status:
+                # 実装されているセンサーのみテスト  
                 data_point = {
                     'timestamp': time.time(),
-                    'distance': status.sensors.get('distance'),
-                    'color_reflected': status.sensors.get('color', {}).get('reflected'),
-                    'force': status.sensors.get('force'),
-                    'battery_voltage': status.battery.get('voltage')
+                    'force': status.sensors.force if status.sensors and status.sensors.force is not None else None,
+                    'motor_a_speed': status.motors["A"].speed if status.motors["A"].speed is not None else None,
+                    'motor_b_speed': status.motors["B"].speed if status.motors["B"].speed is not None else None,
+                    'motor_a_position': status.motors["A"].position if status.motors["A"].position is not None else None,
+                    'motor_b_position': status.motors["B"].position if status.motors["B"].position is not None else None,
                 }
                 data_points.append(data_point)
             
@@ -234,17 +236,33 @@ def test_sensor_stability(et):
         except Exception as e:
             print(f"  ⚠️  データ取得エラー: {e}")
     
-    # データ安定性分析
+    # データ安定性分析（実装済みセンサーのみ）
     if data_points:
-        valid_distance = [d['distance'] for d in data_points if d['distance'] is not None]
-        valid_color = [d['color_reflected'] for d in data_points if d['color_reflected'] is not None]
-        valid_battery = [d['battery_voltage'] for d in data_points if d['battery_voltage'] is not None]
+        valid_force = [d['force'] for d in data_points if d['force'] is not None]
+        valid_motor_a_speed = [d['motor_a_speed'] for d in data_points if d['motor_a_speed'] is not None]
+        valid_motor_b_speed = [d['motor_b_speed'] for d in data_points if d['motor_b_speed'] is not None]
+        valid_motor_a_pos = [d['motor_a_position'] for d in data_points if d['motor_a_position'] is not None]
+        valid_motor_b_pos = [d['motor_b_position'] for d in data_points if d['motor_b_position'] is not None]
         
         print(f"\n📈 センサーデータ安定性結果:")
         print(f"  総データ点数: {len(data_points)}")
-        print(f"  距離センサー有効率: {len(valid_distance)/len(data_points)*100:.1f}%")
-        print(f"  カラーセンサー有効率: {len(valid_color)/len(data_points)*100:.1f}%")
-        print(f"  バッテリー監視有効率: {len(valid_battery)/len(data_points)*100:.1f}%")
+        print(f"  フォースセンサー有効率: {len(valid_force)/len(data_points)*100:.1f}%")
+        print(f"  モーターA速度有効率: {len(valid_motor_a_speed)/len(data_points)*100:.1f}%") 
+        print(f"  モーターB速度有効率: {len(valid_motor_b_speed)/len(data_points)*100:.1f}%")
+        print(f"  モーターA位置有効率: {len(valid_motor_a_pos)/len(data_points)*100:.1f}%")
+        print(f"  モーターB位置有効率: {len(valid_motor_b_pos)/len(data_points)*100:.1f}%")
+        
+        # 実際のデータ例表示
+        if valid_force:
+            print(f"  フォースセンサー値例: {valid_force[-1]}")
+        if valid_motor_a_speed:
+            print(f"  モーターA速度例: {valid_motor_a_speed[-1]}")
+        if valid_motor_b_speed:
+            print(f"  モーターB速度例: {valid_motor_b_speed[-1]}")
+        if valid_motor_a_pos:
+            print(f"  モーターA位置例: {valid_motor_a_pos[-1]}")
+        if valid_motor_b_pos:
+            print(f"  モーターB位置例: {valid_motor_b_pos[-1]}")
         
         if len(data_points) > 50:  # 5秒以上のデータ
             print("  ✅ データ取得安定")
