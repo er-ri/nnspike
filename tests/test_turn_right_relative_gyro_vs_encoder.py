@@ -30,12 +30,8 @@ def main():
 
         for SPEED in SPEED_LIST:
             print(f"\n--- {label}右旋回テスト speed={SPEED} ---")
-            # スケールファクタ初期値
-            # 角度ごとにGYRO_SCALEを調整
-            if test_angle == 90:
-                GYRO_SCALE = 4.0  # 90度用（実機ログで調整済み）
-            else:
-                GYRO_SCALE = 7.2  # 180度用（実機ログで調整済み）
+            # スケールファクタ初期値（物理挙動に合わせて暫定1.0で統一）
+            GYRO_SCALE = 1.0
             print(f"[INFO] GYRO_SCALE={GYRO_SCALE}")
             angle_sum = 0.0
             finished = False
