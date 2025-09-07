@@ -14,11 +14,11 @@ results = []
 et = ETRobot()
 
 for test_angle, label in [(-90, "90度"), (-180, "180度")]:
+    # 各テスト角度の最初でエンコーダリセット
+    et.set_motor_relative_position(0, 0)
+    time.sleep(0.5)
     for SPEED in SPEED_LIST:
         print(f"\n--- {label}右旋回テスト speed={SPEED} ---")
-        # 初期化
-        et.set_motor_relative_position(0, 0)
-        time.sleep(0.5)
 
         # ジャイロzオフセット（静止時の平均値）を取得
         offset_samples = []
@@ -41,8 +41,8 @@ for test_angle, label in [(-90, "90度"), (-180, "180度")]:
         start_time = time.time()
         TIMEOUT = 5.0  # 秒
         prev_time = time.time()
-        et.set_motor_relative_position(0, 0)
-        time.sleep(0.2)
+    # ここでのリセットは不要
+    time.sleep(0.2)
         while not finished:
             now = time.time()
             dt = now - prev_time
