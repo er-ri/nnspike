@@ -6,7 +6,7 @@ from nnspike.unit.etrobot import ETRobot
 from nnspike.unit.action_chain import ActionChain
 
 # テスト用速度リスト
-SPEED_LIST = [63, 64, 65]
+SPEED_LIST = list(range(50, 101, 5))  # 50, 55, ..., 100
 
 # 結果記録用
 results = []
@@ -25,15 +25,15 @@ for speed in SPEED_LIST:
     # 旋回開始
     finished = False
     while not finished:
-        # 左モーターAの相対位置
+        # 左モーターAの相対位置（参考値）
         left_position = et.get_spike_status().motors["A"].relative_position or 0
         # 現在のジャイロz
         _, _, z_now = et.get_gyro_xyz()
-        # 430超えたら記録
-        if abs(left_position) > 430:
-            z_diff = z_now - z_start
-            print(f"speed={speed}, encoder=430, gyro_z_diff={z_diff}")
-            results.append((speed, z_diff))
+        z_diff = z_now - z_start
+        # ジャイロzが-90度以上変化したら停止
+        if abs(z_diff) >= 90:
+            print(f"speed={speed}, gyro_z_diff={z_diff}, encoder={left_position}")
+            results.append((speed, z_diff, left_position))
             et.brake()
             finished = True
         else:
@@ -41,9 +41,10 @@ for speed in SPEED_LIST:
         time.sleep(0.02)
     time.sleep(1)
 
+
 print("\n=== Summary ===")
-print("speed,gyro_z_diff")
-for speed, z_diff in results:
-    print(f"{speed},{z_diff}")
+print("speed,gyro_z_diff,encoder")
+for speed, z_diff, left_position in results:
+    print(f"{speed},{z_diff},{left_position}")
 
 et.stop()
