@@ -1047,36 +1047,3 @@ def is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course='right') -> bool:
         if all_conditions:
             return True
     return False
-
-
-def optimize_image_memory(image):
-    """
-    画像のメモリレイアウトを最適化する汎用メソッド。
-    
-    複数の画像処理関数で同一フレームを使用する際、
-    メモリアクセス効率を向上させるためのフレーム最適化を行う。
-    
-    Parameters:
-        image (np.ndarray): 入力画像（BGR/グレースケール）
-    
-    Returns:
-        np.ndarray: メモリ最適化された画像（独立したメモリ領域）
-    
-    Notes:
-        - 処理順序は一切変更しない
-        - 画像内容は完全に保持される  
-        - 元画像から独立したメモリ領域を作成
-        - メモリコピーを削減し、キャッシュ効率を向上
-    
-    Usage:
-        optimized_frame = optimize_image_memory(image)
-        result1 = find_bottle_center(optimized_frame, "yellow", ROI_COLOR)
-        result2 = get_line_edges_at_y(optimized_frame, ROI_CNN, offset_y)
-    """
-    if image is None or (hasattr(image, 'size') and image.size == 0):
-        return image
-    
-    # 独立したメモリ領域を作成してレイアウト最適化
-    # � 安全性確保: np.copyで完全独立性を保証し、ascontiguousarrayでメモリ効率向上
-    # NOTE: copyは安全性のために必須（共有メモリによる副作用を防ぐ）
-    return np.ascontiguousarray(np.copy(image))
