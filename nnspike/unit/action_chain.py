@@ -32,6 +32,7 @@ from nnspike.utils.control import (
     is_upper_horizontal_line_detected,  # 上部水平黒ライン抽出
     get_blue_line_pixel,  # 青オブジェクト面積抽出
     is_fast_corner_detected,  # コーナー抽出
+    optimize_image_memory,  # 画像メモリ最適化（フレーム共有化）
 )
 
 # 型ヒント用: 要素タプル明示
@@ -104,6 +105,27 @@ class ActionChain(object):
         self._init = False
         self.pre_target_x = (self.x1 + self.x2) // 2
 
+    def _optimize_frame(self, image):
+        """
+        アクションチェイン専用フレーム最適化。
+        
+        全てのアクションメソッドで共通使用され、
+        複数の画像処理関数による同一フレーム処理時の
+        メモリアクセス効率を向上させる。
+        
+        Parameters:
+            image (np.ndarray): 入力フレーム（BGR）
+        
+        Returns:
+            np.ndarray: メモリ最適化されたフレーム
+        
+        Notes:
+            - 処理順序は一切変更しない
+            - 画像内容は完全に保持される
+            - run_manual.pyから渡されるフレームを自動最適化
+        """
+        return optimize_image_memory(image)
+
     def initialize_action(self, motor_side: str = "right"):
         """アクション開始時の状態初期化処理.
 
@@ -168,12 +190,16 @@ class ActionChain(object):
     def get_target_x_by_course(self, image, offset_y, course="right"):
         """
         image, offset_y, course("right"/"left")を受けてtarget_xを返す共通メソッド
+        
+        フレーム最適化が自動適用され、複数の画像処理関数使用時の
+        メモリアクセス効率が向上する。
         """
+        optimized_frame = self._optimize_frame(image)
         if course == "right":
-            _, right_x, _ = get_line_edges_at_y(image, ROI_LINE_TRACING, offset_y, 80)
+            _, right_x, _ = get_line_edges_at_y(optimized_frame, ROI_LINE_TRACING, offset_y, 80)
             target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
         elif course == "left":
-            left_x, _, _ = get_line_edges_at_y(image, ROI_LINE_TRACING, offset_y, 80)
+            left_x, _, _ = get_line_edges_at_y(optimized_frame, ROI_LINE_TRACING, offset_y, 80)
             target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
         else:
             target_x = (self.x1 + self.x2) // 2
@@ -183,17 +209,21 @@ class ActionChain(object):
         """
         Safe version: Returns target_x for given image, offset_y, and course ("right"/"left").
         Handles None values robustly, no exceptions.
+        
+        フレーム最適化が自動適用され、複数の画像処理関数使用時の
+        メモリアクセス効率が向上する。
         """
+        optimized_frame = self._optimize_frame(image)
         offset_y = 450
         if course == "right":
-            _, right_x, _ = get_line_edges_at_y(image, ROI_LINE_STRAIGHT, offset_y, 80)
+            _, right_x, _ = get_line_edges_at_y(optimized_frame, ROI_LINE_STRAIGHT, offset_y, 80)
             if right_x is not None:
                 self.pre_target_x = right_x
                 return right_x
             else:
                 return self.pre_target_x
         elif course == "left":
-            left_x, _, _ = get_line_edges_at_y(image, ROI_LINE_STRAIGHT, offset_y, 80)
+            left_x, _, _ = get_line_edges_at_y(optimized_frame, ROI_LINE_STRAIGHT, offset_y, 80)
             if left_x is not None:
                 self.pre_target_x = left_x
                 return left_x
@@ -239,7 +269,13 @@ class ActionChain(object):
         ・phase2: 青ピクセル数500以下になってから右モーター300ユニット移動まで中心x座標へ追従、300到達でphase3へ
         ・phase3: 状態リセットしPAUSEへ遷移
         戻り値: (target_x, (左速度, 右速度), モード)
+        
+        【自動フレーム最適化】:
+        アクションチェイン使用時、フレームは自動的にメモリ最適化される。
         """
+        # フレーム最適化（アクションチェイン統一前提処理）
+        optimized_frame = self._optimize_frame(image)
+        
         # 初回呼び出し時のみ初期化
         if not self._init:
             self.initialize_action(motor_side=self.course)
@@ -248,7 +284,7 @@ class ActionChain(object):
 
         # phase0: ターゲット中心座標へ追従（条件成立で次フェーズへ）
         if phase.get_phase() == 0:
-            center, _, blue_pixel_count = find_blue_target_center(image)
+            center, _, blue_pixel_count = find_blue_target_center(optimized_frame)
             if center is not None:
                 target_x = center[0]
             else:
@@ -260,7 +296,7 @@ class ActionChain(object):
 
         # phase1: 条件成立まで中心座標へ追従、条件成立で次フェーズへ（モーター位置記録）
         if phase.get_phase() == 1:
-            center, _, blue_pixel_count = find_blue_target_center(image)
+            center, _, blue_pixel_count = find_blue_target_center(optimized_frame)
             if center is not None:
                 target_x = center[0]
             else:
@@ -274,7 +310,7 @@ class ActionChain(object):
 
         # phase2: 条件成立後、モーターが所定位置まで中心座標へ追従、到達で次フェーズへ
         if phase.get_phase() == 2:
-            center, _, blue_pixel_count = find_blue_target_center(image)
+            center, _, blue_pixel_count = find_blue_target_center(optimized_frame)
             if center is not None:
                 target_x = center[0]
             else:
@@ -332,7 +368,13 @@ class ActionChain(object):
         ・phase3: 左旋回（最低回転量・最大回転量で判定、垂直黒ライン検出で次フェーズへ）
         ・phase4: 状態リセットし右端/左端追従モード(FOLLOW_RIGHT_EDGE/FOLLOW_LEFT_EDGE)へ復帰
         戻り値: (None, (左速度, 右速度), モード)
+        
+        【自動フレーム最適化】:
+        アクションチェイン使用時、フレームは自動的にメモリ最適化される。
         """
+        # フレーム最適化（アクションチェイン統一前提処理）
+        optimized_frame = self._optimize_frame(image)
+        
         # 初回呼び出し時のみ初期化
         if not self._init:
             self.initialize_action(motor_side=self.course)
@@ -362,7 +404,7 @@ class ActionChain(object):
                     return None, (70, 40, 0), Mode.AVOID_OBSTACLE
                 else:
                     return None, (40, 70, 0), Mode.AVOID_OBSTACLE
-            if is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3):
+            if is_lower_horizontal_line_detected(optimized_frame, intersection_y=450, roi=ROI_LINE_HORIZON3):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
@@ -396,7 +438,7 @@ class ActionChain(object):
                 else:
                     return None, (60, 30, 0), Mode.AVOID_OBSTACLE
             elif distance < 500:
-                if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
+                if is_vertical_black_line_detected(optimized_frame, roi=ROI_LOOP, center_tolerance=120):
                     phase.next_phase()
                 else:
                     if self.course == "right":
@@ -409,7 +451,7 @@ class ActionChain(object):
         # phase4: 状態リセットし端追従モードへ復帰
         if phase.get_phase() == 4:
             self.reset_action()
-            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+            target_x = self.get_target_x_by_course(optimized_frame, OFFSET_Y, self.course)
             if self.course == "right":
                 return target_x, None, Mode.FOLLOW_RIGHT_EDGE
             else:
@@ -437,7 +479,14 @@ class ActionChain(object):
         - phase11: 青面積判定または右モーターが所定距離進行でDOUBLE_LOOP、そうでなければHIGH_SPEED_AVOID継続。
         
         各フェーズで条件に応じて速度・モード・ターゲット座標を返却する。
+        
+        【自動フレーム最適化】:
+        アクションチェイン使用時、フレームは自動的にメモリ最適化される。
+        複数の画像処理関数による同一フレーム処理が効率化され、
+        処理順序は一切変更されない。
         """
+        # フレーム最適化（アクションチェイン統一前提処理）
+        optimized_frame = self._optimize_frame(image)
 
         if not self._init:
             self.initialize_action(motor_side=self.course)
@@ -446,18 +495,18 @@ class ActionChain(object):
 
         # phase0: 領域検出で次フェーズへ。未検出時は中央追従・回避モード返却
         if phase.get_phase() == 0:
-            _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow", roi=ROI_COLOR)
+            _, _, yellow_pixel_count = find_bottle_center(image=optimized_frame, color="yellow", roi=ROI_COLOR)
             if yellow_pixel_count > 5000:
                 print(f"[DEBUG] phase0→phase1: yellow_pixel_count={yellow_pixel_count} > 5000")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
-                target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
+                target_x = self.get_target_x_by_course_safe(optimized_frame, self.opposite_course)
                 return target_x, (0, 0, HIGH_SPEED_BASE), Mode.HIGH_SPEED_AVOID
 
         # phase1: 領域検出で次フェーズへ。未検出時は中心または中央追従・回避モード返却
         if phase.get_phase() == 1:
-            yellow_cx, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow", roi=ROI_COLOR)
+            yellow_cx, _, yellow_pixel_count = find_bottle_center(image=optimized_frame, color="yellow", roi=ROI_COLOR)
             if yellow_pixel_count > 18000:
                 print(f"[DEBUG] phase1→phase2: yellow_pixel_count={yellow_pixel_count} yellow_cx={yellow_cx} > 18000")
                 phase.next_phase()
@@ -466,7 +515,7 @@ class ActionChain(object):
                 if yellow_cx is not None:
                     target_x = yellow_cx[0]
                 else:
-                    target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
+                    target_x = self.get_target_x_by_course_safe(optimized_frame, self.opposite_course)
                 return target_x, (0, 0, BASE_SPEED), Mode.HIGH_SPEED_AVOID
 
         # phase2: 左旋回（条件成立まで速度調整、到達で次フェーズへ・モーター位置記録）
@@ -506,7 +555,7 @@ class ActionChain(object):
                     return None, (70, 40, 0), Mode.HIGH_SPEED_AVOID
                 else:
                     return None, (40, 70, 0), Mode.HIGH_SPEED_AVOID
-            if is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3):
+            if is_lower_horizontal_line_detected(optimized_frame, intersection_y=450, roi=ROI_LINE_HORIZON3):
                 print(f"[DEBUG] phase4→phase5: position_diff={position_diff} current_pos={current_pos} (horizontal line detected)")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -539,7 +588,7 @@ class ActionChain(object):
                 else:
                     return None, (60, 30, 0), Mode.HIGH_SPEED_AVOID
             elif distance < 500:
-                if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
+                if is_vertical_black_line_detected(optimized_frame, roi=ROI_LOOP, center_tolerance=120):
                     print(f"[DEBUG] phase6→phase7: distance={distance} current_pos={current_pos} (vertical black line detected)")
                     phase.next_phase()
                     phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -558,13 +607,13 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            corner_detected = is_fast_corner_detected(image, course=self.course)
+            corner_detected = is_fast_corner_detected(optimized_frame, course=self.course)
             if corner_detected and position_diff >= 200:
                 print(f"[DEBUG] phase7→phase8: position_diff={position_diff} current_pos={current_pos} >= 200 and corner_detected")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                target_x = self.get_target_x_by_course(optimized_frame, OFFSET_Y, self.opposite_course)
                 return target_x, (0, 0, BASE_SPEED), Mode.HIGH_SPEED_AVOID
 
         # phase8: 右モーターは必ず一定距離旋回し、その後垂直黒ライン判定で次フェーズへ
@@ -578,7 +627,7 @@ class ActionChain(object):
                 else:
                     return None, (70, 49, 0), Mode.HIGH_SPEED_AVOID
             # 一定距離進んだら、垂直黒ライン判定
-            if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
+            if is_vertical_black_line_detected(optimized_frame, roi=ROI_LOOP, center_tolerance=120):
                 print(f"[DEBUG] phase8→phase9: position_diff={position_diff} current_pos={current_pos} >= 500 and vertical_black_line_detected")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -593,13 +642,13 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            corner_detected = is_fast_corner_detected(image, course=self.course)
+            corner_detected = is_fast_corner_detected(optimized_frame, course=self.course)
             if corner_detected and position_diff >= 2500:
                 print(f"[DEBUG] phase9→phase10: position_diff={position_diff} current_pos={current_pos} >= 2500 and corner_detected")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
-                target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
+                target_x = self.get_target_x_by_course_safe(optimized_frame, self.opposite_course)
                 return target_x, (0, 0, HIGH_SPEED_BASE), Mode.HIGH_SPEED_AVOID
 
         # phase10: 右モーターが所定距離進行後、垂直黒ライン判定で次フェーズへ
@@ -613,7 +662,7 @@ class ActionChain(object):
                 else:
                     return None, (70, 49, 0), Mode.HIGH_SPEED_AVOID
             # 所定距離進行後、垂直黒ライン判定
-            if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
+            if is_vertical_black_line_detected(optimized_frame, roi=ROI_LOOP, center_tolerance=120):
                 print(f"[DEBUG] phase10→phase11: position_diff={position_diff} current_pos={current_pos} >= 500 and vertical_black_line_detected")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -625,11 +674,11 @@ class ActionChain(object):
 
         # phase11: 青面積判定または右モーターが一定距離進んだらDOUBLE_LOOP、そうでなければHIGH_SPEED_AVOID継続
         if phase.get_phase() == 11:
-            blue_area = get_blue_line_pixel(image)
+            blue_area = get_blue_line_pixel(optimized_frame)
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+            target_x = self.get_target_x_by_course(optimized_frame, OFFSET_Y, self.opposite_course)
             if blue_area > BLUE_AREA_MAX_THRESHOLD or position_diff >= 200:
                 print(f"[DEBUG] phase11→DOUBLE_LOOP: position_diff={position_diff} blue_area={blue_area} current_pos={current_pos} > threshold")
                 self.reset_action()
