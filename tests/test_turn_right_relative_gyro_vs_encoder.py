@@ -13,7 +13,7 @@ results = []
 
 # ロボット初期化
 et = ETRobot()
-action_chain = ActionChain(et, course="right", course_type="upper")
+for test_angle, label in [(-90, "90度"), (-180, "180度")]:
 
 
 
@@ -55,8 +55,8 @@ for i in range(4):
             prev_time = now
             left_position = et.get_spike_status().motors["A"].relative_position or 0
             _, _, z_now = et.get_gyro_xyz()
-            # デバッグ: ジャイロ値とオフセット、エンコーダ
-            print(f"[DEBUG] z_now={z_now}, gyro_offset={gyro_offset}, left_position={left_position}")
+            # 角度がtest_angle以下になったら停止（右旋回前提）
+            if angle_deg <= test_angle:
             # オフセット補正して積分
             angle_sum += (z_now - gyro_offset) * dt
             angle_deg = angle_sum * GYRO_SCALE
