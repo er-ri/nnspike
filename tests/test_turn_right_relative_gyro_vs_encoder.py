@@ -21,7 +21,7 @@ action_chain = ActionChain(et, course="right", course_type="upper")
 
 for i in range(4):
     for SPEED in SPEED_LIST:
-        print(f"\n--- 90度右旋回テスト {i+1}/4 speed={SPEED} ---")
+        print(f"\n--- 180度右旋回テスト {i+1}/4 speed={SPEED} ---")
 
         # 初期化
         et.set_motor_relative_position(0, 0)
@@ -59,8 +59,8 @@ for i in range(4):
             angle_sum += (z_now - gyro_offset) * dt
             angle_deg = angle_sum * GYRO_SCALE
             print(f"gyro_z={z_now}, angle_sum={angle_sum}, angle_deg={angle_deg}, encoder={left_position}, dt={dt}")
-            # 角度が-90度以下になったら停止（右旋回前提）
-            if angle_deg <= -90:
+            # 角度が-180度以下になったら停止（右旋回前提）
+            if angle_deg <= -180:
                 print(f"[OK] speed={SPEED}, angle_sum={angle_sum}, angle_deg={angle_deg}, encoder={left_position}, GYRO_SCALE={GYRO_SCALE}")
                 results.append((SPEED, angle_deg, left_position, GYRO_SCALE))
                 et.brake()
