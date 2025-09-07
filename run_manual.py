@@ -449,11 +449,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     continue  # 以降のset_motor_speed処理をスキップ
                 case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
-                    # PAUSEモードでは画像処理をスキップして高速化
-                    # debug出力処理
-                    loop_end = time.time()
-                    handle_debug_output(loop_start, loop_end, debug_state)
-                    continue  # 以降の処理をスキップ
                 case _:
                     # Default to center if invalid edge specified
                     target_x = center_x
