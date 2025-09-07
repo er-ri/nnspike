@@ -15,7 +15,7 @@ def main():
         time.sleep(0.5)
         for SPEED in SPEED_LIST:
             print(f"\n--- {label}右旋回テスト speed={SPEED} ---")
-            GYRO_SCALE = 1.0
+            GYRO_SCALE = 2.4  # ジャイロ値→角度変換スケール（90度テストの実測補正値）
             print(f"[INFO] GYRO_SCALE={GYRO_SCALE}")
             angle_sum = 0.0
             finished = False
