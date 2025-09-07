@@ -30,8 +30,8 @@ for speed in SPEED_LIST:
         # 現在のジャイロz
         _, _, z_now = et.get_gyro_xyz()
         z_diff = z_now - z_start
-        # ジャイロzが-90度以上変化したら停止
-        if abs(z_diff) >= 90:
+        # ジャイロzが-90度以下になったら停止（右旋回前提）
+        if z_diff <= -90:
             print(f"speed={speed}, gyro_z_diff={z_diff}, encoder={left_position}")
             results.append((speed, z_diff, left_position))
             et.brake()
