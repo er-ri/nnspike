@@ -4,7 +4,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import time
 from nnspike.unit.etrobot import ETRobot
 
-# テスト用速度リスト（安定推奨値）
+def main():
+    for test_angle, label in [(-90, "90度"), (-45, "45度")]:
+        # 各テスト角度の最初でエンコーダリセット
+        et.set_motor_relative_position(0, 0)
+        time.sleep(0.5)
         for SPEED in SPEED_LIST:
             print(f"\n--- {label}右旋回テスト speed={SPEED} ---")
             GYRO_SCALE = 1.0
