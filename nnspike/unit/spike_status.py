@@ -212,6 +212,7 @@ class SpikeStatus:
 
             # Process the payload based on message type
             if message_type == 0:  # Sensor data message                # Motor A and B position - Port 48
+                print("[DEBUG] payload:", payload)
                 motor_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 48]
                 if len(motor_entries) >= 2:
                     result["motors"]["A"] = {
