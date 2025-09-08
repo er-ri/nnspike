@@ -94,58 +94,87 @@ def test_basic_connection(port):
 
 
 def test_communication_speed(et):
+    # 1回だけ詳細なサンプル出力
+    print("\n--- SpikeStatus サンプル出力 ---")
+    status = et.get_spike_status()
+    # モーター情報
+    for m in ["A", "B", "C"]:
+        motor = status.motors[m]
+        print(f"Motor {m}: position={motor.position}, power={motor.power}, relative_position={motor.relative_position}, speed={motor.speed}")
+    # センサー情報
+    sensors = status.sensors
+    print(f"Force sensor: {sensors.force}")
+    print(f"Distance sensor: {getattr(sensors, 'distance', None)}")
+    if sensors.color:
+        print(f"Color sensor: reflected={sensors.color.reflected}, ambient={sensors.color.ambient}, color={sensors.color.color}")
+    if sensors.gyro:
+        print(f"Gyro: x={sensors.gyro.x}, y={sensors.gyro.y}, z={sensors.gyro.z}")
+    if sensors.accelerometer:
+        print(f"Accelerometer: x={sensors.accelerometer.x}, y={sensors.accelerometer.y}, z={sensors.accelerometer.z}")
+    if sensors.position:
+        print(f"Position: x={sensors.position.x}, y={sensors.position.y}")
+    # バッテリー情報
+    battery = status.battery
+    print(f"Battery: voltage={battery.voltage}, percent={battery.percent}")
+    print("--- サンプル出力ここまで ---\n")
     """通信レスポンス時間測定"""
     print(f"\n2️⃣ 通信速度テスト")
     print("="*50)
     
     response_times = []
+    intervals = []
     successful_reads = 0
-    total_tests = 20
-    
-    print(f"📊 {total_tests}回のデータ取得時間を測定中...")
-    
+    total_tests = 100
+
+    print(f"📊 {total_tests}回のデータ取得サイクル(ms)を高頻度で測定中...")
+
+    prev_time = time.time()
     for i in range(total_tests):
         start_time = time.time()
-        
         try:
             status = et.get_spike_status()
             end_time = time.time()
-            
-            if status and status.timestamp:
-                response_time = (end_time - start_time) * 1000  # ms
-                response_times.append(response_time)
-                successful_reads += 1
-                
-                if (i + 1) % 5 == 0:
-                    print(f"  進行状況: {i+1}/{total_tests} (最新: {response_time:.2f}ms)")
-            else:
-                print(f"  ❌ 読み取り{i+1}失敗")
-                
+            response_time = (end_time - start_time) * 1000  # ms
+            response_times.append(response_time)
+            successful_reads += 1
+
+            # サイクル間隔（前回取得からの経過時間）
+            interval = (start_time - prev_time) * 1000  # ms
+            if i > 0:
+                intervals.append(interval)
+            prev_time = start_time
+
+            if (i + 1) % 20 == 0:
+                print(f"  進行状況: {i+1}/{total_tests} (応答: {response_time:.2f}ms, サイクル: {interval:.2f}ms)")
         except Exception as e:
             print(f"  ❌ エラー{i+1}: {e}")
-        
-        time.sleep(0.1)  # 100ms間隔
-    
+        # できるだけ高頻度で取得（sleepなし）
+
     # 結果分析
     if response_times:
         avg_time = sum(response_times) / len(response_times)
         min_time = min(response_times)
         max_time = max(response_times)
+        avg_interval = sum(intervals) / len(intervals) if intervals else 0
+        min_interval = min(intervals) if intervals else 0
+        max_interval = max(intervals) if intervals else 0
         success_rate = (successful_reads / total_tests) * 100
-        
-        print(f"\n📈 通信速度結果:")
+
+        print(f"\n📈 通信速度・受信サイクル結果:")
         print(f"  成功率: {success_rate:.1f}% ({successful_reads}/{total_tests})")
-        print(f"  平均応答時間: {avg_time:.2f}ms")
-        print(f"  最速応答時間: {min_time:.2f}ms")
-        print(f"  最遅応答時間: {max_time:.2f}ms")
-        
-        # 60msサイクルへの影響評価
-        if avg_time < 10:
-            print("  ✅ 優秀 - 60msサイクルに影響なし")
-        elif avg_time < 30:
-            print("  ✅ 良好 - 60msサイクルに軽微な影響")
+        print(f"  平均応答時間: {avg_time:.2f}ms (1回のget_spike_status呼び出しにかかる時間)")
+        print(f"  最速応答時間: {min_time:.2f}ms, 最遅応答時間: {max_time:.2f}ms")
+        print(f"  平均受信サイクル: {avg_interval:.2f}ms (前回取得からの間隔)")
+        print(f"  最短サイクル: {min_interval:.2f}ms, 最長サイクル: {max_interval:.2f}ms")
+        if avg_interval < 10:
+            print("  ✅ 優秀 - 10ms以下で高頻度受信")
+        elif avg_interval < 30:
+            print("  ✅ 良好 - 30ms以下で安定受信")
         else:
-            print("  ⚠️  要注意 - 60msサイクルに影響の可能性")
+            print("  ⚠️  サイクル遅延あり (30ms超)")
+        # サイクル分布例
+        if len(intervals) > 10:
+            print(f"  サイクル分布例: {intervals[:10]} ...")
     else:
         print("❌ 通信速度測定失敗")
 
