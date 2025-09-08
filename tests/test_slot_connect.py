@@ -208,20 +208,20 @@ def measure_receive_cycle(et, duration_sec=5):
         status = et.get_spike_status()
         now_raw = status.raw_data
         now_time = time.time()
-            if prev_time is not None:
-                interval = (now_time - prev_time) * 1000  # ms
-                intervals.append(interval)
-                count += 1
-                if count <= 10 or count % 20 == 0:
-                    print(f"  {count}回目: {interval:.2f}ms, raw={status.raw_data}")
-            prev_time = now_time
-            time.sleep(0.001)
-        if intervals:
-            avg = sum(intervals) / len(intervals)
-            print(f"\n受信サイクル統計: 平均={avg:.2f}ms, 最短={min(intervals):.2f}ms, 最長={max(intervals):.2f}ms, 回数={len(intervals)}")
-            print(f"サイクル分布例: {intervals[:10]} ...")
-        else:
-            print("新規データ受信が検出できませんでした")
+        if prev_time is not None:
+            interval = (now_time - prev_time) * 1000  # ms
+            intervals.append(interval)
+            count += 1
+            if count <= 10 or count % 20 == 0:
+                print(f"  {count}回目: {interval:.2f}ms, raw={status.raw_data}")
+        prev_time = now_time
+        time.sleep(0.001)
+    if intervals:
+        avg = sum(intervals) / len(intervals)
+        print(f"\n受信サイクル統計: 平均={avg:.2f}ms, 最短={min(intervals):.2f}ms, 最長={max(intervals):.2f}ms, 回数={len(intervals)}")
+        print(f"サイクル分布例: {intervals[:10]} ...")
+    else:
+        print("新規データ受信が検出できませんでした")
 
 def main():
     """メイン実行関数"""
