@@ -93,35 +93,6 @@ def test_basic_connection(port):
         print(f"❌ 接続エラー: {e}")
         return None
 
-
-def test_communication_speed(et):
-    print("\n2️⃣ 通信速度テスト（新規データ受信サイクル計測）")
-    print("="*50)
-    duration_sec = 2
-    print(f"📊 {duration_sec}秒間、受信した全raw_dataの受信間隔(ms)を間引きなしで計測・printします...")
-    prev_time = None
-    intervals = []
-    count = 0
-    start = time.time()
-    while time.time() - start < duration_sec:
-        status = et.get_spike_status()
-        now_time = time.time()
-        if prev_time is not None:
-            interval = (now_time - prev_time) * 1000  # ms
-            intervals.append(interval)
-            count += 1
-            if count <= 10 or count % 20 == 0:
-                print(f"  {count}回目: {interval:.2f}ms, raw={status.raw_data}")
-        prev_time = now_time
-        time.sleep(0.001)
-    if intervals:
-        avg = sum(intervals) / len(intervals)
-        print(f"\n受信サイクル統計: 平均={avg:.2f}ms, 最短={min(intervals):.2f}ms, 最長={max(intervals):.2f}ms, 回数={len(intervals)}")
-        print(f"サイクル分布例: {intervals[:10]} ...")
-    else:
-        print("データ受信が検出できませんでした")
-
-
 def test_motor_control(et):
     """モーター制御テスト"""
     print(f"\n3️⃣ モーター制御テスト")
@@ -197,7 +168,7 @@ def test_sensor_stability(et):
         except Exception as e:
             print(f"  ⚠️  データ取得エラー: {e}")
 
-def measure_receive_cycle(et, duration_sec=5):
+def measure_receive_cycle(et, duration_sec=2):
     print(f"\n--- {duration_sec}秒間の新規データ受信サイクル(ms)計測 ---")
     prev_raw = None
     prev_time = None
@@ -245,8 +216,6 @@ def main():
         return
     
     try:
-        # 3. 通信速度テスト
-        test_communication_speed(et)
 
         # 4. モーター制御テスト
         test_motor_control(et)
