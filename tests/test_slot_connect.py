@@ -99,20 +99,20 @@ def test_communication_speed(et):
     print("="*50)
     duration_sec = 5
     print(f"📊 {duration_sec}秒間、status.timestampの変化のみをカウント・計測します...")
-    prev_timestamp = None
+    prev_time = None
     intervals = []
     count = 0
     start = time.time()
     while time.time() - start < duration_sec:
-        status = et.get_spike_status()
-        ts = status.timestamp
-        if prev_timestamp is not None and ts != prev_timestamp:
-            interval = (ts - prev_timestamp) * 1000  # ms
+        _ = et.get_spike_status()
+        now = time.time()
+        if prev_time is not None:
+            interval = (now - prev_time) * 1000  # ms
             intervals.append(interval)
             count += 1
             if count <= 10 or count % 20 == 0:
                 print(f"  {count}回目: {interval:.2f}ms")
-        prev_timestamp = ts
+        prev_time = now
         time.sleep(0.001)
     if intervals:
         avg = sum(intervals) / len(intervals)
