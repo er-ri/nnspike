@@ -1,5 +1,5 @@
 import time
-from typing import Optional, Tuple
+from typing import Optional
 
 import numpy as np
 
@@ -8,7 +8,7 @@ from nnspike.unit.etrobot import ETRobot
 from nnspike.utils import find_bottle_center
 
 
-class ActionChain(object):
+class ActionChain:
     """
     A class to manage a sequence of actions for an ETRobot.
 
@@ -39,16 +39,18 @@ class ActionChain(object):
         self.mark_position = 0
 
     def follow_left_edge(
-        self, image: np.ndarray, predicted_x: Optional[float]
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+        self, image: np.ndarray, predicted_x: float | None
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         return predicted_x, None, Mode.FOLLOW_LEFT_EDGE
 
     def follow_right_edge(
-        self, image: np.ndarray, predicted_x: Optional[float]
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+        self, image: np.ndarray, predicted_x: float | None
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         return predicted_x, None, Mode.FOLLOW_RIGHT_EDGE
 
-    def avoid_obstacle(self, init_flag: bool) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    def avoid_obstacle(
+        self, init_flag: bool
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         """
         Perform a sequence of actions to avoid an obstacle.
 
@@ -71,11 +73,15 @@ class ActionChain(object):
 
         self.reset()
 
-        return None, None, Mode.FOLLOW_LEFT_EDGE if self.course == "left" else Mode.FOLLOW_RIGHT_EDGE
+        return (
+            None,
+            None,
+            Mode.FOLLOW_LEFT_EDGE if self.course == "left" else Mode.FOLLOW_RIGHT_EDGE,
+        )
 
     def carry_bottle_phase1(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         if init_flag is True:
             self.start_position = self.et.retrieve_motors_relative_position()
         self.current_position = self.et.retrieve_motors_relative_position()
@@ -89,7 +95,7 @@ class ActionChain(object):
 
     def carry_bottle_phase2(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         if init_flag is True:
             self.start_position = self.et.retrieve_motors_relative_position()
         self.current_position = self.et.retrieve_motors_relative_position()
@@ -103,7 +109,7 @@ class ActionChain(object):
 
     def carry_bottle_phase3(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         if init_flag is True:
             self.start_position = self.et.retrieve_motors_relative_position()
         self.current_position = self.et.retrieve_motors_relative_position()
@@ -117,7 +123,7 @@ class ActionChain(object):
 
     def carry_bottle_phase4(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         if init_flag is True:
             self.start_position = self.et.retrieve_motors_relative_position()
         self.current_position = self.et.retrieve_motors_relative_position()
@@ -131,12 +137,12 @@ class ActionChain(object):
 
     def carry_bottle_phase5(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         return predicted_x, None, Mode.CARRY_BOTTLE_PHASE5
 
     def carry_bottle_phase6(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         if init_flag is True:
             self.start_position = self.et.retrieve_motors_relative_position()
         self.current_position = self.et.retrieve_motors_relative_position()
@@ -150,7 +156,7 @@ class ActionChain(object):
 
     def carry_bottle_phase7(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         if init_flag is True:
             self.start_position = self.et.retrieve_motors_relative_position()
         self.current_position = self.et.retrieve_motors_relative_position()
@@ -164,7 +170,7 @@ class ActionChain(object):
 
     def carry_bottle_phase8(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         self.current_position = self.et.retrieve_motors_relative_position()
 
         moved_distance = self.current_position - self.mark_position
@@ -173,7 +179,11 @@ class ActionChain(object):
             return predicted_x, None, Mode.CARRY_BOTTLE_PHASE8
         else:
             _, _, blue_pixel_count = find_bottle_center(image=image, color="blue")
-            if blue_pixel_count is not None and blue_pixel_count > 2000 and self.mark_position == 0:
+            if (
+                blue_pixel_count is not None
+                and blue_pixel_count > 2000
+                and self.mark_position == 0
+            ):
                 self.mark_position = self.et.retrieve_motors_relative_position()
                 return predicted_x, None, Mode.CARRY_BOTTLE_PHASE8
 
@@ -181,7 +191,7 @@ class ActionChain(object):
 
     def carry_bottle_phase9(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         if init_flag is True:
             self.start_position = self.et.retrieve_motors_relative_position()
         self.current_position = self.et.retrieve_motors_relative_position()
@@ -194,7 +204,7 @@ class ActionChain(object):
 
     def carry_bottle_phase10(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         if init_flag is True:
             self.start_position = self.et.retrieve_motors_relative_position()
         self.current_position = self.et.retrieve_motors_relative_position()
@@ -207,7 +217,7 @@ class ActionChain(object):
 
     def carry_bottle_phase11(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         if init_flag is True:
             self.start_position = self.et.retrieve_motors_relative_position()
         self.current_position = self.et.retrieve_motors_relative_position()
@@ -220,7 +230,7 @@ class ActionChain(object):
 
     def carry_bottle_phase12(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         if init_flag is True:
             self.start_position = self.et.retrieve_motors_relative_position()
         self.current_position = self.et.retrieve_motors_relative_position()
@@ -233,7 +243,7 @@ class ActionChain(object):
 
     def carry_bottle_phase13(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         if init_flag is True:
             self.start_position = self.et.retrieve_motors_relative_position()
         self.current_position = self.et.retrieve_motors_relative_position()
@@ -246,12 +256,12 @@ class ActionChain(object):
 
     def carry_bottle_phase14(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         return predicted_x, None, Mode.CARRY_BOTTLE_PHASE14
 
     def carry_bottle_phase15(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         if init_flag is True:
             self.start_position = self.et.retrieve_motors_relative_position()
         self.current_position = self.et.retrieve_motors_relative_position()
@@ -264,7 +274,7 @@ class ActionChain(object):
 
     def carry_bottle_phase16(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         if init_flag is True:
             self.start_position = self.et.retrieve_motors_relative_position()
         self.current_position = self.et.retrieve_motors_relative_position()
@@ -277,12 +287,12 @@ class ActionChain(object):
 
     def carry_bottle_phase17(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         return predicted_x, None, Mode.CARRY_BOTTLE_PHASE17
 
     def carry_bottle_phase18(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         if init_flag is True:
             self.start_position = self.et.retrieve_motors_relative_position()
         self.current_position = self.et.retrieve_motors_relative_position()
@@ -295,5 +305,5 @@ class ActionChain(object):
 
     def carry_bottle_phase19(
         self, image: np.ndarray, predicted_x: float, init_flag: bool
-    ) -> Tuple[Optional[float], Optional[Tuple[int, int]], Mode]:
+    ) -> tuple[float | None, tuple[int, int] | None, Mode]:
         return predicted_x, None, Mode.CARRY_BOTTLE_PHASE19

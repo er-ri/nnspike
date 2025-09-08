@@ -10,7 +10,10 @@ import csv
 import logging
 import os
 import time
-from typing import Any, Optional, TextIO
+from typing import Any, TextIO
+
+from ..constants import Mode
+from ..unit import SpikeStatus
 
 
 class SensorRecorder:
@@ -27,7 +30,9 @@ class SensorRecorder:
     - Comprehensive sensor and control data logging
     """
 
-    def __init__(self, output_dir: str = "storage/sensor_data", timestamp: Optional[str] = None):
+    def __init__(
+        self, output_dir: str = "storage/sensor_data", timestamp: str | None = None
+    ):
         """
         Initialize the sensor recorder.
 
@@ -39,13 +44,15 @@ class SensorRecorder:
         self.timestamp = timestamp or time.strftime("%Y%m%d%H%M%S", time.localtime())
         self.csv_filename = os.path.join(output_dir, f"{self.timestamp}_sensor_log.csv")
 
-        self.csv_file: Optional[TextIO] = None
-        self.csv_writer: Optional[Any] = None
+        self.csv_file: TextIO | None = None
+        self.csv_writer: Any | None = None
         self.is_recording = False
         self.frame_count = 0
 
         # Set up logger for this instance
-        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")  # CSV headers for sensor data only
+        self.logger = logging.getLogger(
+            f"{__name__}.{self.__class__.__name__}"
+        )  # CSV headers for sensor data only
         self.headers = [
             "timestamp",
             "frame_number",
@@ -89,9 +96,9 @@ class SensorRecorder:
         os.makedirs(self.output_dir, exist_ok=True)
 
         # Open file with buffering for performance
-        self.csv_file = open(self.csv_filename, "w", newline="", buffering=8192)
-        self.csv_writer = csv.writer(self.csv_file)
-        self.csv_writer.writerow(self.headers)  # Register cleanup function
+        with open(self.csv_filename, "w", newline="", buffering=8192) as self.csv_file:
+            self.csv_writer = csv.writer(self.csv_file)
+            self.csv_writer.writerow(self.headers)  # Register cleanup function
         atexit.register(self.stop_recording)
 
         self.is_recording = True
@@ -99,7 +106,9 @@ class SensorRecorder:
 
         self.logger.info(f"CSV logging started: {self.csv_filename}")
 
-    def log_frame_data(self, spike_status, mode=None) -> None:
+    def log_frame_data(
+        self, spike_status: SpikeStatus, mode: Mode | None = None
+    ) -> None:
         """
         Log sensor data for a single frame.
 
@@ -129,9 +138,15 @@ class SensorRecorder:
             self._safe_get(sensors.gyro.x if sensors.gyro else None, 0.0),
             self._safe_get(sensors.gyro.y if sensors.gyro else None, 0.0),
             self._safe_get(sensors.gyro.z if sensors.gyro else None, 0.0),
-            self._safe_get(sensors.accelerometer.x if sensors.accelerometer else None, 0.0),
-            self._safe_get(sensors.accelerometer.y if sensors.accelerometer else None, 0.0),
-            self._safe_get(sensors.accelerometer.z if sensors.accelerometer else None, 0.0),
+            self._safe_get(
+                sensors.accelerometer.x if sensors.accelerometer else None, 0.0
+            ),
+            self._safe_get(
+                sensors.accelerometer.y if sensors.accelerometer else None, 0.0
+            ),
+            self._safe_get(
+                sensors.accelerometer.z if sensors.accelerometer else None, 0.0
+            ),
             self._safe_get(sensors.position.x if sensors.position else None, 0.0),
             self._safe_get(sensors.position.y if sensors.position else None, 0.0),
             self._safe_get(motors["A"].position, 0),
@@ -168,7 +183,9 @@ class SensorRecorder:
         if self.csv_file and not self.csv_file.closed:
             self.csv_file.flush()  # Ensure all data is written
             self.csv_file.close()
-            self.logger.info(f"CSV recording stopped. Data saved to: {self.csv_filename}")
+            self.logger.info(
+                f"CSV recording stopped. Data saved to: {self.csv_filename}"
+            )
 
         self.is_recording = False
         self.csv_file = None
@@ -206,11 +223,16 @@ class SensorRecorder:
         """
         return value if value is not None else default
 
-    def __enter__(self):
+    def __enter__(self) -> "SensorRecorder":
         """Context manager entry."""
         self.start_recording()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object | None,
+    ) -> None:
         """Context manager exit."""
         self.stop_recording()

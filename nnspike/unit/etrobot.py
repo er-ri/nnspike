@@ -6,7 +6,7 @@ import serial  # type: ignore
 from .spike_status import SpikeStatus
 
 
-class ETRobot(object):
+class ETRobot:
     # Command IDs should be as same as (`spike/slot_prod.py`) the script in LEGO Spike Prime.
     COMMAND_SET_MOTOR_FORWARD_SPEED_ID = 201
     COMMAND_SET_MOTOR_BACKWARD_SPEED_ID = 202
@@ -18,7 +18,7 @@ class ETRobot(object):
 
     DUMMY = 1  # Dummy value for parameters
 
-    def __init__(self, port="/dev/ttyACM0") -> None:
+    def __init__(self, port: str = "/dev/ttyACM0") -> None:
         """Initialize the ETRobot with a serial connection.
 
         Args:
@@ -38,7 +38,7 @@ class ETRobot(object):
         self.__thread = threading.Thread(target=self.__update_status)
         self.__thread.start()
 
-    def __send_command(self, command) -> None:
+    def __send_command(self, command: bytes) -> None:
         """Send a command to the robot via the serial port."""
         self.__serial_port.write(self.CMD_FLAG + command)
 
@@ -141,13 +141,15 @@ class ETRobot(object):
             if current.motors[motor_id].position is not None:
                 last.motors[motor_id].position = current.motors[motor_id].position
             if current.motors[motor_id].relative_position is not None:
-                last.motors[motor_id].relative_position = current.motors[motor_id].relative_position
+                last.motors[motor_id].relative_position = current.motors[
+                    motor_id
+                ].relative_position
             if current.motors[motor_id].speed is not None:
                 last.motors[motor_id].speed = current.motors[motor_id].speed
             if current.motors[motor_id].power is not None:
                 last.motors[motor_id].power = current.motors[motor_id].power
 
-    def get_spike_status(self):
+    def get_spike_status(self) -> SpikeStatus:
         """
         Get the spike status with last known good sensor values.
 
@@ -156,7 +158,9 @@ class ETRobot(object):
         """
         return self.last_spike_status
 
-    def set_motor_relative_position(self, left_positon: int, right_position: int) -> None:
+    def set_motor_relative_position(
+        self, left_positon: int, right_position: int
+    ) -> None:
         id_byte = self.COMMAND_SET_MOTOR_RELATIVE_POSITION_ID.to_bytes(1, "big")
         parameter1_byte = left_positon.to_bytes(1, "big")
         parameter2_byte = right_position.to_bytes(1, "big")
@@ -177,15 +181,17 @@ class ETRobot(object):
         """
         status = self.get_spike_status()
 
-        if status.motors["A"].relative_position is not None:
-            motor_a_position = abs(status.motors["A"].relative_position)
-        else:
-            motor_a_position = 0
+        motor_a_position = (
+            abs(status.motors["A"].relative_position)
+            if status.motors["A"].relative_position is not None
+            else 0
+        )
 
-        if status.motors["B"].relative_position is not None:
-            motor_b_position = abs(status.motors["B"].relative_position)
-        else:
-            motor_b_position = 0
+        motor_b_position = (
+            abs(status.motors["B"].relative_position)
+            if status.motors["B"].relative_position is not None
+            else 0
+        )
 
         return motor_a_position + motor_b_position
 
@@ -197,7 +203,12 @@ class ETRobot(object):
             left_speed (int): Left motor speed (-100-100).
             right_speed (int): Right motor speed (-100-100).
         """
-        if left_speed < -100 or left_speed > 100 or right_speed < -100 or right_speed > 100:
+        if (
+            left_speed < -100
+            or left_speed > 100
+            or right_speed < -100
+            or right_speed > 100
+        ):
             raise ValueError("Motor speeds must be between -100 and 100.")
 
         if left_speed < 0 or right_speed < 0:

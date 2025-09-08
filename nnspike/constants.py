@@ -44,6 +44,7 @@ class Mode(Enum):
     TURN_RIGHT = 140
     MOVE_BACKWARD = 150
     PAUSE = 160
+    REMOTE_CONTROL = 999
 
 
 # Scale for relative position in motor control

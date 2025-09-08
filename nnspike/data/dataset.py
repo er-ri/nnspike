@@ -5,14 +5,14 @@ Modules:
     - cv2: OpenCV library for image processing.
     - torch: PyTorch library for tensor operations and neural networks.
     - albumentations as A: Albumentations library for image augmentations.
-    - torchvision.transforms as transforms: PyTorch's torchvision library for common image transformations.
+    - torchvision.transforms as transforms: PyTorch's torchvision library for common image transform_bright_shifttions.
     - PIL.Image: Python Imaging Library for image manipulation.
     - numpy as np: NumPy library for numerical operations.
     - torch.utils.data.Dataset: Base class for all datasets in PyTorch.
     - nnspike.utils.normalize_image: Custom function for image normalization.
 
 Constants:
-    - transformA (albumentations.ReplayCompose): Augmentation pipeline with random brightness/contrast adjustments and RGB shifts.
+    - transform_bright_shift (albumentations.ReplayCompose): Augmentation pipeline with random brightness/contrast adjustments and RGB shifts.
     - transform_flip (albumentations.Compose): Augmentation pipeline for horizontal flipping of images.
 
 Classes:
@@ -70,12 +70,13 @@ Usage Example:
 
 Note:
     - The `normalize_image` function should be defined in the `nnspike.utils` module.
-    - The `transformA` object applies random brightness/contrast adjustments and RGB shifts to the images.
+    - The `transform_bright_shift` object applies random brightness/contrast adjustments and RGB shifts to the images.
     - The `transform_flip` object applies horizontal flips to the images.
 """
 
-import albumentations as A
+import albumentations as A  # noqa: N812
 import cv2
+import numpy as np
 import torch
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset
@@ -83,7 +84,7 @@ from torch.utils.data import Dataset
 from nnspike.constants import Mode
 from nnspike.utils import normalize_image
 
-transformA = A.ReplayCompose(
+transform_bright_shift = A.ReplayCompose(
     [
         A.RandomBrightnessContrast(p=0.5),
         A.RGBShift(r_shift_limit=15, g_shift_limit=15, b_shift_limit=15, p=0.5),
@@ -95,15 +96,17 @@ transform_flip = A.Compose(
 )
 
 
-def _rand_relative_position(relative_position: torch.Tensor, position_variation: float) -> torch.Tensor:
+def _rand_relative_position(
+    relative_position: float, position_variation: float
+) -> torch.Tensor:
     """Add random variation to relative position for data augmentation.
 
     Args:
-        relative_position (torch.Tensor): The original relative position value.
+        relative_position (float): The original relative position value.
         position_variation (float): The maximum amount of random variation to add/subtract.
 
     Returns:
-        torch.Tensor: The adjusted relative position, clamped between 0 and 1.
+        float: The adjusted relative position, clamped between 0 and 1.
     """
     min_val = -position_variation
     max_val = position_variation
@@ -111,11 +114,11 @@ def _rand_relative_position(relative_position: torch.Tensor, position_variation:
 
     random_floats = torch.rand(size=[1], dtype=torch.float32)
     random_floats = random_floats * range_val + min_val
-    relative_position = torch.tensor(relative_position, dtype=torch.float32)
-    relative_position = relative_position + random_floats
-    relative_position = torch.clamp(relative_position, min=0, max=1)
+    tensor_relative_position = torch.tensor(relative_position, dtype=torch.float32)
+    tensor_relative_position = tensor_relative_position + random_floats
+    tensor_relative_position = torch.clamp(tensor_relative_position, min=0, max=1)
 
-    return relative_position
+    return tensor_relative_position
 
 
 class RegressionDataset(Dataset):
@@ -130,17 +133,26 @@ class RegressionDataset(Dataset):
 
     preprocess = transforms.ToTensor()
 
-    def __init__(self, inputs, outputs, roi, train_course, position_variation=0.00625):
+    def __init__(
+        self,
+        inputs: list[tuple[str, float, str]],
+        outputs: list[float],
+        roi: np.ndarray,
+        train_course: str,
+        position_variation: float = 0.00625,
+    ) -> None:
         self.inputs = inputs
         self.outputs = outputs
         self.roi = roi
         self.train_course = train_course
         self.position_variation = position_variation
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.inputs)
 
-    def __getitem__(self, idx):
+    def __getitem__(
+        self, idx: int
+    ) -> tuple[tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         image_path = self.inputs[idx][0]
         image = cv2.imread(image_path)
         roi_area = image[self.roi[1] : self.roi[3], self.roi[0] : self.roi[2]]
@@ -150,7 +162,7 @@ class RegressionDataset(Dataset):
         target_x = self.outputs[idx] - self.roi[0]
 
         # Apply brightness and RGB shift
-        roi_area = transformA(image=roi_area)["image"]
+        roi_area = transform_bright_shift(image=roi_area)["image"]
 
         # Horizontal flip the image if the course is not equal to the training course
         if course != self.train_course:
@@ -162,12 +174,14 @@ class RegressionDataset(Dataset):
         roi_area = roi_area.to(torch.float32)  # `Conv2d` supports up to `float32`
 
         # Add the random floats to the original relative position
-        relative_position = _rand_relative_position(relative_position, self.position_variation)
+        relative_position = _rand_relative_position(
+            relative_position, self.position_variation
+        )
 
         target_x = (target_x) / (self.roi[2] - self.roi[0])
         target_x = torch.tensor(target_x, dtype=torch.float32).unsqueeze(-1)
 
-        return tuple([roi_area, relative_position]), target_x
+        return (roi_area, relative_position), target_x
 
 
 class ClassificationDataset(Dataset):
@@ -183,7 +197,15 @@ class ClassificationDataset(Dataset):
 
     preprocess = transforms.ToTensor()
 
-    def __init__(self, inputs, outputs, roi, train_course, position_variation=0.00625, transform=None):
+    def __init__(
+        self,
+        inputs: list[tuple[str, float, str]],
+        outputs: list[int],
+        roi: np.ndarray,
+        train_course: str,
+        position_variation: float = 0.00625,
+        transform: A.Transform = None,
+    ) -> None:
         self.inputs = inputs
         self.outputs = outputs
         self.roi = roi
@@ -191,10 +213,12 @@ class ClassificationDataset(Dataset):
         self.position_variation = position_variation
         self.transform = transform
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.inputs)
 
-    def __getitem__(self, idx):
+    def __getitem__(
+        self, idx: int
+    ) -> tuple[tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         image_path = self.inputs[idx][0]
         image = cv2.imread(image_path)
         roi_area = image[self.roi[1] : self.roi[3], self.roi[0] : self.roi[2]]
@@ -202,7 +226,7 @@ class ClassificationDataset(Dataset):
         course = self.inputs[idx][2]
 
         # Apply brightness and RGB shift
-        roi_area = transformA(image=roi_area)["image"]
+        roi_area = transform_bright_shift(image=roi_area)["image"]
 
         # Horizontal flip the image if the course is not equal to the training course
         if course != self.train_course:
@@ -217,12 +241,14 @@ class ClassificationDataset(Dataset):
         roi_area = roi_area.to(torch.float32)  # `Conv2d` supports up to `float32`
 
         # Add the random floats to the original relative position
-        relative_position = _rand_relative_position(relative_position, self.position_variation)
+        relative_position = _rand_relative_position(
+            relative_position, self.position_variation
+        )
 
         # Convert the mode to a tensor
         mode = torch.tensor(self.outputs[idx], dtype=torch.long)
 
-        return tuple([roi_area, relative_position]), mode
+        return (roi_area, relative_position), mode
 
 
 class MultiTaskDataset(Dataset):
@@ -238,17 +264,26 @@ class MultiTaskDataset(Dataset):
 
     preprocess = transforms.ToTensor()
 
-    def __init__(self, inputs, outputs, roi, train_course, position_variation=0.00625):
+    def __init__(
+        self,
+        inputs: list[tuple[str, float, str]],
+        outputs: list[tuple[int, float]],
+        roi: np.ndarray,
+        train_course: str,
+        position_variation: float = 0.00625,
+    ) -> None:
         self.inputs = inputs
         self.outputs = outputs
         self.roi = roi
         self.train_course = train_course
         self.position_variation = position_variation
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.inputs)
 
-    def __getitem__(self, idx):
+    def __getitem__(
+        self, idx: int
+    ) -> tuple[tuple[torch.Tensor, torch.Tensor], tuple[int, torch.Tensor]]:
         image_path = self.inputs[idx][0]
         image = cv2.imread(image_path)
         roi_area = image[self.roi[1] : self.roi[3], self.roi[0] : self.roi[2]]
@@ -259,22 +294,30 @@ class MultiTaskDataset(Dataset):
         mode = self.outputs[idx][0]
 
         # Apply brightness and RGB shift
-        roi_area = transformA(image=roi_area)["image"]
+        roi_area = transform_bright_shift(image=roi_area)["image"]
 
         # Horizontal flip the image if the course is not equal to the training course
         if course != self.train_course:
             roi_area = transform_flip(image=roi_area)["image"]
             target_x = (self.roi[2] - self.roi[0]) - target_x
-            mode = Mode.FOLLOW_LEFT_EDGE.value if mode == Mode.FOLLOW_RIGHT_EDGE.value else Mode.FOLLOW_RIGHT_EDGE.value
+            mode = (
+                Mode.FOLLOW_LEFT_EDGE.value
+                if mode == Mode.FOLLOW_RIGHT_EDGE.value
+                else Mode.FOLLOW_RIGHT_EDGE.value
+            )
 
         roi_area = normalize_image(image=roi_area)
-        roi_area = self.preprocess(roi_area)  # Convert to pytorch tensor
-        roi_area = roi_area.to(torch.float32)  # `Conv2d` supports up to `float32`
+        tensor_roi_area = self.preprocess(roi_area)  # Convert to pytorch tensor
+        tensor_roi_area = tensor_roi_area.to(
+            torch.float32
+        )  # `Conv2d` supports up to `float32`
 
         # Add the random floats to the original relative position
-        relative_position = _rand_relative_position(relative_position, self.position_variation)
+        relative_position = _rand_relative_position(
+            relative_position, self.position_variation
+        )
 
         target_x = (target_x) / (self.roi[2] - self.roi[0])
         target_x = torch.tensor(target_x, dtype=torch.float32).unsqueeze(-1)
 
-        return tuple([roi_area, relative_position]), tuple([mode, target_x])
+        return (tensor_roi_area, relative_position), (mode, target_x)

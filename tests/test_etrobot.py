@@ -25,7 +25,9 @@ while time.time() - start_time < 5.0:
 
     left_pos = status.motors["A"].relative_position
     right_pos = status.motors["B"].relative_position
-    print(f"Time: {time.time() - start_time:.2f}s | Left motor: {left_pos} | Right motor: {right_pos}")
+    print(
+        f"Time: {time.time() - start_time:.2f}s | Left motor: {left_pos} | Right motor: {right_pos}"
+    )
     time.sleep(0.1)  # Print every 200ms
 
 robot.stop()  # Stop the robot

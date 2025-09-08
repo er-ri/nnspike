@@ -24,6 +24,7 @@ PID Tuning Parameters:
     - Too low: May overshoot on turns
     - Start with: 2-10
 """
+
 import argparse
 import math
 import pickle
@@ -42,11 +43,24 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 
-from nnspike.constants import CAMERA_FOCAL_LENGTH_PIXELS, CAMERA_HEIGHT, OFFSET_Y, RELATIVE_POSITION_SCALE, ROI_CNN, Mode
+from nnspike.constants import (
+    CAMERA_FOCAL_LENGTH_PIXELS,
+    CAMERA_HEIGHT,
+    OFFSET_Y,
+    RELATIVE_POSITION_SCALE,
+    ROI_CNN,
+    Mode,
+)
 from nnspike.unit import ETRobot
 from nnspike.unit.action_chain import ActionChain
-from nnspike.utils import PIDController, SensorRecorder, calculate_attitude_angle, draw_driving_info, find_line_edges_at_y
-from scripts.utils import model_inference, process_image
+from nnspike.utils import (
+    PIDController,
+    SensorRecorder,
+    calculate_attitude_angle,
+    draw_driving_info,
+    find_line_edges_at_y,
+)
+from scripts.utils import process_image
 
 # User defined constants
 x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
@@ -57,7 +71,9 @@ BASE_SPEED = 45  # Base speed for straight lines (adjust this first)
 TURN_SPEED = 30  # Speed for turns (adjust this if needed)
 
 # Socket connection settings
-HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
+HOST_IP_ADDRESS = (
+    "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
+)
 
 # Camera setup
 cap = cv2.VideoCapture(0)
@@ -67,7 +83,7 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
 
 class KeyboardController:
-    def __init__(self):
+    def __init__(self) -> None:
         self.running = True
         self.current_key = None
 
@@ -75,7 +91,7 @@ class KeyboardController:
         self.old_settings = termios.tcgetattr(sys.stdin)  # type: ignore
         tty.setraw(sys.stdin.fileno())  # type: ignore
 
-    def get_key(self):
+    def get_key(self) -> str | None:
         """Get a single keypress from standard input.
 
         Returns:
@@ -86,7 +102,7 @@ class KeyboardController:
             return key
         return None
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Restore terminal settings to their original state.
 
         This method should be called before exiting to ensure the terminal
@@ -96,24 +112,33 @@ class KeyboardController:
 
 
 def main(
-    record_sensor_data=False, save_camera_video=False, send_video_stream=False, course="left", initial_mode=None, model_path=None
-):
+    record_sensor_data: bool = False,
+    save_camera_video: bool = False,
+    send_video_stream: bool = False,
+    course: str = "left",
+    initial_mode: Mode | None = None,
+    model_path: str | None = None,
+) -> None:
     # Initialize model
     session = ort.InferenceSession(model_path)
 
     # Generate timestamp for consistent naming if recording is enabled
-    TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
+    timestamp = (
+        time.strftime("%Y%m%d%H%M%S", time.localtime())
+        if (record_sensor_data or save_camera_video)
+        else None
+    )
 
     # Initialize sensor recorder conditionally
     sensor_recorder = None
     if record_sensor_data:
-        sensor_recorder = SensorRecorder(timestamp=TIMESTAMP)
+        sensor_recorder = SensorRecorder(timestamp=timestamp)
         sensor_recorder.start_recording()  # Initialize video writer conditionally
     video_writer = None
 
     if save_camera_video:
         fourcc = cv2.VideoWriter_fourcc(*"XVID")  # type: ignore[attr-defined]
-        video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
+        video_filename = f"storage/videos/{timestamp}_picamera.avi"
         video_writer = cv2.VideoWriter(
             filename=video_filename,
             fourcc=fourcc,
@@ -141,9 +166,9 @@ def main(
     # Initialize robot, PID controller, and keyboard controller
     keyboard = KeyboardController()
     pid = PIDController(
-        Kp=50,  # Reduced from 50 to minimize zigzag behavior
-        Ki=0,  # Small integral term to eliminate steady-state error
-        Kd=5,  # Derivative term to smooth out rapid changes
+        kp=50,  # Reduced from 50 to minimize zigzag behavior
+        ki=0,  # Small integral term to eliminate steady-state error
+        kd=5,  # Derivative term to smooth out rapid changes
         setpoint=0,
         output_limits=(
             -BASE_SPEED,
@@ -221,7 +246,9 @@ def main(
             left_speed, right_speed = 0, 0
 
             motors_relative_position = et.retrieve_motors_relative_position()
-            scaled_relative_position = motors_relative_position / RELATIVE_POSITION_SCALE
+            scaled_relative_position = (
+                motors_relative_position / RELATIVE_POSITION_SCALE
+            )
             image = cv2.resize(frame, (200, 66))  # Resize to model input size
             image = image.astype(np.float32) / 255.0  # Normalize
             image = np.transpose(image, (2, 0, 1))  # HWC to CHW
@@ -237,22 +264,38 @@ def main(
 
             match mode:
                 case Mode.FOLLOW_LEFT_EDGE:
-                    target_x, _, mode = action_chain.follow_left_edge(image=frame, predicted_x=predicted_x)
+                    target_x, _, mode = action_chain.follow_left_edge(
+                        image=frame, predicted_x=predicted_x
+                    )
                 case Mode.FOLLOW_RIGHT_EDGE:
-                    target_x, _, mode = action_chain.follow_right_edge(image=frame, predicted_x=predicted_x)
+                    target_x, _, mode = action_chain.follow_right_edge(
+                        image=frame, predicted_x=predicted_x
+                    )
                 case Mode.AVOID_OBSTACLE:
                     _, speed, mode = action_chain.avoid_obstacle(init_flag=True)
                 # Manual Control Modes
                 case Mode.MOVE_FORWARD:
                     speed = (BASE_SPEED, BASE_SPEED)
                 case Mode.MOVE_FORWARD_LEFT:
-                    speed = (int(BASE_SPEED * 0.8), BASE_SPEED)  # Slightly reduce left wheel speed
+                    speed = (
+                        int(BASE_SPEED * 0.8),
+                        BASE_SPEED,
+                    )  # Slightly reduce left wheel speed
                 case Mode.MOVE_FORWARD_RIGHT:
-                    speed = (BASE_SPEED, int(BASE_SPEED * 0.8))  # Slightly reduce right wheel speed
+                    speed = (
+                        BASE_SPEED,
+                        int(BASE_SPEED * 0.8),
+                    )  # Slightly reduce right wheel speed
                 case Mode.TURN_LEFT:
-                    speed = (0, TURN_SPEED)  # Left wheel stopped, right wheel moving forward
+                    speed = (
+                        0,
+                        TURN_SPEED,
+                    )  # Left wheel stopped, right wheel moving forward
                 case Mode.TURN_RIGHT:
-                    speed = (TURN_SPEED, 0)  # Right wheel stopped, left wheel moving forward
+                    speed = (
+                        TURN_SPEED,
+                        0,
+                    )  # Right wheel stopped, left wheel moving forward
                 case Mode.MOVE_BACKWARD:
                     speed = (-BASE_SPEED, -BASE_SPEED)  # Both wheels moving backward
                 case Mode.PAUSE:
@@ -283,7 +326,9 @@ def main(
             elif speed is not None:
                 left_speed, right_speed = speed
             else:
-                raise ValueError("No valid target_x or speed provided for motor control")
+                raise ValueError(
+                    "No valid target_x or speed provided for motor control"
+                )
 
             # Clamp speed values to valid range (-100, 100)
             left_speed = int(max(-100, min(100, left_speed)))
@@ -305,9 +350,11 @@ def main(
                 info: dict[str, Any] = {}
                 info["target_x"], info["offset_y"] = x1 + mx, y1 + my
                 info["text"] = {
-                    "mode": mode.name,
+                    "mode": mode.name if mode else "N/A",
                     "distance_sensor": status.sensors.distance,
-                    "reflective_sensor": status.sensors.color.reflected,
+                    "reflective_sensor": status.sensors.color.reflected
+                    if status.sensors.color
+                    else "N/A",
                     "left_relative_position": left_pos,
                     "right_relative_position": right_pos,
                 }
@@ -319,8 +366,12 @@ def main(
                 if max_contour is not None:
                     # Adjust contour coordinates to full frame
                     adjusted_contour = max_contour + np.array([x1, y1])
-                    cv2.drawContours(gray, [adjusted_contour], -1, (255, 255, 255), 2)  # Draw centroid
-                    cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
+                    cv2.drawContours(
+                        gray, [adjusted_contour], -1, (255, 255, 255), 2
+                    )  # Draw centroid
+                    cv2.circle(
+                        gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1
+                    )
 
                 try:
                     ret, buffer = cv2.imencode(".jpg", gray)
@@ -360,9 +411,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Run the OpenCV-based line following robot with optional sensor recording and video saving"
     )
-    parser.add_argument("--record-sensor", action="store_true", help="Record sensor data to file")
-    parser.add_argument("--save-video", action="store_true", help="Save camera video to file")
-    parser.add_argument("--send-video", action="store_true", help="Send video stream to host PC")
+    parser.add_argument(
+        "--record-sensor", action="store_true", help="Record sensor data to file"
+    )
+    parser.add_argument(
+        "--save-video", action="store_true", help="Save camera video to file"
+    )
+    parser.add_argument(
+        "--send-video", action="store_true", help="Send video stream to host PC"
+    )
     parser.add_argument(
         "--course",
         choices=["left", "right"],
@@ -378,7 +435,9 @@ if __name__ == "__main__":
             "3=head_bottle1, 4=carry_bottle1, 5=head_bottle2"
         ),
     )
-    parser.add_argument("--model-path", type=str, required=True, help="Path to the model file to load")
+    parser.add_argument(
+        "--model-path", type=str, required=True, help="Path to the model file to load"
+    )
 
     args = parser.parse_args()
 
@@ -396,7 +455,9 @@ if __name__ == "__main__":
     print(f"Using ROI: {ROI_CNN}")
     print(f"Base speed: {BASE_SPEED}")
     print(f"course: {args.course}")
-    print(f"Initial mode: {args.initial_mode if args.initial_mode else 'Default (based on course)'}")
+    print(
+        f"Initial mode: {args.initial_mode if args.initial_mode else 'Default (based on course)'}"
+    )
     print(f"Video streaming to host PC: {'Enabled' if args.send_video else 'Disabled'}")
     print("Controls:")
     print("  'a' - Follow left edge")
