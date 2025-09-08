@@ -180,13 +180,19 @@ def test_sensor_stability(et):
     print(f"\n4️⃣ センサーデータ安定性テスト")
     print("="*50)
     
-    test_duration = 10  # 10秒間
-    print(f"📊 {test_duration}秒間 status.raw_data (生JSON) をそのままprintします")
+    test_duration = 2  # 2秒間
+    print(f"📊 {test_duration}秒間 status.raw_data (生JSON)と受信サイクル(ms)をprintします")
     start_time = time.time()
+    prev_ts = None
     while time.time() - start_time < test_duration:
         try:
             status = et.get_spike_status()
-            print(status.raw_data)
+            ts = status.timestamp
+            cycle = None
+            if prev_ts is not None:
+                cycle = (ts - prev_ts) * 1000
+            prev_ts = ts
+            print(f"cycle={cycle:.2f}ms, raw={status.raw_data}" if cycle is not None else f"raw={status.raw_data}")
             time.sleep(0.01)
         except Exception as e:
             print(f"  ⚠️  データ取得エラー: {e}")
