@@ -243,14 +243,14 @@ def main():
         return
     
     try:
-        # 3. 受信サイクル計測
-        measure_receive_cycle(et, duration_sec=5)
-
-        # 4. 通信速度テスト
+        # 3. 通信速度テスト
         test_communication_speed(et)
 
-        # 5. モーター制御テスト
+        # 4. モーター制御テスト
         test_motor_control(et)
+
+        # 5. モーター制御後に受信サイクル計測
+        measure_receive_cycle(et, duration_sec=5)
 
         # 6. センサー安定性テスト
         test_sensor_stability(et)
