@@ -170,8 +170,10 @@ class RegressionDataset(Dataset):
             target_x = (self.roi[2] - self.roi[0]) - target_x
 
         roi_area = normalize_image(image=roi_area)
-        roi_area = self.preprocess(roi_area)  # Convert to pytorch tensor
-        roi_area = roi_area.to(torch.float32)  # `Conv2d` supports up to `float32`
+        tensor_roi_area = self.preprocess(roi_area)  # Convert to pytorch tensor
+        tensor_roi_area = tensor_roi_area.to(
+            torch.float32
+        )  # `Conv2d` supports up to `float32`
 
         # Add the random floats to the original relative position
         relative_position = _rand_relative_position(
@@ -181,7 +183,7 @@ class RegressionDataset(Dataset):
         target_x = (target_x) / (self.roi[2] - self.roi[0])
         target_x = torch.tensor(target_x, dtype=torch.float32).unsqueeze(-1)
 
-        return (roi_area, relative_position), target_x
+        return (tensor_roi_area, relative_position), target_x
 
 
 class ClassificationDataset(Dataset):
@@ -204,7 +206,7 @@ class ClassificationDataset(Dataset):
         roi: np.ndarray,
         train_course: str,
         position_variation: float = 0.00625,
-        transform: A.Transform = None,
+        transform: A.Transform | None = None,
     ) -> None:
         self.inputs = inputs
         self.outputs = outputs
@@ -237,8 +239,10 @@ class ClassificationDataset(Dataset):
             roi_area = self.transform(image=roi_area)["image"]
 
         roi_area = normalize_image(image=roi_area)
-        roi_area = self.preprocess(roi_area)  # Convert to pytorch tensor
-        roi_area = roi_area.to(torch.float32)  # `Conv2d` supports up to `float32`
+        tensor_roi_area = self.preprocess(roi_area)  # Convert to pytorch tensor
+        tensor_roi_area = tensor_roi_area.to(
+            torch.float32
+        )  # `Conv2d` supports up to `float32`
 
         # Add the random floats to the original relative position
         relative_position = _rand_relative_position(
@@ -248,7 +252,7 @@ class ClassificationDataset(Dataset):
         # Convert the mode to a tensor
         mode = torch.tensor(self.outputs[idx], dtype=torch.long)
 
-        return (roi_area, relative_position), mode
+        return (tensor_roi_area, relative_position), mode
 
 
 class MultiTaskDataset(Dataset):

@@ -96,9 +96,9 @@ class SensorRecorder:
         os.makedirs(self.output_dir, exist_ok=True)
 
         # Open file with buffering for performance
-        with open(self.csv_filename, "w", newline="", buffering=8192) as self.csv_file:
-            self.csv_writer = csv.writer(self.csv_file)
-            self.csv_writer.writerow(self.headers)  # Register cleanup function
+        self.csv_file = open(self.csv_filename, "w", newline="", buffering=8192)  # noqa: SIM115
+        self.csv_writer = csv.writer(self.csv_file)
+        self.csv_writer.writerow(self.headers)
         atexit.register(self.stop_recording)
 
         self.is_recording = True
