@@ -147,27 +147,21 @@ def check_battery():
             print(f"   電圧: {avg_voltage:.2f}V")
             print(f"   残量: {avg_percent:.1f}%")
             
-            # バッテリー状態判定と推奨設定
+            # バッテリー状態判定のみ（スピード推奨は削除）
             print(f"\n🔋 バッテリー判定:")
             if avg_voltage >= 8.5:
                 status_msg = "🟢 フル充電 - 最高性能"
-                recommended_speed = 95
                 run_recommendation = "✅ 本番実行OK"
             elif avg_voltage >= 8.0:
                 status_msg = "🟡 良好 - 通常性能"
-                recommended_speed = 85
                 run_recommendation = "✅ 本番実行OK"
             elif avg_voltage >= 7.5:
                 status_msg = "🟠 中程度 - 性能低下"
-                recommended_speed = 75
                 run_recommendation = "⚠️  本番実行注意（充電推奨）"
             else:
                 status_msg = "🔴 要充電 - 大幅性能低下"
-                recommended_speed = 65
                 run_recommendation = "❌ 本番実行非推奨（要充電）"
-            
             print(f"   {status_msg}")
-            print(f"\n⚙️  推奨HIGH_SPEED_BASE: {recommended_speed}")
             print(f"🏃 本番実行判定: {run_recommendation}")
             
         else:
