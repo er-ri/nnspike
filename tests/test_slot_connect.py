@@ -110,8 +110,8 @@ def test_communication_speed(et):
             interval = (now_time - prev_time) * 1000  # ms
             intervals.append(interval)
             count += 1
-            if count <= 10 or count % 20 == 0:
-                print(f"  {count}回目: {interval:.2f}ms, raw={status.raw_data}")
+        if count <= 10 or count % 20 == 0:
+            print(f"  {count}回目: {interval:.2f}ms, raw={status.raw_data}")
         prev_time = now_time
         time.sleep(0.001)
     if intervals:
