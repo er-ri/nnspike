@@ -15,7 +15,7 @@ This project combines a LEGO SPIKE Prime Hub with a Raspberry Pi to create an ro
 > [!NOTE]
 > A 64-bit Raspberry Pi is required because `pytorch` doesn't work on a 32-bit system.
 
-## Gettting Started
+## Getting Started
 1.  Install dependencies on Host PC
 
         pip install -r requirements.txt
@@ -28,7 +28,7 @@ This project combines a LEGO SPIKE Prime Hub with a Raspberry Pi to create an ro
 
         pip install -r requirements-raspi.txt
 
-4.  Select the corresponing slot on SPIKE and press the button to launch the script of `spike/slot_prod.py`.
+4.  Select the corresponding slot on SPIKE and press the button to launch the script of `spike/slot_prod.py`.
 5.  Run the command `python run.py --model-path "to/your/model.pt"` on Raspberry Pi to starting the lego spike robot.
 
 
@@ -83,6 +83,27 @@ This project combines a LEGO SPIKE Prime Hub with a Raspberry Pi to create an ro
 ├── requirements-raspi.txt         # Raspberry Pi dependencies
 └── README.md                      # This file
 ```
+
+## Development
+
+### Setup Development Environment
+
+1. Install development dependencies:
+   ```bash
+   uv sync --extra dev
+   ```
+
+2. Install pre-commit hooks:
+   ```bash
+   uv run pre-commit install
+   ```
+
+### Code Quality Commands
+
+- **Lint and auto-fix issues**: `uv run ruff check --fix nnspike/`
+- **Format code**: `uv run ruff format nnspike/`
+- **Type checking**: `uv run mypy nnspike/`
+- **Pre-commit on all files**: `uv run pre-commit run --all-files`
 
 ## License
 

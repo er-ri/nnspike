@@ -1,20 +1,20 @@
 import json
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 
 @dataclass
 class MotorStatus:
     """Status information for a motor connected to the Spike Prime hub."""
 
-    position: Optional[int] = None
-    power: Optional[int] = None
-    relative_position: Optional[int] = None
-    speed: Optional[int] = None
+    position: int | None = None
+    power: int | None = None
+    relative_position: int | None = None
+    speed: int | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "MotorStatus":
+    def from_dict(cls, data: dict[str, Any]) -> "MotorStatus":
         return cls(
             position=data.get("position"),
             power=data.get("power"),
@@ -27,12 +27,12 @@ class MotorStatus:
 class ColorSensorStatus:
     """Status information for a color sensor connected to the Spike Prime hub."""
 
-    reflected: Optional[int] = None
-    ambient: Optional[int] = None
-    color: Optional[int] = None
+    reflected: int | None = None
+    ambient: int | None = None
+    color: int | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ColorSensorStatus":
+    def from_dict(cls, data: dict[str, Any]) -> "ColorSensorStatus":
         return cls(
             reflected=data.get("reflected"),
             ambient=data.get("ambient"),
@@ -49,7 +49,7 @@ class VectorStatus:
     z: float = 0.0
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "VectorStatus":
+    def from_dict(cls, data: dict[str, Any]) -> "VectorStatus":
         return cls(x=data.get("x", 0.0), y=data.get("y", 0.0), z=data.get("z", 0.0))
 
 
@@ -61,7 +61,7 @@ class Position:
     y: float = 0.0
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Position":
+    def from_dict(cls, data: dict[str, Any]) -> "Position":
         return cls(x=data.get("x", 0.0), y=data.get("y", 0.0))
 
 
@@ -69,11 +69,11 @@ class Position:
 class BatteryStatus:
     """Battery status information from the Spike Prime hub."""
 
-    voltage: Optional[float] = None
-    percent: Optional[float] = None
+    voltage: float | None = None
+    percent: float | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "BatteryStatus":
+    def from_dict(cls, data: dict[str, Any]) -> "BatteryStatus":
         return cls(voltage=data.get("voltage"), percent=data.get("percent"))
 
 
@@ -81,22 +81,38 @@ class BatteryStatus:
 class SensorStatus:
     """Status information for all sensors connected to the Spike Prime hub."""
 
-    distance: Optional[int] = None
-    force: Optional[int] = None
-    color: Optional[ColorSensorStatus] = None
-    gyro: Optional[VectorStatus] = None
-    accelerometer: Optional[VectorStatus] = None
-    position: Optional[Position] = None
+    distance: int | None = None
+    force: int | None = None
+    color: ColorSensorStatus | None = None
+    gyro: VectorStatus | None = None
+    accelerometer: VectorStatus | None = None
+    position: Position | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SensorStatus":
+    def from_dict(cls, data: dict[str, Any]) -> "SensorStatus":
         return cls(
             distance=data.get("distance"),
             force=data.get("force"),
-            color=(ColorSensorStatus.from_dict(data.get("color", {})) if data.get("color") else None),
-            gyro=(VectorStatus.from_dict(data.get("gyro", {})) if data.get("gyro") else None),
-            accelerometer=(VectorStatus.from_dict(data.get("accelerometer", {})) if data.get("accelerometer") else None),
-            position=(Position.from_dict(data.get("position", {})) if data.get("position") else None),
+            color=(
+                ColorSensorStatus.from_dict(data.get("color", {}))
+                if data.get("color")
+                else None
+            ),
+            gyro=(
+                VectorStatus.from_dict(data.get("gyro", {}))
+                if data.get("gyro")
+                else None
+            ),
+            accelerometer=(
+                VectorStatus.from_dict(data.get("accelerometer", {}))
+                if data.get("accelerometer")
+                else None
+            ),
+            position=(
+                Position.from_dict(data.get("position", {}))
+                if data.get("position")
+                else None
+            ),
         )
 
 
@@ -108,7 +124,7 @@ class SpikeStatus:
     Spike Prime, including sensor readings, motor positions, and battery status.
     """
 
-    def __init__(self, raw_data: Optional[Union[str, bytes, Dict]] = None):
+    def __init__(self, raw_data: str | bytes | dict | None = None):
         """
         Initialize the SpikeStatus object.
 
@@ -117,19 +133,19 @@ class SpikeStatus:
         """
         self.timestamp: float = time.time()
         self.message_type: int = -1
-        self.motors: Dict[str, MotorStatus] = {
+        self.motors: dict[str, MotorStatus] = {
             "A": MotorStatus(),
             "B": MotorStatus(),
             "C": MotorStatus(),  # Add motor arm (port C)
         }
         self.sensors: SensorStatus = SensorStatus()
         self.battery: BatteryStatus = BatteryStatus()
-        self.raw_data: Dict = {}
+        self.raw_data: dict = {}
 
         if raw_data is not None:
             self.update(raw_data)
 
-    def update(self, data: Union[str, bytes, Dict]) -> None:
+    def update(self, data: str | bytes | dict) -> None:
         """
         Update the status with new data from the Spike Prime.
 
@@ -158,7 +174,7 @@ class SpikeStatus:
         self.battery = BatteryStatus.from_dict(battery_data)
 
     @staticmethod
-    def _parse_data(data: Union[str, bytes, Dict]) -> Dict:
+    def _parse_data(data: str | bytes | dict) -> dict:
         """
         Parse raw data from Spike Prime into a dictionary.
 
@@ -211,53 +227,135 @@ class SpikeStatus:
             }
 
             # Process the payload based on message type
-            if message_type == 0:  # Sensor data message                # Motor A and B position - Port 48
-                motor_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 48]
+            if (
+                message_type == 0
+            ):  # Sensor data message                # Motor A and B position - Port 48
+                motor_entries = [
+                    p for p in payload if p and isinstance(p, list) and p[0] == 48
+                ]
                 if len(motor_entries) >= 2:
                     result["motors"]["A"] = {
-                        "speed": (motor_entries[1][1][0] if len(motor_entries[1][1]) > 0 else None),
-                        "relative_position": (motor_entries[1][1][1] if len(motor_entries[1][1]) > 2 else None),
-                        "position": (motor_entries[1][1][2] if len(motor_entries[1][1]) > 2 else None),
-                        "power": (motor_entries[1][1][3] if len(motor_entries[1][1]) > 3 else None),
+                        "speed": (
+                            motor_entries[1][1][0]
+                            if len(motor_entries[1][1]) > 0
+                            else None
+                        ),
+                        "relative_position": (
+                            motor_entries[1][1][1]
+                            if len(motor_entries[1][1]) > 2
+                            else None
+                        ),
+                        "position": (
+                            motor_entries[1][1][2]
+                            if len(motor_entries[1][1]) > 2
+                            else None
+                        ),
+                        "power": (
+                            motor_entries[1][1][3]
+                            if len(motor_entries[1][1]) > 3
+                            else None
+                        ),
                     }
                     result["motors"]["B"] = {
-                        "speed": (motor_entries[0][1][0] if len(motor_entries[0][1]) > 0 else None),
-                        "relative_position": (motor_entries[0][1][1] if len(motor_entries[0][1]) > 2 else None),
-                        "position": (motor_entries[0][1][2] if len(motor_entries[0][1]) > 2 else None),
-                        "power": (motor_entries[0][1][3] if len(motor_entries[0][1]) > 3 else None),
+                        "speed": (
+                            motor_entries[0][1][0]
+                            if len(motor_entries[0][1]) > 0
+                            else None
+                        ),
+                        "relative_position": (
+                            motor_entries[0][1][1]
+                            if len(motor_entries[0][1]) > 2
+                            else None
+                        ),
+                        "position": (
+                            motor_entries[0][1][2]
+                            if len(motor_entries[0][1]) > 2
+                            else None
+                        ),
+                        "power": (
+                            motor_entries[0][1][3]
+                            if len(motor_entries[0][1]) > 3
+                            else None
+                        ),
                     }
 
                 # Motor arm (C) - Port 49
-                motor_arm_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 49]
+                motor_arm_entries = [
+                    p for p in payload if p and isinstance(p, list) and p[0] == 49
+                ]
                 if motor_arm_entries:
                     result["motors"]["C"] = {
-                        "speed": (motor_arm_entries[0][1][0] if len(motor_arm_entries[0][1]) > 0 else None),
-                        "relative_position": (motor_arm_entries[0][1][1] if len(motor_arm_entries[0][1]) > 2 else None),
-                        "position": (motor_arm_entries[0][1][2] if len(motor_arm_entries[0][1]) > 2 else None),
-                        "power": (motor_arm_entries[0][1][3] if len(motor_arm_entries[0][1]) > 3 else None),
+                        "speed": (
+                            motor_arm_entries[0][1][0]
+                            if len(motor_arm_entries[0][1]) > 0
+                            else None
+                        ),
+                        "relative_position": (
+                            motor_arm_entries[0][1][1]
+                            if len(motor_arm_entries[0][1]) > 2
+                            else None
+                        ),
+                        "position": (
+                            motor_arm_entries[0][1][2]
+                            if len(motor_arm_entries[0][1]) > 2
+                            else None
+                        ),
+                        "power": (
+                            motor_arm_entries[0][1][3]
+                            if len(motor_arm_entries[0][1]) > 3
+                            else None
+                        ),
                     }
 
                 # Force sensor - Port 63
-                force_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 63]
+                force_entries = [
+                    p for p in payload if p and isinstance(p, list) and p[0] == 63
+                ]
                 if force_entries:
-                    result["sensors"]["force"] = force_entries[0][1][1] if len(force_entries[0][1]) > 2 else None
+                    result["sensors"]["force"] = (
+                        force_entries[0][1][1] if len(force_entries[0][1]) > 2 else None
+                    )
 
                 # Distance sensor - Port 62
-                distance_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 62]
+                distance_entries = [
+                    p for p in payload if p and isinstance(p, list) and p[0] == 62
+                ]
                 if distance_entries:
-                    result["sensors"]["distance"] = distance_entries[0][1][0] if len(distance_entries[0][1]) > 0 else None
+                    result["sensors"]["distance"] = (
+                        distance_entries[0][1][0]
+                        if len(distance_entries[0][1]) > 0
+                        else None
+                    )
 
                 # Color sensor - Port 61
-                color_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 61]
+                color_entries = [
+                    p for p in payload if p and isinstance(p, list) and p[0] == 61
+                ]
                 if color_entries and len(color_entries[0][1]) > 4:
                     result["sensors"]["color"] = {
-                        "reflected": (color_entries[0][1][2] if len(color_entries[0][1]) > 2 else None),
-                        "ambient": (color_entries[0][1][3] if len(color_entries[0][1]) > 3 else None),
-                        "color": (color_entries[0][1][4] if len(color_entries[0][1]) > 4 else None),
+                        "reflected": (
+                            color_entries[0][1][2]
+                            if len(color_entries[0][1]) > 2
+                            else None
+                        ),
+                        "ambient": (
+                            color_entries[0][1][3]
+                            if len(color_entries[0][1]) > 3
+                            else None
+                        ),
+                        "color": (
+                            color_entries[0][1][4]
+                            if len(color_entries[0][1]) > 4
+                            else None
+                        ),
                     }
 
                 # Gyro sensor information (typically index 7-8 in payload)
-                if len(payload) > 7 and isinstance(payload[7], list) and len(payload[7]) >= 3:
+                if (
+                    len(payload) > 7
+                    and isinstance(payload[7], list)
+                    and len(payload[7]) >= 3
+                ):
                     result["sensors"]["gyro"] = {
                         "x": payload[7][0],
                         "y": payload[7][1],
@@ -265,7 +363,11 @@ class SpikeStatus:
                     }
 
                 # Accelerometer information (typically index 8 in payload)
-                if len(payload) > 8 and isinstance(payload[8], list) and len(payload[8]) >= 3:
+                if (
+                    len(payload) > 8
+                    and isinstance(payload[8], list)
+                    and len(payload[8]) >= 3
+                ):
                     result["sensors"]["accelerometer"] = {
                         "x": payload[8][0],
                         "y": payload[8][1],
@@ -273,7 +375,11 @@ class SpikeStatus:
                     }
 
                 # Position from sensors (derived from payload[6] for coordinates)
-                if len(payload) > 6 and isinstance(payload[6], list) and len(payload[6]) >= 3:
+                if (
+                    len(payload) > 6
+                    and isinstance(payload[6], list)
+                    and len(payload[6]) >= 3
+                ):
                     result["sensors"]["position"] = {
                         "x": payload[6][1],
                         "y": payload[6][2],
@@ -290,11 +396,19 @@ class SpikeStatus:
             return result
 
         except json.JSONDecodeError as e:
-            display_data = original_data.decode("utf-8") if isinstance(original_data, bytes) else original_data
+            display_data = (
+                original_data.decode("utf-8")
+                if isinstance(original_data, bytes)
+                else original_data
+            )
             print(f"JSON parsing error: {e}, raw data: {display_data}")
             return {"error": "json_parse_error", "raw": data}
         except Exception as e:
-            display_data = original_data.decode("utf-8") if isinstance(original_data, bytes) else original_data
+            display_data = (
+                original_data.decode("utf-8")
+                if isinstance(original_data, bytes)
+                else original_data
+            )
             print(f"General parsing error: {e}, raw data: {display_data}")
             return {"error": "parsing_error", "raw": data}
 
@@ -307,7 +421,9 @@ class SpikeStatus:
 
         for motor_id, motor in self.motors.items():
             if motor and motor.position is not None:
-                lines.append(f"  Motor {motor_id}: Position: {motor.position}, Power: {motor.power}")
+                lines.append(
+                    f"  Motor {motor_id}: Position: {motor.position}, Power: {motor.power}"
+                )
 
         lines.append("Sensors:")
         if self.sensors.distance is not None:
@@ -322,7 +438,9 @@ class SpikeStatus:
             )
 
         if self.sensors.gyro:
-            lines.append(f"  Gyro - X: {self.sensors.gyro.x}, Y: {self.sensors.gyro.y}, Z: {self.sensors.gyro.z}")
+            lines.append(
+                f"  Gyro - X: {self.sensors.gyro.x}, Y: {self.sensors.gyro.y}, Z: {self.sensors.gyro.z}"
+            )
 
         if self.sensors.accelerometer:
             lines.append(
@@ -331,7 +449,9 @@ class SpikeStatus:
             )
 
         if self.sensors.position:
-            lines.append(f"  Position - X: {self.sensors.position.x}, Y: {self.sensors.position.y}")
+            lines.append(
+                f"  Position - X: {self.sensors.position.x}, Y: {self.sensors.position.y}"
+            )
 
         if self.battery and self.battery.percent is not None:
             lines.append(f"Battery: {self.battery.percent}% ({self.battery.voltage}V)")

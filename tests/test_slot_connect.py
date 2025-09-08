@@ -9,12 +9,14 @@ import time
 from nnspike.unit.etrobot import ETRobot
 
 
-def main():
+def main() -> None:
     print("Starting USB Connection to LEGO Spike Hub...")
     try:
         et = ETRobot(port="COM4")  # Use 'COM4' for Windows, '/dev/ttyACM0' for Linux
 
-        et.set_motor_speed(left_speed=30, right_speed=30)  # Reset motors to ensure they are stopped
+        et.set_motor_speed(
+            left_speed=30, right_speed=30
+        )  # Reset motors to ensure they are stopped
 
         # Print status every 0.5 seconds for 5 seconds
         end_time = time.time() + 5

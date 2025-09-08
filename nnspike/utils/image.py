@@ -14,8 +14,6 @@ Functions:
         Extracts frames from a video file and saves them as individual image files in the specified directory.
 """
 
-from pathlib import Path
-
 import cv2
 import numpy as np
 
@@ -45,7 +43,9 @@ def normalize_image(image: np.ndarray) -> np.ndarray:
     return image
 
 
-def draw_driving_info(image: np.ndarray, info: dict, roi: tuple[int, int, int, int]) -> np.ndarray:
+def draw_driving_info(
+    image: np.ndarray, info: dict, roi: tuple[int, int, int, int]
+) -> np.ndarray:
     """Draws driving information on an image.
 
     This function overlays driving-related information onto a given image. It draws a tracing point,
@@ -68,10 +68,24 @@ def draw_driving_info(image: np.ndarray, info: dict, roi: tuple[int, int, int, i
 
     # Draw a cross line in (target_x, offset_y)
     if target_x != 0:
-        image = cv2.circle(image, (target_x, offset_y), 5, (255, 255, 0), -1)  # Tracing point
+        image = cv2.circle(
+            image, (target_x, offset_y), 5, (255, 255, 0), -1
+        )  # Tracing point
 
-        cv2.line(image, (target_x - 100, offset_y), (target_x + 100, offset_y), (255, 255, 0), 1)
-        cv2.line(image, (target_x, offset_y - 100), (target_x, offset_y + 100), (255, 255, 0), 1)
+        cv2.line(
+            image,
+            (target_x - 100, offset_y),
+            (target_x + 100, offset_y),
+            (255, 255, 0),
+            1,
+        )
+        cv2.line(
+            image,
+            (target_x, offset_y - 100),
+            (target_x, offset_y + 100),
+            (255, 255, 0),
+            1,
+        )
 
     image = cv2.rectangle(image, (x1, y1), (x2, y2), (0, 0, 255), 2)  # ROI
 

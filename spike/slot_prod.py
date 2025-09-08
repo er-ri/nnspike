@@ -25,7 +25,7 @@ PORT_MAP = {
 }
 
 
-class LegoSpike(object):
+class LegoSpike:
     """Class to control LEGO Spike Prime Hub.
     This class initializes the hub, sets up motors and sensors, and provides methods to read commands
     from USB and execute them.
@@ -34,7 +34,9 @@ class LegoSpike(object):
 
     def __init__(self) -> None:
         # Initialization
-        hub.display.show(hub.Image.ALL_CLOCKS, delay=400, clear=True, wait=False, loop=True, fade=0)
+        hub.display.show(
+            hub.Image.ALL_CLOCKS, delay=400, clear=True, wait=False, loop=True, fade=0
+        )
         hub.motion.align_to_model(hub.TOP, hub.FRONT)  # GYRO, orientation
         hub.motion.yaw_pitch_roll(0)  # yaw, pitch and roll
 
@@ -57,7 +59,7 @@ class LegoSpike(object):
 
         hub.display.show(hub.Image.HAPPY)
 
-    def read_command(self):
+    def read_command(self) -> tuple[int | None, int | None, int | None]:
         command_id = None
         command_parameter1 = None
         command_parameter2 = None
@@ -68,8 +70,12 @@ class LegoSpike(object):
 
             flag_pos = data.find(CMD_FLAG)
 
-            if flag_pos >= 0 and len(data) >= flag_pos + 6:  # Ensure we have enough bytes
-                raw_bytes = data[flag_pos + 3 : flag_pos + 6]  # Extract the 3 bytes after "CF:"
+            if (
+                flag_pos >= 0 and len(data) >= flag_pos + 6
+            ):  # Ensure we have enough bytes
+                raw_bytes = data[
+                    flag_pos + 3 : flag_pos + 6
+                ]  # Extract the 3 bytes after "CF:"
                 command_id = int.from_bytes(raw_bytes[0:1], "big")
                 command_parameter1 = int.from_bytes(raw_bytes[1:2], "big")
                 command_parameter2 = int.from_bytes(raw_bytes[2:3], "big")
@@ -79,7 +85,9 @@ class LegoSpike(object):
         # If no command is read, return None values
         return None, None, None
 
-    def execute_command(self, command_id, command_parameter1, command_parameter2):
+    def execute_command(
+        self, command_id: int, command_parameter1: int, command_parameter2: int
+    ) -> None:
         if command_id == COMMAND_SET_MOTOR_FORWARD_SPEED_ID:
             self._set_motor_speed(command_parameter1, command_parameter2)
         elif command_id == COMMAND_SET_MOTOR_BACKWARD_SPEED_ID:
@@ -102,7 +110,9 @@ class LegoSpike(object):
         self.motor_left.run_at_speed(-int(left_speed))
         self.motor_right.run_at_speed(int(right_speed))
 
-    def _set_motor_relative_position(self, left_position: int, right_position: int) -> None:
+    def _set_motor_relative_position(
+        self, left_position: int, right_position: int
+    ) -> None:
         self.motor_left.preset(-int(left_position))
         self.motor_right.preset(int(right_position))
 
@@ -113,39 +123,48 @@ class LegoSpike(object):
             action: Action to perform (0 = move up, 1 = move down)
         """
         if action == 0:  # Move down
-            self.motor_arm.run_at_speed(int(40))  # Encapulate int() to ensure speed is an integer
+            self.motor_arm.run_at_speed(
+                40
+            )  # Encapulate int() to ensure speed is an integer
         elif action == 1:  # Move up
-            self.motor_arm.run_at_speed(-int(40))  # Encapulate int() to ensure speed is an integer
+            self.motor_arm.run_at_speed(
+                -40
+            )  # Encapulate int() to ensure speed is an integer
         elif action == 2:  # Stop arm
             self.motor_arm.brake()
 
 
-async def receiver():
+async def receiver() -> None:
     while True:
         try:
-            command_id, command_parameter1, command_parameter2 = lego_spike.read_command()
+            command_id, command_parameter1, command_parameter2 = (
+                lego_spike.read_command()
+            )
         except Exception:
             command_id = None
             command_parameter1 = None
             command_parameter2 = None
 
-        if command_id != None:
-            lego_spike.execute_command(command_id, command_parameter1, command_parameter2)
+        if (
+            command_id != None
+            and command_parameter1 != None
+            and command_parameter2 != None
+        ):
+            lego_spike.execute_command(
+                command_id, command_parameter1, command_parameter2
+            )
 
         await uasyncio.sleep(0.01)  # Sleep for 10ms to reduce CPU usage
 
 
-async def main_task():
-    tasks = list()
+async def main_task() -> None:
+    tasks = []
 
     receiver_task = uasyncio.create_task(receiver())
     tasks.append(receiver_task)
 
     # Run indefinitely - let the receiver task handle commands continuously
-    try:
-        await receiver_task
-    except uasyncio.CancelledError:
-        pass
+    await receiver_task
 
 
 # Trigger a garbage collection cycle

@@ -15,13 +15,17 @@ Functions:
 """
 
 import math
-from typing import Optional, Tuple
 
 import cv2
 import numpy as np
 
 
-def find_line_edges_at_y(image, roi, target_y, threshold_value=50) -> Tuple[Optional[float], Optional[float]]:
+def find_line_edges_at_y(
+    image: np.ndarray,
+    roi: tuple[int, int, int, int],
+    target_y: float,
+    threshold_value: float = 50,
+) -> tuple[float | None, float | None]:
     """
     Get the left and right edge points of a black line at a specific Y coordinate.
 
@@ -44,16 +48,17 @@ def find_line_edges_at_y(image, roi, target_y, threshold_value=50) -> Tuple[Opti
         return None, None
 
     # Convert to grayscale if needed
-    if len(image.shape) == 3:
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    else:
-        gray = image.copy()
+    gray = (
+        cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        if len(image.shape) == 3
+        else image.copy()
+    )
 
     # Extract ROI
-    roi = gray[y : y + h, x : x + w]
+    roi_image = gray[y : y + h, x : x + w]
 
     # Apply Gaussian blur to reduce noise
-    blurred = cv2.GaussianBlur(roi, (5, 5), 0)
+    blurred = cv2.GaussianBlur(roi_image, (5, 5), 0)
 
     # Binary threshold to isolate black line
     _, binary = cv2.threshold(blurred, threshold_value, 255, cv2.THRESH_BINARY_INV)
@@ -63,7 +68,7 @@ def find_line_edges_at_y(image, roi, target_y, threshold_value=50) -> Tuple[Opti
 
     # Get the binary row at target Y
     if roi_row >= 0 and roi_row < h:
-        row_data = binary[roi_row, :]
+        row_data = binary[int(roi_row), :]
 
         # Find all white pixels (line pixels) in this row
         white_pixels = np.where(row_data == 255)[0]
@@ -83,8 +88,8 @@ def find_line_edges_at_y(image, roi, target_y, threshold_value=50) -> Tuple[Opti
 
 
 def find_bottle_center(
-    image, color, min_area: int = 500
-) -> Tuple[Optional[Tuple[float, float]], Optional[np.ndarray], Optional[float]]:
+    image: np.ndarray, color: str, min_area: int = 500
+) -> tuple[tuple[float, float] | None, np.ndarray | None, float | None]:
     """
     Find the center coordinates and color pixel count of a colored object in an image using OpenCV.
 
@@ -157,7 +162,9 @@ def find_bottle_center(
     color_mask = cv2.morphologyEx(color_mask, cv2.MORPH_OPEN, kernel)
 
     # Find contours
-    contours, _ = cv2.findContours(color_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(
+        color_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
 
     if not contours:
         return None, None, None
@@ -172,16 +179,18 @@ def find_bottle_center(
     largest_contour = max(valid_contours, key=cv2.contourArea)
 
     # Calculate center using moments
-    M = cv2.moments(largest_contour)
-    if M["m00"] != 0:
-        cx = int(M["m10"] / M["m00"])
-        cy = int(M["m01"] / M["m00"])
+    m = cv2.moments(largest_contour)
+    if m["m00"] != 0:
+        cx = int(m["m10"] / m["m00"])
+        cy = int(m["m01"] / m["m00"])
         return (cx, cy), largest_contour, color_pixel_count
 
     return None, None, None
 
 
-def find_bullseye(image, threshold=120) -> Tuple[Optional[Tuple[float, float]], Optional[np.ndarray], Optional[float]]:
+def find_bullseye(
+    image: np.ndarray, threshold: float = 120
+) -> tuple[tuple[float, float] | None, np.ndarray | None, float | None]:
     """
     Find the center coordinates of a blue bullseye target in an image.
 
@@ -214,7 +223,9 @@ def find_bullseye(image, threshold=120) -> Tuple[Optional[Tuple[float, float]], 
     blue_mask = cv2.morphologyEx(blue_mask, cv2.MORPH_OPEN, kernel)
 
     # Find contours in blue regions
-    contours, _ = cv2.findContours(blue_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(
+        blue_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
 
     if not contours:
         return None, None, None
@@ -223,7 +234,7 @@ def find_bullseye(image, threshold=120) -> Tuple[Optional[Tuple[float, float]], 
     center_x = 320
 
     # Find the best bullseye candidate
-    best_score = 0
+    best_score = 0.0
     best_result = None
 
     for contour in contours:
@@ -232,19 +243,23 @@ def find_bullseye(image, threshold=120) -> Tuple[Optional[Tuple[float, float]], 
             continue
 
         # Get center
-        M = cv2.moments(contour)
-        if M["m00"] == 0:
+        m = cv2.moments(contour)
+        if m["m00"] == 0:
             continue
-        cx, cy = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
+        cx, cy = int(m["m10"] / m["m00"]), int(m["m01"] / m["m00"])
 
         # Calculate scores
         distance_from_center = abs(cx - center_x)
-        proximity = max(0, 1 - distance_from_center / threshold)  # Score based on threshold range
+        proximity = max(
+            0, 1 - distance_from_center / threshold
+        )  # Score based on threshold range
         size_score = 1.0 if 500 <= area <= 8000 else 0.5  # Reasonable bullseye size
 
         # Get circularity
         perimeter = cv2.arcLength(contour, True)
-        circularity = (4 * np.pi * area / (perimeter * perimeter)) if perimeter > 0 else 0
+        circularity = (
+            (4 * np.pi * area / (perimeter * perimeter)) if perimeter > 0 else 0
+        )
 
         # Combined score (proximity to center is most important)
         score = proximity * 3.0 + size_score + min(circularity * 2.0, 1.0)
@@ -262,7 +277,7 @@ def find_bullseye(image, threshold=120) -> Tuple[Optional[Tuple[float, float]], 
 
 def find_gate_virtual_line(
     image: np.ndarray, scan_x: int = 320, from_y: int = 0, to_y: int = 480
-) -> Tuple[Optional[Tuple[float, float]], Optional[np.ndarray], Optional[float]]:
+) -> tuple[tuple[float, float] | None, np.ndarray | None, float | None]:
     """
     Find the virtual line for gate detection based on gray color regions.
 
@@ -288,8 +303,12 @@ def find_gate_virtual_line(
 
     # Adjusted parameters for gray number detection
     # Gray colors have low saturation and medium to high value
-    lower_gray = np.array([10, 40, 80], dtype=np.uint8)  # Low hue range, very low saturation, medium value
-    upper_gray = np.array([180, 60, 180], dtype=np.uint8)  # Full hue range, low saturation, high value
+    lower_gray = np.array(
+        [10, 40, 80], dtype=np.uint8
+    )  # Low hue range, very low saturation, medium value
+    upper_gray = np.array(
+        [180, 60, 180], dtype=np.uint8
+    )  # Full hue range, low saturation, high value
 
     # Create the gray mask
     gray_mask = cv2.inRange(hsv, lower_gray, upper_gray)
@@ -319,7 +338,13 @@ def find_gate_virtual_line(
     virtual_x = (left_border + right_border) / 2
 
     numeric_area = np.array(
-        [[left_border, from_y], [right_border, from_y], [right_border, to_y], [left_border, to_y]], dtype=np.int32
+        [
+            [left_border, from_y],
+            [right_border, from_y],
+            [right_border, to_y],
+            [left_border, to_y],
+        ],
+        dtype=np.int32,
     )
 
     return (virtual_x, 0.0), numeric_area, None
@@ -356,7 +381,9 @@ def calculate_attitude_angle(
     # Calculate ground distance from camera to the line detection point
     # Using similar triangles: ground_distance / camera_height = focal_length / (image_height - roi_bottom_y)
     image_height = 480  # Assuming standard camera resolution
-    ground_distance = camera_height * focal_length_pixels / (image_height - roi_bottom_y)
+    ground_distance = (
+        camera_height * focal_length_pixels / (image_height - roi_bottom_y)
+    )
 
     # Calculate lateral offset in meters
     # Using similar triangles: lateral_offset / ground_distance = offset_pixels / focal_length

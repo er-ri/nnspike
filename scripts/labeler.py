@@ -13,7 +13,9 @@ from nnspike.constants import OFFSET_Y, ROI_CNN
 from nnspike.utils import draw_driving_info
 
 
-def read_label_data(label_path: str, image_path: str | None = None):
+def read_label_data(
+    label_path: str, image_path: str | None = None
+) -> tuple[pd.DataFrame, int]:
     df = pd.read_csv(label_path)
 
     image_path = image_path.replace("./", "../") if image_path is not None else None
@@ -23,8 +25,7 @@ def read_label_data(label_path: str, image_path: str | None = None):
 
 
 # Define the mouse callback function
-def mouse_callback(event, x, y, flags, param):
-
+def mouse_callback(event: int, x: int, y: int, flags: int, param: dict) -> None:
     if event == cv2.EVENT_LBUTTONDOWN:
         df = param["df"]
         row = param["row"]
@@ -41,7 +42,7 @@ def mouse_callback(event, x, y, flags, param):
         print(f"Frame {index} marked as unused.")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Label data viewer for ETRobot",
         epilog='Example: python scripts/labeler.py --label-data "./storage/labels/timestamp_label.csv"',
@@ -72,7 +73,7 @@ def main():
         image = cv2.imread(image_path)
         clone_image = image.copy()
 
-        info = dict()
+        info = {}
         info["target_x"], info["offset_y"] = target_x, OFFSET_Y
 
         dir_path, filename = image_path.rsplit("/", 1)
@@ -86,10 +87,23 @@ def main():
         clone_image = draw_driving_info(clone_image, info, ROI_CNN)
 
         # Darken the image if not in use
-        clone_image = cv2.convertScaleAbs(clone_image, alpha=1.0, beta=-100) if row["use"] == False else clone_image
+        clone_image = (
+            cv2.convertScaleAbs(clone_image, alpha=1.0, beta=-100)
+            if row["use"] == False
+            else clone_image
+        )
 
         clone_image = (
-            cv2.putText(clone_image, "No Target", (240, 320), cv2.FONT_HERSHEY_PLAIN, 3.0, (0, 0, 0), 2, cv2.LINE_4)
+            cv2.putText(
+                clone_image,
+                "No Target",
+                (240, 320),
+                cv2.FONT_HERSHEY_PLAIN,
+                3.0,
+                (0, 0, 0),
+                2,
+                cv2.LINE_4,
+            )
             if (row["use"] == True) and (pd.isna(row["target_x"]))
             else clone_image
         )
@@ -103,7 +117,7 @@ def main():
         if key == ord("q"):
             break
         elif key == ord("f"):
-            df.at[row.name, "use"] = not row["use"]
+            df.loc[df.index[index], "use"] = not row["use"]
         elif key == ord("u"):  # Update dataframe
             df, index = read_label_data(label_path, image_path=image_path)
             print(f"Updated dataframe from {label_path}")

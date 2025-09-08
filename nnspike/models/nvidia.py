@@ -43,8 +43,8 @@ class NvidiaModelRegression(nn.Module):
             - control_output: Control tensor for self-driving mode (batch_size, 1)
     """
 
-    def __init__(self):
-        super(NvidiaModelRegression, self).__init__()
+    def __init__(self) -> None:
+        super().__init__()
         self.conv1 = nn.Conv2d(3, 24, kernel_size=5, stride=2, padding=0)
         self.conv2 = nn.Conv2d(24, 36, kernel_size=5, stride=2, padding=0)
         self.conv3 = nn.Conv2d(36, 48, kernel_size=5, stride=2, padding=0)
@@ -52,7 +52,9 @@ class NvidiaModelRegression(nn.Module):
         self.conv5 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=0)
 
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(64 * 1 * 18 + 1, 100)  # Adjust input size to include relative_position
+        self.fc1 = nn.Linear(
+            64 * 1 * 18 + 1, 100
+        )  # Adjust input size to include relative_position
         self.fc2 = nn.Linear(100, 50)
         self.fc3 = nn.Linear(50, 10)
         self.fc4 = nn.Linear(10, 1)
@@ -61,7 +63,7 @@ class NvidiaModelRegression(nn.Module):
 
     def forward(
         self,
-        x,
+        x: torch.Tensor,
         relative_position: torch.Tensor,
     ) -> torch.Tensor:
         x = self.elu(self.conv1(x))
@@ -127,7 +129,7 @@ class NvidiaModelMultiTask(nn.Module):
     """
 
     def __init__(self, num_modes: int):
-        super(NvidiaModelMultiTask, self).__init__()
+        super().__init__()
         self.conv1 = nn.Conv2d(3, 24, kernel_size=5, stride=2, padding=0)
         self.conv2 = nn.Conv2d(24, 36, kernel_size=5, stride=2, padding=0)
         self.conv3 = nn.Conv2d(36, 48, kernel_size=5, stride=2, padding=0)
@@ -135,7 +137,9 @@ class NvidiaModelMultiTask(nn.Module):
         self.conv5 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=0)
 
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(64 * 1 * 18 + 1, 100)  # Adjust input size to include left_x, right_x, and relative_position
+        self.fc1 = nn.Linear(
+            64 * 1 * 18 + 1, 100
+        )  # Adjust input size to include left_x, right_x, and relative_position
         self.fc2 = nn.Linear(100, 50)
         self.fc3 = nn.Linear(50, 10)
 
@@ -149,7 +153,7 @@ class NvidiaModelMultiTask(nn.Module):
 
     def forward(
         self,
-        x,
+        x: torch.Tensor,
         relative_position: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         x = self.elu(self.conv1(x))

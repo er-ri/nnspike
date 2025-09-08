@@ -2,7 +2,7 @@ import os
 import random
 from typing import cast
 
-import albumentations as A
+import albumentations as A  # noqa: N812
 import cv2
 import numpy as np
 import pandas as pd
@@ -102,10 +102,12 @@ def augment_dataset(df: pd.DataFrame, p: float, export_path: str) -> pd.DataFram
     # Create the export directory
     os.makedirs(export_path, exist_ok=False)
 
-    results = list()  # Filter the DataFrame based on the conditions
+    results = []  # Filter the DataFrame based on the conditions
     filtered_df = df[(df["use"] == True)]
     # Apply the random condition
-    filtered_df = filtered_df[filtered_df.apply(lambda row: random.random() < p, axis=1)]
+    filtered_df = filtered_df[
+        filtered_df.apply(lambda row: random.random() < p, axis=1)
+    ]
 
     for _, row in tqdm(filtered_df.iterrows(), total=len(filtered_df)):
         image_path = row["image_path"]
@@ -113,10 +115,14 @@ def augment_dataset(df: pd.DataFrame, p: float, export_path: str) -> pd.DataFram
 
         # Apply both transformations sequentially
         # First apply shift, scale, rotate transformation
-        aug_image, _ = random_shift_scale_rotate(image=image, shift_limit=0.05, scale_limit=0.05, rotate_limit=5)
+        aug_image, _ = random_shift_scale_rotate(
+            image=image, shift_limit=0.05, scale_limit=0.05, rotate_limit=5
+        )
 
         # Then apply perspective transformation
-        aug_image = perspective_transform(image=aug_image, scale=(0.01, 0.05), keep_size=True)
+        aug_image = perspective_transform(
+            image=aug_image, scale=(0.01, 0.05), keep_size=True
+        )
 
         _, filename = image_path.rsplit("/", 1)
         aug_image_path = f"{export_path}/{filename}"

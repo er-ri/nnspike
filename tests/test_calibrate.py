@@ -25,6 +25,7 @@ Camera Geometry Parameters:
 - ROI_CNN: Region of Interest for processing
 - OFFSET_Y: Y-offset for line detection
 """
+
 import os
 import sys
 
@@ -50,7 +51,9 @@ x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
 BASE_SPEED = 45  # Base speed for straight lines (adjust this first)
 
 # Socket connection settings
-HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
+HOST_IP_ADDRESS = (
+    "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
+)
 
 # Camera setup
 cap = cv2.VideoCapture(0)
@@ -59,9 +62,9 @@ cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
 
-def main():
+def main() -> None:
     # Socket connection for sending camera capture (always enabled)
-    client_socket: Optional[socket.socket] = None
+    client_socket: socket.socket | None = None
 
     try:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

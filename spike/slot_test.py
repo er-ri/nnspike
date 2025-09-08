@@ -12,11 +12,11 @@ usb.setinterrupt(-1)
 # if usb.isconnected():
 #     hub.display.show(hub.Image.HAPPY)
 
-motor_right = getattr(hub.port, "A").motor
-motor_left = getattr(hub.port, "B").motor
+motor_right = hub.port.A.motor
+motor_left = hub.port.B.motor
 
 
-async def receiver():
+async def receiver() -> None:
     """Receiver task to handle incoming USB commands."""
     while True:
         if usb.any():
@@ -24,7 +24,9 @@ async def receiver():
 
             et_pos = data.find(CMD_FLAG)
             if et_pos >= 0 and len(data) >= et_pos + 6:  # Ensure we have enough bytes
-                raw_bytes = data[et_pos + 3 : et_pos + 6]  # Extract the 3 bytes after "CF:"
+                raw_bytes = data[
+                    et_pos + 3 : et_pos + 6
+                ]  # Extract the 3 bytes after "CF:"
                 command_id = int.from_bytes(raw_bytes[0:1], "big")
                 command_parameter1 = int.from_bytes(raw_bytes[1:2], "big")
                 command_parameter2 = int.from_bytes(raw_bytes[2:3], "big")
@@ -49,8 +51,8 @@ async def receiver():
         await uasyncio.sleep(0)
 
 
-async def main_task():
-    tasks = list()
+async def main_task() -> None:
+    tasks = []
 
     receiver_task = uasyncio.create_task(receiver())
     tasks.append(receiver_task)

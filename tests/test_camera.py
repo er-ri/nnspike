@@ -1,7 +1,7 @@
 import cv2
 
 
-def test_camera(camera_id=0):
+def test_camera(camera_id: int = 0) -> bool:
     """
     Test camera connection and display the image to the user
 

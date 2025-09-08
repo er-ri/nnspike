@@ -36,11 +36,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "black>=23.0.0",
-    "isort>=5.12.0",
-    "flake8>=6.0.0",
-    "flake8-pyproject>=1.2.3",
+    "ruff>=0.6.0",
     "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
     "commitizen>=3.0.0",
     # Type stubs for better mypy support
     "types-tqdm>=4.66.0",
@@ -52,8 +50,13 @@ dev = [
 "Homepage" = "https://github.com/er-ri/nnspike"
 "Bug Tracker" = "https://github.com/er-ri/nnspike/issues"
 
-[tool.flake8]
-extend-ignore = ["E201", "E203","E402", "E501", "E711", "E712", "F401"]
+[tool.ruff]
+# Ruff configuration replaces flake8, black, and isort
+line-length = 88
+target-version = "py311"
+fix = true
+
+# Exclude directories (equivalent to flake8 exclude)
 exclude = [
     ".git",
     "__pycache__",
@@ -61,52 +64,69 @@ exclude = [
     "dist",
     "*.egg-info",
     ".venv",
+    ".mypy_cache",
+    ".tox",
+    "_build",
+    "buck-out",
+    "env",
+    "venv",
 ]
 
-[tool.black]
-line-length = 130
-target-version = ["py311", "py312"]
-include = '\.py$'
-exclude = '''
-/(
-    \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-  | env
-  | venv
-)/
-'''
+[tool.ruff.lint]
+# Enable specific rule categories
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort (import sorting)
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
 
-[tool.isort]
-profile = "black"
-line_length = 130
-multi_line_output = 3
+# Ignore specific rules (equivalent to flake8 extend-ignore)
+ignore = [
+    "E201",  # whitespace after '('
+    "E203",  # whitespace before ':'
+    "E402",  # module level import not at top of file
+    "E501",  # line too long (handled by line-length)
+    "E711",  # comparison to None should be 'if cond is None:'
+    "E712",  # comparison to True should be 'if cond is True:'
+    "F401",  # imported but unused
+]
+
+[tool.ruff.format]
+# Ruff formatter replaces black
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+
+[tool.ruff.lint.isort]
+# Ruff import sorting replaces isort
+force-single-line = false
+combine-as-imports = true
 
 [tool.mypy]
 python_version = "3.11"
 # Use explicit package bases to resolve module naming conflicts
 explicit_package_bases = true
-# Control import following to avoid errors from external modules
-follow_imports = "silent"
-# Allow some flexibility for gradual typing
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
+# Workaround for TypeGuardedType serialization issue
+incremental = false
+# Type checking settings
+disallow_untyped_defs = true
 check_untyped_defs = true
-disallow_untyped_decorators = false
-# Type checking strictness
-no_implicit_optional = true
-strict_optional = true
+warn_return_any = true
+warn_unused_configs = true
 warn_redundant_casts = true
-warn_return_any = false  # Reduce noise from untyped libraries
-warn_unused_ignores = false  # Disable unused ignore warnings for cv2 compatibility
 # Show error codes for easier debugging
 show_error_codes = true
+# Handle third-party libraries gracefully
+ignore_missing_imports = true
+follow_imports = "silent"
 # Exclude common directories that shouldn't be type-checked
 exclude = [
     "build/",
@@ -119,7 +139,6 @@ exclude = [
     "__pycache__/",
     ".*.egg-info/",
 ]
-ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "cv2"
@@ -130,6 +149,20 @@ ignore_errors = true
 module = "cv2.*"
 ignore_missing_imports = true
 ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "torch.*"
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "torchvision.*"
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "tqdm.*"
+ignore_missing_imports = true
 
 # Disable specific warnings for files using cv2
 [[tool.mypy.overrides]]
@@ -143,33 +176,15 @@ disable_error_code = ["call-arg", "unused-ignore"]
 [[tool.mypy.overrides]]
 module = [
     "pandas",
-    "pandas.*",
     "torch",
     "torch.*",
     "torchvision",
     "torchvision.*",
-    "torchaudio",
-    "torchaudio.*",
-    "sklearn",
-    "sklearn.*",
     "tqdm",
     "tqdm.*",
     "albumentations",
-    "albumentations.*",
-    "matplotlib",
-    "matplotlib.*",
-    "seaborn",
-    "seaborn.*",
-    "tensorboard",
-    "tensorboard.*",
     "numpy",
     "numpy.*",
-    "jupyterlab",
-    "jupyterlab.*",
-    "termios",
-    "termios.*",
-    "tty",
-    "tty.*",
 ]
 ignore_missing_imports = true
 
@@ -180,3 +195,11 @@ version_scheme = "pep440"
 version_provider = "pep621"
 update_changelog_on_bump = true
 major_version_zero = true
+
+[dependency-groups]
+dev = [
+    "mypy>=1.17.1",
+    "pre-commit>=4.3.0",
+    "ruff>=0.12.12",
+    "commitizen>=3.0.0",
+]

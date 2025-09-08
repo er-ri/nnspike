@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.nn.functional as F  # noqa: N812
 
 
 class SimpleNetClassification25(nn.Module):
@@ -21,13 +21,13 @@ class SimpleNetClassification25(nn.Module):
     Expected input image size: (61, 197) which gets processed to (16, 7, 24) after convolutions.
     """
 
-    def __init__(self, num_classes):
+    def __init__(self, num_classes: int) -> None:
         """Initialize the SimpleNetClassification25 model.
 
         Sets up all layers including convolutional layers, pooling, and fully connected layers.
         The input size calculation assumes input images of size (61, 197).
         """
-        super(SimpleNetClassification25, self).__init__()
+        super().__init__()
 
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=8, kernel_size=5, stride=2)
         self.conv2 = nn.Conv2d(8, 16, 5, 1, 2)

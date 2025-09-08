@@ -24,7 +24,9 @@ import pandas as pd
 from nnspike.constants import OFFSET_Y
 
 
-def balance_dataset(df: pd.DataFrame, col_name: str, max_samples: int, num_bins: int) -> pd.DataFrame:
+def balance_dataset(
+    df: pd.DataFrame, col_name: str, max_samples: int, num_bins: int
+) -> pd.DataFrame:
     """
     Balances the dataset by limiting the number of samples in each bin of a specified column.
 
@@ -55,7 +57,7 @@ def balance_dataset(df: pd.DataFrame, col_name: str, max_samples: int, num_bins:
     bins_series = pd.cut(df[col_name], bins=num_bins, include_lowest=True)
 
     # Initialize an empty list to store indices to remove
-    remove_list = list()
+    remove_list = []
 
     for bin_label in bins_series.cat.categories:
         bin_indices = df[bins_series == bin_label].index.tolist()
@@ -85,7 +87,9 @@ def sort_by_frames_number(df: pd.DataFrame) -> pd.DataFrame:
         pd.DataFrame: The sorted DataFrame with rows ordered by the extracted
         frame numbers and the frame_number column as the 2nd column.
     """
-    df["frame_number"] = df["image_path"].str.extract(r"frame_(\d+)", expand=False).astype(int)
+    df["frame_number"] = (
+        df["image_path"].str.extract(r"frame_(\d+)", expand=False).astype(int)
+    )
 
     # Sort the DataFrame by the extracted frame number
     df_sorted = df.sort_values(by="frame_number")
@@ -181,24 +185,38 @@ def set_spike_status(label_df: pd.DataFrame, status_df: pd.DataFrame) -> pd.Data
 
     # Merge the DataFrames on frame_number, updating motor position columns
     # Use left join to preserve all rows in label_df
-    merged_df = label_df.merge(spike_subset, on="frame_number", how="left", suffixes=("", "_temp"))
+    merged_df = label_df.merge(
+        spike_subset, on="frame_number", how="left", suffixes=("", "_temp")
+    )
 
     # Update the motor position columns where spike data is available
-    merged_df["motor_a_relative_position"] = merged_df["motor_a_relative_position_temp"].fillna(
-        merged_df["motor_a_relative_position"]
-    )
-    merged_df["motor_b_relative_position"] = merged_df["motor_b_relative_position_temp"].fillna(
-        merged_df["motor_b_relative_position"]
-    )
+    merged_df["motor_a_relative_position"] = merged_df[
+        "motor_a_relative_position_temp"
+    ].fillna(merged_df["motor_a_relative_position"])
+    merged_df["motor_b_relative_position"] = merged_df[
+        "motor_b_relative_position_temp"
+    ].fillna(merged_df["motor_b_relative_position"])
     merged_df["mode"] = label_df["mode"].fillna(
         merged_df["mode_temp"]
     )  # Use label_df's mode which was set by label_dataset_by_opencv
-    merged_df["motor_a_speed"] = merged_df["motor_a_speed_temp"].fillna(merged_df["motor_a_speed"])
-    merged_df["motor_b_speed"] = merged_df["motor_b_speed_temp"].fillna(merged_df["motor_b_speed"])
-    merged_df["distance_sensor"] = merged_df["distance_sensor_temp"].fillna(merged_df["distance_sensor"])
-    merged_df["color_reflected"] = merged_df["color_reflected_temp"].fillna(merged_df["color_reflected"])
-    merged_df["color_ambient"] = merged_df["color_ambient_temp"].fillna(merged_df["color_ambient"])
-    merged_df["color_value"] = merged_df["color_value_temp"].fillna(merged_df["color_value"])
+    merged_df["motor_a_speed"] = merged_df["motor_a_speed_temp"].fillna(
+        merged_df["motor_a_speed"]
+    )
+    merged_df["motor_b_speed"] = merged_df["motor_b_speed_temp"].fillna(
+        merged_df["motor_b_speed"]
+    )
+    merged_df["distance_sensor"] = merged_df["distance_sensor_temp"].fillna(
+        merged_df["distance_sensor"]
+    )
+    merged_df["color_reflected"] = merged_df["color_reflected_temp"].fillna(
+        merged_df["color_reflected"]
+    )
+    merged_df["color_ambient"] = merged_df["color_ambient_temp"].fillna(
+        merged_df["color_ambient"]
+    )
+    merged_df["color_value"] = merged_df["color_value_temp"].fillna(
+        merged_df["color_value"]
+    )
 
     # Drop the temporary spike columns
     columns_to_drop = [col for col in merged_df.columns if col.endswith("_temp")]

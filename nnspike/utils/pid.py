@@ -18,9 +18,9 @@ class PIDController:
 
     def __init__(
         self,
-        Kp: float,
-        Ki: float,
-        Kd: float,
+        kp: float,
+        ki: float,
+        kd: float,
         setpoint: float,
         output_limits: tuple[float | None, float | None] = (None, None),
     ):
@@ -34,9 +34,9 @@ class PIDController:
             setpoint (float): Desired value that the system should achieve.
             output_limits (tuple[float, float], optional): Minimum and maximum limits for the output. Defaults to (None, None).
         """
-        self.Kp = Kp
-        self.Ki = Ki
-        self.Kd = Kd
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
         self.setpoint = setpoint
         self.output_limits = output_limits
 
@@ -44,7 +44,13 @@ class PIDController:
         self._last_error = 0.0
         self._integral = 0.0
 
-    def set_output_limits(self, new_output_limits: tuple[float, float]):
+    def set_output_limits(self, new_output_limits: tuple[float, float]) -> None:
+        """
+        Set new output limits for the PID controller.
+
+        Args:
+            new_output_limits (tuple[float, float]): The new minimum and maximum output limits.
+        """
         self.output_limits = new_output_limits
 
     def update(self, measured_value: float) -> float:
@@ -60,14 +66,16 @@ class PIDController:
         current_time = time.time()
         error = self.setpoint - measured_value  # Cross Track Error
 
-        delta_time = current_time - self._last_time if self._last_time is not None else 0
+        delta_time = (
+            current_time - self._last_time if self._last_time is not None else 0
+        )
         delta_error = error - self._last_error
 
         self._integral += error * delta_time
         derivative = delta_error / delta_time if delta_time > 0 else 0
 
         # Calculate PID output
-        output = self.Kp * error + self.Ki * self._integral + self.Kd * derivative
+        output = self.kp * error + self.ki * self._integral + self.kd * derivative
 
         # Apply output limits
         if self.output_limits[0] is not None:
