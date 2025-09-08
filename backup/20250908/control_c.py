@@ -1,7 +1,18 @@
-import math
 from typing import Optional, Tuple
 import cv2
 import numpy as np
+
+
+import sys
+import os
+
+# --- C++拡張のimportパスを絶対パスで追加（Windows/Linux両対応） ---
+cpp_build_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "c", "build"))
+cpp_release_dir = os.path.join(cpp_build_dir, "Release")
+for p in [cpp_build_dir, cpp_release_dir]:
+    if p not in sys.path:
+        sys.path.append(p)
+
 from nnspike.constants import (
     ROI_CNN,
     ROI_VIRTUAL,
@@ -81,6 +92,13 @@ def get_line_edges_at_y(image, roi, target_y, threshold_value=80) -> Tuple[Optio
         line_width (float or None): ライン幅
     """
 
+    # Prefer C++ implementation if available
+    try:
+        import control_cpp_get_line_edges_at_y
+        return control_cpp_get_line_edges_at_y.get_line_edges_at_y(image, roi, target_y, threshold_value)
+    except ImportError:
+        pass
+
     # 画像がNoneまたは空の場合はNone返却
     if image is None or (hasattr(image, 'size') and image.size == 0):
         return None, None, None
@@ -133,6 +151,16 @@ def find_bottle_center(image, color, roi=ROI_CNN) -> Tuple[Optional[Tuple[float,
         ValueError: colorが未対応の場合
     """
 
+
+    # Prefer C++ implementation if available
+    try:
+        import control_cpp_bottle
+        # print("[find_bottle_center] C++実装を呼び出し")
+        return control_cpp_bottle.find_bottle_center(image, color, roi)
+    except ImportError:
+        # print("[find_bottle_center] Python実装を呼び出し")
+        pass
+
     min_area = 490  # 輪郭面積の最小値（内部定数）
 
     if color not in ["yellow", "blue", "red"]:
@@ -167,10 +195,6 @@ def find_bottle_center(image, color, roi=ROI_CNN) -> Tuple[Optional[Tuple[float,
         if area < min_area:
             continue
         x, y, w, h = cv2.boundingRect(contour)
-        # M = cv2.moments(contour)  # 不要：重心計算を使用していないため
-        # m00 = M["m00"]            # 不要：areaと同じ値
-        # if m00 == 0:              # 不要：既にarea < min_areaでフィルタ済み
-        #     continue
         rect_area = w * h
         if rect_area == 0:
             continue
