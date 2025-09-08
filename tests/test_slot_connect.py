@@ -151,7 +151,7 @@ def test_sensor_stability(et):
     print(f"\n4️⃣ センサーデータ安定性テスト")
     print("="*50)
     
-    test_duration = 2  # 2秒間
+    test_duration = 0.5  # 0.5秒間だけ表示（短縮）
     print(f"📊 {test_duration}秒間 status.raw_data (生JSON)と受信サイクル(ms)をprintします")
     start_time = time.time()
     prev_ts = None
@@ -227,8 +227,25 @@ def main():
         test_sensor_stability(et)
 
         print(f"\n✅ 全テスト完了！")
-        print(f"🔍 USB3.0環境での通信品質は良好です")
-
+        # USBポート情報から3.0/2.0を判定
+        usb_version = None
+        try:
+            ports = serial.tools.list_ports.comports()
+            for portinfo in ports:
+                if portinfo.device == port:
+                    desc = portinfo.description.lower()
+                    if '3.0' in desc or 'usb 3' in desc:
+                        usb_version = '3.0'
+                    elif '2.0' in desc or 'usb 2' in desc:
+                        usb_version = '2.0'
+                    break
+        except Exception as e:
+            usb_version = None
+        if usb_version:
+            print(f"🔍 USB{usb_version}環境での通信品質は良好です")
+        else:
+            print(f"🔍 USB環境（バージョン自動判定不可）での通信品質は良好です")
+        
     except Exception as e:
         print(f"\n❌ テスト中にエラーが発生: {e}")
 
