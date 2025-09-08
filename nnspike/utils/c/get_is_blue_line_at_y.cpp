@@ -34,6 +34,6 @@ bool get_is_blue_line_at_y(py::array image_np, int target_y = 470, int min_run =
     return max_run >= min_run;
 }
 
-PYBIND11_MODULE(control_cpp_blue_line, m) {
+PYBIND11_MODULE(control_cpp_get_is_blue_line_at_y, m) {
     m.def("get_is_blue_line_at_y", &get_is_blue_line_at_y, "Blue line presence detector", py::arg("image"), py::arg("target_y") = 470, py::arg("min_run") = 30);
 }

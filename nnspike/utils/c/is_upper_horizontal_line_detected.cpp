@@ -60,6 +60,6 @@ bool is_upper_horizontal_line_detected(py::array image_np) {
     return false;
 }
 
-PYBIND11_MODULE(control_cpp_upper_horiz, m) {
+PYBIND11_MODULE(control_cpp_upper_horizontal, m) {
     m.def("is_upper_horizontal_line_detected", &is_upper_horizontal_line_detected, "Upper horizontal black line detector", py::arg("image"));
 }

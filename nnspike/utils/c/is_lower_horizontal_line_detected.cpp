@@ -46,6 +46,6 @@ bool is_lower_horizontal_line_detected(py::array image_np, int intersection_y = 
     return false;
 }
 
-PYBIND11_MODULE(control_cpp_lower_horiz, m) {
+PYBIND11_MODULE(control_cpp_lower_horizontal, m) {
     m.def("is_lower_horizontal_line_detected", &is_lower_horizontal_line_detected, "Lower horizontal black line detector", py::arg("image"), py::arg("intersection_y") = 450);
 }

@@ -65,6 +65,6 @@ bool is_fast_corner_detected(py::array image_np, std::tuple<int,int,int,int> roi
     return false;
 }
 
-PYBIND11_MODULE(control_cpp_corner, m) {
+PYBIND11_MODULE(control_cpp_is_fast_corner_detected, m) {
     m.def("is_fast_corner_detected", &is_fast_corner_detected, "Fast corner detector", py::arg("image"), py::arg("roi"), py::arg("course") = "right");
 }

@@ -76,6 +76,6 @@ int get_virtual_line_target_x(py::array image_np) {
     return target_x;
 }
 
-PYBIND11_MODULE(control_cpp_virtual_line, m) {
+PYBIND11_MODULE(control_cpp_get_virtual_line_target_x, m) {
     m.def("get_virtual_line_target_x", &get_virtual_line_target_x, "Virtual line target x extractor", py::arg("image"));
 }

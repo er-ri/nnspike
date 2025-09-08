@@ -52,7 +52,7 @@ get_line_edges_at_y(py::array image_np, std::tuple<int, int, int, int> roi, int 
     return std::make_tuple(py::none(), py::none(), py::none());
 }
 
-PYBIND11_MODULE(control_cpp, m) {
+PYBIND11_MODULE(control_cpp_get_line_edges_at_y, m) {
     m.def("get_line_edges_at_y", &get_line_edges_at_y, "Line edge detector",
         py::arg("image"), py::arg("roi"), py::arg("target_y"), py::arg("threshold_value") = 80);
 }

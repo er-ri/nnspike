@@ -7,44 +7,58 @@ find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
 find_package(pybind11 REQUIRED)
 find_package(OpenCV REQUIRED)
 
-pybind11_add_module(control_cpp get_line_edges_at_y.cpp)
-target_link_libraries(control_cpp PRIVATE ${OpenCV_LIBS})
+pybind11_add_module(control_cpp_get_line_edges_at_y get_line_edges_at_y.cpp)
+set_target_properties(control_cpp_get_line_edges_at_y PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+target_link_libraries(control_cpp_get_line_edges_at_y PRIVATE ${OpenCV_LIBS})
 
 pybind11_add_module(control_cpp_bottle find_bottle_center.cpp)
+set_target_properties(control_cpp_bottle PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 target_link_libraries(control_cpp_bottle PRIVATE ${OpenCV_LIBS})
 
-pybind11_add_module(control_cpp_virtual get_virtual_line_target_x.cpp)
-target_link_libraries(control_cpp_virtual PRIVATE ${OpenCV_LIBS})
+pybind11_add_module(control_cpp_get_virtual_line_target_x get_virtual_line_target_x.cpp)
+set_target_properties(control_cpp_get_virtual_line_target_x PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+target_link_libraries(control_cpp_get_virtual_line_target_x PRIVATE ${OpenCV_LIBS})
 
 pybind11_add_module(control_cpp_blue_target find_blue_target_center.cpp)
+set_target_properties(control_cpp_blue_target PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 target_link_libraries(control_cpp_blue_target PRIVATE ${OpenCV_LIBS})
 
-pybind11_add_module(control_cpp_blue_line get_is_blue_line_at_y.cpp)
-target_link_libraries(control_cpp_blue_line PRIVATE ${OpenCV_LIBS})
+pybind11_add_module(control_cpp_find_blue_target_center find_blue_target_center.cpp)
+set_target_properties(control_cpp_find_blue_target_center PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+target_link_libraries(control_cpp_find_blue_target_center PRIVATE ${OpenCV_LIBS})
 
 pybind11_add_module(control_cpp_x320_blue is_x320_on_blue_target.cpp)
+set_target_properties(control_cpp_x320_blue PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 target_link_libraries(control_cpp_x320_blue PRIVATE ${OpenCV_LIBS})
 
-pybind11_add_module(control_cpp_x320_red is_x320_on_red_target.cpp)
-target_link_libraries(control_cpp_x320_red PRIVATE ${OpenCV_LIBS})
+pybind11_add_module(control_cpp_is_x320_on_blue_target is_x320_on_blue_target.cpp)
+set_target_properties(control_cpp_is_x320_on_blue_target PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+target_link_libraries(control_cpp_is_x320_on_blue_target PRIVATE ${OpenCV_LIBS})
 
 pybind11_add_module(control_cpp_red_center get_red_target_center_x.cpp)
+set_target_properties(control_cpp_red_center PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 target_link_libraries(control_cpp_red_center PRIVATE ${OpenCV_LIBS})
 
 pybind11_add_module(control_cpp_left_black is_left_black_line_detected.cpp)
+set_target_properties(control_cpp_left_black PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 target_link_libraries(control_cpp_left_black PRIVATE ${OpenCV_LIBS})
 
 pybind11_add_module(control_cpp_lower_horizontal is_lower_horizontal_line_detected.cpp)
+set_target_properties(control_cpp_lower_horizontal PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 target_link_libraries(control_cpp_lower_horizontal PRIVATE ${OpenCV_LIBS})
 
 pybind11_add_module(control_cpp_vertical_black is_vertical_black_line_detected.cpp)
+set_target_properties(control_cpp_vertical_black PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 target_link_libraries(control_cpp_vertical_black PRIVATE ${OpenCV_LIBS})
 
 pybind11_add_module(control_cpp_upper_horizontal is_upper_horizontal_line_detected.cpp)
+set_target_properties(control_cpp_upper_horizontal PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 target_link_libraries(control_cpp_upper_horizontal PRIVATE ${OpenCV_LIBS})
 
-pybind11_add_module(control_cpp_blue_pixel get_blue_line_pixel.cpp)
-target_link_libraries(control_cpp_blue_pixel PRIVATE ${OpenCV_LIBS})
+pybind11_add_module(control_cpp_get_blue_line_pixel get_blue_line_pixel.cpp)
+set_target_properties(control_cpp_get_blue_line_pixel PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+target_link_libraries(control_cpp_get_blue_line_pixel PRIVATE ${OpenCV_LIBS})
 
-pybind11_add_module(control_cpp_fast_corner is_fast_corner_detected.cpp)
-target_link_libraries(control_cpp_fast_corner PRIVATE ${OpenCV_LIBS})
+pybind11_add_module(control_cpp_is_fast_corner_detected is_fast_corner_detected.cpp)
+set_target_properties(control_cpp_is_fast_corner_detected PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+target_link_libraries(control_cpp_is_fast_corner_detected PRIVATE ${OpenCV_LIBS})

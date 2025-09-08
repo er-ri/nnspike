@@ -37,6 +37,6 @@ int get_blue_line_pixel(py::array image_np) {
     return max_area;
 }
 
-PYBIND11_MODULE(control_cpp_blue_pixel, m) {
+PYBIND11_MODULE(control_cpp_get_blue_line_pixel, m) {
     m.def("get_blue_line_pixel", &get_blue_line_pixel, "Blue object pixel area extractor", py::arg("image"));
 }

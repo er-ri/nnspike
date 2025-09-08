@@ -51,6 +51,6 @@ bool is_x320_on_red_target(py::array image_np, int x_tolerance = 60) {
     return std::abs(cx - 320) <= x_tolerance;
 }
 
-PYBIND11_MODULE(control_cpp_x320_red, m) {
+PYBIND11_MODULE(control_cpp_is_x320_on_red_target, m) {
     m.def("is_x320_on_red_target", &is_x320_on_red_target, "Is x=320 on red target", py::arg("image"), py::arg("x_tolerance") = 60);
 }
