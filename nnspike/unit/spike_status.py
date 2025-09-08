@@ -23,21 +23,22 @@ class MotorStatus:
         )
 
 
-@dataclass
-class ColorSensorStatus:
-    """Status information for a color sensor connected to the Spike Prime hub."""
 
-    reflected: Optional[int] = None
-    ambient: Optional[int] = None
-    color: Optional[int] = None
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ColorSensorStatus":
-        return cls(
-            reflected=data.get("reflected"),
-            ambient=data.get("ambient"),
-            color=data.get("color"),
-        )
+# @dataclass
+# class ColorSensorStatus:
+#     """Status information for a color sensor connected to the Spike Prime hub."""
+#
+#     reflected: Optional[int] = None
+#     ambient: Optional[int] = None
+#     color: Optional[int] = None
+#
+#     @classmethod
+#     def from_dict(cls, data: Dict[str, Any]) -> "ColorSensorStatus":
+#         return cls(
+#             reflected=data.get("reflected"),
+#             ambient=data.get("ambient"),
+#             color=data.get("color"),
+#         )
 
 
 @dataclass
@@ -65,16 +66,17 @@ class Position:
         return cls(x=data.get("x", 0.0), y=data.get("y", 0.0))
 
 
-@dataclass
-class BatteryStatus:
-    """Battery status information from the Spike Prime hub."""
 
-    voltage: Optional[float] = None
-    percent: Optional[float] = None
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "BatteryStatus":
-        return cls(voltage=data.get("voltage"), percent=data.get("percent"))
+# @dataclass
+# class BatteryStatus:
+#     """Battery status information from the Spike Prime hub."""
+#
+#     voltage: Optional[float] = None
+#     percent: Optional[float] = None
+#
+#     @classmethod
+#     def from_dict(cls, data: Dict[str, Any]) -> "BatteryStatus":
+#         return cls(voltage=data.get("voltage"), percent=data.get("percent"))
 
 
 @dataclass
@@ -83,20 +85,20 @@ class SensorStatus:
 
     distance: Optional[int] = None
     force: Optional[int] = None
-    color: Optional[ColorSensorStatus] = None
-    gyro: Optional[VectorStatus] = None
-    accelerometer: Optional[VectorStatus] = None
-    position: Optional[Position] = None
+    # color: Optional[ColorSensorStatus] = None
+    # gyro: Optional[VectorStatus] = None
+    # accelerometer: Optional[VectorStatus] = None
+    # position: Optional[Position] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SensorStatus":
         return cls(
             distance=data.get("distance"),
             force=data.get("force"),
-            color=(ColorSensorStatus.from_dict(data.get("color", {})) if data.get("color") else None),
-            gyro=(VectorStatus.from_dict(data.get("gyro", {})) if data.get("gyro") else None),
-            accelerometer=(VectorStatus.from_dict(data.get("accelerometer", {})) if data.get("accelerometer") else None),
-            position=(Position.from_dict(data.get("position", {})) if data.get("position") else None),
+            # color=(ColorSensorStatus.from_dict(data.get("color", {})) if data.get("color") else None),
+            # gyro=(VectorStatus.from_dict(data.get("gyro", {})) if data.get("gyro") else None),
+            # accelerometer=(VectorStatus.from_dict(data.get("accelerometer", {})) if data.get("accelerometer") else None),
+            # position=(Position.from_dict(data.get("position", {})) if data.get("position") else None),
         )
 
 
@@ -123,7 +125,7 @@ class SpikeStatus:
             "C": MotorStatus(),  # Add motor arm (port C)
         }
         self.sensors: SensorStatus = SensorStatus()
-        self.battery: BatteryStatus = BatteryStatus()
+        # self.battery: BatteryStatus = BatteryStatus()
         self.raw_data: Dict = {}
 
         if raw_data is not None:
@@ -154,8 +156,8 @@ class SpikeStatus:
         self.sensors = SensorStatus.from_dict(sensors_data)
 
         # Update battery
-        battery_data = parsed_data.get("battery", {})
-        self.battery = BatteryStatus.from_dict(battery_data)
+        # battery_data = parsed_data.get("battery", {})
+        # self.battery = BatteryStatus.from_dict(battery_data)
 
     @staticmethod
     def _parse_data(data: Union[str, bytes, Dict]) -> Dict:
@@ -312,24 +314,26 @@ class SpikeStatus:
                 lines.append(f"  Motor {motor_id}: Position: {motor.position}, Power: {motor.power}")
 
         lines.append("Sensors:")
-        if self.sensors.distance is not None:
-            lines.append(f"  Distance: {self.sensors.distance}mm")
+    # if self.sensors.distance is not None:
+    #     lines.append(f"  Distance: {self.sensors.distance}mm")
         if self.sensors.force is not None:
             lines.append(f"  Force: {self.sensors.force}")
 
-        if self.sensors.color:
-            lines.append(f"  Color - Reflected: {self.sensors.color.reflected}, " f"Ambient: {self.sensors.color.ambient}, Color: {self.sensors.color.color}")
 
-        if self.sensors.gyro:
-            lines.append(f"  Gyro - X: {self.sensors.gyro.x}, Y: {self.sensors.gyro.y}, Z: {self.sensors.gyro.z}")
+    # if self.sensors.color:
+    #     lines.append(f"  Color - Reflected: {self.sensors.color.reflected}, " f"Ambient: {self.sensors.color.ambient}, Color: {self.sensors.color.color}")
 
-        if self.sensors.accelerometer:
-            lines.append(f"  Accel - X: {self.sensors.accelerometer.x}, " f"Y: {self.sensors.accelerometer.y}, Z: {self.sensors.accelerometer.z}")
 
-        if self.sensors.position:
-            lines.append(f"  Position - X: {self.sensors.position.x}, Y: {self.sensors.position.y}")
+    # if self.sensors.gyro:
+    #     lines.append(f"  Gyro - X: {self.sensors.gyro.x}, Y: {self.sensors.gyro.y}, Z: {self.sensors.gyro.z}")
 
-        if self.battery and self.battery.percent is not None:
-            lines.append(f"Battery: {self.battery.percent}% ({self.battery.voltage}V)")
+    # if self.sensors.accelerometer:
+    #     lines.append(f"  Accel - X: {self.sensors.accelerometer.x}, " f"Y: {self.sensors.accelerometer.y}, Z: {self.sensors.accelerometer.z}")
+
+    # if self.sensors.position:
+    #     lines.append(f"  Position - X: {self.sensors.position.x}, Y: {self.sensors.position.y}")
+
+    # if self.battery and self.battery.percent is not None:
+    #     lines.append(f"Battery: {self.battery.percent}% ({self.battery.voltage}V)")
 
         return "\n".join(lines)
