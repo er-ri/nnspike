@@ -18,6 +18,7 @@ import time
 import platform
 import serial.tools.list_ports
 
+
 from nnspike.unit.etrobot import ETRobot
 
 
@@ -300,6 +301,29 @@ def test_sensor_stability(et):
     else:
         print("❌ センサーデータ取得失敗")
 
+def measure_receive_cycle(et, duration_sec=5):
+    print(f"\n--- {duration_sec}秒間の新規データ受信サイクル(ms)計測 ---")
+    prev_timestamp = None
+    intervals = []
+    count = 0
+    start = time.time()
+    while time.time() - start < duration_sec:
+        status = et.get_spike_status()
+        ts = status.timestamp
+        if prev_timestamp is not None and ts != prev_timestamp:
+            interval = (ts - prev_timestamp) * 1000  # ms
+            intervals.append(interval)
+            count += 1
+            if count <= 10 or count % 20 == 0:
+                print(f"  {count}回目: {interval:.2f}ms")
+        prev_timestamp = ts
+        time.sleep(0.001)  # 1ms間隔で監視
+    if intervals:
+        avg = sum(intervals) / len(intervals)
+        print(f"\n受信サイクル統計: 平均={avg:.2f}ms, 最短={min(intervals):.2f}ms, 最長={max(intervals):.2f}ms, 回数={len(intervals)}")
+        print(f"サイクル分布例: {intervals[:10]} ...")
+    else:
+        print("新規データ受信が検出できませんでした")
 
 def main():
     """メイン実行関数"""
