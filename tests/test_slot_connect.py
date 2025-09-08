@@ -168,7 +168,7 @@ def test_sensor_stability(et):
         except Exception as e:
             print(f"  ⚠️  データ取得エラー: {e}")
 
-def measure_receive_cycle(et, duration_sec=2):
+def measure_receive_cycle(et, duration_sec=0.5):
     print(f"\n--- {duration_sec}秒間の新規データ受信サイクル(ms)計測 ---")
     prev_raw = None
     prev_time = None
@@ -221,7 +221,7 @@ def main():
         test_motor_control(et)
 
         # 5. モーター制御後に受信サイクル計測
-        measure_receive_cycle(et, duration_sec=5)
+        measure_receive_cycle(et, duration_sec=0.5)
 
         # 6. センサー安定性テスト
         test_sensor_stability(et)
