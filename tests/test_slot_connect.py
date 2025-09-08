@@ -82,7 +82,7 @@ def test_basic_connection(port):
         status = et.get_spike_status()
         if status:
             print("✅ Spikeステータス取得成功")
-            print(f"  タイムスタンプ: {status.timestamp}")
+            # print(f"  タイムスタンプ: {status.timestamp}")  # status.timestampは信頼しない
             print(f"  メッセージタイプ: {status.message_type}")
             return et
         else:
@@ -98,7 +98,7 @@ def test_communication_speed(et):
     print("\n2️⃣ 通信速度テスト（新規データ受信サイクル計測）")
     print("="*50)
     duration_sec = 5
-    print(f"📊 {duration_sec}秒間、status.timestampの変化のみをカウント・計測します...")
+    print(f"📊 {duration_sec}秒間、生データ(raw_data)の変化のみをカウント・計測します...")
     prev_raw = None
     prev_time = None
     intervals = []
@@ -108,7 +108,7 @@ def test_communication_speed(et):
         status = et.get_spike_status()
         now_raw = status.raw_data
         now_time = time.time()
-        if prev_raw is not None and now_raw != prev_raw:
+        if prev_raw is not None and now_raw != prev_raw and prev_time is not None:
             interval = (now_time - prev_time) * 1000  # ms
             intervals.append(interval)
             count += 1
@@ -191,11 +191,11 @@ def test_sensor_stability(et):
     while time.time() - start_time < test_duration:
         try:
             status = et.get_spike_status()
-            ts = status.timestamp
+            now = time.time()
             cycle = None
             if prev_ts is not None:
-                cycle = (ts - prev_ts) * 1000
-            prev_ts = ts
+                cycle = (now - prev_ts) * 1000
+            prev_ts = now
             print(f"cycle={cycle:.2f}ms, raw={status.raw_data}" if cycle is not None else f"raw={status.raw_data}")
             time.sleep(0.01)
         except Exception as e:
@@ -203,21 +203,25 @@ def test_sensor_stability(et):
 
 def measure_receive_cycle(et, duration_sec=5):
     print(f"\n--- {duration_sec}秒間の新規データ受信サイクル(ms)計測 ---")
-    prev_timestamp = None
+    prev_raw = None
+    prev_time = None
     intervals = []
     count = 0
     start = time.time()
     while time.time() - start < duration_sec:
         status = et.get_spike_status()
-        ts = status.timestamp
-        if prev_timestamp is not None and ts != prev_timestamp:
-            interval = (ts - prev_timestamp) * 1000  # ms
+        now_raw = status.raw_data
+        now_time = time.time()
+        if prev_raw is not None and now_raw != prev_raw and prev_time is not None:
+            interval = (now_time - prev_time) * 1000  # ms
             intervals.append(interval)
             count += 1
             if count <= 10 or count % 20 == 0:
                 print(f"  {count}回目: {interval:.2f}ms")
-        prev_timestamp = ts
-        time.sleep(0.001)  # 1ms間隔で監視
+        if now_raw != prev_raw:
+            prev_time = now_time
+        prev_raw = now_raw
+        time.sleep(0.001)
     if intervals:
         avg = sum(intervals) / len(intervals)
         print(f"\n受信サイクル統計: 平均={avg:.2f}ms, 最短={min(intervals):.2f}ms, 最長={max(intervals):.2f}ms, 回数={len(intervals)}")
