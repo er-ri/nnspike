@@ -1005,7 +1005,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            if position_diff < 150:
+            if position_diff < 170:
                 if center is not None:
                     target_x = center[0]
                 else:
