@@ -355,10 +355,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             match mode:
                 case Mode.DOUBLE_LOOP:
                     # 設定を元に戻す
-                    pid.Kp = 50
-                    pid.Ki = 0
-                    pid.Kd = 5
-                    pid.output_limits = (-BASE_SPEED, BASE_SPEED)
+                    # pid.Kp = 50
+                    # pid.Ki = 0
+                    # pid.Kd = 5
+                    # pid.output_limits = (-BASE_SPEED, BASE_SPEED)
                     target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.execute_double_loop(frame))
                 case Mode.TURN_LEFT_RELATIVE:
                     _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.turn_left_relative(frame))
@@ -377,10 +377,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.SMALL_TURN_LEFT:
                     _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.small_turn_left())
                 case Mode.HIGH_SPEED_AVOID:
-                    pid.Kp = 1.0  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
-                    pid.Ki = 0
-                    pid.Kd = 0.3  # 安定した微分制御で自然安定性向上
-                    pid.output_limits = (-4, 4)  # テスト結果による最適制御範囲
+                    # pid.Kp = 1.0  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
+                    # pid.Ki = 0
+                    # pid.Kd = 0.3  # 安定した微分制御で自然安定性向上
+                    # pid.output_limits = (-4, 4)  # テスト結果による最適制御範囲
                     target_x, (left_speed, right_speed, current_base_speed), mode = unpack_action_result(action_chain.high_speed_avoid(frame))
                 case Mode.HIGH_SPEED:
                     # ハイスピードモード（右エッジ追従＋高速）
