@@ -621,7 +621,12 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             corner_detected = is_fast_corner_detected(image, course=self.course)
-            if corner_detected and position_diff >= 2500:
+            # 上限3000を追加
+            if position_diff > 3000:
+                print(f"[DEBUG] phase9→phase10: position_diff={position_diff} current_pos={current_pos} >= 3000 (force next phase)")
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            elif corner_detected and position_diff >= 2500:
                 print(f"[DEBUG] phase9→phase10: position_diff={position_diff} current_pos={current_pos} >= 2500 and corner_detected")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
