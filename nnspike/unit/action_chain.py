@@ -573,7 +573,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            if position_diff >= 200:
+            if position_diff >= 100:
                 print(f"[DEBUG] phase7→phase8: position_diff={position_diff} current_pos={current_pos} >= 200")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
