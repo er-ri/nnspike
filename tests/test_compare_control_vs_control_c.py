@@ -10,14 +10,21 @@ from nnspike.utils import control
 def make_virtual_line_image(width=640, height=480, line_thickness=10, color=(0,0,0)):
     """ROI_VIRTUAL(100,100,540,330)内に確実に黒線が通る画像を生成"""
     img = np.ones((height, width, 3), dtype=np.uint8) * 255
-    # ROI_VIRTUAL内に2つの黒い矩形（面積のある物体）を描画
+    # ROI_VIRTUAL内に2つの黒い矩形（面積・アスペクト比・最大面積条件を厳密に満たす物体）を描画
     x1, y1, x2, y2 = 100, 100, 540, 330
-    w = (x2 - x1) // 4
-    h = (y2 - y1) // 2
-    # 左側の矩形（上寄り）
-    rect1 = (x1 + 10, y1 + 20, w + 50, h + 50)
-    # 右側の矩形（下寄り＆少し右にずらす）
-    rect2 = (x2 - w - 30, y1 + 40, w + 80, h + 80)
+    # 面積: 2000～8000程度、アスペクト比: 1.5～3.0、ROI内に完全に収まるように設計
+    # 左側の矩形（やや縦長、上寄り）
+    w1, h1 = 60, 35  # area=2100, aspect=1.71
+    rect1 = (x1 + 20, y1 + 15, w1, h1)
+    # 右側の矩形（やや横長、下寄り＆右寄り）
+    w2, h2 = 90, 30  # area=2700, aspect=3.0
+    rect2 = (x2 - w2 - 20, y2 - h2 - 10, w2, h2)
+    # ROI内に完全に収まることをassertで保証
+    assert x1 <= rect1[0] < rect1[0]+w1 <= x2
+    assert y1 <= rect1[1] < rect1[1]+h1 <= y2
+    assert x1 <= rect2[0] < rect2[0]+w2 <= x2
+    assert y1 <= rect2[1] < rect2[1]+h2 <= y2
+    # 描画
     cv2.rectangle(img, (rect1[0], rect1[1]), (rect1[0]+rect1[2], rect1[1]+rect1[3]), color, -1)
     cv2.rectangle(img, (rect2[0], rect2[1]), (rect2[0]+rect2[2], rect2[1]+rect2[3]), color, -1)
     return img
