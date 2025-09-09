@@ -47,8 +47,8 @@ def benchmark_find_bottle_center_python():
     res_py = control.find_bottle_center(img, color, roi)
     t1 = time.perf_counter()
     py_once = (t1 - t0) * 1000
-    print("Python結果:", res_py)
-    print(f"Python実装(1回): {py_once:.3f} ms")
+    print(f"find_bottle_center(Python) 結果: {res_py}")
+    print(f"find_bottle_center(Python) 実装(1回): {py_once:.3f} ms")
     # N回平均も計測
     N = 100
     py_times = []
@@ -58,8 +58,8 @@ def benchmark_find_bottle_center_python():
         end = time.perf_counter()
         elapsed = (end - start) * 1000
         py_times.append(elapsed)
-        print(f"[{i}] Python結果: {result}, 時間: {elapsed:.3f} ms")
-    print(f"Python実装(生): {[f'{t:.3f}' for t in py_times]}")
+    print(f"find_bottle_center(Python) [{i}] 結果: {result}, 時間: {elapsed:.3f} ms")
+    print(f"find_bottle_center(Python) 実装(生): {[f'{t:.3f}' for t in py_times]}")
 
 def benchmark_get_line_edges_at_y_python():
     roi = (0, 0, 640, 480)
@@ -91,8 +91,8 @@ def benchmark_get_line_edges_at_y_python():
             times.append(elapsed)
             print(f"[{i}] Python結果: {res}, 時間: {elapsed:.3f} ms")
         avg = sum(times) / N / 1000
-        print(f"Python実装(平均): {avg*1000:.3f} ms")
-        print(f"Python実装(生): {[f'{t:.3f}' for t in times]}")
+    print(f"get_line_edges_at_y(Python) 実装(平均): {avg*1000:.3f} ms")
+    print(f"get_line_edges_at_y(Python) 実装(生): {[f'{t:.3f}' for t in times]}")
 
 def benchmark_get_is_blue_line_at_y_python():
     # ランダム画像でベンチマーク
@@ -116,8 +116,8 @@ def benchmark_get_is_blue_line_at_y_python():
         times.append(elapsed)
         print(f"[{i}] Python結果: {res}, 時間: {elapsed:.3f} ms")
     avg = sum(times) / N / 1000
-    print(f"Python実装(平均): {avg*1000:.3f} ms")
-    print(f"Python実装(生): {[f'{t:.3f}' for t in times]}")
+    print(f"get_is_blue_line_at_y(Python) 実装(平均): {avg*1000:.3f} ms")
+    print(f"get_is_blue_line_at_y(Python) 実装(生): {[f'{t:.3f}' for t in times]}")
 
 
 def benchmark_get_virtual_line_target_x_python():
@@ -147,8 +147,8 @@ def benchmark_get_virtual_line_target_x_python():
         times.append(elapsed)
         print(f"[{i}] Python結果: {res}, 時間: {elapsed:.3f} ms")
     avg = sum(times) / N / 1000
-    print(f"Python実装(平均): {avg*1000:.3f} ms")
-    print(f"Python実装(生): {[f'{t:.3f}' for t in times]}")
+    print(f"get_virtual_line_target_x(Python) 実装(平均): {avg*1000:.3f} ms")
+    print(f"get_virtual_line_target_x(Python) 実装(生): {[f'{t:.3f}' for t in times]}")
 
 if __name__ == "__main__":
     benchmark_find_bottle_center_python()
