@@ -52,13 +52,15 @@ def benchmark_find_bottle_center_python():
     # N回平均も計測
     N = 100
     py_times = []
-    for _ in range(N):
-        t0 = time.perf_counter()
-        control.find_bottle_center(img, color, roi)
-        t1 = time.perf_counter()
-        py_times.append((t1 - t0) * 1000)
-    py_time = sum(py_times) / N / 1000
-    print(f"Python実装(平均): {py_time*1000:.3f} ms")
+    for i in range(n):
+        # 画像のID, dtype, shape, flagsをprintして確認
+        print(f"[DEBUG] img id={id(img)}, dtype={img.dtype}, shape={img.shape}, C_CONTIGUOUS={img.flags['C_CONTIGUOUS']}, F_CONTIGUOUS={img.flags['F_CONTIGUOUS']}")
+        start = time.perf_counter()
+        result = find_bottle_center(img, color=color)
+        end = time.perf_counter()
+        times.append((end - start) * 1000)
+        if i == 0:
+            print(f"Python結果: {result}")
     print(f"Python実装(生): {[f'{t:.3f}' for t in py_times]}")
 
 def benchmark_get_line_edges_at_y_python():
@@ -115,7 +117,37 @@ def benchmark_get_is_blue_line_at_y_python():
     print(f"Python実装(平均): {avg*1000:.3f} ms")
     print(f"Python実装(生): {[f'{t:.3f}' for t in times]}")
 
+
+def benchmark_get_virtual_line_target_x_python():
+    # 直線画像でテスト
+    roi = (0, 0, 640, 480)
+    y = 240
+    th = 80
+    img = make_diagonal_line_image(angle_deg=0, line_thickness=10)
+    print("--- get_virtual_line_target_x(Python) [横直線(10px)] ---")
+    t0 = time.perf_counter()
+    try:
+        res = control.get_virtual_line_target_x(img, roi, y, th)
+    except Exception as e:
+        print(f"Error: {e}")
+        return
+    t1 = time.perf_counter()
+    once = (t1 - t0) * 1000
+    print("Python結果:", res)
+    print(f"Python実装(1回): {once:.3f} ms")
+    N = 100
+    times = []
+    for _ in range(N):
+        t0 = time.perf_counter()
+        control.get_virtual_line_target_x(img, roi, y, th)
+        t1 = time.perf_counter()
+        times.append((t1 - t0) * 1000)
+    avg = sum(times) / N / 1000
+    print(f"Python実装(平均): {avg*1000:.3f} ms")
+    print(f"Python実装(生): {[f'{t:.3f}' for t in times]}")
+
 if __name__ == "__main__":
     benchmark_find_bottle_center_python()
-    benchmark_get_line_edges_at_y_python()
-    benchmark_get_is_blue_line_at_y_python()
+    # benchmark_get_line_edges_at_y_python()
+    # benchmark_get_is_blue_line_at_y_python()
+    benchmark_get_virtual_line_target_x_python()
