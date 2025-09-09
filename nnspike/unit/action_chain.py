@@ -578,9 +578,9 @@ class ActionChain(object):
             corner_detected = is_fast_corner_detected(image, course=self.course)
             if corner_detected and position_diff >= 200:
                 print(f"[DEBUG] phase7→phase8: position_diff={position_diff} current_pos={current_pos} >= 200 and corner_detected")
-                self.pid.Kp = 3.0  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
+                self.pid.Kp = 1.0  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
                 self.pid.Ki = 0
-                self.pid.Kd = 1  # 安定した微分制御で自然安定性向上
+                self.pid.Kd = 0.3  # 安定した微分制御で自然安定性向上
                 self.pid.output_limits = (-4, 4)  # テスト結果による最適制御範囲
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
