@@ -51,7 +51,7 @@ cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FPS, CAMERA_FPS)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
-cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce latency for venue
+cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)  # Reduce latency for venue
 
 def handle_status_and_video(frame, status, mode, target_x, theta, steering_correction, left_speed, right_speed,
                            record_sensor_data, sensor_recorder, send_video_stream, client_socket, 
@@ -229,9 +229,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         
         debug_state['counter'] += 1
         # 毎ループ出力（間引きなし） - 本番時はコメントアウトで負荷軽減
-        # elapsed_ms = int(loop_elapsed * 1000)
-        # sleep_ms = int(max(sleep_time, 0) * 1000)
-        # print(f"[DEBUG] loop={debug_state['counter']} time={elapsed_ms}ms [sleep={sleep_ms}ms]")
+        elapsed_ms = int(loop_elapsed * 1000)
+        sleep_ms = int(max(sleep_time, 0) * 1000)
+        print(f"[DEBUG] loop={debug_state['counter']} time={elapsed_ms}ms [sleep={sleep_ms}ms]")
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
