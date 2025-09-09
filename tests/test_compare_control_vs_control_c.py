@@ -122,14 +122,31 @@ def test_compare_find_bottle_center():
     roi = ROI_COLOR
     color = 'yellow'  # 必要に応じて変更
     print(f"--- find_bottle_center({img_path}, color={color}) ---")
+    # 1回ずつの処理時間も計測
+    t0 = time.perf_counter()
     res_py = control.find_bottle_center(img, color, roi)
+    t1 = time.perf_counter()
+    py_once = (t1 - t0) * 1000
     if control_cpp_bottle is not None:
+        t2 = time.perf_counter()
         res_c = control_cpp_bottle.find_bottle_center(img, color, roi)
+        t3 = time.perf_counter()
+        c_once = (t3 - t2) * 1000
     else:
         res_c = None
+        c_once = None
     print("Python:", res_py)
     print("C++:", res_c)
+    # 個別値の差分もprint
+    if res_py and res_c:
+        print(f"中心座標: Python={res_py[0]}, C++={res_c[0]}, diff={np.array(res_py[0])-np.array(res_c[0]) if res_py[0] and res_c[0] else 'N/A'}")
+        print(f"面積:     Python={res_py[1]}, C++={res_c[1]}, diff={res_py[1]-res_c[1] if res_py[1] and res_c[1] else 'N/A'}")
+        print(f"色ピクセル: Python={res_py[2]}, C++={res_c[2]}, diff={res_py[2]-res_c[2] if res_py[2] and res_c[2] else 'N/A'}")
     print("一致:", res_py == res_c)
+    print(f"Python実装(1回): {py_once:.3f} ms")
+    if c_once is not None:
+        print(f"C++実装(1回):    {c_once:.3f} ms")
+    # N回平均も計測
     N = 100
     py_times = []
     for _ in range(N):
