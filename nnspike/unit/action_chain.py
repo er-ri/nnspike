@@ -593,9 +593,9 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            # 上限1000を追加
-            if position_diff > 1000:
-                print(f"[DEBUG] phase8→phase9: position_diff={position_diff} current_pos={current_pos} >= 1000 (force next phase)")
+            # 上限1100を追加
+            if position_diff > 1100:
+                print(f"[DEBUG] phase8→phase9: position_diff={position_diff} current_pos={current_pos} >= 1100 (force next phase)")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             
@@ -621,9 +621,9 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             corner_detected = is_fast_corner_detected(image, course=self.course)
-            # 上限3000を追加
-            if position_diff > 3000:
-                print(f"[DEBUG] phase9→phase10: position_diff={position_diff} current_pos={current_pos} >= 3000 (force next phase)")
+            # 上限2900を追加
+            if position_diff > 2900:
+                print(f"[DEBUG] phase9→phase10: position_diff={position_diff} current_pos={current_pos} >= 2900 (force next phase)")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             elif corner_detected and position_diff >= 2500:
@@ -639,9 +639,9 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            # 上限1000を追加
-            if position_diff > 1000:
-                print(f"[DEBUG] phase10→phase11: position_diff={position_diff} current_pos={current_pos} >= 1000 (force next phase)")
+            # 上限1100を追加
+            if position_diff > 1100:
+                print(f"[DEBUG] phase10→phase11: position_diff={position_diff} current_pos={current_pos} >= 1100 (force next phase)")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
