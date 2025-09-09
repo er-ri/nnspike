@@ -61,7 +61,7 @@ OBSTACLE_AVOIDANCE_THRESHOLD = 14000
 # Camera and Robot Geometry Constants
 CAMERA_WIDTH = 640  # Camera frame width in pixels
 CAMERA_HEIGHT = 480  # Camera frame height in pixels  
-CAMERA_FPS = 25 # Camera frames per second
+CAMERA_FPS = 30 # Camera frames per second
 WHEELBASE = 0.11  # Distance between wheels in meters
 
 
