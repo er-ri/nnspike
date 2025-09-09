@@ -573,9 +573,8 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            corner_detected = is_fast_corner_detected(image, course=self.course)
-            if corner_detected and position_diff >= 200:
-                print(f"[DEBUG] phase7→phase8: position_diff={position_diff} current_pos={current_pos} >= 200 and corner_detected")
+            if position_diff >= 200:
+                print(f"[DEBUG] phase7→phase8: position_diff={position_diff} current_pos={current_pos} >= 200")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
@@ -587,7 +586,6 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            # 上限1100を追加
             if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=100):
                 print(f"[DEBUG] phase8→phase9: position_diff={position_diff} current_pos={current_pos} >= 500 and vertical_black_line_detected")
                 self.pid.Kp = 1.0  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
