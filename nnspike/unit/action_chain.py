@@ -554,7 +554,6 @@ class ActionChain(object):
                     self.pid.Ki = 0
                     self.pid.Kd = 5
                     self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
-                    return None, (0, 0, 0), Mode.HIGH_SPEED_AVOID
                 else:
                     if self.course == "right":
                         return None, (30, 60, 0), Mode.HIGH_SPEED_AVOID
@@ -568,7 +567,6 @@ class ActionChain(object):
                 self.pid.Ki = 0
                 self.pid.Kd = 5
                 self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
-                return None, (0, 0, 0), Mode.HIGH_SPEED_AVOID
 
         # phase7: コーナー検出で次フェーズへ。未検出時はエッジ追従（get_target_x_by_course）・HIGH_SPEED_AVOID返却
         if phase.get_phase() == 7:
