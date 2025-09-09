@@ -267,7 +267,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     # Initialize edge following preference based on the course parameter
     et = ETRobot()
-    action_chain = ActionChain(et, course, course_type)
+    action_chain = ActionChain(et, course, course_type, pid=pid)
 
     # Initialize robot, PID controller, and keyboard controller
     keyboard = KeyboardController()

@@ -88,7 +88,7 @@ class PhaseManager:
 class ActionChain(object):
     """ETRobotのためのアクションシーケンス管理クラス."""
 
-    def __init__(self, et: ETRobot, course: str, course_type: str) -> None:
+    def __init__(self, et: ETRobot, course: str, course_type: str, pid=None) -> None:
         """ActionChainの初期化処理."""
         self.et = et  # ロボット本体
         self.course = course  # コース種別
@@ -103,6 +103,7 @@ class ActionChain(object):
         self.x1, self.y1, self.x2, self.y2 = ROI_CNN  # 領域定義
         self._init = False
         self.pre_target_x = (self.x1 + self.x2) // 2
+        self.pid = pid  # PIDインスタンスを保持（run_manualから共有用）
 
     def initialize_action(self, motor_side: str = "right"):
         """アクション開始時の状態初期化処理.
@@ -544,6 +545,10 @@ class ActionChain(object):
                     print(f"[DEBUG] phase6→phase7: distance={distance} current_pos={current_pos} (vertical black line detected)")
                     phase.next_phase()
                     phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+                    self.pid.Kp = 50
+                    self.pid.Ki = 0
+                    self.pid.Kd = 5
+                    self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
                     return None, (0, 0, 0), Mode.HIGH_SPEED_AVOID
                 else:
                     if self.course == "right":
@@ -554,6 +559,10 @@ class ActionChain(object):
                 print(f"[DEBUG] phase6→phase7: distance={distance} current_pos={current_pos} >= 500")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+                self.pid.Kp = 50
+                self.pid.Ki = 0
+                self.pid.Kd = 5
+                self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
                 return None, (0, 0, 0), Mode.HIGH_SPEED_AVOID
 
         # phase7: コーナー検出で次フェーズへ。未検出時はエッジ追従（get_target_x_by_course）・HIGH_SPEED_AVOID返却
@@ -564,6 +573,10 @@ class ActionChain(object):
             corner_detected = is_fast_corner_detected(image, course=self.course)
             if corner_detected and position_diff >= 200:
                 print(f"[DEBUG] phase7→phase8: position_diff={position_diff} current_pos={current_pos} >= 200 and corner_detected")
+                self.pid.Kp = 1.0  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
+                self.pid.Ki = 0
+                self.pid.Kd = 0.3  # 安定した微分制御で自然安定性向上
+                self.pid.output_limits = (-4, 4)  # テスト結果による最適制御範囲
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
