@@ -56,7 +56,7 @@ def benchmark_find_bottle_center_python():
         # 画像のID, dtype, shape, flagsをprintして確認
         print(f"[DEBUG] img id={id(img)}, dtype={img.dtype}, shape={img.shape}, C_CONTIGUOUS={img.flags['C_CONTIGUOUS']}, F_CONTIGUOUS={img.flags['F_CONTIGUOUS']}")
         start = time.perf_counter()
-        result = find_bottle_center(img, color=color)
+        result = control.find_bottle_center(img, color=color)
         end = time.perf_counter()
         times.append((end - start) * 1000)
         if i == 0:
