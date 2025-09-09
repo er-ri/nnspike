@@ -26,21 +26,29 @@ def test_compare_get_line_edges_at_y():
     roi = (0, 0, 640, 480)
     y = 245  # ライン中央付近
     th = 80
-    # Python実装の速度計測
-    t0 = time.perf_counter()
+    # 1回分の結果
     res_py = control.get_line_edges_at_y(img, roi, y, th)
-    t1 = time.perf_counter()
-    py_time = t1 - t0
-    # C++実装の速度計測
-    t2 = time.perf_counter()
     res_c = control_c.get_line_edges_at_y(img, roi, y, th)
-    t3 = time.perf_counter()
-    c_time = t3 - t2
     print("Python:", res_py)
     print("C++:", res_c)
     print("一致:", res_py == res_c)
-    print(f"Python実装: {py_time*1000:.3f} ms")
-    print(f"C++実装:    {c_time*1000:.3f} ms")
+
+    # 100回繰り返しで平均速度計測
+    N = 100
+    t0 = time.perf_counter()
+    for _ in range(N):
+        control.get_line_edges_at_y(img, roi, y, th)
+    t1 = time.perf_counter()
+    py_time = (t1 - t0) / N
+
+    t2 = time.perf_counter()
+    for _ in range(N):
+        control_c.get_line_edges_at_y(img, roi, y, th)
+    t3 = time.perf_counter()
+    c_time = (t3 - t2) / N
+
+    print(f"Python実装(平均): {py_time*1000:.3f} ms")
+    print(f"C++実装(平均):    {c_time*1000:.3f} ms")
     if c_time > 0:
         print(f"速度比 (Python/C++): {py_time/c_time:.2f}倍")
     # 画像保存（目視確認用）
