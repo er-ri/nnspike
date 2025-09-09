@@ -1,8 +1,7 @@
-# 共有ディレクトリのcv2を優先してimport（ラズパイ内で/mnt/opencvにマウントしている場合）
 import sys
-sys.path.insert(0, "/msad/opencv")  # 必要に応じてパスを修正
-# import前にsys.pathを確認したい場合は下記を有効化
-# print("sys.path:", sys.path)
+sys.path.insert(0, "/home/msad/opencv/opencv/build/lib/python3")
+import cv2
+print(cv2.__file__)
 
 import sys
 import os
