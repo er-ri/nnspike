@@ -58,6 +58,8 @@ def benchmark_find_bottle_center_python():
     roi = ROI_COLOR
     color = 'yellow'  # 必要に応じて変更
     print(f"--- find_bottle_center(Python) {img_path}, color={color} ---")
+    # 画像を保存して目視確認
+    cv2.imwrite("test_find_bottle_center.png", img)
     # 1回ずつの処理時間も計測
     t0 = time.perf_counter()
     res_py = control.find_bottle_center(img, color, roi)
