@@ -9,6 +9,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/..'))
 import time
 import cv2
+print("cv2.__file__:", cv2.__file__)
 print("[cv2] build info (NEON確認):\n" + cv2.getBuildInformation())
 import numpy as np
 from nnspike.utils import control
