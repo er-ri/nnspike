@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 3.12)
+project(control_cpp)
+
+set(CMAKE_CXX_STANDARD 14)
+
+find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
+find_package(pybind11 REQUIRED)
+find_package(OpenCV REQUIRED)
+
+pybind11_add_module(control_cpp_get_line_edges_at_y get_line_edges_at_y.cpp)
+set_target_properties(control_cpp_get_line_edges_at_y PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+target_link_libraries(control_cpp_get_line_edges_at_y PRIVATE ${OpenCV_LIBS})
+
+pybind11_add_module(control_cpp_bottle find_bottle_center.cpp)
+set_target_properties(control_cpp_bottle PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+target_link_libraries(control_cpp_bottle PRIVATE ${OpenCV_LIBS})
