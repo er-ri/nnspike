@@ -226,7 +226,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         debug_state['counter'] += 1
         # 必要なら経過時間のみ出力（sleepなし）
         elapsed_ms = int(loop_elapsed * 1000)
-        print(f"[DEBUG] loop={debug_state['counter']} time={elapsed_ms}ms")
+        # print(f"[DEBUG] loop={debug_state['counter']} time={elapsed_ms}ms")
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled

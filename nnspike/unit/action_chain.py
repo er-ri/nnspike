@@ -546,7 +546,7 @@ class ActionChain(object):
                 else:
                     return None, (60, 30, 0), Mode.HIGH_SPEED_AVOID
             elif distance < 500:
-                if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=100):
+                if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                     print(f"[DEBUG] phase6→phase7: distance={distance} current_pos={current_pos} (vertical black line detected)")
                     phase.next_phase()
                     phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
