@@ -1,3 +1,13 @@
+def make_virtual_line_image(width=640, height=480, line_thickness=10, color=(0,0,0)):
+    """ROI_VIRTUAL(100,100,540,330)内に確実に黒線が通る画像を生成"""
+    img = np.ones((height, width, 3), dtype=np.uint8) * 255
+    # ROI_VIRTUALの上下1/3,2/3位置に2本の横線
+    x1, y1, x2, y2 = 100, 100, 540, 330
+    y_top = y1 + (y2 - y1) // 3
+    y_bottom = y1 + 2 * (y2 - y1) // 3
+    cv2.line(img, (x1, y_top), (x2, y_top), color, line_thickness)
+    cv2.line(img, (x1, y_bottom), (x2, y_bottom), color, line_thickness)
+    return img
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/..'))
@@ -115,7 +125,7 @@ def benchmark_get_virtual_line_target_x_python():
     roi = (0, 0, 640, 480)
     y = 240
     th = 80
-    img = make_diagonal_line_image(angle_deg=0, line_thickness=10)
+    img = make_virtual_line_image(line_thickness=10)
     print("--- get_virtual_line_target_x(Python) [横直線(10px)] ---")
     t0 = time.perf_counter()
     try:
