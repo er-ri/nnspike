@@ -522,7 +522,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            if position_diff < 200:
+            if position_diff < 100:
                return None, (BASE_SPEED, BASE_SPEED, 0), Mode.HIGH_SPEED_AVOID
             else:
                 print(f"[DEBUG] phase5→phase6: position_diff={position_diff} current_pos={current_pos}")
@@ -534,11 +534,11 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             distance = abs(current_pos - position_start)
-            if distance < 100:
+            if distance < 50:
                 if self.course == "right":
-                    return None, (30, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (30, 60, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (70, 30, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (60, 30, 0), Mode.HIGH_SPEED_AVOID
             elif distance < 500:
                 if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                     print(f"[DEBUG] phase6→phase7: distance={distance} current_pos={current_pos} (vertical black line detected)")
@@ -546,13 +546,14 @@ class ActionChain(object):
                     phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
                 else:
                     if self.course == "right":
-                        return None, (30, 70, 0), Mode.HIGH_SPEED_AVOID
+                        return None, (30, 60, 0), Mode.HIGH_SPEED_AVOID
                     else:
-                        return None, (70, 30, 0), Mode.HIGH_SPEED_AVOID
+                        return None, (60, 30, 0), Mode.HIGH_SPEED_AVOID
             else:
                 print(f"[DEBUG] phase6→phase7: distance={distance} current_pos={current_pos} >= 500")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+                return None, (0, 0, 0), Mode.HIGH_SPEED_AVOID
 
         # phase7: コーナー検出で次フェーズへ。未検出時はエッジ追従（get_target_x_by_course）・HIGH_SPEED_AVOID返却
         if phase.get_phase() == 7:
