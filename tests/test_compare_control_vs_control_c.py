@@ -1,12 +1,22 @@
 
 
-import sys, os
+
+import sys
+import os
 import time
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/..'))
+
 
 import cv2
 import numpy as np
 from nnspike.utils import control
+
+# --- C++拡張のimportパスを絶対パスで追加（control_c.pyと同じロジック） ---
+cpp_build_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../nnspike/utils/c/build'))
+cpp_release_dir = os.path.join(cpp_build_dir, 'Release')
+for p in [cpp_build_dir, cpp_release_dir]:
+    if p not in sys.path:
+        sys.path.append(p)
 
 # --- C++拡張を直接import ---
 try:
