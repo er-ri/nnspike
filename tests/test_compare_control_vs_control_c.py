@@ -89,8 +89,9 @@ def test_compare_find_bottle_center():
     if img is None:
         print(f"画像が読み込めません: {img_path}")
         return
-    roi = (0, 0, img.shape[1], img.shape[0])
-    color = 'blue'  # 必要に応じて変更
+    from nnspike.constants import ROI_COLOR
+    roi = ROI_COLOR
+    color = 'yellow'  # 必要に応じて変更
     print(f"--- find_bottle_center({img_path}, color={color}) ---")
     res_py = control.find_bottle_center(img, color, roi)
     res_c = control_c.find_bottle_center(img, color, roi)
