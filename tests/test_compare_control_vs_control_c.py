@@ -5,13 +5,23 @@ import cv2
 import numpy as np
 from nnspike.utils import control, control_c
 
-def make_dummy_line_image(width=640, height=480, line_y=240, line_thickness=10):
+
+def make_diagonal_line_image(width=640, height=480, line_thickness=10, angle_deg=45):
     img = np.ones((height, width, 3), dtype=np.uint8) * 255  # 白背景
-    cv2.rectangle(img, (0, line_y), (width-1, line_y+line_thickness-1), (0,0,0), -1)  # 黒ライン
+    # 画像中心を通る45度の直線を描画
+    center = (width // 2, height // 2)
+    length = int(np.hypot(width, height))
+    angle_rad = np.deg2rad(angle_deg)
+    dx = int(np.cos(angle_rad) * length // 2)
+    dy = int(np.sin(angle_rad) * length // 2)
+    pt1 = (center[0] - dx, center[1] - dy)
+    pt2 = (center[0] + dx, center[1] + dy)
+    cv2.line(img, pt1, pt2, (0,0,0), line_thickness)
     return img
 
+
 def test_compare_get_line_edges_at_y():
-    img = make_dummy_line_image()
+    img = make_diagonal_line_image()
     roi = (0, 0, 640, 480)
     y = 245  # ライン中央付近
     th = 80
@@ -21,7 +31,7 @@ def test_compare_get_line_edges_at_y():
     print("C++:", res_c)
     print("一致:", res_py == res_c)
     # 画像保存（目視確認用）
-    cv2.imwrite("tests/dummy_line_image.png", img)
+    cv2.imwrite("tests/diagonal_line_image.png", img)
 
 if __name__ == "__main__":
     test_compare_get_line_edges_at_y()
