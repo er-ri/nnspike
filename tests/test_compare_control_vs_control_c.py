@@ -1,13 +1,3 @@
-def make_virtual_line_image(width=640, height=480, line_thickness=10, color=(0,0,0)):
-    """ROI_VIRTUAL(100,100,540,330)内に確実に黒線が通る画像を生成"""
-    img = np.ones((height, width, 3), dtype=np.uint8) * 255
-    # ROI_VIRTUALの上下1/3,2/3位置に2本の横線
-    x1, y1, x2, y2 = 100, 100, 540, 330
-    y_top = y1 + (y2 - y1) // 3
-    y_bottom = y1 + 2 * (y2 - y1) // 3
-    cv2.line(img, (x1, y_top), (x2, y_top), color, line_thickness)
-    cv2.line(img, (x1, y_bottom), (x2, y_bottom), color, line_thickness)
-    return img
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/..'))
@@ -15,6 +5,22 @@ import time
 import cv2
 import numpy as np
 from nnspike.utils import control
+
+
+def make_virtual_line_image(width=640, height=480, line_thickness=10, color=(0,0,0)):
+    """ROI_VIRTUAL(100,100,540,330)内に確実に黒線が通る画像を生成"""
+    img = np.ones((height, width, 3), dtype=np.uint8) * 255
+    # ROI_VIRTUAL内に2つの黒い矩形（面積のある物体）を描画
+    x1, y1, x2, y2 = 100, 100, 540, 330
+    w = (x2 - x1) // 4
+    h = (y2 - y1) // 2
+    # 左側の矩形
+    rect1 = (x1 + 10, y1 + 10, w, h)
+    # 右側の矩形
+    rect2 = (x2 - w - 10, y1 + 10, w, h)
+    cv2.rectangle(img, (rect1[0], rect1[1]), (rect1[0]+rect1[2], rect1[1]+rect1[3]), color, -1)
+    cv2.rectangle(img, (rect2[0], rect2[1]), (rect2[0]+rect2[2], rect2[1]+rect2[3]), color, -1)
+    return img
 
 
 
