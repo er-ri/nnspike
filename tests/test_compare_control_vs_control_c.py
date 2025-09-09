@@ -66,7 +66,7 @@ def benchmark_find_bottle_center_python():
     print(f"find_bottle_center(Python) 結果: {res_py}")
     print(f"find_bottle_center(Python) 実装(1回): {py_once:.3f} ms")
     # N回平均も計測
-    N = 100
+    N = 10
     py_times = []
     for i in range(N):
         start = time.perf_counter()
