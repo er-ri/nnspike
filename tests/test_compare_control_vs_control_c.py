@@ -1,32 +1,11 @@
 
 
 
-import sys
 import os
 import time
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/..'))
-
-
 import cv2
 import numpy as np
 from nnspike.utils import control
-
-# --- C++拡張のimportパスを絶対パスで追加（control_c.pyと同じロジック） ---
-cpp_build_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../nnspike/utils/c/build'))
-cpp_release_dir = os.path.join(cpp_build_dir, 'Release')
-for p in [cpp_build_dir, cpp_release_dir]:
-    if p not in sys.path:
-        sys.path.append(p)
-
-# --- C++拡張を直接import ---
-try:
-    import control_cpp_get_line_edges_at_y
-except ImportError:
-    control_cpp_get_line_edges_at_y = None
-try:
-    import control_cpp_bottle
-except ImportError:
-    control_cpp_bottle = None
 
 
 
@@ -51,58 +30,6 @@ def make_curve_image(width=640, height=480, thickness=10, color=(0,0,0)):
     ], np.int32)
     pts = pts.reshape((-1,1,2))
     cv2.polylines(img, [pts], False, color, thickness)
-    return img
-
-
-
-def run_benchmark(img, roi, y, th, label):
-    res_py = control.get_line_edges_at_y(img, roi, y, th)
-    if control_cpp_get_line_edges_at_y is not None:
-        res_c = control_cpp_get_line_edges_at_y.get_line_edges_at_y(img, roi, y, th)
-    else:
-        res_c = None
-    print(f"--- {label} ---")
-    print("Python:", res_py)
-    print("C++:", res_c)
-    print("一致:", res_py == res_c)
-
-    N = 100
-    py_times = []
-    for _ in range(N):
-        t0 = time.perf_counter()
-        control.get_line_edges_at_y(img, roi, y, th)
-        t1 = time.perf_counter()
-        py_times.append((t1 - t0) * 1000)  # ms
-    c_times = []
-    if control_cpp_get_line_edges_at_y is not None:
-        for _ in range(N):
-            t2 = time.perf_counter()
-            control_cpp_get_line_edges_at_y.get_line_edges_at_y(img, roi, y, th)
-            t3 = time.perf_counter()
-            c_times.append((t3 - t2) * 1000)  # ms
-        c_time = sum(c_times) / N / 1000
-    else:
-        c_time = 0
-    py_time = sum(py_times) / N / 1000
-    print(f"Python実装(平均): {py_time*1000:.3f} ms")
-    if c_time > 0:
-        print(f"C++実装(平均):    {c_time*1000:.3f} ms")
-        print(f"速度比 (Python/C++): {py_time/c_time:.2f}倍")
-        print(f"C++実装(生):    {[f'{t:.3f}' for t in c_times]}")
-    else:
-        print("C++拡張がimportできませんでした")
-    print(f"Python実装(生): {[f'{t:.3f}' for t in py_times]}")
-
-def test_compare_get_line_edges_at_y():
-    roi = (0, 0, 640, 480)
-    y = 245
-    th = 80
-    # バリエーション: 直線
-    img1 = make_diagonal_line_image(angle_deg=0, line_thickness=10)
-    run_benchmark(img1, roi, y, th, "横直線(10px)")
-    img2 = make_diagonal_line_image(angle_deg=90, line_thickness=10)
-    run_benchmark(img2, roi, y, th, "縦直線(10px)")
-    img3 = make_diagonal_line_image(angle_deg=45, line_thickness=10)
     run_benchmark(img3, roi, y, th, "斜め45度直線(10px)")
     img4 = make_diagonal_line_image(angle_deg=45, line_thickness=20)
     run_benchmark(img4, roi, y, th, "斜め45度直線(20px)")
@@ -113,7 +40,6 @@ def test_compare_get_line_edges_at_y():
 
 
 def benchmark_find_bottle_center_python():
-    import cv2
     img_path = os.path.join(os.path.dirname(__file__), 'frame_76.png')
     img = cv2.imread(img_path)
     if img is None:
@@ -142,5 +68,61 @@ def benchmark_find_bottle_center_python():
     print(f"Python実装(平均): {py_time*1000:.3f} ms")
     print(f"Python実装(生): {[f'{t:.3f}' for t in py_times]}")
 
+def benchmark_get_line_edges_at_y_python():
+    roi = (0, 0, 640, 480)
+    y = 240
+    th = 80
+    test_images = [
+        (make_diagonal_line_image(angle_deg=0, line_thickness=10), "横直線(10px)"),
+        (make_diagonal_line_image(angle_deg=90, line_thickness=10), "縦直線(10px)"),
+        (make_diagonal_line_image(angle_deg=45, line_thickness=10), "斜め45度直線(10px)"),
+        (make_diagonal_line_image(angle_deg=45, line_thickness=20), "斜め45度直線(20px)"),
+        (make_diagonal_line_image(angle_deg=45, line_thickness=10, color=(0,0,255)), "斜め45度赤直線(10px)"),
+        (make_curve_image(thickness=10), "曲線(10px)")
+    ]
+    for img, label in test_images:
+        print(f"--- get_line_edges_at_y(Python) [{label}] ---")
+        t0 = time.perf_counter()
+        res = control.get_line_edges_at_y(img, roi, y, th)
+        t1 = time.perf_counter()
+        once = (t1 - t0) * 1000
+        print("Python結果:", res)
+        print(f"Python実装(1回): {once:.3f} ms")
+        N = 100
+        times = []
+        for _ in range(N):
+            t0 = time.perf_counter()
+            control.get_line_edges_at_y(img, roi, y, th)
+            t1 = time.perf_counter()
+            times.append((t1 - t0) * 1000)
+        avg = sum(times) / N / 1000
+        print(f"Python実装(平均): {avg*1000:.3f} ms")
+        print(f"Python実装(生): {[f'{t:.3f}' for t in times]}")
+
+def benchmark_get_is_blue_line_at_y_python():
+    # ランダム画像でベンチマーク
+    img = (np.random.rand(480, 640, 3) * 255).astype(np.uint8)
+    y = 470
+    min_run = 30
+    print("--- get_is_blue_line_at_y(Python) ---")
+    t0 = time.perf_counter()
+    res = control.get_is_blue_line_at_y(img, y, min_run)
+    t1 = time.perf_counter()
+    once = (t1 - t0) * 1000
+    print("Python結果:", res)
+    print(f"Python実装(1回): {once:.3f} ms")
+    N = 100
+    times = []
+    for _ in range(N):
+        t0 = time.perf_counter()
+        control.get_is_blue_line_at_y(img, y, min_run)
+        t1 = time.perf_counter()
+        times.append((t1 - t0) * 1000)
+    avg = sum(times) / N / 1000
+    print(f"Python実装(平均): {avg*1000:.3f} ms")
+    print(f"Python実装(生): {[f'{t:.3f}' for t in times]}")
+
 if __name__ == "__main__":
     benchmark_find_bottle_center_python()
+    benchmark_get_line_edges_at_y_python()
+    benchmark_get_is_blue_line_at_y_python()
