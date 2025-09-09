@@ -636,13 +636,17 @@ class ActionChain(object):
             # 所定距離進行後、垂直黒ライン判定
             if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                 print(f"[DEBUG] phase10→phase11: position_diff={position_diff} current_pos={current_pos} >= 500 and vertical_black_line_detected")
+                self.pid.Kp = 50
+                self.pid.Ki = 0
+                self.pid.Kd = 5
+                self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
                 if self.course == "right":
-                    return None, (47, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (49, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (70, 47, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (70, 49, 0), Mode.HIGH_SPEED_AVOID
 
         # phase11: 青面積判定または右モーターが一定距離進んだらDOUBLE_LOOP、そうでなければHIGH_SPEED_AVOID継続
         if phase.get_phase() == 11:
@@ -656,7 +660,7 @@ class ActionChain(object):
                 self.reset_action()
                 return target_x, None, Mode.DOUBLE_LOOP
             else:
-                return target_x, (0, 0, 70), Mode.HIGH_SPEED_AVOID
+                return target_x, (0, 0, BASE_SPEED), Mode.HIGH_SPEED_AVOID
 
         print("[high_speed_avoid] Unexpected state reached.")
         return None, None, Mode.HIGH_SPEED_AVOID
@@ -1375,6 +1379,11 @@ class ActionChain(object):
 
         if not self._init:
             self.initialize_action(motor_side=self.course)
+            self.pid.Kp = 50
+            self.pid.Ki = 0
+            self.pid.Kd = 5
+            self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
+
         phase = self._phase
         status = self._status
         current_pos = self.get_motor_position(self.course, status=status)
