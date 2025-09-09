@@ -132,6 +132,8 @@ def benchmark_get_virtual_line_target_x_python():
     y = 240
     th = 80
     img = make_virtual_line_image(line_thickness=10)
+    # 画像を保存して目視確認
+    cv2.imwrite("test_virtual_line.png", img)
     print("--- get_virtual_line_target_x(Python) [横直線(10px)] ---")
     t0 = time.perf_counter()
     try:
@@ -145,7 +147,7 @@ def benchmark_get_virtual_line_target_x_python():
     once = (t1 - t0) * 1000
     print("Python結果:", res)
     print(f"Python実装(1回): {once:.3f} ms")
-    N = 100
+    N = 10
     times = []
     for i in range(N):
         t0 = time.perf_counter()
