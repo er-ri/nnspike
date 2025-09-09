@@ -544,6 +544,7 @@ class ActionChain(object):
                     print(f"[DEBUG] phase6→phase7: distance={distance} current_pos={current_pos} (vertical black line detected)")
                     phase.next_phase()
                     phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+                    return None, (0, 0, 0), Mode.HIGH_SPEED_AVOID
                 else:
                     if self.course == "right":
                         return None, (30, 60, 0), Mode.HIGH_SPEED_AVOID
