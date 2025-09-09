@@ -510,7 +510,7 @@ def is_left_black_line_detected(image, course) -> bool:
         return False
     _min_width = 60
     _min_height = 150
-    _min_aspect = 2
+    _min_aspect = 1
     _min_area = 8000
     _roi = ROI_LINE_LEFT
     x1, y1, x2, y2 = _roi
