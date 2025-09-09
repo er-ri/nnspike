@@ -267,10 +267,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     # Initialize edge following preference based on the course parameter
     et = ETRobot()
-    action_chain = ActionChain(et, course, course_type, pid=pid)
-
-    # Initialize robot, PID controller, and keyboard controller
-    keyboard = KeyboardController()
+    # まずPIDインスタンスを生成
     pid = PIDController(
         Kp=50,  # Reduced from 50 to minimize zigzag behavior
         Ki=0,  # Small integral term to eliminate steady-state error
@@ -281,6 +278,11 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             BASE_SPEED,
         ),  # Direct radian limits for steering correction
     )
+    # その後でActionChainに渡す
+    action_chain = ActionChain(et, course, course_type, pid=pid)
+
+    # Initialize robot, keyboard controller
+    keyboard = KeyboardController()
 
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
