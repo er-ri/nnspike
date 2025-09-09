@@ -111,7 +111,8 @@ def test_compare_get_line_edges_at_y():
     img6 = make_curve_image(thickness=10)
     run_benchmark(img6, roi, y, th, "曲線(10px)")
 
-def test_compare_find_bottle_center():
+
+def benchmark_find_bottle_center_python():
     import cv2
     img_path = os.path.join(os.path.dirname(__file__), 'frame_76.png')
     img = cv2.imread(img_path)
@@ -121,31 +122,14 @@ def test_compare_find_bottle_center():
     from nnspike.constants import ROI_COLOR
     roi = ROI_COLOR
     color = 'yellow'  # 必要に応じて変更
-    print(f"--- find_bottle_center({img_path}, color={color}) ---")
+    print(f"--- find_bottle_center(Python) {img_path}, color={color} ---")
     # 1回ずつの処理時間も計測
     t0 = time.perf_counter()
     res_py = control.find_bottle_center(img, color, roi)
     t1 = time.perf_counter()
     py_once = (t1 - t0) * 1000
-    if control_cpp_bottle is not None:
-        t2 = time.perf_counter()
-        res_c = control_cpp_bottle.find_bottle_center(img, color, roi)
-        t3 = time.perf_counter()
-        c_once = (t3 - t2) * 1000
-    else:
-        res_c = None
-        c_once = None
-    print("Python:", res_py)
-    print("C++:", res_c)
-    # 個別値の差分もprint
-    if res_py and res_c:
-        print(f"中心座標: Python={res_py[0]}, C++={res_c[0]}, diff={np.array(res_py[0])-np.array(res_c[0]) if res_py[0] and res_c[0] else 'N/A'}")
-        print(f"面積:     Python={res_py[1]}, C++={res_c[1]}, diff={res_py[1]-res_c[1] if res_py[1] and res_c[1] else 'N/A'}")
-        print(f"色ピクセル: Python={res_py[2]}, C++={res_c[2]}, diff={res_py[2]-res_c[2] if res_py[2] and res_c[2] else 'N/A'}")
-    print("一致:", res_py == res_c)
+    print("Python結果:", res_py)
     print(f"Python実装(1回): {py_once:.3f} ms")
-    if c_once is not None:
-        print(f"C++実装(1回):    {c_once:.3f} ms")
     # N回平均も計測
     N = 100
     py_times = []
@@ -154,26 +138,9 @@ def test_compare_find_bottle_center():
         control.find_bottle_center(img, color, roi)
         t1 = time.perf_counter()
         py_times.append((t1 - t0) * 1000)
-    c_times = []
-    if control_cpp_bottle is not None:
-        for _ in range(N):
-            t2 = time.perf_counter()
-            control_cpp_bottle.find_bottle_center(img, color, roi)
-            t3 = time.perf_counter()
-            c_times.append((t3 - t2) * 1000)
-        c_time = sum(c_times) / N / 1000
-    else:
-        c_time = 0
     py_time = sum(py_times) / N / 1000
     print(f"Python実装(平均): {py_time*1000:.3f} ms")
-    if c_time > 0:
-        print(f"C++実装(平均):    {c_time*1000:.3f} ms")
-        print(f"速度比 (Python/C++): {py_time/c_time:.2f}倍")
-        print(f"C++実装(生):    {[f'{t:.3f}' for t in c_times]}")
-    else:
-        print("C++拡張がimportできませんでした")
     print(f"Python実装(生): {[f'{t:.3f}' for t in py_times]}")
 
 if __name__ == "__main__":
-    #test_compare_get_line_edges_at_y()
-    test_compare_find_bottle_center()
+    benchmark_find_bottle_center_python()
