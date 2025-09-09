@@ -29,13 +29,10 @@ def make_curve_image(width=640, height=480, thickness=10, color=(0,0,0)):
     ], np.int32)
     pts = pts.reshape((-1,1,2))
     cv2.polylines(img, [pts], False, color, thickness)
-    run_benchmark(img3, roi, y, th, "斜め45度直線(10px)")
     img4 = make_diagonal_line_image(angle_deg=45, line_thickness=20)
-    run_benchmark(img4, roi, y, th, "斜め45度直線(20px)")
     img5 = make_diagonal_line_image(angle_deg=45, line_thickness=10, color=(0,0,255))
-    run_benchmark(img5, roi, y, th, "斜め45度赤直線(10px)")
     img6 = make_curve_image(thickness=10)
-    run_benchmark(img6, roi, y, th, "曲線(10px)")
+        return img
 
 
 def benchmark_find_bottle_center_python():
