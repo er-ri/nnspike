@@ -58,7 +58,7 @@ def benchmark_find_bottle_center_python():
         start = time.perf_counter()
         result = control.find_bottle_center(img, color=color)
         end = time.perf_counter()
-        times.append((end - start) * 1000)
+        py_times.append((end - start) * 1000)
         if i == 0:
             print(f"Python結果: {result}")
     print(f"Python実装(生): {[f'{t:.3f}' for t in py_times]}")
