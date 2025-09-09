@@ -29,9 +29,6 @@ def make_curve_image(width=640, height=480, thickness=10, color=(0,0,0)):
     ], np.int32)
     pts = pts.reshape((-1,1,2))
     cv2.polylines(img, [pts], False, color, thickness)
-    img4 = make_diagonal_line_image(angle_deg=45, line_thickness=20)
-    img5 = make_diagonal_line_image(angle_deg=45, line_thickness=10, color=(0,0,255))
-    img6 = make_curve_image(thickness=10)
     return img
 
 
