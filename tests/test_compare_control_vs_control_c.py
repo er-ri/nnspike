@@ -134,8 +134,9 @@ def benchmark_get_virtual_line_target_x_python():
     y = 240
     th = 80
     img = make_virtual_line_image(line_thickness=10)
-    # 画像を保存して目視確認
-    cv2.imwrite("test_virtual_line.png", img)
+    # 画像を保存して目視確認（絶対パス指定でtestsディレクトリ内に保存）
+    save_path = os.path.join(os.path.dirname(__file__), "test_virtual_line.png")
+    cv2.imwrite(save_path, img)
     print("--- get_virtual_line_target_x(Python) [横直線(10px)] ---")
     t0 = time.perf_counter()
     try:
