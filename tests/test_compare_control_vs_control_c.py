@@ -1,3 +1,6 @@
+
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/..'))
 import cv2
 import numpy as np
 from nnspike.utils import control, control_c
