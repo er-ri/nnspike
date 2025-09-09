@@ -56,9 +56,9 @@ def benchmark_find_bottle_center_python():
         start = time.perf_counter()
         result = control.find_bottle_center(img, color=color)
         end = time.perf_counter()
-        py_times.append((end - start) * 1000)
-        if i == 0:
-            print(f"Python結果: {result}")
+        elapsed = (end - start) * 1000
+        py_times.append(elapsed)
+        print(f"[{i}] Python結果: {result}, 時間: {elapsed:.3f} ms")
     print(f"Python実装(生): {[f'{t:.3f}' for t in py_times]}")
 
 def benchmark_get_line_edges_at_y_python():
@@ -83,11 +83,13 @@ def benchmark_get_line_edges_at_y_python():
         print(f"Python実装(1回): {once:.3f} ms")
         N = 100
         times = []
-        for _ in range(N):
+        for i in range(N):
             t0 = time.perf_counter()
-            control.get_line_edges_at_y(img, roi, y, th)
+            res = control.get_line_edges_at_y(img, roi, y, th)
             t1 = time.perf_counter()
-            times.append((t1 - t0) * 1000)
+            elapsed = (t1 - t0) * 1000
+            times.append(elapsed)
+            print(f"[{i}] Python結果: {res}, 時間: {elapsed:.3f} ms")
         avg = sum(times) / N / 1000
         print(f"Python実装(平均): {avg*1000:.3f} ms")
         print(f"Python実装(生): {[f'{t:.3f}' for t in times]}")
@@ -106,11 +108,13 @@ def benchmark_get_is_blue_line_at_y_python():
     print(f"Python実装(1回): {once:.3f} ms")
     N = 100
     times = []
-    for _ in range(N):
+    for i in range(N):
         t0 = time.perf_counter()
-        control.get_is_blue_line_at_y(img, y, min_run)
+        res = control.get_is_blue_line_at_y(img, y, min_run)
         t1 = time.perf_counter()
-        times.append((t1 - t0) * 1000)
+        elapsed = (t1 - t0) * 1000
+        times.append(elapsed)
+        print(f"[{i}] Python結果: {res}, 時間: {elapsed:.3f} ms")
     avg = sum(times) / N / 1000
     print(f"Python実装(平均): {avg*1000:.3f} ms")
     print(f"Python実装(生): {[f'{t:.3f}' for t in times]}")
@@ -135,11 +139,13 @@ def benchmark_get_virtual_line_target_x_python():
     print(f"Python実装(1回): {once:.3f} ms")
     N = 100
     times = []
-    for _ in range(N):
+    for i in range(N):
         t0 = time.perf_counter()
-        control.get_virtual_line_target_x(img, roi, y, th)
+        res = control.get_virtual_line_target_x(img, roi, y, th)
         t1 = time.perf_counter()
-        times.append((t1 - t0) * 1000)
+        elapsed = (t1 - t0) * 1000
+        times.append(elapsed)
+        print(f"[{i}] Python結果: {res}, 時間: {elapsed:.3f} ms")
     avg = sum(times) / N / 1000
     print(f"Python実装(平均): {avg*1000:.3f} ms")
     print(f"Python実装(生): {[f'{t:.3f}' for t in times]}")
