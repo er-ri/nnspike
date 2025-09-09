@@ -581,7 +581,7 @@ class ActionChain(object):
                 self.pid.Kp = 3.0  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
                 self.pid.Ki = 0
                 self.pid.Kd = 1  # 安定した微分制御で自然安定性向上
-                self.pid.output_limits = (-8, 8)  # テスト結果による最適制御範囲
+                self.pid.output_limits = (-4, 4)  # テスト結果による最適制御範囲
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
