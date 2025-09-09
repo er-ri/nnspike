@@ -648,8 +648,7 @@ class ActionChain(object):
                     return None, (49, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
                     return None, (70, 49, 0), Mode.HIGH_SPEED_AVOID
-            # 所定距離進行後、垂直黒ライン判定
-            if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
+            elif is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                 print(f"[DEBUG] phase10→phase11: position_diff={position_diff} current_pos={current_pos} >= 500 and vertical_black_line_detected")
                 self.pid.Kp = 50
                 self.pid.Ki = 0
