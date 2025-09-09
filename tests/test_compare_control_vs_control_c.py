@@ -1,3 +1,10 @@
+# 共有ディレクトリのcv2を優先してimport（例: //192.168.137.40/msad/opencv）
+import sys
+sys.path.insert(0, r"//192.168.137.40/msad/opencv")  # 必要に応じてパスを修正
+# Windowsからアクセスする場合は r"\\192.168.137.40\msad\opencv" も可
+# import前にsys.pathを確認したい場合は下記を有効化
+# print("sys.path:", sys.path)
+
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/..'))
