@@ -604,7 +604,7 @@ class ActionChain(object):
                 else:
                     return None, (70, 49, 0), Mode.HIGH_SPEED_AVOID
             # 一定距離進んだら、垂直黒ライン判定
-            if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
+            if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=80):
                 print(f"[DEBUG] phase8→phase9: position_diff={position_diff} current_pos={current_pos} >= 500 and vertical_black_line_detected")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
