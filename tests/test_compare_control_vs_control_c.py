@@ -14,10 +14,10 @@ def make_virtual_line_image(width=640, height=480, line_thickness=10, color=(0,0
     x1, y1, x2, y2 = 100, 100, 540, 330
     w = (x2 - x1) // 4
     h = (y2 - y1) // 2
-    # 左側の矩形
-    rect1 = (x1 + 10, y1 + 10, w, h)
-    # 右側の矩形
-    rect2 = (x2 - w - 10, y1 + 10, w, h)
+    # 左側の矩形（上寄り）
+    rect1 = (x1 + 10, y1 + 20, w, h)
+    # 右側の矩形（下寄り＆少し右にずらす）
+    rect2 = (x2 - w - 30, y1 + 40, w, h)
     cv2.rectangle(img, (rect1[0], rect1[1]), (rect1[0]+rect1[2], rect1[1]+rect1[3]), color, -1)
     cv2.rectangle(img, (rect2[0], rect2[1]), (rect2[0]+rect2[2], rect2[1]+rect2[3]), color, -1)
     return img
