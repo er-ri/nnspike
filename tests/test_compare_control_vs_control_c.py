@@ -129,7 +129,9 @@ def benchmark_get_virtual_line_target_x_python():
     print("--- get_virtual_line_target_x(Python) [横直線(10px)] ---")
     t0 = time.perf_counter()
     try:
-        res = control.get_virtual_line_target_x(img, roi, y, th)
+        # get_virtual_line_target_xの仕様に合わせて引数を修正
+        # まずimgのみで呼び出し、必要ならyも渡す
+        res = control.get_virtual_line_target_x(img)
     except Exception as e:
         print(f"Error: {e}")
         return
@@ -141,7 +143,7 @@ def benchmark_get_virtual_line_target_x_python():
     times = []
     for i in range(N):
         t0 = time.perf_counter()
-        res = control.get_virtual_line_target_x(img, roi, y, th)
+        res = control.get_virtual_line_target_x(img)
         t1 = time.perf_counter()
         elapsed = (t1 - t0) * 1000
         times.append(elapsed)
