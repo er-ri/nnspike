@@ -3,9 +3,20 @@
 import sys, os
 import time
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/..'))
+
 import cv2
 import numpy as np
-from nnspike.utils import control, control_c
+from nnspike.utils import control
+
+# --- C++拡張を直接import ---
+try:
+    import control_cpp_get_line_edges_at_y
+except ImportError:
+    control_cpp_get_line_edges_at_y = None
+try:
+    import control_cpp_bottle
+except ImportError:
+    control_cpp_bottle = None
 
 
 
@@ -36,7 +47,10 @@ def make_curve_image(width=640, height=480, thickness=10, color=(0,0,0)):
 
 def run_benchmark(img, roi, y, th, label):
     res_py = control.get_line_edges_at_y(img, roi, y, th)
-    res_c = control_c.get_line_edges_at_y(img, roi, y, th)
+    if control_cpp_get_line_edges_at_y is not None:
+        res_c = control_cpp_get_line_edges_at_y.get_line_edges_at_y(img, roi, y, th)
+    else:
+        res_c = None
     print(f"--- {label} ---")
     print("Python:", res_py)
     print("C++:", res_c)
@@ -50,19 +64,24 @@ def run_benchmark(img, roi, y, th, label):
         t1 = time.perf_counter()
         py_times.append((t1 - t0) * 1000)  # ms
     c_times = []
-    for _ in range(N):
-        t2 = time.perf_counter()
-        control_c.get_line_edges_at_y(img, roi, y, th)
-        t3 = time.perf_counter()
-        c_times.append((t3 - t2) * 1000)  # ms
+    if control_cpp_get_line_edges_at_y is not None:
+        for _ in range(N):
+            t2 = time.perf_counter()
+            control_cpp_get_line_edges_at_y.get_line_edges_at_y(img, roi, y, th)
+            t3 = time.perf_counter()
+            c_times.append((t3 - t2) * 1000)  # ms
+        c_time = sum(c_times) / N / 1000
+    else:
+        c_time = 0
     py_time = sum(py_times) / N / 1000
-    c_time = sum(c_times) / N / 1000
     print(f"Python実装(平均): {py_time*1000:.3f} ms")
-    print(f"C++実装(平均):    {c_time*1000:.3f} ms")
     if c_time > 0:
+        print(f"C++実装(平均):    {c_time*1000:.3f} ms")
         print(f"速度比 (Python/C++): {py_time/c_time:.2f}倍")
+        print(f"C++実装(生):    {[f'{t:.3f}' for t in c_times]}")
+    else:
+        print("C++拡張がimportできませんでした")
     print(f"Python実装(生): {[f'{t:.3f}' for t in py_times]}")
-    print(f"C++実装(生):    {[f'{t:.3f}' for t in c_times]}")
 
 def test_compare_get_line_edges_at_y():
     roi = (0, 0, 640, 480)
@@ -94,7 +113,10 @@ def test_compare_find_bottle_center():
     color = 'yellow'  # 必要に応じて変更
     print(f"--- find_bottle_center({img_path}, color={color}) ---")
     res_py = control.find_bottle_center(img, color, roi)
-    res_c = control_c.find_bottle_center(img, color, roi)
+    if control_cpp_bottle is not None:
+        res_c = control_cpp_bottle.find_bottle_center(img, color, roi)
+    else:
+        res_c = None
     print("Python:", res_py)
     print("C++:", res_c)
     print("一致:", res_py == res_c)
@@ -106,19 +128,24 @@ def test_compare_find_bottle_center():
         t1 = time.perf_counter()
         py_times.append((t1 - t0) * 1000)
     c_times = []
-    for _ in range(N):
-        t2 = time.perf_counter()
-        control_c.find_bottle_center(img, color, roi)
-        t3 = time.perf_counter()
-        c_times.append((t3 - t2) * 1000)
+    if control_cpp_bottle is not None:
+        for _ in range(N):
+            t2 = time.perf_counter()
+            control_cpp_bottle.find_bottle_center(img, color, roi)
+            t3 = time.perf_counter()
+            c_times.append((t3 - t2) * 1000)
+        c_time = sum(c_times) / N / 1000
+    else:
+        c_time = 0
     py_time = sum(py_times) / N / 1000
-    c_time = sum(c_times) / N / 1000
     print(f"Python実装(平均): {py_time*1000:.3f} ms")
-    print(f"C++実装(平均):    {c_time*1000:.3f} ms")
     if c_time > 0:
+        print(f"C++実装(平均):    {c_time*1000:.3f} ms")
         print(f"速度比 (Python/C++): {py_time/c_time:.2f}倍")
+        print(f"C++実装(生):    {[f'{t:.3f}' for t in c_times]}")
+    else:
+        print("C++拡張がimportできませんでした")
     print(f"Python実装(生): {[f'{t:.3f}' for t in py_times]}")
-    print(f"C++実装(生):    {[f'{t:.3f}' for t in c_times]}")
 
 if __name__ == "__main__":
     #test_compare_get_line_edges_at_y()
