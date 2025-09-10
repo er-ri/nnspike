@@ -557,10 +557,6 @@ class ActionChain(object):
                     return None, (70, 47, 0), Mode.HIGH_SPEED_AVOID
             elif is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=150):
                 print(f"[DEBUG] phase10→phase11: position_diff={position_diff} current_pos={current_pos} >= 500 and vertical_black_line_detected")
-                self.pid.Kp = 50
-                self.pid.Ki = 0
-                self.pid.Kd = 5
-                self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
