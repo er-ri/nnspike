@@ -546,7 +546,7 @@ class ActionChain(object):
                 else:
                     return None, (35, 5, 0), Mode.HIGH_SPEED_AVOID
             elif distance < 500:
-                vertical_detected = is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120)
+                vertical_detected = is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=200)
                 if vertical_detected:
                     print(f"[DEBUG] phase6→phase7: distance={distance} current_pos={current_pos} (vertical black line detected)")
                     phase.next_phase()
@@ -555,7 +555,7 @@ class ActionChain(object):
                     self.pid.Ki = 0
                     self.pid.Kd = 0.3  # 安定した微分制御で自然安定性向上
                     self.pid.output_limits = (-4, 4)  # テスト結果による最適制御範囲
-                    return None, (0, 0, 0), Mode.HIGH_SPEED_AVOID
+                    return None, None, Mode.HIGH_SPEED_AVOID
                 else:
                     if self.course == "right":
                         return None, (5, 35, 0), Mode.HIGH_SPEED_AVOID
@@ -569,7 +569,7 @@ class ActionChain(object):
                 self.pid.Ki = 0
                 self.pid.Kd = 0.3  # 安定した微分制御で自然安定性向上
                 self.pid.output_limits = (-4, 4)  # テスト結果による最適制御範囲
-                return None, (0, 0, 0), Mode.HIGH_SPEED_AVOID
+                return None, None, Mode.HIGH_SPEED_AVOID
 
         # phase7: コーナー検出で次フェーズへ。未検出時はエッジ追従（get_target_x_by_course）・HIGH_SPEED_AVOID返却
         if phase.get_phase() == 7:
