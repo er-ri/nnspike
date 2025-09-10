@@ -224,19 +224,21 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         """debug出力処理＋ループ周期50msに制御"""
         loop_elapsed = loop_end - loop_start
         debug_state['counter'] += 1
-        elapsed_ms = int(loop_elapsed * 1000)
+        # elapsed_ms = int(loop_elapsed * 1000)
         sleep_time = min_interval - loop_elapsed
-        slept_ms = 0
+        # slept_ms = 0
         if sleep_time > 0:
             time.sleep(sleep_time)
-            slept_ms = int(sleep_time * 1000)
+            # slept_ms = int(sleep_time * 1000)
         # sleep直後に再度時刻を取得し、実際のループ全体経過時間を計算
-        loop_end2 = time.time()
-        total_elapsed = loop_end2 - loop_start
-        total_elapsed_ms = int(total_elapsed * 1000)
-        adjust_diff_ms = total_elapsed_ms - int(min_interval * 1000)
-        cpu_percent = psutil.cpu_percent(interval=None)
-        print(f"[DEBUG] loop={debug_state['counter']} time={elapsed_ms}ms sleep={slept_ms}ms total={total_elapsed_ms}ms diff={adjust_diff_ms}ms CPU={cpu_percent}%")
+        # loop_end2 = time.time()
+        # total_elapsed = loop_end2 - loop_start
+        # total_elapsed_ms = int(total_elapsed * 1000)
+        # adjust_diff_ms = total_elapsed_ms - int(min_interval * 1000)
+        # cpu_percent = psutil.cpu_percent(interval=None)
+        # print(f"[DEBUG] loop={debug_state['counter']} time={elapsed_ms}ms sleep={slept_ms}ms total={total_elapsed_ms}ms diff={adjust_diff_ms}ms CPU={cpu_percent}%")
+        # 使用しない場合は下記変数もコメントアウト
+        # elapsed_ms, slept_ms, total_elapsed_ms, adjust_diff_ms, cpu_percent
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
