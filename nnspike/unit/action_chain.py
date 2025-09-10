@@ -185,7 +185,7 @@ class ActionChain(object):
         Safe version: Returns target_x for given image, offset_y, and course ("right"/"left").
         Handles None values robustly, no exceptions.
         """
-        offset_y = 450
+        offset_y = OFFSET_Y
         if course == "right":
             _, right_x, _ = get_line_edges_at_y(image, ROI_LINE_STRAIGHT, offset_y, 80)
             if right_x is not None:
@@ -443,10 +443,10 @@ class ActionChain(object):
 
         if not self._init:
             self.initialize_action(motor_side=self.course)
-            self.pid.Kp = 1.0  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
+            self.pid.Kp = 0.1  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
             self.pid.Ki = 0
-            self.pid.Kd = 0.3  # 安定した微分制御で自然安定性向上
-            self.pid.output_limits = (-4, 4)  # テスト結果による最適制御範囲
+            self.pid.Kd = 0.0  # 安定した微分制御で自然安定性向上
+            self.pid.output_limits = (-1, 1)  # テスト結果による最適制御範囲
 
         phase = self._phase
         status = self._status
@@ -545,11 +545,15 @@ class ActionChain(object):
                     return None, (30, 60, 0), Mode.HIGH_SPEED_AVOID
                 else:
                     return None, (60, 30, 0), Mode.HIGH_SPEED_AVOID
-            elif distance < 500:
+            elif distance < 600:
                 if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
                     print(f"[DEBUG] phase6→phase7: distance={distance} current_pos={current_pos} (vertical black line detected)")
                     phase.next_phase()
                     phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+                    self.pid.Kp = 1.0  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
+                    self.pid.Ki = 0
+                    self.pid.Kd = 0.3  # 安定した微分制御で自然安定性向上
+                    self.pid.output_limits = (-4, 4)  # テスト結果による最適制御範囲
                     return None, (0, 0, 0), Mode.HIGH_SPEED_AVOID
                 else:
                     if self.course == "right":
@@ -560,6 +564,10 @@ class ActionChain(object):
                 print(f"[DEBUG] phase6→phase7: distance={distance} current_pos={current_pos} >= 500")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+                self.pid.Kp = 1.0  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
+                self.pid.Ki = 0
+                self.pid.Kd = 0.3  # 安定した微分制御で自然安定性向上
+                self.pid.output_limits = (-4, 4)  # テスト結果による最適制御範囲
                 return None, (0, 0, 0), Mode.HIGH_SPEED_AVOID
 
         # phase7: コーナー検出で次フェーズへ。未検出時はエッジ追従（get_target_x_by_course）・HIGH_SPEED_AVOID返却
