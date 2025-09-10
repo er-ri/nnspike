@@ -552,18 +552,18 @@ class ActionChain(object):
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             elif position_diff < 500:
                 if self.course == "right":
-                    return None, (47, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (48, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (70, 47, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (70, 48, 0), Mode.HIGH_SPEED_AVOID
             elif is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=150):
                 print(f"[DEBUG] phase10→phase11: position_diff={position_diff} current_pos={current_pos} >= 500 and vertical_black_line_detected")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
                 if self.course == "right":
-                    return None, (47, 70, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (48, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (70, 47, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (70, 48, 0), Mode.HIGH_SPEED_AVOID
 
         # phase11: 青面積判定または右モーターが一定距離進んだらDOUBLE_LOOP、そうでなければHIGH_SPEED_AVOID継続
         if phase.get_phase() == 11:
