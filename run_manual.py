@@ -464,6 +464,15 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             left_speed = int(max(0, min(255, left_speed)))
             right_speed = int(max(0, min(255, right_speed)))
 
+            # ハイスピードアボイド時のみパワー差を4以内に制限
+            if mode == Mode.HIGH_SPEED_AVOID:
+                diff = left_speed - right_speed
+                if abs(diff) > 4:
+                    if diff > 0:
+                        left_speed = right_speed + 4
+                    else:
+                        right_speed = left_speed + 4
+
             # Temporarily set Heading Gate mode
             if mode == Mode.PAUSE:
                 et.brake()
