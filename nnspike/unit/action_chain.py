@@ -185,7 +185,7 @@ class ActionChain(object):
         Safe version: Returns target_x for given image, offset_y, and course ("right"/"left").
         Handles None values robustly, no exceptions.
         """
-        offset_y = OFFSET_Y
+        offset_y = 450
         if course == "right":
             _, right_x, _ = get_line_edges_at_y(image, ROI_LINE_STRAIGHT, offset_y, 80)
             if right_x is not None:
