@@ -46,4 +46,5 @@ __all__ = [
     "get_offset_pixels",
     "is_fast_corner_detected",
     "fill_pink_with_white",
+    "fill_green_with_white",
 ]
