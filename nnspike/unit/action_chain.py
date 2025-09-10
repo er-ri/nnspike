@@ -540,14 +540,16 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             distance = abs(current_pos - position_start)
-            if distance < 50:
+            if distance < 200:
                 if self.course == "right":
                     return None, (30, 60, 0), Mode.HIGH_SPEED_AVOID
                 else:
                     return None, (60, 30, 0), Mode.HIGH_SPEED_AVOID
             elif distance < 600:
-                if is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120):
-                    print(f"[DEBUG] phase6→phase7: distance={distance} current_pos={current_pos} (vertical black line detected)")
+                vertical_detected = is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120)
+                horizontal_detected = is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3)
+                if vertical_detected or horizontal_detected:
+                    print(f"[DEBUG] phase6→phase7: distance={distance} current_pos={current_pos} (" + ("vertical black line detected" if vertical_detected else "horizontal line detected") + ")")
                     phase.next_phase()
                     phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
                     self.pid.Kp = 1.0  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
