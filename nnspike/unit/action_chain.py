@@ -515,10 +515,8 @@ class ActionChain(object):
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
                 if self.course == "right":
-                    print(f"[DEBUG] phase8: return (49, 70, 0), Mode.HIGH_SPEED_AVOID (position_diff={position_diff}, current_pos={current_pos})")
                     return None, (49, 70, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    print(f"[DEBUG] phase8: return (70, 49, 0), Mode.HIGH_SPEED_AVOID (position_diff={position_diff}, current_pos={current_pos})")
                     return None, (70, 49, 0), Mode.HIGH_SPEED_AVOID
 
         # phase9: corner検出で状態リセット、他はHIGH_SPEED_AVOID継続
