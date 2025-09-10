@@ -446,7 +446,7 @@ class ActionChain(object):
             self.pid.Kp = 0.1  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
             self.pid.Ki = 0
             self.pid.Kd = 0.0  # 安定した微分制御で自然安定性向上
-            self.pid.output_limits = (-1, 1)  # テスト結果による最適制御範囲
+            self.pid.output_limits = (-2, 2)  # テスト結果による最適制御範囲
 
         phase = self._phase
         status = self._status
