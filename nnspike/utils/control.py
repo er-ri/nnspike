@@ -11,7 +11,8 @@ from nnspike.constants import (
     ROI_LINE_HORIZON2,
     ROI_LINE_HORIZON3,
     ROI_LINE_VERTICAL1,
-    ROI_LINE_CORNER
+    ROI_LINE_CORNER,
+    ROI_LINE_STRAIGHT_FAST
 )
 
 # HSV色範囲定数（メモリ最適化：毎回のnp.array作成を回避）
@@ -1046,5 +1047,54 @@ def is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course='right') -> bool:
         aspect = h / (w + 1e-5)
         # 横棒条件: 幅・高さ・アスペクト比・面積で判定
         if w >= _min_width and h >= _min_height and aspect <= _max_aspect and area >= _target_area:
+            return True
+    return False
+
+# ROI内で中央縦断ラインが条件を満たしているか判定する関数
+def is_center_line_detected(img) -> bool:
+    """
+    ROI内で中央を縦断するラインが、
+    ・幅 >= 50
+    ・高さ >= 300
+    ・面積 >= 10000
+    ・ROIの左右端にラインが触れていない
+    をすべて満たす場合にTrueを返す。
+    画像はBGR想定。
+    ROI・閾値等は関数内定数。
+    """
+    if img is None or img.size == 0:
+        return False
+    # 内部定数
+
+    _min_width = 50
+    _min_height = 300
+    _target_area = 10000
+    x1, y1, x2, y2 = ROI_LINE_STRAIGHT_FAST
+    from .control import fill_green_with_white, control_preprocess_image
+    vis_img = fill_green_with_white(img.copy())
+    mask_full = control_preprocess_image(
+        vis_img,
+        use_hsv=False,
+        grayscale=True,
+        clahe=True,
+        clahe_clipLimit=3.0,
+        blur_type="median",
+        blur_ksize=5,
+        binarize_mode="binary_inv",
+        binarize_value=120,
+        noise_removal=None
+    )
+    mask_roi = np.zeros_like(mask_full)
+    mask_roi[y1:y2, x1:x2] = mask_full[y1:y2, x1:x2]
+    contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        area = cv2.contourArea(cnt)
+        cond_w = w >= _min_width
+        cond_h = h >= _min_height
+        cond_area = area >= _target_area
+        cond_left = (x > 0)
+        cond_right = (x + w < (x2 - x1))
+        if cond_w and cond_h and cond_area and cond_left and cond_right:
             return True
     return False

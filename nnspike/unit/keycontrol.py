@@ -52,6 +52,7 @@ class KeyboardController:
             "e": (Mode.EYE_BLUE, "Switched to blue eyes mode"),
             "u": (Mode.BLUE_BOTTLE_CATCH, "Switched to blue bottle catch mode"),
             "1": (Mode.DOUBLE_LOOP, "Switched to double loop mode"),
+            "2": (Mode.AVOID_OBSTACLE, "Switched to avoid obstacle mode"),
             "3": (Mode.CARRY_BOTTLE1, "Switched to bottle carrying 1 mode"),
             "4": (Mode.BACK_AND_TURN1, "Switched to back and turn 1 mode"),
             "5": (Mode.CARRY_BOTTLE2, "Switched to bottle carrying 2 mode"),

@@ -1,3 +1,4 @@
+
 from enum import Enum
 
 
@@ -5,6 +6,7 @@ from enum import Enum
 ROI_CNN = (0, 0, 640, 480)
 ROI_LINE_TRACING = (0, 250, 640, 480)
 ROI_LINE_STRAIGHT = (100, 250, 540, 480)
+ROI_LINE_STRAIGHT_FAST = (150, 0, 490, 480)
 ROI_VIRTUAL = (100, 100, 540, 330)
 ROI_LOOP = (100, 200, 540, 480)
 ROI_LINE_LEFT = (0, 50, 240, 480)
@@ -29,6 +31,7 @@ HIGH_SPEED_BASE = 70
 class Mode(Enum):
     FOLLOW_LEFT_EDGE = 0
     FOLLOW_RIGHT_EDGE = 1
+    AVOID_OBSTACLE = 2
     CARRY_BOTTLE1 = 3
     BACK_AND_TURN1 = 4
     CARRY_BOTTLE2 = 5
