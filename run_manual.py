@@ -24,6 +24,7 @@ PID Tuning Parameters:
     - Start with: 2-10
 """
 import argparse
+import psutil
 import math
 import pickle
 
@@ -234,7 +235,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         total_elapsed = loop_end2 - loop_start
         total_elapsed_ms = int(total_elapsed * 1000)
         adjust_diff_ms = total_elapsed_ms - int(min_interval * 1000)
-        print(f"[DEBUG] loop={debug_state['counter']} time={elapsed_ms}ms sleep={slept_ms}ms total={total_elapsed_ms}ms diff={adjust_diff_ms}ms")
+        cpu_percent = psutil.cpu_percent(interval=None)
+        print(f"[DEBUG] loop={debug_state['counter']} time={elapsed_ms}ms sleep={slept_ms}ms total={total_elapsed_ms}ms diff={adjust_diff_ms}ms CPU={cpu_percent}%")
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
@@ -375,8 +377,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.FOLLOW_RIGHT_EDGE:
                     # 単純な右エッジトレースのみ（course='right'を明示的に指定）
                     target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, 'right')
-                case Mode.AVOID_OBSTACLE:
-                    _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.avoid_obstacle_relative(frame))
                 case Mode.SMALL_TURN_LEFT:
                     _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.small_turn_left())
                 case Mode.HIGH_SPEED_AVOID:
