@@ -1013,8 +1013,8 @@ def is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course='right') -> bool:
     if image is None or (hasattr(image, 'size') and image.size == 0):
         return False
     # 判定条件（関数内定数と同じ値を明示）
-    _min_width = 300
-    _min_height = 40
+    _min_width = 200
+    _min_height = 30
     _max_aspect = 1
     _min_area = 500
     _target_area = 4000
