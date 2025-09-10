@@ -1013,9 +1013,9 @@ def is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course='right') -> bool:
     if image is None or (hasattr(image, 'size') and image.size == 0):
         return False
     # 判定条件（関数内定数と同じ値を明示）
-    # _min_width = 200
-    # _min_height = 30
-    # _max_aspect = 1
+    _min_width = 200
+    _min_height = 30
+    _max_aspect = 1
     _target_area = 3500
     x1, y1, x2, y2 = roi
     # leftコース時は左右反転
@@ -1041,13 +1041,10 @@ def is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course='right') -> bool:
     mask_roi[y1:y2, x1:x2] = mask_full[y1:y2, x1:x2]
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     for cnt in contours:
-        # x, y, w, h = cv2.boundingRect(cnt)  # 面積以外の条件を使わないためコメントアウト
+        x, y, w, h = cv2.boundingRect(cnt)
         area = cv2.contourArea(cnt)
-        # aspect = h / (w + 1e-5)  # 面積以外の条件を使わないためコメントアウト
-        # 横棒条件: 面積以外の条件をコメントアウト
-        # if w >= _min_width and h >= _min_height and aspect <= _max_aspect and area >= _target_area:
-        #     return True
-        # 面積のみで判定
-        if area >= _target_area:
+        aspect = h / (w + 1e-5)
+        # 横棒条件: 幅・高さ・アスペクト比・面積で判定
+        if w >= _min_width and h >= _min_height and aspect <= _max_aspect and area >= _target_area:
             return True
     return False
