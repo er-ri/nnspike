@@ -452,7 +452,7 @@ class ActionChain(object):
                 else:
                     return None, (35, 5, 0), Mode.HIGH_SPEED_AVOID
             elif distance < 500:
-                vertical_detected = is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=200)
+                vertical_detected = is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=150)
                 if vertical_detected:
                     print(f"[DEBUG] phase6→phase7: distance={distance} current_pos={current_pos} (vertical black line detected)")
                     phase.next_phase()
@@ -507,7 +507,7 @@ class ActionChain(object):
                 else:
                     return None, (70, 48, 0), Mode.HIGH_SPEED_AVOID
             # 一定距離進んだら、垂直黒ライン判定
-            elif is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=200):
+            elif is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=150):
                 print(f"[DEBUG] phase8→phase9: position_diff={position_diff} current_pos={current_pos} >= 500 and vertical_black_line_detected")
                 self.pid.Kp = 1.0  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
                 self.pid.Ki = 0
