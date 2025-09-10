@@ -819,7 +819,7 @@ class ActionChain(object):
 
         # 1. 左旋回（最低回転量は必ず旋回。最低回転量超えてからターゲット検出または最大回転量到達まで旋回。条件満たせばphase2へ）
         if phase.get_phase() == 1:
-            red_target_detected = is_x320_on_red_target(image, x_tolerance=60)
+            red_target_detected = is_x320_on_red_target(image, x_tolerance=80)
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
