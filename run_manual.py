@@ -220,12 +220,16 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         return None, (0, 0, 0), default_mode
 
     def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.05):
-        """debug出力処理（遅延なし）"""
+        """debug出力処理＋ループ周期50msに制御"""
         loop_elapsed = loop_end - loop_start
         debug_state['counter'] += 1
-        # 必要なら経過時間のみ出力（sleepなし）
         elapsed_ms = int(loop_elapsed * 1000)
-        print(f"[DEBUG] loop={debug_state['counter']} time={elapsed_ms}ms")
+        sleep_time = min_interval - loop_elapsed
+        slept_ms = 0
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+            slept_ms = int(sleep_time * 1000)
+        print(f"[DEBUG] loop={debug_state['counter']} time={elapsed_ms}ms sleep={slept_ms}ms")
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
