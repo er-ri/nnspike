@@ -7,7 +7,7 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, parent_dir)
 
 import cv2
-from nnspike.utils import control_preprocess_image, fill_green_with_white
+from nnspike.utils import control_preprocess_image, fill_green_with_white, fill_pink_with_white
 import pandas as pd
 from nnspike.constants import OFFSET_Y, ROI_CNN, Mode
 from nnspike.utils import (
@@ -161,7 +161,9 @@ def main():
                 h, w = image_to_show.shape[:2]
                 cv2.circle(image_to_show, (w-30, 30), 20, (0,0,255), -1)
         elif show_mode == 2:
-            image_to_show = fill_green_with_white(image.copy())
+            img = fill_green_with_white(image.copy())
+            img = fill_pink_with_white(img)
+            image_to_show = img
         elif show_mode == 3:
             threshold = 80
             mask_full = control_preprocess_image(
@@ -192,6 +194,7 @@ def main():
             image_to_show = cv2.cvtColor(mask_full, cv2.COLOR_GRAY2BGR)
         elif show_mode == 5:
             img = fill_green_with_white(image.copy())
+            img = fill_pink_with_white(img)
             mask_full = control_preprocess_image(
                 img,
                 use_hsv=False,

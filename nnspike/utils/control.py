@@ -1011,17 +1011,16 @@ def is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course='right') -> bool:
     roi: (x0, y0, x1, y1) のタプル
     """
 
-    # 判定パラメータ（他関数と同じ形式でまとめて定義）
-    _center_x = 320
+    # 判定パラメータ
     _center_y = 200
     _left_x = 50
-    _x_tolerance = 100
-    _min_area = 10000
+    _min_object_area = 500   # 500以下は無視
+    _target_area = 4000      # 4000以上を対象
 
     if course == 'left':
         image = cv2.flip(image, 1)
 
-    # 画像前処理（他関数と統一）
+    # 画像前処理
     image = fill_green_with_white(image)
     image = fill_pink_with_white(image)
     mask_full = control_preprocess_image(
@@ -1042,18 +1041,21 @@ def is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course='right') -> bool:
     mask_roi[y1:y2, x1:x2] = mask_full[y1:y2, x1:x2]
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    roi_x_min = max(_center_x - _x_tolerance, x1)
-    roi_x_max = min(_center_x + _x_tolerance, x2-1)
     roi_left_x = _left_x
 
     for contour in contours:
         area = cv2.contourArea(contour)
-        if area < _min_area:
+        # 500以下は無視
+        if area <= _min_object_area:
             continue
-        crosses_x_hit = np.any(mask_roi[:, roi_x_min:roi_x_max] == 255)
-        cond_area = area >= _min_area
-        # y方向判定（絶対座標y_center以上のみ）
-        y_line = mask_roi[_center_y:y2, roi_left_x] == 255
+        # 4000未満も無視（4000以上のみTrue判定）
+        if area < _target_area:
+            continue
+        mask_obj = np.zeros_like(mask_roi)
+        mask_obj_color = cv2.cvtColor(mask_obj, cv2.COLOR_GRAY2BGR)
+        cv2.drawContours(mask_obj_color, [contour], -1, (255,255,255), -1)
+        mask_obj = cv2.cvtColor(mask_obj_color, cv2.COLOR_BGR2GRAY)
+        y_line = mask_obj[_center_y:y2, roi_left_x] == 255
         max_run = 0
         run = 0
         for val in y_line:
@@ -1064,7 +1066,6 @@ def is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course='right') -> bool:
             else:
                 run = 0
         crosses_y_hit = max_run >= 10
-        all_conditions = cond_area and crosses_x_hit and crosses_y_hit
-        if all_conditions:
+        if crosses_y_hit:
             return True
     return False

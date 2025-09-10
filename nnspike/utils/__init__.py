@@ -17,6 +17,7 @@ from .control import (
     get_color_mask,
     get_offset_pixels,
     is_fast_corner_detected,
+    fill_pink_with_white,
 )
 from .image import draw_driving_info, extract_video_frames, normalize_image
 from .pid import PIDController
@@ -44,4 +45,5 @@ __all__ = [
     "SensorRecorder",
     "get_offset_pixels",
     "is_fast_corner_detected",
+    "fill_pink_with_white",
 ]
