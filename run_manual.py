@@ -464,14 +464,21 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             left_speed = int(max(0, min(255, left_speed)))
             right_speed = int(max(0, min(255, right_speed)))
 
-            # ハイスピードアボイド時のみパワー差を4以内に制限
+            # ハイスピードアボイド時のみ、受信したパワー差を4以内に補正する
             if mode == Mode.HIGH_SPEED_AVOID:
-                diff = left_speed - right_speed
-                if abs(diff) > 4:
-                    if diff > 0:
-                        left_speed = right_speed + 4
-                    else:
-                        right_speed = left_speed + 4
+                if target_x is not None:
+                    status = et.get_spike_status()
+                    left_power = status.motors["A"].power
+                    right_power = status.motors["B"].power
+                    diff = left_power - right_power
+                    if abs(diff) > 4:
+                        avg = (left_speed + right_speed) // 2
+                        if diff > 0:
+                            left_speed = avg + 2
+                            right_speed = avg - 2
+                        else:
+                            left_speed = avg - 2
+                            right_speed = avg + 2
 
             # Temporarily set Heading Gate mode
             if mode == Mode.PAUSE:
