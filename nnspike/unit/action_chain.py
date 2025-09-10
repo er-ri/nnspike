@@ -32,6 +32,7 @@ from nnspike.utils.control import (
     is_upper_horizontal_line_detected,  # 上部水平黒ライン抽出
     get_blue_line_pixel,  # 青オブジェクト面積抽出
     is_fast_corner_detected,  # コーナー抽出
+    fill_green_with_white,    # 緑を白で塗りつぶす
 )
 
 # 型ヒント用: 要素タプル明示
@@ -186,6 +187,7 @@ class ActionChain(object):
         Handles None values robustly, no exceptions.
         """
         offset_y = OFFSET_Y
+        image = fill_green_with_white(image)
         if course == "right":
             _, right_x, _ = get_line_edges_at_y(image, ROI_LINE_STRAIGHT, offset_y, 80)
             if right_x is not None:
