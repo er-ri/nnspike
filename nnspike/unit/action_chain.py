@@ -542,9 +542,9 @@ class ActionChain(object):
             distance = abs(current_pos - position_start)
             if distance < 200:
                 if self.course == "right":
-                    return None, (30, 60, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (0, 30, 0), Mode.HIGH_SPEED_AVOID
                 else:
-                    return None, (60, 30, 0), Mode.HIGH_SPEED_AVOID
+                    return None, (30, 0, 0), Mode.HIGH_SPEED_AVOID
             elif distance < 600:
                 vertical_detected = is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=120)
                 horizontal_detected = is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3)
@@ -559,9 +559,9 @@ class ActionChain(object):
                     return None, (0, 0, 0), Mode.HIGH_SPEED_AVOID
                 else:
                     if self.course == "right":
-                        return None, (30, 60, 0), Mode.HIGH_SPEED_AVOID
+                        return None, (0, 30, 0), Mode.HIGH_SPEED_AVOID
                     else:
-                        return None, (60, 30, 0), Mode.HIGH_SPEED_AVOID
+                        return None, (3, 0, 0), Mode.HIGH_SPEED_AVOID
             else:
                 print(f"[DEBUG] phase6→phase7: distance={distance} current_pos={current_pos} >= 500")
                 phase.next_phase()
