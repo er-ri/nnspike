@@ -24,21 +24,21 @@ class MotorStatus:
 
 
 
-# @dataclass
-# class ColorSensorStatus:
-#     """Status information for a color sensor connected to the Spike Prime hub."""
-#
-#     reflected: Optional[int] = None
-#     ambient: Optional[int] = None
-#     color: Optional[int] = None
-#
-#     @classmethod
-#     def from_dict(cls, data: Dict[str, Any]) -> "ColorSensorStatus":
-#         return cls(
-#             reflected=data.get("reflected"),
-#             ambient=data.get("ambient"),
-#             color=data.get("color"),
-#         )
+@dataclass
+class ColorSensorStatus:
+    """Status information for a color sensor connected to the Spike Prime hub."""
+
+    reflected: Optional[int] = None
+    ambient: Optional[int] = None
+    color: Optional[int] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ColorSensorStatus":
+        return cls(
+            reflected=data.get("reflected"),
+            ambient=data.get("ambient"),
+            color=data.get("color"),
+        )
 
 
 @dataclass
@@ -83,9 +83,9 @@ class Position:
 class SensorStatus:
     """Status information for all sensors connected to the Spike Prime hub."""
 
-    distance: Optional[int] = None
+    # distance: Optional[int] = None
     force: Optional[int] = None
-    # color: Optional[ColorSensorStatus] = None
+    color: Optional[ColorSensorStatus] = None
     # gyro: Optional[VectorStatus] = None
     # accelerometer: Optional[VectorStatus] = None
     # position: Optional[Position] = None
@@ -93,9 +93,9 @@ class SensorStatus:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SensorStatus":
         return cls(
-            distance=data.get("distance"),
+            # distance=data.get("distance"),
             force=data.get("force"),
-            # color=(ColorSensorStatus.from_dict(data.get("color", {})) if data.get("color") else None),
+            color=(ColorSensorStatus.from_dict(data.get("color", {})) if data.get("color") else None),
             # gyro=(VectorStatus.from_dict(data.get("gyro", {})) if data.get("gyro") else None),
             # accelerometer=(VectorStatus.from_dict(data.get("accelerometer", {})) if data.get("accelerometer") else None),
             # position=(Position.from_dict(data.get("position", {})) if data.get("position") else None),

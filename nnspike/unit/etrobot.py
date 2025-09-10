@@ -84,17 +84,16 @@ class ETRobot(object):
             last.sensors.force = current.sensors.force
 
         # Color sensor data (UNUSED - disabled for performance)
-        # if current.sensors.color:
-        #     if not last.sensors.color:
-        #         from .spike_status import ColorSensorStatus
-        # 
-        #         last.sensors.color = ColorSensorStatus()
-        #     if current.sensors.color.reflected is not None:
-        #         last.sensors.color.reflected = current.sensors.color.reflected
-        #     if current.sensors.color.ambient is not None:
-        #         last.sensors.color.ambient = current.sensors.color.ambient
-        #     if current.sensors.color.color is not None:
-        #         last.sensors.color.color = current.sensors.color.color
+        if current.sensors.color:
+            if not last.sensors.color:
+                from .spike_status import ColorSensorStatus
+                last.sensors.color = ColorSensorStatus()
+            if current.sensors.color.reflected is not None:
+                last.sensors.color.reflected = current.sensors.color.reflected
+            if current.sensors.color.ambient is not None:
+                last.sensors.color.ambient = current.sensors.color.ambient
+            if current.sensors.color.color is not None:
+                last.sensors.color.color = current.sensors.color.color
 
         # Gyro data (UNUSED - disabled for performance)
         # if current.sensors.gyro:

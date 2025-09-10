@@ -360,6 +360,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             current_base_speed = BASE_SPEED
 
             match mode:
+                case Mode.AVOID_OBSTACLE:
+                    target_x, (left_speed, right_speed, current_base_speed), mode = unpack_action_result(action_chain.avoid_obstacle(frame))
                 case Mode.DOUBLE_LOOP:
                     target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.execute_double_loop(frame))
                 case Mode.TURN_LEFT_RELATIVE:

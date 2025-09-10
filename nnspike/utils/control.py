@@ -1088,13 +1088,13 @@ def is_center_line_detected(img) -> bool:
     mask_roi[y1:y2, x1:x2] = mask_full[y1:y2, x1:x2]
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     for cnt in contours:
-        x, y, w, h = cv2.boundingRect(cnt)
+        x, y, w, h = cv2.boundingRect(cnt)  # 元画像絶対座標
         area = cv2.contourArea(cnt)
         cond_w = w >= _min_width
         cond_h = h >= _min_height
         cond_area = area >= _target_area
-        cond_left = (x > 0)
-        cond_right = (x + w < (x2 - x1))
-        if cond_w and cond_h and cond_area and cond_left and cond_right:
+        cond_left = (x <= x1 + 10)
+        cond_right = (x + w >= x2 - 10)
+        if cond_w and cond_h and cond_area and (not cond_left) and (not cond_right):
             return True
     return False
