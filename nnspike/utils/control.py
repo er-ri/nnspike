@@ -39,6 +39,9 @@ _HSV_RANGES = {
 # 緑色範囲定数
 _GREEN_RANGE = (np.array([35, 120, 60], dtype=np.uint8), np.array([90, 255, 220], dtype=np.uint8))
 
+# ピンク色範囲定数（例：用途に応じて調整可）
+_PINK_RANGE = (np.array([140, 60, 100], dtype=np.uint8), np.array([170, 255, 255], dtype=np.uint8))
+
 # モルフォロジー演算カーネル定数（事前計算でカーネル作成コストを削減）
 _MORPHOLOGY_KERNELS = {
     'dilate_5x5': np.ones((5, 5), np.uint8),
@@ -983,6 +986,23 @@ def fill_green_with_white(image) -> np.ndarray:
         image[green_mask != 0] = [255, 255, 255]
     return image
 
+
+# ピンク領域（HSV指定）を白で塗りつぶす関数
+def fill_pink_with_white(image) -> np.ndarray:
+    """
+    画像のピンク領域（HSV指定）を白で塗りつぶす。
+    パラメータ:
+        image (np.ndarray): BGR画像
+    戻り値:
+        np.ndarray: ピンク領域が白で塗りつぶされた画像（BGR）
+    """
+    if image.ndim == 3 and image.shape[2] == 3:
+        hsv_img = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        lower_pink, upper_pink = _PINK_RANGE
+        pink_mask = cv2.inRange(hsv_img, lower_pink, upper_pink)
+        image[pink_mask != 0] = [255, 255, 255]
+    return image
+
 def is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course='right') -> bool:
     """
     ROI内で条件を満たす物体が検出されたらTrueを返す。
@@ -1003,6 +1023,7 @@ def is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course='right') -> bool:
 
     # 画像前処理（他関数と統一）
     image = fill_green_with_white(image)
+    image = fill_pink_with_white(image)
     mask_full = control_preprocess_image(
         image,
         use_hsv=False,
