@@ -575,7 +575,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
+            target_x = self.get_target_x_by_course_safe(image, self.course)
             if blue_area > BLUE_AREA_MAX_THRESHOLD or position_diff >= 300:
                 print(f"[DEBUG] phase11→DOUBLE_LOOP: position_diff={position_diff} blue_area={blue_area} current_pos={current_pos} > threshold")
                 self.reset_action()
