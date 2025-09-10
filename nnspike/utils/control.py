@@ -1016,7 +1016,7 @@ def is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course='right') -> bool:
     _min_width = 200
     _min_height = 30
     _max_aspect = 1
-    _target_area = 4000
+    _target_area = 3500
     x1, y1, x2, y2 = roi
     # leftコース時は左右反転
     if course == 'left':
