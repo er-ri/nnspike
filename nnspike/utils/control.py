@@ -1005,24 +1005,27 @@ def fill_pink_with_white(image) -> np.ndarray:
 
 def is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course='right') -> bool:
     """
-    ROI内で条件を満たす物体が検出されたらTrueを返す。
-    可視化・printは行わない。
-    image: 入力画像（2D or 3D ndarray）
-    roi: (x0, y0, x1, y1) のタプル
+    ROI内で条件を満たす横棒状物体が検出されたらTrueを返す。
+    is_left_black_line_detectedと同じ構造。
+    違い: ROI範囲・fill_pink_with_white適用・_target_area=4000・横棒（幅>高さ）条件。
     """
-
-    # 判定パラメータ
-    _center_y = 200
-    _left_x = 50
-    _min_object_area = 500   # 500以下は無視
-    _target_area = 4000      # 4000以上を対象
-
+    # 画像がNoneまたは空の場合はFalse返却
+    if image is None or (hasattr(image, 'size') and image.size == 0):
+        return False
+    # 判定条件（関数内定数と同じ値を明示）
+    _min_width = 300
+    _min_height = 40
+    _max_aspect = 1
+    _min_area = 500
+    _target_area = 4000
+    x1, y1, x2, y2 = roi
+    # leftコース時は左右反転
     if course == 'left':
         image = cv2.flip(image, 1)
-
-    # 画像前処理
+    # 緑・ピンク領域を白で塗りつぶし
     image = fill_green_with_white(image)
     image = fill_pink_with_white(image)
+    # 前処理（グレースケール化・CLAHE・メディアンブラー・二値化・ノイズ除去）
     mask_full = control_preprocess_image(
         image,
         use_hsv=False,
@@ -1035,37 +1038,14 @@ def is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course='right') -> bool:
         binarize_value=120,
         noise_removal=["close7x7"]
     )
-
-    x1, y1, x2, y2 = roi
     mask_roi = np.zeros_like(mask_full)
     mask_roi[y1:y2, x1:x2] = mask_full[y1:y2, x1:x2]
     contours, _ = cv2.findContours(mask_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    roi_left_x = _left_x
-
-    for contour in contours:
-        area = cv2.contourArea(contour)
-        # 500以下は無視
-        if area <= _min_object_area:
-            continue
-        # 4000未満も無視（4000以上のみTrue判定）
-        if area < _target_area:
-            continue
-        mask_obj = np.zeros_like(mask_roi)
-        mask_obj_color = cv2.cvtColor(mask_obj, cv2.COLOR_GRAY2BGR)
-        cv2.drawContours(mask_obj_color, [contour], -1, (255,255,255), -1)
-        mask_obj = cv2.cvtColor(mask_obj_color, cv2.COLOR_BGR2GRAY)
-        y_line = mask_obj[_center_y:y2, roi_left_x] == 255
-        max_run = 0
-        run = 0
-        for val in y_line:
-            if val:
-                run += 1
-                if run > max_run:
-                    max_run = run
-            else:
-                run = 0
-        crosses_y_hit = max_run >= 10
-        if crosses_y_hit:
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        area = cv2.contourArea(cnt)
+        aspect = h / (w + 1e-5)
+        # 横棒条件: 幅・高さ・アスペクト比・面積・_target_area
+        if w >= _min_width and h >= _min_height and aspect <= _max_aspect and area >= _target_area:
             return True
     return False
