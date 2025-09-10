@@ -839,6 +839,7 @@ class ActionChain(object):
                     return None, (30, 0, 0), Mode.BACK_AND_TURN1
             print(f"[DEBUG] phase1→phase2: minimum_position_reached={minimum_position_reached}, red_target_detected={red_target_detected}, position_limit_reached={position_limit_reached}")
             phase.next_phase()
+            return None, None, Mode.BACK_AND_TURN1
 
         # 2. 終了: 状態リセットしCARRY_BOTTLE2へ遷移
         if phase.get_phase() == 2:
