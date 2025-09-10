@@ -229,7 +229,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         if sleep_time > 0:
             time.sleep(sleep_time)
             slept_ms = int(sleep_time * 1000)
-        print(f"[DEBUG] loop={debug_state['counter']} time={elapsed_ms}ms sleep={slept_ms}ms")
+        # sleep直後に再度時刻を取得し、実際のループ全体経過時間を計算
+        loop_end2 = time.time()
+        total_elapsed = loop_end2 - loop_start
+        total_elapsed_ms = int(total_elapsed * 1000)
+        adjust_diff_ms = total_elapsed_ms - int(min_interval * 1000)
+        print(f"[DEBUG] loop={debug_state['counter']} time={elapsed_ms}ms sleep={slept_ms}ms total={total_elapsed_ms}ms diff={adjust_diff_ms}ms")
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
