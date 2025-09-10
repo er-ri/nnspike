@@ -185,7 +185,7 @@ class ActionChain(object):
         Safe version: Returns target_x for given image, offset_y, and course ("right"/"left").
         Handles None values robustly, no exceptions.
         """
-        offset_y = OFFSET_Y
+        offset_y = 450
         if course == "right":
             _, right_x, _ = get_line_edges_at_y(image, ROI_LINE_STRAIGHT, offset_y, 80)
             if right_x is not None:
@@ -660,7 +660,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
+            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
             if blue_area > BLUE_AREA_MAX_THRESHOLD or position_diff >= 300:
                 print(f"[DEBUG] phase11→DOUBLE_LOOP: position_diff={position_diff} blue_area={blue_area} current_pos={current_pos} > threshold")
                 self.reset_action()
