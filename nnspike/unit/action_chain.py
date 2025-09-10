@@ -509,7 +509,7 @@ class ActionChain(object):
             # 一定距離進んだら、垂直黒ライン判定
             elif is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=150):
                 print(f"[DEBUG] phase8→phase9: position_diff={position_diff} current_pos={current_pos} >= 500 and vertical_black_line_detected")
-                self.pid.Kp = 1.0  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
+                self.pid.Kp = 3.0  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
                 self.pid.Ki = 0
                 self.pid.Kd = 0.3  # 安定した微分制御で自然安定性向上
                 self.pid.output_limits = (-4, 4)  # テスト結果による最適制御範囲
