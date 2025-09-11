@@ -374,16 +374,16 @@ class ActionChain(object):
             elif center_line_detected:
                 self.pid.Kp = 5
                 self.pid.Ki = 0
-                self.pid.Kd = 0.3
+                self.pid.Kd = 1
                 self.pid.output_limits = (-8, 8)
                 target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                 return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
             else:
                 # Lock if passed once and now False
-                self.pid.Kp = 50
+                self.pid.Kp = 20
                 self.pid.Ki = 0
                 self.pid.Kd = 5
-                self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
+                self.pid.output_limits = (-20, 20)
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
 
