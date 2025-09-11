@@ -34,16 +34,22 @@ dependencies = [
     "jupyterlab>=4.2.4",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-    "ruff>=0.6.0",
-    "mypy>=1.0.0",
-    "pre-commit>=3.0.0",
+    "mypy>=1.17.1",
+    "pre-commit>=4.3.0",
+    "ruff>=0.12.12",
     "commitizen>=3.0.0",
     # Type stubs for better mypy support
     "types-tqdm>=4.66.0",
     "pandas-stubs>=2.0.0",
     "types-requests>=2.31.0",
+]
+doc = [
+    "sphinx>=8.2.3",
+    "sphinx-autobuild>=2025.8.25",
+    "sphinx-autodoc-typehints>=3.2.0",
+    "sphinx-rtd-theme>=3.0.2",
 ]
 
 [project.urls]
@@ -196,10 +202,3 @@ version_provider = "pep621"
 update_changelog_on_bump = true
 major_version_zero = true
 
-[dependency-groups]
-dev = [
-    "mypy>=1.17.1",
-    "pre-commit>=4.3.0",
-    "ruff>=0.12.12",
-    "commitizen>=3.0.0",
-]

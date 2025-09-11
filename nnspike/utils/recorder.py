@@ -5,6 +5,8 @@ This module provides a class for recording ETRobot sensor status and control dat
 It's designed for high-performance logging during robot operation without impacting frame rates.
 """
 
+from __future__ import annotations
+
 import atexit
 import csv
 import logging
@@ -223,7 +225,7 @@ class SensorRecorder:
         """
         return value if value is not None else default
 
-    def __enter__(self) -> "SensorRecorder":
+    def __enter__(self) -> SensorRecorder:
         """Context manager entry."""
         self.start_recording()
         return self

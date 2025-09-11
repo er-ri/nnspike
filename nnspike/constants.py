@@ -1,3 +1,9 @@
+"""Constants and enumerations used throughout the nnspike package.
+
+This module defines constants for robot control, camera parameters, and behavior modes
+used by the LEGO SPIKE robot for line following and navigation tasks.
+"""
+
 from enum import Enum
 
 # Region of Interest for CNN model

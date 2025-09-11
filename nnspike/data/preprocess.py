@@ -1,18 +1,28 @@
 """
-This module provides functions for labeling and balancing datasets of image frames.
+This module provides functions for preprocessing and preparing datasets of image frames with sensor data.
+
+The module contains utilities for creating labeled datasets from image files, balancing data distributions,
+sorting by frame numbers, and merging sensor status data with image metadata. It's designed to work with
+robot control data that includes motor positions, sensor readings, and image frames.
 
 Functions:
     balance_dataset(df: pd.DataFrame, col_name: str, max_samples: int, num_bins: int) -> pd.DataFrame:
         Balances the dataset by limiting the number of samples in each bin of a specified column.
+        Uses histogram binning to ensure uniform distribution across value ranges.
 
     sort_by_frames_number(df: pd.DataFrame) -> pd.DataFrame:
-        Sorts a DataFrame by the frame number extracted from the 'image_path' column.
+        Sorts a DataFrame by the frame number extracted from the 'image_path' column and adds
+        the frame_number column as the second column in the DataFrame.
 
     create_label_dataframe(path_pattern: str, course: str) -> pd.DataFrame:
-        Creates a DataFrame with image paths and associated metadata for labeling tasks.
+        Creates a comprehensive DataFrame with image paths and associated metadata columns including
+        motor speeds, positions, sensor readings, and labeling fields. Initializes all sensor
+        columns with default values for subsequent population.
 
     set_spike_status(label_df: pd.DataFrame, status_df: pd.DataFrame) -> pd.DataFrame:
-        Sets the motor position values in label_df from status_df based on matching frame numbers.
+        Merges comprehensive sensor and motor data from status_df into label_df based on matching
+        frame numbers. Updates multiple columns including motor speeds, positions, and various
+        sensor readings (distance, color sensors).
 """
 
 import random
@@ -108,20 +118,26 @@ def sort_by_frames_number(df: pd.DataFrame) -> pd.DataFrame:
 
 def create_label_dataframe(path_pattern: str, course: str) -> pd.DataFrame:
     """
-    Creates a DataFrame with image paths and associated metadata for labeling tasks.
+    Creates a comprehensive DataFrame with image paths and associated metadata for labeling tasks.
 
     This function searches for image files matching the given path pattern and constructs
-    a DataFrame containing the paths to these images along with several columns initialized
-    with default values. The DataFrame includes columns for manual x-coordinates (`mx`),
-    predicted x-coordinates (`predicted_x`), adjusted x-coordinates (`adjusted_x`),
-    course name, relative position, data type, and usage flag.
+    a DataFrame containing the paths to these images along with multiple columns for sensor
+    data and robot control information. The DataFrame includes columns for:
+    - Image metadata: image_path, course, data_type, use flag
+    - Target and mode information: mode, target_x
+    - Motor data: motor_a_speed, motor_b_speed, motor_a_relative_position, motor_b_relative_position
+    - Sensor readings: distance_sensor, color_reflected, color_ambient, color_value
+
+    All sensor and motor columns are initialized with default values (0 for numeric fields,
+    NaN for mode and target_x, True for use flag) to be populated later by other functions.
 
     Args:
         path_pattern (str): A glob pattern to match image file paths.
         course (str): The name of the course associated with the images.
 
     Returns:
-        pd.DataFrame: A DataFrame containing the image paths and associated metadata.
+        pd.DataFrame: A DataFrame containing the image paths and comprehensive metadata columns
+        with default values for subsequent data population.
     """
     image_paths = glob(path_pattern)
     # Convert backslashes to forward slashes for consistent path formatting
@@ -151,18 +167,27 @@ def create_label_dataframe(path_pattern: str, course: str) -> pd.DataFrame:
 
 def set_spike_status(label_df: pd.DataFrame, status_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Sets the motor position values in label_df from status_df based on matching frame numbers.
+    Merges comprehensive sensor and motor data from status_df into label_df based on matching frame numbers.
 
-    This function merges motor position data (motor_a_relative_position and motor_b_relative_position)
-    from status_df into label_df by matching frame_number values. The merge is performed as a left join,
-    preserving all rows in label_df and only updating motor positions where matching frame numbers exist.
+    This function performs a comprehensive merge of robot sensor and control data from status_df
+    into label_df by matching frame_number values. It updates multiple columns including:
+    - Motor control: motor_a_speed, motor_b_speed, motor_a_relative_position, motor_b_relative_position
+    - Sensor readings: distance_sensor, color_reflected, color_ambient, color_value
+    - Robot mode: mode (preserving manual labels from label_df when available)
+
+    The merge is performed as a left join, preserving all rows in label_df and only updating
+    sensor/motor data where matching frame numbers exist in status_df. If label_df doesn't
+    have a frame_number column, it will be automatically added by calling sort_by_frames_number().
 
     Args:
         label_df (pd.DataFrame): The label DataFrame containing image paths and metadata.
-        status_df (pd.DataFrame): The spike DataFrame containing motor position data with frame numbers.
+            Must have or be able to generate a frame_number column.
+        status_df (pd.DataFrame): The status DataFrame containing comprehensive sensor and motor
+            data with frame_number column for matching.
 
     Returns:
-        pd.DataFrame: The updated label DataFrame with motor position values set from status_df.
+        pd.DataFrame: The updated label DataFrame with sensor and motor data merged from status_df.
+        All original columns are preserved, and sensor data is filled where frame matches exist.
     """
     # Ensure frame_number column exists in label_df
     if "frame_number" not in label_df.columns:
