@@ -12,6 +12,9 @@ class TestGetColorSensorValues(unittest.TestCase):
 
     def test_get_color_sensor_values(self):
         status = self.et.get_spike_status()
+        print("status.sensors:", getattr(status, 'sensors', None))
+        if hasattr(status, 'sensors') and status.sensors is not None:
+            print("status.sensors.color:", getattr(status.sensors, 'color', None))
         values = self.chain.get_color_sensor_values(status)
         print("SPIKEから取得したカラーセンサー値:", values)
         self.assertIn("reflected", values)
