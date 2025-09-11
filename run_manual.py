@@ -378,8 +378,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, 'right')
                 case Mode.SMALL_TURN_LEFT:
                     _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.small_turn_left())
-                case Mode.HIGH_SPEED_AVOID:
-                    target_x, (left_speed, right_speed, current_base_speed), mode = unpack_action_result(action_chain.high_speed_avoid(frame))
                 case Mode.HIGH_SPEED:
                     # ハイスピードモード（右エッジ追従＋高速）
                     target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, course)

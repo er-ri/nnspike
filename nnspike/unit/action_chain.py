@@ -355,10 +355,10 @@ class ActionChain(object):
 
         if not self._init:
             self.initialize_action(motor_side=self.course)
-            self.pid.Kp = 1
+            self.pid.Kp = 0.5
             self.pid.Ki = 0
             self.pid.Kd = 0.3
-            self.pid.output_limits = (-4, 4)
+            self.pid.output_limits = (-2, 2)
 
         phase = self._phase
         status = self._status

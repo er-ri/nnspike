@@ -278,7 +278,7 @@ class UniversalPIDTester:
     def run_universal_test(self):
         """汎用PIDテスト実行"""
         print("=" * 80)
-        print("🚗 HIGH_SPEED_AVOID 汎用PID設定最適化テスト")
+
         print("=" * 80)
         print("目標: HIGH_SPEED_BASE 70/98 両方で最適動作する設定")
         print()
