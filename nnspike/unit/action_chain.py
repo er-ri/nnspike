@@ -511,8 +511,8 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
 
-            if is_fast_corner_detected(image, course=self.course):
-                print(f"[DEBUG] phase7: is_fast_corner_detected=True at current_pos={current_pos}, course={self.course}")
+            # if is_fast_corner_detected(image, course=self.course):
+            #     print(f"[DEBUG] phase7: is_fast_corner_detected=True at current_pos={current_pos}, course={self.course}")
 
             if position_diff >= 1500:
                 print(f"[DEBUG][phase7→phase8] Distance threshold reached: position_diff={position_diff}, current_pos={current_pos}, threshold=1500 → phase8")
@@ -531,11 +531,11 @@ class ActionChain(object):
             color_info = self.get_color_sensor_values(status)
             is_black = color_info["is_black"]
 
-            if is_fast_corner_detected(image, course=self.course):
-                print(f"[DEBUG] phase8: is_fast_corner_detected=True at current_pos={current_pos}, course={self.course}")
+            # if is_fast_corner_detected(image, course=self.course):
+            #     print(f"[DEBUG] phase8: is_fast_corner_detected=True at current_pos={current_pos}, course={self.course}")
 
             if position_diff > 2600:
-                print(f"[DEBUG][phase8→phase9] Right motor distance: position_diff={position_diff}, current_pos={current_pos} > 2500 → phase9")
+                print(f"[DEBUG][phase8→phase9] Right motor distance: position_diff={position_diff}, current_pos={current_pos} > 2600 → phase9")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             elif center_line_detected:
