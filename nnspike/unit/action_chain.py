@@ -523,7 +523,7 @@ class ActionChain(object):
                 phase.next_phase()
             # elif center_line_detected:
             elif center_line_detected:
-                self.pid.Kp = 3.0
+                self.pid.Kp = 5
                 self.pid.Ki = 0
                 self.pid.Kd = 0.3
                 self.pid.output_limits = (-4, 4)
