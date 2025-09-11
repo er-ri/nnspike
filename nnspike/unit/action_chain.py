@@ -183,6 +183,7 @@ class ActionChain(object):
             return {"reflected": 0, "ambient": 0, "color": 0, "is_black": False}
         reflected = color.reflected if hasattr(color, "reflected") and isinstance(color.reflected, int) else 0
         ambient = color.ambient if hasattr(color, "ambient") and isinstance(color.ambient, int) else 0
+        print("[DEBUG] color.color:", color.color, type(color.color))
         color_value = color.color if hasattr(color, "color") and isinstance(color.color, int) else 0
         is_black = (color_value < 100)
         return {"reflected": reflected, "ambient": ambient, "color": color_value, "is_black": is_black}
