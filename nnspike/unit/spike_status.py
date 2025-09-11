@@ -100,7 +100,7 @@ class SensorStatus:
         return cls(
             # distance=data.get("distance"),
             force=data.get("force"),
-            color=color if color else None,
+            color=color if color is not None else None,
             # gyro=(VectorStatus.from_dict(data.get("gyro", {})) if data.get("gyro") else None),
             # accelerometer=(VectorStatus.from_dict(data.get("accelerometer", {})) if data.get("accelerometer") else None),
             # position=(Position.from_dict(data.get("position", {})) if data.get("position") else None),
