@@ -528,7 +528,7 @@ class ActionChain(object):
                 self.pid.Ki = 0
                 self.pid.Kd = 0.3
                 self.pid.output_limits = (-4, 4)
-                target_x = self.get_target_x_by_course_safe(image, self.course)
+                target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                 return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
             else:
                 # Lock if passed once and now False
@@ -537,7 +537,7 @@ class ActionChain(object):
                 self.pid.Kd = 5
                 image = fill_green_with_white(image)
                 self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
 
         # phase9: Go to DOUBLE_LOOP if blue area threshold or right motor distance is reached, otherwise continue AVOID_OBSTACLE.
