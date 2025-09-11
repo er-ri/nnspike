@@ -26,8 +26,17 @@ class TestGetColorSensorValues(unittest.TestCase):
         # 正しいJSONが来るまでリトライ
         valid_raw = self.get_valid_status()
         print("valid_raw:", valid_raw)
-        # ここでstatus更新
+        # valid_rawのpayloadから[61, ...]の内容をprint
         if valid_raw:
+            try:
+                data = json.loads(valid_raw.decode("utf-8").strip())
+                payload = data.get("p", [])
+                color_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 61]
+                if color_entries:
+                    print("color_entries:", color_entries)
+                    print("color_entries[0][1] (len):", color_entries[0][1], len(color_entries[0][1]))
+            except Exception as e:
+                print("[payload解析エラー]", e)
             self.et.spike_status.update(valid_raw)
         status = self.et.get_spike_status()
         print("status.raw_data:", getattr(status, 'raw_data', None))
