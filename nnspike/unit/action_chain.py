@@ -182,7 +182,6 @@ class ActionChain(object):
             return {"reflected": 0, "ambient": 0, "color": 0, "is_black": False}
         reflected = color.reflected if hasattr(color, "reflected") and isinstance(color.reflected, int) else 0
         ambient = color.ambient if hasattr(color, "ambient") and isinstance(color.ambient, int) else 0
-        print("[DEBUG] color.color:", color.color, type(color.color))
         color_value = color.color if hasattr(color, "color") and isinstance(color.color, int) else 0
         is_black = (color_value < 100)
         return {"reflected": reflected, "ambient": ambient, "color": color_value, "is_black": is_black}
@@ -373,10 +372,10 @@ class ActionChain(object):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             elif center_line_detected:
-                self.pid.Kp = 0.1  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
+                self.pid.Kp = 3.0
                 self.pid.Ki = 0
-                self.pid.Kd = 0.1  # 安定した微分制御で自然安定性向上
-                self.pid.output_limits = (-1, 1)  # テスト結果による最適制御範囲
+                self.pid.Kd = 0.3
+                self.pid.output_limits = (-4, 4)
                 target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                 return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
             else:
@@ -455,9 +454,8 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             color_info = self.get_color_sensor_values(status)
-            print("[DEBUG] color_info['color']:", color_info['color'], type(color_info['color']))
             is_black = color_info["is_black"]
-            if position_diff < 600 and not is_black:
+            if position_diff < 450 and not is_black:
                 return None, (BASE_SPEED, BASE_SPEED, 0), Mode.AVOID_OBSTACLE
             else:
                 print(f"[DEBUG] phase5→phase6: position_diff={position_diff} current_pos={current_pos} is_black={is_black} color_value={color_info['color']}")
