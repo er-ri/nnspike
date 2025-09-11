@@ -85,19 +85,19 @@ class SensorStatus:
 
     # distance: Optional[int] = None
     force: Optional[int] = None
-    color: Optional[ColorSensorStatus] = None
+    color: ColorSensorStatus = ColorSensorStatus(None, None, None)
     # gyro: Optional[VectorStatus] = None
     # accelerometer: Optional[VectorStatus] = None
     # position: Optional[Position] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SensorStatus":
-        # 既存のcolor処理
         color = data.get("color")
         if isinstance(color, dict):
             color = ColorSensorStatus.from_dict(color)
         elif not isinstance(color, ColorSensorStatus):
             color = ColorSensorStatus(None, None, None)
+        print("[DEBUG] SensorStatus.from_dict color:", color, type(color))
         return cls(
             # distance=data.get("distance"),
             force=data.get("force"),
