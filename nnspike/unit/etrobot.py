@@ -92,8 +92,11 @@ class ETRobot(object):
                 last.sensors.color.reflected = current.sensors.color.reflected
             if current.sensors.color.ambient is not None:
                 last.sensors.color.ambient = current.sensors.color.ambient
+            print("[DEBUG] current.sensors.color.color:", current.sensors.color.color)
+            print("[DEBUG] last.sensors.color.color(before):", last.sensors.color.color)
             if current.sensors.color.color is not None:
                 last.sensors.color.color = current.sensors.color.color
+            print("[DEBUG] last.sensors.color.color(after):", last.sensors.color.color)
 
         # Gyro data (UNUSED - disabled for performance)
         # if current.sensors.gyro:
