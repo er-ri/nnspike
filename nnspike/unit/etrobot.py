@@ -7,7 +7,23 @@ from .spike_status import SpikeStatus
 
 
 class ETRobot:
-    # Command IDs should be as same as (`spike/slot_prod.py`) the script in LEGO Spike Prime.
+    """Interface for communicating with LEGO SPIKE Prime robot over serial connection.
+
+    This class provides methods to send commands to and receive sensor data from a LEGO SPIKE Prime robot.
+    It maintains a continuous background thread to receive sensor updates and handles motor commands.
+
+    Command IDs should be as same as (`spike/slot_prod.py`) the script in LEGO Spike Prime.
+
+    Attributes:
+        COMMAND_SET_MOTOR_FORWARD_SPEED_ID (int): Command ID for setting forward motor speed.
+        COMMAND_SET_MOTOR_BACKWARD_SPEED_ID (int): Command ID for setting backward motor speed.
+        COMMAND_SET_MOTOR_RELATIVE_POSITION_ID (int): Command ID for relative position movement.
+        COMMAND_STOP_MOTOR_ID (int): Command ID for stopping motors.
+        COMMAND_MOVE_ARM_ID (int): Command ID for moving robot arm.
+        CMD_FLAG (bytes): Command flag prefix for serial communication.
+        DUMMY (int): Dummy value for command parameters.
+    """
+
     COMMAND_SET_MOTOR_FORWARD_SPEED_ID = 201
     COMMAND_SET_MOTOR_BACKWARD_SPEED_ID = 202
     COMMAND_SET_MOTOR_RELATIVE_POSITION_ID = 203

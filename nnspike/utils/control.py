@@ -1,18 +1,39 @@
-"""
-Line Follower Control Module
+"""Computer vision control utilities for robot navigation and object detection.
 
-This module contains implementations of line-following algorithms using camera-based
-and color sensor-based methods. These implementations are used for training data
-collection and real-time robot control. By sending input data such as a camera image
-or sensor status, the functions return the necessary adjustments.
+This module provides computer vision algorithms for robot control applications, including
+line following, object detection, and target recognition. The functions process camera
+images to extract navigation information and detect specific objects for autonomous
+robot control systems.
+
+The module supports various detection tasks:
+- Line edge detection for path following
+- Colored object detection for navigation markers
+- Bullseye target detection for precision tasks
+- Gate detection using virtual line calculation
+- Attitude angle calculation for steering control
 
 Functions:
+    find_line_edges_at_y(image: np.ndarray, roi: tuple[int, int, int, int], target_y: float, threshold_value: float = 50) -> tuple[float | None, float | None]:
+        Get the left and right edge points of a black line at a specific Y coordinate.
 
-    calculate_attitude_angle(offset_pixels: float, roi_bottom_y: int,
-                           camera_height: float, focal_length_pixels: float) -> float:
-        Calculates attitude angle (theta) from pixel offset using camera geometry
-        for more accurate steering control.
+    find_bottle_center(image: np.ndarray, color: str, min_area: int = 500) -> tuple[tuple[float, float] | None, np.ndarray | None, float | None]:
+        Find the center coordinates and color pixel count of a colored object in an image using OpenCV.
+
+    find_bullseye(image: np.ndarray, threshold: float = 120) -> tuple[tuple[float, float] | None, np.ndarray | None, float | None]:
+        Find the center coordinates of a blue bullseye target in an image.
+
+    find_gate_virtual_line(image: np.ndarray, scan_x: int = 320, from_y: int = 0, to_y: int = 480) -> tuple[tuple[float, float] | None, np.ndarray | None, float | None]:
+        Find the virtual line for gate detection based on gray color regions.
+
+    calculate_attitude_angle(offset_pixels: float, roi_bottom_y: int, camera_height: float = 0.20, focal_length_pixels: float = 640) -> float:
+        Calculate attitude angle (theta) from pixel offset using camera geometry.
+
+Note:
+    All functions expect BGR format numpy arrays as input images. The module is optimized
+    for real-time applications with efficient contour detection and morphological operations.
 """
+
+from __future__ import annotations
 
 import math
 
@@ -26,18 +47,18 @@ def find_line_edges_at_y(
     target_y: float,
     threshold_value: float = 50,
 ) -> tuple[float | None, float | None]:
-    """
-    Get the left and right edge points of a black line at a specific Y coordinate.
+    """Get the left and right edge points of a black line at a specific Y coordinate.
 
-    Parameters:
-    - image: Input image (BGR or grayscale)
-    - roi_coords: Tuple (x, y, width, height) defining the ROI
-    - target_y: The Y coordinate where to detect line edges (in original image coordinates)
-    - threshold_value: Threshold for binary conversion (default: 50)
+    Args:
+        image (np.ndarray): Input image (BGR or grayscale).
+        roi (tuple[int, int, int, int]): Tuple (x, y, width, height) defining the ROI.
+        target_y (float): The Y coordinate where to detect line edges (in original image coordinates).
+        threshold_value (float, optional): Threshold for binary conversion. Defaults to 50.
 
     Returns:
-    - left_x: X coordinate of left edge (None if not found)
-    - right_x: X coordinate of right edge (None if not found)
+        tuple[float | None, float | None]: Tuple containing:
+            - left_x: X coordinate of left edge (None if not found)
+            - right_x: X coordinate of right edge (None if not found)
     """
 
     # Extract ROI coordinates
@@ -90,8 +111,7 @@ def find_line_edges_at_y(
 def find_bottle_center(
     image: np.ndarray, color: str, min_area: int = 500
 ) -> tuple[tuple[float, float] | None, np.ndarray | None, float | None]:
-    """
-    Find the center coordinates and color pixel count of a colored object in an image using OpenCV.
+    """Find the center coordinates and color pixel count of a colored object in an image using OpenCV.
 
     This function detects objects of a specified color in an image and returns information about
     the largest detected object. It supports yellow, blue, and red color detection and can be used
@@ -106,17 +126,19 @@ def find_bottle_center(
     - Removes debug print statements for cleaner real-time operation
 
     Args:
-        image (numpy.ndarray): Input image as numpy array (BGR format)
-        color (str): Color to detect ('yellow', 'blue', or 'red')
+        image (np.ndarray): Input image as numpy array (BGR format).
+        color (str): Color to detect ('yellow', 'blue', or 'red').
         min_area (int, optional): Minimum contour area threshold for filtering noise. Defaults to 500.
 
     Returns:
-        tuple: ((x, y), largest_contour, color_pixel_count) where (x, y) is the center coordinates,
-               largest_contour is the contour of the largest detected object, and color_pixel_count is the
-               number of detected color pixels. Returns (None, None, 0) if not found.
+        tuple[tuple[float, float] | None, np.ndarray | None, float | None]: Tuple containing:
+            - center: (x, y) center coordinates of the largest detected object
+            - largest_contour: Contour of the largest detected object
+            - color_pixel_count: Number of detected color pixels
+            Returns (None, None, 0) if not found.
 
     Raises:
-        ValueError: If color parameter is not 'yellow', 'blue', or 'red'
+        ValueError: If color parameter is not 'yellow', 'blue', or 'red'.
     """
     # Validate color parameter
     if color not in ["yellow", "blue", "red"]:
@@ -191,22 +213,23 @@ def find_bottle_center(
 def find_bullseye(
     image: np.ndarray, threshold: float = 120
 ) -> tuple[tuple[float, float] | None, np.ndarray | None, float | None]:
-    """
-    Find the center coordinates of a blue bullseye target in an image.
+    """Find the center coordinates of a blue bullseye target in an image.
 
     Uses blue color masking followed by circular shape detection for efficient bullseye detection.
     Prioritizes detections within a specified distance from the image center (x=320).
 
     Args:
-        image (numpy.ndarray): Input image as numpy array (BGR format)
+        image (np.ndarray): Input image as numpy array (BGR format).
         threshold (float, optional): Maximum allowed distance from image center (x=320).
-                                   Bullseyes within range [320-threshold, 320+threshold] are prioritized.
-                                   Defaults to 120.
+            Bullseyes within range [320-threshold, 320+threshold] are prioritized.
+            Defaults to 120.
 
     Returns:
-        tuple: ((x, y), contour, blue_pixel_count) where (x, y) is the center coordinates,
-               contour is the detected bullseye contour, and blue_pixel_count is the
-               number of blue pixels. Returns (None, None, None) if not found.
+        tuple[tuple[float, float] | None, np.ndarray | None, float | None]: Tuple containing:
+            - center: (x, y) center coordinates of the detected bullseye
+            - contour: Detected bullseye contour
+            - blue_pixel_count: Number of blue pixels
+            Returns (None, None, None) if not found.
     """
     if image is None or image.size == 0:
         return None, None, None
@@ -278,21 +301,22 @@ def find_bullseye(
 def find_gate_virtual_line(
     image: np.ndarray, scan_x: int = 320, from_y: int = 0, to_y: int = 480
 ) -> tuple[tuple[float, float] | None, np.ndarray | None, float | None]:
-    """
-    Find the virtual line for gate detection based on gray color regions.
+    """Find the virtual line for gate detection based on gray color regions.
 
     This function detects gray regions in an image and calculates the center point
     between the leftmost and rightmost gray pixels from a given scan position.
 
     Args:
-        image: Input BGR image as numpy array
-        scan_x: X-coordinate to start scanning from (default: 320)
+        image (np.ndarray): Input BGR image as numpy array.
+        scan_x (int, optional): X-coordinate to start scanning from. Defaults to 320.
+        from_y (int, optional): Starting Y-coordinate for scanning. Defaults to 0.
+        to_y (int, optional): Ending Y-coordinate for scanning. Defaults to 480.
 
     Returns:
-        Tuple containing:
-        - Optional[Tuple[float, float]]: Virtual line coordinates (x, y) or None if no gate found
-        - Optional[np.ndarray]: The processed gray mask for debugging
-        - Optional[float]: Width between left and right borders
+        tuple[tuple[float, float] | None, np.ndarray | None, float | None]: Tuple containing:
+            - virtual_line_coords: Virtual line coordinates (x, y) or None if no gate found
+            - gray_mask: The processed gray mask for debugging
+            - width: Width between left and right borders or None
     """
     # Input validation
     if image is None or image.size == 0:

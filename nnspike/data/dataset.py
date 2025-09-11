@@ -1,78 +1,112 @@
 """
 This module defines custom PyTorch Datasets for driving records, including image preprocessing and augmentation.
 
+This module provides dataset classes for different machine learning tasks including regression,
+classification, and multi-task learning. All datasets support data augmentation through
+brightness/contrast adjustments, RGB shifts, and horizontal flipping based on course direction.
+
 Modules:
     - cv2: OpenCV library for image processing.
     - torch: PyTorch library for tensor operations and neural networks.
     - albumentations as A: Albumentations library for image augmentations.
-    - torchvision.transforms as transforms: PyTorch's torchvision library for common image transform_bright_shifttions.
-    - PIL.Image: Python Imaging Library for image manipulation.
+    - torchvision.transforms as transforms: PyTorch's torchvision library for common image transformations.
     - numpy as np: NumPy library for numerical operations.
     - torch.utils.data.Dataset: Base class for all datasets in PyTorch.
     - nnspike.utils.normalize_image: Custom function for image normalization.
+    - nnspike.constants.Mode: Enumeration for different operation modes.
 
 Constants:
     - transform_bright_shift (albumentations.ReplayCompose): Augmentation pipeline with random brightness/contrast adjustments and RGB shifts.
     - transform_flip (albumentations.Compose): Augmentation pipeline for horizontal flipping of images.
 
+Functions:
+    - _rand_relative_position(relative_position, position_variation): Adds random variation to relative position for data augmentation.
+
 Classes:
-    - NvidiaDataset(Dataset): Custom dataset class for loading and preprocessing driving record data for Nvidia model.
-    - MobileNetV2Dataset(Dataset): Custom dataset class for loading and preprocessing driving record data for MobileNetV2 model.
+    - RegressionDataset(Dataset): Custom dataset class for regression tasks, predicting continuous values like steering angles.
+    - ClassificationDataset(Dataset): Custom dataset class for classification tasks, predicting discrete modes of operation.
+    - MultiTaskDataset(Dataset): Custom dataset class for multi-task learning, combining both regression and classification.
 
-NvidiaDataset Class:
+RegressionDataset Class:
+    Designed for predicting continuous values from images and relative position data.
+
     Methods:
-        - __init__(self, inputs, offset_xs, roi, train_course):
-            Initializes the dataset with input image paths, corresponding labels, region of interest, and training course.
+        - __init__(self, inputs, outputs, roi, train_course, position_variation=0.00625):
+            Initializes the dataset with input data, target values, region of interest, training course, and position variation.
 
         - __len__(self):
             Returns the number of samples in the dataset.
 
         - __getitem__(self, idx):
-            Retrieves and processes the sample at the given index. This includes:
-                - Reading the image from the file path using OpenCV.
-                - Extracting the region of interest (ROI) from the image.
-                - Applying image augmentations such as brightness/contrast adjustments and RGB shifts.
-                - Normalizing the ROI.
-                - Converting the ROI to a PyTorch tensor.
-                - Adjusting the steering angle label if a horizontal flip was applied.
-                - Scaling the interval and label values.
-                - Returning the processed ROI and interval as input features, and the label as the target.
+            Retrieves and processes the sample at the given index. Returns tuple of (roi_tensor, relative_position) and target_x.
 
-MobileNetV2Dataset Class:
+ClassificationDataset Class:
+    Designed for predicting discrete modes/classes from images and relative position data.
+
     Methods:
-        - __init__(self, inputs, offset_xs, roi, train_course):
-            Initializes the dataset with input image paths, corresponding labels, region of interest, and training course.
+        - __init__(self, inputs, outputs, roi, train_course, position_variation=0.00625, transform=None):
+            Initializes the dataset with input data, class labels, region of interest, training course, position variation, and optional transforms.
 
         - __len__(self):
             Returns the number of samples in the dataset.
 
         - __getitem__(self, idx):
-            Retrieves and processes the sample at the given index. This includes:
-                - Reading the image from the file path using PIL.
-                - Extracting the region of interest (ROI) from the image.
-                - Applying image augmentations such as brightness/contrast adjustments and RGB shifts.
-                - Normalizing the ROI.
-                - Converting the ROI to a PyTorch tensor.
-                - Adjusting the steering angle label if a horizontal flip was applied.
-                - Scaling the label values.
-                - Returning the processed ROI as input feature, and the label as the target.
+            Retrieves and processes the sample at the given index. Returns tuple of (roi_tensor, relative_position) and mode.
 
-Usage Example:
-    nvidia_dataset = NvidiaDataset(inputs=[('path/to/image.png', 1, 'course1')], offset_xs=[50], roi=(0, 0, 200, 200), train_course='course1')
+MultiTaskDataset Class:
+    Designed for simultaneous regression and classification tasks from the same input data.
 
-    nvidia_dataloader = torch.utils.data.DataLoader(nvidia_dataset, batch_size=4, shuffle=True)
+    Methods:
+        - __init__(self, inputs, outputs, roi, train_course, position_variation=0.00625):
+            Initializes the dataset with input data, combined outputs (mode, target), region of interest, training course, and position variation.
 
-    for (roi_area, interval), label in nvidia_dataloader:
+        - __len__(self):
+            Returns the number of samples in the dataset.
+
+        - __getitem__(self, idx):
+            Retrieves and processes the sample at the given index. Returns tuple of (roi_tensor, relative_position) and (mode, target_x).
+
+Usage Examples:
+    # Regression dataset for predicting steering angles
+    regression_dataset = RegressionDataset(
+        inputs=[('path/to/image.png', 0.5, 'course1')],
+        outputs=[100.0],
+        roi=np.array([0, 0, 200, 200]),
+        train_course='course1'
+    )
+
+    # Classification dataset for predicting operation modes
+    classification_dataset = ClassificationDataset(
+        inputs=[('path/to/image.png', 0.5, 'course1')],
+        outputs=[1],
+        roi=np.array([0, 0, 200, 200]),
+        train_course='course1'
+    )
+
+    # Multi-task dataset for both regression and classification
+    multitask_dataset = MultiTaskDataset(
+        inputs=[('path/to/image.png', 0.5, 'course1')],
+        outputs=[(1, 100.0)],
+        roi=np.array([0, 0, 200, 200]),
+        train_course='course1'
+    )
+
+    # Using with DataLoader
+    dataloader = torch.utils.data.DataLoader(regression_dataset, batch_size=4, shuffle=True)
+    for (roi_area, relative_position), target in dataloader:
         # Training loop here
+        pass
 
-    for roi_area, label in mobilenetv2_dataloader:
-        # Training loop here
-
-Note:
-    - The `normalize_image` function should be defined in the `nnspike.utils` module.
-    - The `transform_bright_shift` object applies random brightness/contrast adjustments and RGB shifts to the images.
-    - The `transform_flip` object applies horizontal flips to the images.
+Notes:
+    - All datasets apply data augmentation including brightness/contrast adjustments and RGB shifts.
+    - Images are horizontally flipped when the course differs from the training course.
+    - Relative positions are augmented with random variation for improved generalization.
+    - Target values are normalized to [0, 1] range for regression tasks.
+    - The `normalize_image` function is used for image preprocessing.
+    - ROI (Region of Interest) defines the area of the image to extract for processing.
 """
+
+from __future__ import annotations
 
 import albumentations as A  # noqa: N812
 import cv2

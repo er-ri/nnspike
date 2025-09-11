@@ -12,11 +12,11 @@ class SimpleNetClassification25(nn.Module):
     sensor data before final classification.
 
     Architecture:
-    - Conv2d (3->8 channels, 5x5 kernel, stride=2) + ReLU + MaxPool2d (2x2)
-    - Conv2d (8->16 channels, 5x5 kernel, stride=1, padding=2) + ReLU + MaxPool2d (2x2)
-    - Flatten + Concatenate with relative position
-    - Linear (2689->64) + ReLU
-    - Linear (64->1) output
+        - Conv2d (3->8 channels, 5x5 kernel, stride=2) + ReLU + MaxPool2d (2x2)
+        - Conv2d (8->16 channels, 5x5 kernel, stride=1, padding=2) + ReLU + MaxPool2d (2x2)
+        - Flatten + Concatenate with relative position
+        - Linear (2689->64) + ReLU
+        - Linear (64->1) output
 
     Expected input image size: (61, 197) which gets processed to (16, 7, 24) after convolutions.
     """

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import time
 from dataclasses import dataclass
@@ -14,7 +16,7 @@ class MotorStatus:
     speed: int | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "MotorStatus":
+    def from_dict(cls, data: dict[str, Any]) -> MotorStatus:
         return cls(
             position=data.get("position"),
             power=data.get("power"),
@@ -32,7 +34,7 @@ class ColorSensorStatus:
     color: int | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ColorSensorStatus":
+    def from_dict(cls, data: dict[str, Any]) -> ColorSensorStatus:
         return cls(
             reflected=data.get("reflected"),
             ambient=data.get("ambient"),
@@ -49,7 +51,7 @@ class VectorStatus:
     z: float = 0.0
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "VectorStatus":
+    def from_dict(cls, data: dict[str, Any]) -> VectorStatus:
         return cls(x=data.get("x", 0.0), y=data.get("y", 0.0), z=data.get("z", 0.0))
 
 
@@ -61,7 +63,7 @@ class Position:
     y: float = 0.0
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Position":
+    def from_dict(cls, data: dict[str, Any]) -> Position:
         return cls(x=data.get("x", 0.0), y=data.get("y", 0.0))
 
 
@@ -73,7 +75,7 @@ class BatteryStatus:
     percent: float | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "BatteryStatus":
+    def from_dict(cls, data: dict[str, Any]) -> BatteryStatus:
         return cls(voltage=data.get("voltage"), percent=data.get("percent"))
 
 
@@ -89,7 +91,7 @@ class SensorStatus:
     position: Position | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SensorStatus":
+    def from_dict(cls, data: dict[str, Any]) -> SensorStatus:
         return cls(
             distance=data.get("distance"),
             force=data.get("force"),
