@@ -455,7 +455,7 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             color_info = self.get_color_sensor_values(status)
             is_black = color_info["is_black"]
-            if position_diff < 450 and not is_black:
+            if position_diff < 600 and not is_black:
                 return None, (BASE_SPEED, BASE_SPEED, 0), Mode.AVOID_OBSTACLE
             else:
                 print(f"[DEBUG] phase5→phase6: position_diff={position_diff} current_pos={current_pos} is_black={is_black} color_value={color_info['color']}")
