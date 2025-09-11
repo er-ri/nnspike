@@ -184,7 +184,19 @@ class ActionChain(object):
         ambient = color.ambient if hasattr(color, "ambient") and isinstance(color.ambient, int) else 0
         color_value = color.color if hasattr(color, "color") and isinstance(color.color, int) else 0
         is_black = (color_value < 100)
-        return {"reflected": reflected, "ambient": ambient, "color": color_value, "is_black": is_black}
+        # color_valueのみで排他的な色判定（白・赤青・黒）
+        if color_value < 200:
+            color_type = "black"
+        elif color_value > 900:
+            color_type = "white"
+        else:
+            color_type = "other"
+        return {
+            "reflected": reflected,
+            "ambient": ambient,
+            "color": color_value,
+            "color_type": color_type
+        }
 
     def get_target_x_by_course(self, image, offset_y, course="right"):
         """
@@ -368,13 +380,13 @@ class ActionChain(object):
             _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow", roi=ROI_COLOR)
             center_line_detected = is_center_line_detected(image)
             color_info = self.get_color_sensor_values(status)
-            is_black = color_info["is_black"]
+            color_type = color_info["color_type"]
             if yellow_pixel_count > 5000:
                 print(f"[DEBUG] phase0→phase1: yellow_pixel_count={yellow_pixel_count} > 5000")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             elif center_line_detected:
-                if is_black:
+                if color_type != "white":
                     self.pid.Kp = 0.5
                     self.pid.Ki = 0
                     self.pid.Kd = 0.3
@@ -466,13 +478,14 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             color_info = self.get_color_sensor_values(status)
-            is_black = color_info["is_black"]
-            if position_diff < 450 and not is_black:
-                return None, (BASE_SPEED, BASE_SPEED, 0), Mode.AVOID_OBSTACLE
-            else:
-                print(f"[DEBUG] phase5→phase6: position_diff={position_diff} current_pos={current_pos} is_black={is_black} color_value={color_info['color']}")
+            color_type = color_info["color_type"]
+            # 距離450に到達する、もしくはcolor_typeが白以外になったら次フェーズ
+            if position_diff >= 450 or color_type != "white":
+                print(f"[DEBUG] phase5→phase6: position_diff={position_diff} current_pos={current_pos} color_type={color_type} color_value={color_info['color']}")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            else:
+                return None, (BASE_SPEED, BASE_SPEED, 0), Mode.AVOID_OBSTACLE
 
         # phase6: 左旋回（短距離は低速、長距離は高速、所定値以上で次フェーズへ。所定値未満かつ垂直黒ライン検出で次フェーズへ）
         if phase.get_phase() == 6:
@@ -529,7 +542,7 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             center_line_detected = is_center_line_detected(image)
             color_info = self.get_color_sensor_values(status)
-            is_black = color_info["is_black"]
+            color_type = color_info["color_type"]
 
             # if is_fast_corner_detected(image, course=self.course):
             #     print(f"[DEBUG] phase8: is_fast_corner_detected=True at current_pos={current_pos}, course={self.course}")
@@ -539,7 +552,7 @@ class ActionChain(object):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             elif center_line_detected:
-                if is_black:
+                if color_type != "white":
                     self.pid.Kp = 1
                     self.pid.Ki = 0
                     self.pid.Kd = 0.3
@@ -761,22 +774,22 @@ class ActionChain(object):
 
         # 10. 青が一定値以下になってから右モーターが一定値移動までcenter追従。条件を満たしたら次のphaseへ
         if phase.get_phase() == 10:
-            center, _, blue_pixel_count = find_blue_target_center(image)
-            if center is not None:
-                target_x = center[0]
-            else:
-                target_x = (self.x1 + self.x2) // 2
-
-            # 右モーター位置差分で継続判定（一定値）
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
-            # threshold = 300 if self.course_type == "upper" else 400
             threshold = 300
-            if abs(current_pos - position_start) < threshold:
-                return target_x, None, Mode.CARRY_BOTTLE1
-            else:
-                print(f"[DEBUG] phase10→phase11: position_diff={abs(current_pos - position_start)} >= {threshold}")
+            color_info = self.get_color_sensor_values(status)
+            color_type = color_info["color_type"]
+            position_diff = abs(current_pos - position_start)
+            if position_diff >= threshold or color_type == "other":
+                print(f"[DEBUG] phase10→phase11: position_diff={position_diff} >= {threshold} or color_type={color_type}")
                 phase.next_phase()
+            else:
+                center, _, _ = find_blue_target_center(image)
+                if center is not None:
+                    target_x = center[0]
+                else:
+                    target_x = (self.x1 + self.x2) // 2
+                return target_x, None, Mode.CARRY_BOTTLE1
             
         # 11. 状態リセットしBACK_AND_TURN1へ遷移
         if phase.get_phase() == 11:
@@ -898,8 +911,10 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            if position_diff >= 1000 or blue_pixel_count < 5000:
-                print(f"[DEBUG] phase1→phase2: position_diff={position_diff} >= 1000 or blue_pixel_count={blue_pixel_count} < 5000")
+            color_info = self.get_color_sensor_values(status)
+            color_type = color_info["color_type"]
+            if position_diff >= 1000 or blue_pixel_count < 5000 or color_type == "other":
+                print(f"[DEBUG] phase1→phase2: position_diff={position_diff} >= 1000 or blue_pixel_count={blue_pixel_count} < 5000 or color_type={color_type}")
                 phase.next_phase()
                 # phase2用 右モーター相対位置記録（get_motor_positionで統一）
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -1092,18 +1107,21 @@ class ActionChain(object):
 
         # 12. コース側モーターが所定値移動までcenter追従。所定値超えたらphase13へ
         if phase.get_phase() == 12:
-            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            if position_diff < 300:
+            color_info = self.get_color_sensor_values(status)
+            color_type = color_info["color_type"]
+            if position_diff >= 300 or color_type == "other":
+                print(f"[DEBUG] phase12→phase13: position_diff={position_diff} >= 300 or color_type={color_type}")
+                phase.next_phase()
+            else:
+                center, _, _ = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
                 if center is not None:
                     target_x = center[0]
                 else:
                     target_x = (self.x1 + self.x2) // 2
-                return target_x, None, Mode.CARRY_BOTTLE2            
-            print(f"[DEBUG] phase12→phase13: position_diff={position_diff} >= 300")
-            phase.next_phase()
+                return target_x, None, Mode.CARRY_BOTTLE2
 
         # 13. 状態リセットしBACK_AND_TURN2へ遷移
         if phase.get_phase() == 13:
@@ -1205,13 +1223,14 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            target_x = (self.x1 + self.x2) // 2
-            if position_diff < 350:
-                return target_x, None, Mode.HEAD_GOAL
-            else:
-                print(f"[DEBUG] phase1→phase2: position_diff={position_diff} current_pos={current_pos} >= 350")
+            color_info = self.get_color_sensor_values(status)
+            color_type = color_info["color_type"]
+            if position_diff >= 350 or color_type != "white":
+                print(f"[DEBUG] phase1→phase2: position_diff={position_diff} current_pos={current_pos} >= 350 or color_type={color_type}")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
+            else:
+                return None, (BASE_SPEED, BASE_SPEED, 0), Mode.HEAD_GOAL
 
         # 2. 左旋回（courseに応じて左旋回。垂直黒ライン検出または移動距離上限到達でphase3へ）
         if phase.get_phase() == 2:

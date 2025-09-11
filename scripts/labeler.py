@@ -89,6 +89,7 @@ def main():
         ROI_COLOR,  # 最後尾に追加
     ]
     show_info_text = True  # 0キーで切り替え
+    pre_line_edges = 320
     while True:
         if index < 0:
             index = 0
