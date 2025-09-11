@@ -94,13 +94,15 @@ class SensorStatus:
     def from_dict(cls, data: Dict[str, Any]) -> "SensorStatus":
         # 既存のcolor処理
         color = data.get("color")
-        # 追加: dict型ならColorSensorStatus.from_dictでラップ
-        if isinstance(color, dict):
-            color = ColorSensorStatus.from_dict(color)
+        if color is not None:
+            if isinstance(color, dict):
+                color = ColorSensorStatus.from_dict(color)
+        else:
+            color = None
         return cls(
             # distance=data.get("distance"),
             force=data.get("force"),
-            color=color if color is not None else None,
+            color=color,
             # gyro=(VectorStatus.from_dict(data.get("gyro", {})) if data.get("gyro") else None),
             # accelerometer=(VectorStatus.from_dict(data.get("accelerometer", {})) if data.get("accelerometer") else None),
             # position=(Position.from_dict(data.get("position", {})) if data.get("position") else None),
