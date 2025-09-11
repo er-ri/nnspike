@@ -509,8 +509,9 @@ class ActionChain(object):
             if position_diff > 2500:
                 print(f"[DEBUG][phase8→phase9] Right motor distance: position_diff={position_diff}, current_pos={current_pos} >= 2500 → phase9")
                 phase.next_phase()
-            elif center_line_detected and not self._center_line_detected_locked:
-                self._center_line_detected_ever_true = True
+            # elif center_line_detected and not self._center_line_detected_locked:
+            elif center_line_detected:
+                # self._center_line_detected_ever_true = True
                 self.pid.Kp = 3.0
                 self.pid.Ki = 0
                 self.pid.Kd = 0.3
@@ -519,8 +520,8 @@ class ActionChain(object):
                 return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
             else:
                 # Lock if passed once and now False
-                if self._center_line_detected_ever_true:
-                    self._center_line_detected_locked = True
+                # if self._center_line_detected_ever_true:
+                #    self._center_line_detected_locked = True
                 self.pid.Kp = 50
                 self.pid.Ki = 0
                 self.pid.Kd = 5
@@ -533,7 +534,7 @@ class ActionChain(object):
             blue_area = get_blue_line_pixel(image)
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
-                print(f"[DEBUG][phase9→DOUBLE_LOOP] Blue area: blue_area={blue_area}, current_pos={current_pos} > threshold → DOUBLE_LOOP")
+                print(f"[DEBUG][phase9→DOUBLE_LOOP] Blue area: blue_area={blue_area} > threshold → DOUBLE_LOOP")
                 self.reset_action()
                 return target_x, (0, 0, BASE_SPEED), Mode.DOUBLE_LOOP
             else:
