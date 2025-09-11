@@ -34,7 +34,7 @@ class TestGetColorSensorValues(unittest.TestCase):
         self.assertIn("reflected", values)
         self.assertIn("ambient", values)
         self.assertIn("color", values)
-        self.assertIn("is_black", values)
+        self.assertIn("color_type", values)
 
 if __name__ == "__main__":
     unittest.main()
