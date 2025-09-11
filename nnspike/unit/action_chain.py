@@ -139,9 +139,8 @@ class ActionChain(object):
             status = self.et.get_spike_status()
             if status is None:
                 print("[get_motor_position] get_spike_status() returned None")
-                return 0
-            # status型はint型ではないので、mode='status'時は初期値を返す
-            return 0
+                return None
+            return status
         if status is None:
             status = self.et.get_spike_status()
             if status is None:
