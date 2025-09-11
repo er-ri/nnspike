@@ -39,7 +39,7 @@ class TestGetColorSensorValues(unittest.TestCase):
             except Exception as e:
                 print("[payload解析エラー]", e)
             self.et.spike_status.update(valid_raw)
-        status = self.et.get_spike_status()
+        status = self.et.spike_status
         print("status.raw_data:", getattr(status, 'raw_data', None))
         print("status.sensors:", getattr(status, 'sensors', None))
         if hasattr(status, 'sensors') and status.sensors is not None:
