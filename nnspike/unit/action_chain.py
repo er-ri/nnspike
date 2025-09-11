@@ -486,55 +486,54 @@ class ActionChain(object):
                 self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
                 return None, None, Mode.AVOID_OBSTACLE
 
-        # phase7: 所定距離進行で次フェーズへ。未到達時はget_target_x_by_courseでAVOID_OBSTACLE返却
+        # phase7: Go to next phase when distance threshold is reached. Otherwise, return get_target_x_by_course with AVOID_OBSTACLE.
         if phase.get_phase() == 7:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             if position_diff >= 1500:
-                print(f"[DEBUG][phase7→phase8] コーナー検出: position_diff={position_diff}, current_pos={current_pos}, threshold=1500 → phase8移行")
+                print(f"[DEBUG][phase7→phase8] Distance threshold reached: position_diff={position_diff}, current_pos={current_pos}, threshold=1500 → phase8")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
-                print(f"[DEBUG][phase7] コーナー未検出: position_diff={position_diff}, current_pos={current_pos}, threshold=1500 → 継続")
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
 
-        # phase8: 右モーターが所定距離進行後、垂直黒ライン判定で次フェーズへ。未到達時はget_target_x_by_courseでAVOID_OBSTACLE返却
+        # phase8: After right motor travels threshold, check vertical black line to go to next phase. Otherwise, return get_target_x_by_course with AVOID_OBSTACLE.
         if phase.get_phase() == 8:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             center_line_detected = is_center_line_detected(image)
-            # phase遷移時はロック解除
+            # Unlock on phase transition
             if position_diff > 2500:
-                print(f"[DEBUG] phase8→phase9: 右モーター距離: position_diff={position_diff} current_pos={current_pos} >= 2900 → phase9移行")
+                print(f"[DEBUG][phase8→phase9] Right motor distance: position_diff={position_diff}, current_pos={current_pos} >= 2500 → phase9")
                 phase.next_phase()
             elif center_line_detected and not self._center_line_detected_locked:
                 self._center_line_detected_ever_true = True
-                self.pid.Kp = 3.0  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
+                self.pid.Kp = 3.0
                 self.pid.Ki = 0
-                self.pid.Kd = 0.3  # 安定した微分制御で自然安定性向上
-                self.pid.output_limits = (-4, 4)  # テスト結果による最適制御範囲
+                self.pid.Kd = 0.3
+                self.pid.output_limits = (-4, 4)
                 target_x = self.get_target_x_by_course_safe(image, self.course)
                 return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
             else:
-                # 一度でもTrueで通過した後にFalseになったらロック
+                # Lock if passed once and now False
                 if self._center_line_detected_ever_true:
                     self._center_line_detected_locked = True
-                    self.pid.Kp = 50
-                    self.pid.Ki = 0
-                    self.pid.Kd = 5
-                    self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
-                    target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-                    return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
+                self.pid.Kp = 50
+                self.pid.Ki = 0
+                self.pid.Kd = 5
+                self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
 
-        # phase9: 青面積判定または右モーターが所定距離進行でDOUBLE_LOOP、そうでなければAVOID_OBSTACLE継続
+        # phase9: Go to DOUBLE_LOOP if blue area threshold or right motor distance is reached, otherwise continue AVOID_OBSTACLE.
         if phase.get_phase() == 9:
             blue_area = get_blue_line_pixel(image)
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
-                print(f"[DEBUG] phase9→DOUBLE_LOOP: 青面積: blue_area={blue_area} current_pos={current_pos} > threshold → DOUBLE_LOOP移行")
+                print(f"[DEBUG][phase9→DOUBLE_LOOP] Blue area: blue_area={blue_area}, current_pos={current_pos} > threshold → DOUBLE_LOOP")
                 self.reset_action()
                 return target_x, (0, 0, BASE_SPEED), Mode.DOUBLE_LOOP
             else:
@@ -555,7 +554,7 @@ class ActionChain(object):
         - phase4: intersection_y付近で黒水平ライン検出まで定速走行。所定距離未満は定速走行、以上で黒ライン検出判定。検出で次フェーズへ。
         - phase5: 右モーター移動距離が所定値未満なら定速走行、以上で次フェーズへ。
         - phase6: 左旋回。短距離は低速、長距離は高速。一定距離未満かつ垂直黒ライン検出で次フェーズへ。
-        - phase7: コーナー検出で次フェーズへ。未検出時はget_target_x_by_courseでHIGH_SPEED_AVOID返却。
+            - phase7: コーナー検出で次フェーズへ。未検出時はget_target_x_by_courseでHIGH_SPEED_AVOID返却。
         - phase8: 右モーターが所定距離進行後、垂直黒ライン判定で次フェーズへ。
         - phase9: コーナー検出で状態リセット、他はHIGH_SPEED_AVOID継続。
         - phase10: 右モーターが所定距離進行後、垂直黒ライン判定で次フェーズへ。
