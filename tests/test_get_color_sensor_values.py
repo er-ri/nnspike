@@ -7,14 +7,15 @@ from nnspike.unit.action_chain import ActionChain
 from nnspike.unit.etrobot import ETRobot
 
 class TestGetColorSensorValues(unittest.TestCase):
-    def get_valid_status(self, max_retry=20):
+    def get_valid_status(self, max_retry=30):
         serial_port = getattr(self.et, '_ETRobot__serial_port', None)
         for _ in range(max_retry):
             raw = serial_port.read_until(expected=b"\r")
             try:
                 if raw.startswith(b"{"):
-                    json.loads(raw.decode("utf-8").strip())
-                    return raw
+                    data = json.loads(raw.decode("utf-8").strip())
+                    if data.get("m") == 0:
+                        return raw
             except Exception:
                 continue
         return None
