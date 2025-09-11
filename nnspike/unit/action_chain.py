@@ -4,7 +4,7 @@ from typing import Optional, Tuple  # 型ヒント用
 import numpy as np  # 画像処理用
 
 # 定数・モード・ROI設定
-from nnspike.constants import OFFSET_Y, ROI_CNN, ROI_LINE_TRACING, Mode, BASE_SPEED, HIGH_SPEED_BASE, ROI_LINE_HORIZON3, ROI_LOOP, ROI_LINE_CORNER, ROI_COLOR, ROI_LINE_STRAIGHT
+from nnspike.constants import OFFSET_Y, ROI_CNN, ROI_LINE_TRACING, Mode, BASE_SPEED, HIGH_SPEED_BASE, ULTRA_HIGH_SPEED, ROI_LINE_HORIZON3, ROI_LOOP, ROI_LINE_CORNER, ROI_COLOR, ROI_LINE_STRAIGHT
 
 # --- 閾値定数（全体で統一管理） ---
 BLUE_AREA_MAX_THRESHOLD = 18000
@@ -367,17 +367,27 @@ class ActionChain(object):
         if phase.get_phase() == 0:
             _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow", roi=ROI_COLOR)
             center_line_detected = is_center_line_detected(image)
+            color_info = self.get_color_sensor_values(status)
+            is_black = color_info["is_black"]
             if yellow_pixel_count > 5000:
                 print(f"[DEBUG] phase0→phase1: yellow_pixel_count={yellow_pixel_count} > 5000")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             elif center_line_detected:
-                self.pid.Kp = 5
-                self.pid.Ki = 0
-                self.pid.Kd = 1
-                self.pid.output_limits = (-8, 8)
-                target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
-                return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
+                if is_black:
+                    self.pid.Kp = 1
+                    self.pid.Ki = 0
+                    self.pid.Kd = 0.3
+                    self.pid.output_limits = (-4, 4)
+                    target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
+                    return target_x, (0, 0, ULTRA_HIGH_SPEED), Mode.AVOID_OBSTACLE
+                else:
+                    self.pid.Kp = 5
+                    self.pid.Ki = 0
+                    self.pid.Kd = 1
+                    self.pid.output_limits = (-8, 8)
+                    target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
+                    return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
             else:
                 # Lock if passed once and now False
                 self.pid.Kp = 20
@@ -455,7 +465,6 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             color_info = self.get_color_sensor_values(status)
-            print(f"[DEBUG] color sensor values: reflected={color_info['reflected']} ambient={color_info['ambient']} color={color_info['color']}")
             is_black = color_info["is_black"]
             if position_diff < 450 and not is_black:
                 return None, (BASE_SPEED, BASE_SPEED, 0), Mode.AVOID_OBSTACLE
@@ -519,18 +528,26 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             center_line_detected = is_center_line_detected(image)
-            # Unlock on phase transition
-            if position_diff > 2500:
+            color_info = self.get_color_sensor_values(status)
+            is_black = color_info["is_black"]
+            if position_diff > 2900:
                 print(f"[DEBUG][phase8→phase9] Right motor distance: position_diff={position_diff}, current_pos={current_pos} >= 2500 → phase9")
                 phase.next_phase()
-            # elif center_line_detected:
             elif center_line_detected:
-                self.pid.Kp = 5
-                self.pid.Ki = 0
-                self.pid.Kd = 1
-                self.pid.output_limits = (-4, 4)
-                target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
-                return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
+                if is_black:
+                    self.pid.Kp = 1
+                    self.pid.Ki = 0
+                    self.pid.Kd = 0.3
+                    self.pid.output_limits = (-4, 4)
+                    target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
+                    return target_x, (0, 0, ULTRA_HIGH_SPEED), Mode.AVOID_OBSTACLE
+                else:
+                    self.pid.Kp = 5
+                    self.pid.Ki = 0
+                    self.pid.Kd = 1
+                    self.pid.output_limits = (-8, 8)
+                    target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
+                    return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
             else:
                 # Lock if passed once and now False
                 self.pid.Kp = 50
