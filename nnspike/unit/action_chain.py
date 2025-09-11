@@ -372,10 +372,10 @@ class ActionChain(object):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             elif center_line_detected:
-                self.pid.Kp = 3.0
+                self.pid.Kp = 5
                 self.pid.Ki = 0
                 self.pid.Kd = 0.3
-                self.pid.output_limits = (-4, 4)
+                self.pid.output_limits = (-8, 8)
                 target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                 return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
             else:
