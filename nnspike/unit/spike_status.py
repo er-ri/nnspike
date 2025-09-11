@@ -97,7 +97,6 @@ class SensorStatus:
             color = ColorSensorStatus.from_dict(color)
         elif not isinstance(color, ColorSensorStatus):
             color = ColorSensorStatus(None, None, None)
-        print("[DEBUG] SensorStatus.from_dict color:", color, type(color))
         return cls(
             # distance=data.get("distance"),
             force=data.get("force"),
@@ -159,9 +158,7 @@ class SpikeStatus:
 
         # Update sensors
         sensors_data = parsed_data.get("sensors", {})
-        print("[DEBUG] parsed_data['sensors']:", sensors_data)
         self.sensors = SensorStatus.from_dict(sensors_data)
-        print("[DEBUG] self.sensors:", self.sensors)
 
         # Update battery
         # battery_data = parsed_data.get("battery", {})
