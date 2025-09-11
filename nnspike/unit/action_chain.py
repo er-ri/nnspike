@@ -526,9 +526,10 @@ class ActionChain(object):
             center_line_detected = is_center_line_detected(image)
             color_info = self.get_color_sensor_values(status)
             is_black = color_info["is_black"]
-            if position_diff > 2900:
-                print(f"[DEBUG][phase8→phase9] Right motor distance: position_diff={position_diff}, current_pos={current_pos} > 2900 → phase9")
+            if position_diff > 2500:
+                print(f"[DEBUG][phase8→phase9] Right motor distance: position_diff={position_diff}, current_pos={current_pos} > 2500 → phase9")
                 phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             elif center_line_detected:
                 if is_black:
                     self.pid.Kp = 1
@@ -559,7 +560,8 @@ class ActionChain(object):
             blue_area = get_blue_line_pixel(image)
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
-                print(f"[DEBUG][phase9→DOUBLE_LOOP] Blue area: blue_area={blue_area} > threshold → DOUBLE_LOOP")
+                current_pos = self.get_motor_position(self.course, status=status)
+                print(f"[DEBUG][phase9→DOUBLE_LOOP] Blue area: blue_area={blue_area} > threshold → DOUBLE_LOOP, current_pos={current_pos}")
                 self.reset_action()
                 return target_x, (0, 0, BASE_SPEED), Mode.DOUBLE_LOOP
             else:
