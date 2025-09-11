@@ -449,6 +449,7 @@ class ActionChain(object):
                     return None, (70, 40, 0), Mode.AVOID_OBSTACLE
                 else:
                     return None, (40, 70, 0), Mode.AVOID_OBSTACLE
+                
             if is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3):
                 print(f"[DEBUG] phase4→phase5: position_diff={position_diff} current_pos={current_pos} (horizontal line detected)")
                 phase.next_phase()
@@ -478,12 +479,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             distance = abs(current_pos - position_start)
-            if distance < 50:
-                if self.course == "right":
-                    return None, (5, 35, 0), Mode.AVOID_OBSTACLE
-                else:
-                    return None, (35, 5, 0), Mode.AVOID_OBSTACLE
-            elif distance < 350:
+            if distance < 350:
                 vertical_detected = is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=150)
                 if vertical_detected:
                     print(f"[DEBUG] phase6→phase7: distance={distance} current_pos={current_pos} (vertical black line detected)")
@@ -531,7 +527,7 @@ class ActionChain(object):
             color_info = self.get_color_sensor_values(status)
             is_black = color_info["is_black"]
             if position_diff > 2900:
-                print(f"[DEBUG][phase8→phase9] Right motor distance: position_diff={position_diff}, current_pos={current_pos} >= 2500 → phase9")
+                print(f"[DEBUG][phase8→phase9] Right motor distance: position_diff={position_diff}, current_pos={current_pos} > 2900 → phase9")
                 phase.next_phase()
             elif center_line_detected:
                 if is_black:
