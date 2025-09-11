@@ -106,8 +106,6 @@ class ActionChain(object):
         self._init = False
         self.pre_target_x = (self.x1 + self.x2) // 2
         self.pid = pid  # PIDインスタンスを保持（run_manualから共有用）
-        self._center_line_detected_locked = False
-        self._center_line_detected_ever_true = False
 
     def initialize_action(self, motor_side: str = "right"):
         """アクション開始時の状態初期化処理.
@@ -369,13 +367,26 @@ class ActionChain(object):
         # phase0: 領域検出で次フェーズへ。未検出時は中央追従・回避モード返却
         if phase.get_phase() == 0:
             _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow", roi=ROI_COLOR)
+            center_line_detected = is_center_line_detected(image)
             if yellow_pixel_count > 5000:
                 print(f"[DEBUG] phase0→phase1: yellow_pixel_count={yellow_pixel_count} > 5000")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
-            else:
+            elif center_line_detected:
+                self.pid.Kp = 0.1  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
+                self.pid.Ki = 0
+                self.pid.Kd = 0.1  # 安定した微分制御で自然安定性向上
+                self.pid.output_limits = (-1, 1)  # テスト結果による最適制御範囲
                 target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                 return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
+            else:
+                # Lock if passed once and now False
+                self.pid.Kp = 50
+                self.pid.Ki = 0
+                self.pid.Kd = 5
+                self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
 
         # phase1: 領域検出で次フェーズへ。未検出時は中心または中央追従・回避モード返却
         if phase.get_phase() == 1:
@@ -509,9 +520,8 @@ class ActionChain(object):
             if position_diff > 2500:
                 print(f"[DEBUG][phase8→phase9] Right motor distance: position_diff={position_diff}, current_pos={current_pos} >= 2500 → phase9")
                 phase.next_phase()
-            # elif center_line_detected and not self._center_line_detected_locked:
+            # elif center_line_detected:
             elif center_line_detected:
-                # self._center_line_detected_ever_true = True
                 self.pid.Kp = 3.0
                 self.pid.Ki = 0
                 self.pid.Kd = 0.3
@@ -520,8 +530,6 @@ class ActionChain(object):
                 return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
             else:
                 # Lock if passed once and now False
-                # if self._center_line_detected_ever_true:
-                #    self._center_line_detected_locked = True
                 self.pid.Kp = 50
                 self.pid.Ki = 0
                 self.pid.Kd = 5
