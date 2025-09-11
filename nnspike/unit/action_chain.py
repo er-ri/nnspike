@@ -385,7 +385,7 @@ class ActionChain(object):
                 self.pid.Ki = 0
                 self.pid.Kd = 5
                 self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                 return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
 
         # phase1: 領域検出で次フェーズへ。未検出時は中心または中央追従・回避モード返却
@@ -536,7 +536,7 @@ class ActionChain(object):
                 self.pid.Ki = 0
                 self.pid.Kd = 5
                 self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                target_x = self.get_target_x_by_course_safe(image, self.course)
                 return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
 
         # phase9: Go to DOUBLE_LOOP if blue area threshold or right motor distance is reached, otherwise continue AVOID_OBSTACLE.
