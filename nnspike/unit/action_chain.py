@@ -459,7 +459,7 @@ class ActionChain(object):
             if position_diff < 400 and not is_black:
                 return None, (BASE_SPEED, BASE_SPEED, 0), Mode.AVOID_OBSTACLE
             else:
-                print(f"[DEBUG] phase5→phase6: position_diff={position_diff} current_pos={current_pos}")
+                print(f"[DEBUG] phase5→phase6: position_diff={position_diff} current_pos={current_pos} is_black={is_black}")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
@@ -535,6 +535,7 @@ class ActionChain(object):
                 self.pid.Kp = 50
                 self.pid.Ki = 0
                 self.pid.Kd = 5
+                image = fill_green_with_white(image)
                 self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
