@@ -355,10 +355,10 @@ class ActionChain(object):
 
         if not self._init:
             self.initialize_action(motor_side=self.course)
-            self.pid.Kp = 0.1  # 🏆 36回段階テスト結果：バランス0.624で最適（効率0.543 + 制御力0.590）
+            self.pid.Kp = 5
             self.pid.Ki = 0
-            self.pid.Kd = 0.1  # 安定した微分制御で自然安定性向上
-            self.pid.output_limits = (-1, 1)  # テスト結果による最適制御範囲
+            self.pid.Kd = 1
+            self.pid.output_limits = (-8, 8)
 
         phase = self._phase
         status = self._status
@@ -384,6 +384,7 @@ class ActionChain(object):
                 self.pid.Ki = 0
                 self.pid.Kd = 5
                 self.pid.output_limits = (-20, 20)
+                image = fill_green_with_white(image)
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
 
@@ -406,7 +407,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            if position_diff < 350:
+            if position_diff < 300:
                 if self.course == "right":
                     return None, (40, 70, 0), Mode.AVOID_OBSTACLE
                 else:
@@ -433,7 +434,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.opposite_course, status=status)
             position_diff = abs(current_pos - position_start)
-            if position_diff < 500:
+            if position_diff < 450:
                 if self.course == "right":
                     return None, (70, 40, 0), Mode.AVOID_OBSTACLE
                 else:
@@ -535,8 +536,8 @@ class ActionChain(object):
                 self.pid.Kp = 50
                 self.pid.Ki = 0
                 self.pid.Kd = 5
-                image = fill_green_with_white(image)
                 self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
+                image = fill_green_with_white(image)
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
 
