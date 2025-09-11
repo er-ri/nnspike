@@ -161,6 +161,7 @@ class SpikeStatus:
         sensors_data = parsed_data.get("sensors", {})
         print("[DEBUG] parsed_data['sensors']:", sensors_data)
         self.sensors = SensorStatus.from_dict(sensors_data)
+        print("[DEBUG] self.sensors:", self.sensors)
 
         # Update battery
         # battery_data = parsed_data.get("battery", {})
