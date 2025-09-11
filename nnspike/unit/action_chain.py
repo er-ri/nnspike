@@ -184,7 +184,7 @@ class ActionChain(object):
         reflected = color.reflected if hasattr(color, "reflected") and isinstance(color.reflected, int) else 0
         ambient = color.ambient if hasattr(color, "ambient") and isinstance(color.ambient, int) else 0
         color_value = color.color if hasattr(color, "color") and isinstance(color.color, int) else 0
-        is_black = (color_value == 1)
+        is_black = (color_value < 100)
         return {"reflected": reflected, "ambient": ambient, "color": color_value, "is_black": is_black}
 
     def get_target_x_by_course(self, image, offset_y, course="right"):
@@ -434,7 +434,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.opposite_course, status=status)
             position_diff = abs(current_pos - position_start)
-            if position_diff < 200:
+            if position_diff < 500:
                 if self.course == "right":
                     return None, (70, 40, 0), Mode.AVOID_OBSTACLE
                 else:
@@ -454,7 +454,9 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            if position_diff < 200:
+            color_info = self.get_color_sensor_values(status)
+            is_black = color_info["is_black"]
+            if position_diff < 400 and not is_black:
                 return None, (BASE_SPEED, BASE_SPEED, 0), Mode.AVOID_OBSTACLE
             else:
                 print(f"[DEBUG] phase5→phase6: position_diff={position_diff} current_pos={current_pos}")
