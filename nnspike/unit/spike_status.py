@@ -95,7 +95,9 @@ class SensorStatus:
         # 既存のcolor処理
         color = data.get("color")
         if color is not None:
-            color = ColorSensorStatus.from_dict(color)
+            if isinstance(color, dict):
+                color = ColorSensorStatus.from_dict(color)
+            # すでにColorSensorStatus型ならそのまま
         return cls(
             # distance=data.get("distance"),
             force=data.get("force"),
