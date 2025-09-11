@@ -304,7 +304,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     # wait_for_start()の後にmodeの初期値を決定
     if state_flags.force_sensor_mode_switch_enabled:
-        mode = Mode.HIGH_SPEED_AVOID
+        mode = Mode.AVOID_OBSTACLE
     else:
         mode = Mode.PAUSE
 
