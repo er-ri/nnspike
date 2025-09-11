@@ -1,6 +1,6 @@
 import json
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Union
 
 
@@ -85,7 +85,7 @@ class SensorStatus:
 
     # distance: Optional[int] = None
     force: Optional[int] = None
-    color: ColorSensorStatus = ColorSensorStatus(None, None, None)
+    color: ColorSensorStatus = field(default_factory=lambda: ColorSensorStatus(None, None, None))
     # gyro: Optional[VectorStatus] = None
     # accelerometer: Optional[VectorStatus] = None
     # position: Optional[Position] = None
