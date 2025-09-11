@@ -11,6 +11,17 @@ class TestGetColorSensorValues(unittest.TestCase):
         self.chain = ActionChain(self.et, course="right", course_type="upper")
 
     def test_get_color_sensor_values(self):
+        # 受信データを直接取得してprint（デバッグ用）
+        try:
+            serial_port = getattr(self.et, '_ETRobot__serial_port', None)
+            if serial_port:
+                print('--- 直近のSPIKE受信データ（10件） ---')
+                for _ in range(10):
+                    raw = serial_port.read_until(expected=b"\r")
+                    print("raw_serial:", raw)
+        except Exception as e:
+            print("[デバッグ用シリアル受信エラー]", e)
+
         status = self.et.get_spike_status()
         print("status.raw_data:", getattr(status, 'raw_data', None))
         print("status.sensors:", getattr(status, 'sensors', None))
