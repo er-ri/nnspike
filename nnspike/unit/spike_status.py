@@ -95,10 +95,7 @@ class SensorStatus:
         # 既存のcolor処理
         color = data.get("color")
         if color is not None:
-            if isinstance(color, dict):
-                color = ColorSensorStatus.from_dict(color)
-        else:
-            color = None
+            color = ColorSensorStatus.from_dict(color)
         return cls(
             # distance=data.get("distance"),
             force=data.get("force"),
@@ -160,6 +157,7 @@ class SpikeStatus:
 
         # Update sensors
         sensors_data = parsed_data.get("sensors", {})
+        print("[DEBUG] parsed_data['sensors']:", sensors_data)
         self.sensors = SensorStatus.from_dict(sensors_data)
 
         # Update battery
