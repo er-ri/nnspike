@@ -250,14 +250,14 @@ class SpikeStatus:
                 # if distance_entries:
                 #     result["sensors"]["distance"] = distance_entries[0][1][0] if len(distance_entries[0][1]) > 0 else None
 
-                # Color sensor - Port 61 (UNUSED - disabled for performance)
-                # color_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 61]
-                # if color_entries and len(color_entries[0][1]) > 4:
-                #     result["sensors"]["color"] = {
-                #         "reflected": (color_entries[0][1][2] if len(color_entries[0][1]) > 2 else None),
-                #         "ambient": (color_entries[0][1][3] if len(color_entries[0][1]) > 3 else None),
-                #         "color": (color_entries[0][1][4] if len(color_entries[0][1]) > 4 else None),
-                #     }
+                # Color sensor - Port 61
+                color_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 61]
+                if color_entries and len(color_entries[0][1]) > 4:
+                    result["sensors"]["color"] = {
+                        "reflected": (color_entries[0][1][2] if len(color_entries[0][1]) > 2 else None),
+                        "ambient": (color_entries[0][1][3] if len(color_entries[0][1]) > 3 else None),
+                        "color": (color_entries[0][1][4] if len(color_entries[0][1]) > 4 else None),
+                    }
 
                 # Gyro sensor information (UNUSED - disabled for performance)
                 # if len(payload) > 7 and isinstance(payload[7], list) and len(payload[7]) >= 3:
