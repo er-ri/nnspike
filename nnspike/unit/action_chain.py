@@ -456,7 +456,7 @@ class ActionChain(object):
             color_info = self.get_color_sensor_values(status)
             print(f"[DEBUG] color sensor values: reflected={color_info['reflected']} ambient={color_info['ambient']} color={color_info['color']}")
             is_black = color_info["is_black"]
-            if position_diff < 600 and not is_black:
+            if position_diff < 450 and not is_black:
                 return None, (BASE_SPEED, BASE_SPEED, 0), Mode.AVOID_OBSTACLE
             else:
                 print(f"[DEBUG] phase5→phase6: position_diff={position_diff} current_pos={current_pos} is_black={is_black} color_value={color_info['color']}")
@@ -473,7 +473,7 @@ class ActionChain(object):
                     return None, (5, 35, 0), Mode.AVOID_OBSTACLE
                 else:
                     return None, (35, 5, 0), Mode.AVOID_OBSTACLE
-            elif distance < 400:
+            elif distance < 350:
                 vertical_detected = is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=150)
                 if vertical_detected:
                     print(f"[DEBUG] phase6→phase7: distance={distance} current_pos={current_pos} (vertical black line detected)")
@@ -526,7 +526,7 @@ class ActionChain(object):
             elif center_line_detected:
                 self.pid.Kp = 5
                 self.pid.Ki = 0
-                self.pid.Kd = 0.3
+                self.pid.Kd = 1
                 self.pid.output_limits = (-4, 4)
                 target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                 return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
