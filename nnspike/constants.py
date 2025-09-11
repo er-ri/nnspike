@@ -25,7 +25,7 @@ BASE_SPEED = 45
 # High speed for robot movement (used for high speed mode)
 # 精密テスト結果: 設定98が最適 (最高安定性0.0152, 実速度96.6, PID余裕1.5%)
 # 設定110は仮説だったが、安定性で劣ることが科学的に証明された
-HIGH_SPEED_BASE = 70
+HIGH_SPEED_BASE = 80
 
 # Behavior Mode
 class Mode(Enum):
