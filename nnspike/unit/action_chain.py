@@ -33,6 +33,7 @@ from nnspike.utils.control import (
     get_blue_line_pixel,  # 青オブジェクト面積抽出
     is_fast_corner_detected,  # コーナー抽出
     fill_green_with_white,    # 緑を白で塗りつぶす
+    is_center_line_detected,  # 中央ライン検出関数
 )
 
 # 型ヒント用: 要素タプル明示
@@ -521,12 +522,12 @@ class ActionChain(object):
                 # 一度でもTrueで通過した後にFalseになったらロック
                 if self._center_line_detected_ever_true:
                     self._center_line_detected_locked = True
-                self.pid.Kp = 50
-                self.pid.Ki = 0
-                self.pid.Kd = 5
-                self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-                return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
+                    self.pid.Kp = 50
+                    self.pid.Ki = 0
+                    self.pid.Kd = 5
+                    self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
+                    target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                    return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
 
         # phase9: 青面積判定または右モーターが所定距離進行でDOUBLE_LOOP、そうでなければAVOID_OBSTACLE継続
         if phase.get_phase() == 9:
