@@ -456,6 +456,7 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             color_info = self.get_color_sensor_values(status)
+            print("[DEBUG] color_info['color']:", color_info['color'], type(color_info['color']))
             is_black = color_info["is_black"]
             if position_diff < 600 and not is_black:
                 return None, (BASE_SPEED, BASE_SPEED, 0), Mode.AVOID_OBSTACLE
