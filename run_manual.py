@@ -382,7 +382,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                     pid.Kp = 12
                     pid.Ki = 0
                     pid.Kd = 0
-                    pid.output_limits = (-2, 2)
+                    pid.output_limits = (-1, 1)
                     target_x = action_chain.get_target_x_by_course_safe(frame, 'left' if course == 'right' else 'right')
                     current_base_speed = ULTRA_HIGH_SPEED
                 case Mode.SMALL_TURN_RIGHT:
