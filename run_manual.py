@@ -469,8 +469,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             left_speed = int(max(0, min(255, left_speed)))
             right_speed = int(max(0, min(255, right_speed)))
 
-            print(f"[DEBUG] steering_correction={steering_correction:.3f} | left_speed={left_speed}, right_speed={right_speed}")
-
             # Temporarily set Heading Gate mode
             if mode == Mode.PAUSE:
                 et.brake()
