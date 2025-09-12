@@ -398,6 +398,11 @@ class ActionChain(object):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
+                position_start = phase.get_position_start("position_start")
+                current_pos = self.get_motor_position(self.course, status=status)
+                position_diff = abs(current_pos - position_start)
+                if position_diff >= 200:
+                    print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 200")
                 if yellow_cx is not None:
                     target_x = yellow_cx[0]
                 else:
@@ -415,7 +420,7 @@ class ActionChain(object):
                 else:
                     return None, (70, 40, 0), Mode.AVOID_OBSTACLE
             else:
-                print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 300")
+                print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 350")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
 
@@ -427,7 +432,7 @@ class ActionChain(object):
             if position_diff < 250:
                 return None, (BASE_SPEED, BASE_SPEED, 0), Mode.AVOID_OBSTACLE
             else:
-                print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 200")
+                print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 250")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.opposite_course, status=status))
 
