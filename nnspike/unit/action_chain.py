@@ -385,30 +385,13 @@ class ActionChain(object):
                 print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | yellow_pixel_count={yellow_pixel_count} > 5000")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
-            elif center_line_detected:
-                if color_type != "white":
-                    self.pid.Kp = 12
-                    self.pid.Ki = 0
-                    self.pid.Kd = 0
-                    self.pid.output_limits = (-2, 2)
-                    target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
-                    return target_x, (0, 0, ULTRA_HIGH_SPEED), Mode.AVOID_OBSTACLE
-                else:
-                    self.pid.Kp = 12
-                    self.pid.Ki = 0
-                    self.pid.Kd = 0
-                    self.pid.output_limits = (-2, 2)
-                    target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
-                    return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
             else:
-                # Lock if passed once and now False
-                self.pid.Kp = 20
+                self.pid.Kp = 12
                 self.pid.Ki = 0
                 self.pid.Kd = 0
-                self.pid.output_limits = (-10, 10)
-                image = fill_green_with_white(image)
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
-                return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
+                self.pid.output_limits = (-2, 2)
+                target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
+                return target_x, (0, 0, ULTRA_HIGH_SPEED), Mode.AVOID_OBSTACLE
 
         # phase1: 領域検出で次フェーズへ。未検出時は中心または中央追従・回避モード返却
         if phase.get_phase() == 1:
