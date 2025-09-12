@@ -386,7 +386,7 @@ class ActionChain(object):
                 self.pid.Kp = 12
                 self.pid.Ki = 0
                 self.pid.Kd = 0
-                self.pid.output_limits = (-2, 2)
+                self.pid.output_limits = (-3, 3)
                 target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                 return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
 
@@ -533,7 +533,7 @@ class ActionChain(object):
                 self.pid.Kp = 12
                 self.pid.Ki = 0
                 self.pid.Kd = 0
-                self.pid.output_limits = (-2, 2)
+                self.pid.output_limits = (-3, 3)
                 target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                 return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
             else:
