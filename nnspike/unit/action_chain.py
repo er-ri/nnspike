@@ -521,8 +521,6 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
             center_line_detected = is_center_line_detected(image)
-            color_info = self.get_color_sensor_values(status)
-            color_type = color_info["color_type"]
 
             # if is_fast_corner_detected(image, course=self.course):
             #     print(f"[DEBUG] phase8: is_fast_corner_detected=True at current_pos={current_pos}, course={self.course}")
@@ -532,20 +530,12 @@ class ActionChain(object):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             elif center_line_detected:
-                if color_type != "white":
-                    self.pid.Kp = 12
-                    self.pid.Ki = 0
-                    self.pid.Kd = 0
-                    self.pid.output_limits = (-2, 2)
-                    target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
-                    return target_x, (0, 0, ULTRA_HIGH_SPEED), Mode.AVOID_OBSTACLE
-                else:
-                    self.pid.Kp = 12
-                    self.pid.Ki = 0
-                    self.pid.Kd = 0
-                    self.pid.output_limits = (-2, 2)
-                    target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
-                    return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
+                self.pid.Kp = 12
+                self.pid.Ki = 0
+                self.pid.Kd = 0
+                self.pid.output_limits = (-2, 2)
+                target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
+                return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
             else:
                 # Lock if passed once and now False
                 self.pid.Kp = 50
