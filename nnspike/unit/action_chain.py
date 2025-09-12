@@ -886,11 +886,8 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            color_info = self.get_color_sensor_values(status)
-            color_type = color_info["color_type"]
-            # if position_diff >= 1000 or blue_pixel_count < 5000 or color_type == "other":
-            if position_diff >= 1000 or color_type == "other":
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1000 or blue_pixel_count={blue_pixel_count} < 5000 or color_type={color_type} (color_value={color_info['color']})")
+            if position_diff >= 1000 or blue_pixel_count < 5000:
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1000 or blue_pixel_count={blue_pixel_count} < 5000")
                 phase.next_phase()
                 # phase2用 右モーター相対位置記録（get_motor_positionで統一）
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
