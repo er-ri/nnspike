@@ -461,8 +461,6 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 steering_correction = pid.update(theta)
                 left_speed = current_base_speed - steering_correction
                 right_speed = current_base_speed + steering_correction
-                print(f"[DEBUG] steering_correction={steering_correction}")
-                print(f"[DEBUG] left_speed={left_speed}, right_speed={right_speed}")
 
             # left_speed/right_speedがNoneなら0に（int()前に必ず実施）
             left_speed = 0 if left_speed is None else left_speed
@@ -470,6 +468,8 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
             # Clamp speed values to valid range（上限255、0未満は0に）
             left_speed = int(max(0, min(255, left_speed)))
             right_speed = int(max(0, min(255, right_speed)))
+
+            print(f"[DEBUG] steering_correction={steering_correction} | left_speed={left_speed}, right_speed={right_speed}")
 
             # Temporarily set Heading Gate mode
             if mode == Mode.PAUSE:
