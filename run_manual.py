@@ -459,9 +459,10 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 offset_pixels = get_offset_pixels(target_x, ROI_CNN)
                 theta = math.atan2(offset_pixels, CAMERA_WIDTH)  # 簡素化: 直接計算
                 steering_correction = pid.update(theta)
-                print(f"[DEBUG] steering_correction={steering_correction}")
                 left_speed = current_base_speed - steering_correction
                 right_speed = current_base_speed + steering_correction
+                print(f"[DEBUG] steering_correction={steering_correction}")
+                print(f"[DEBUG] left_speed={left_speed}, right_speed={right_speed}")
 
             # left_speed/right_speedがNoneなら0に（int()前に必ず実施）
             left_speed = 0 if left_speed is None else left_speed
