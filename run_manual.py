@@ -379,7 +379,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.SMALL_TURN_LEFT:
                     _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.small_turn_left())
                 case Mode.HIGH_SPEED:
-                    pid.Kp = 25
+                    pid.Kp = 20
                     pid.Ki = 0
                     pid.Kd = 0
                     pid.output_limits = (-5, 5)
