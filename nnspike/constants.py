@@ -21,7 +21,7 @@ OFFSET_Y = 470  # 0.20 meters to the ground
 
 # Base speed for robot movement (used throughout action logic)
 BASE_SPEED = 45
-HIGH_SPEED_BASE = 80
+HIGH_SPEED_BASE = 98
 ULTRA_HIGH_SPEED = 98  # 超高速用
 
 # Behavior Mode
