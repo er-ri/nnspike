@@ -379,8 +379,6 @@ class ActionChain(object):
         if phase.get_phase() == 0:
             _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow", roi=ROI_COLOR)
             center_line_detected = is_center_line_detected(image)
-            color_info = self.get_color_sensor_values(status)
-            color_type = color_info["color_type"]
             if yellow_pixel_count > 5000:
                 print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | yellow_pixel_count={yellow_pixel_count} > 5000")
                 phase.next_phase()
