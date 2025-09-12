@@ -38,7 +38,7 @@ from nnspike.unit import ETRobot, ActionChain, KeyboardController
 
 import cv2
 import numpy as np
-from nnspike.constants import BASE_SPEED, HIGH_SPEED_BASE, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS, OFFSET_Y, ROI_CNN, Mode, ROI_COLOR
+from nnspike.constants import BASE_SPEED, HIGH_SPEED_BASE, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS, OFFSET_Y, ROI_CNN, ULTRA_HIGH_SPEED, Mode, ROI_COLOR
 from nnspike.utils import PIDController, SensorRecorder, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x, get_offset_pixels
 
 # User defined constants
@@ -379,9 +379,12 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
                 case Mode.SMALL_TURN_LEFT:
                     _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.small_turn_left())
                 case Mode.HIGH_SPEED:
-                    # ハイスピードモード（右エッジ追従＋高速）
-                    target_x = action_chain.get_target_x_by_course(frame, OFFSET_Y, course)
-                    current_base_speed = HIGH_SPEED_BASE
+                    pid.Kp = 0
+                    pid.Ki = 0
+                    pid.Kd = 0
+                    pid.output_limits = (-1, 1)
+                    target_x = action_chain.get_target_x_by_course_safe(frame, 'left' if course == 'right' else 'right')
+                    current_base_speed = ULTRA_HIGH_SPEED
                 case Mode.SMALL_TURN_RIGHT:
                     _, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.small_turn_right())
                 case Mode.CARRY_BOTTLE1:
