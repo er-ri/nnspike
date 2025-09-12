@@ -387,25 +387,25 @@ class ActionChain(object):
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             elif center_line_detected:
                 if color_type != "white":
-                    self.pid.Kp = 5
+                    self.pid.Kp = 12
                     self.pid.Ki = 0
                     self.pid.Kd = 0
-                    self.pid.output_limits = (-4, 4)
+                    self.pid.output_limits = (-2, 2)
                     target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                     return target_x, (0, 0, ULTRA_HIGH_SPEED), Mode.AVOID_OBSTACLE
                 else:
-                    self.pid.Kp = 5
+                    self.pid.Kp = 12
                     self.pid.Ki = 0
                     self.pid.Kd = 0
-                    self.pid.output_limits = (-8, 8)
+                    self.pid.output_limits = (-2, 2)
                     target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                     return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
             else:
                 # Lock if passed once and now False
                 self.pid.Kp = 20
                 self.pid.Ki = 0
-                self.pid.Kd = 5
-                self.pid.output_limits = (-20, 20)
+                self.pid.Kd = 0
+                self.pid.output_limits = (-10, 10)
                 image = fill_green_with_white(image)
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
@@ -553,17 +553,17 @@ class ActionChain(object):
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             elif center_line_detected:
                 if color_type != "white":
-                    self.pid.Kp = 5
+                    self.pid.Kp = 12
                     self.pid.Ki = 0
                     self.pid.Kd = 0
-                    self.pid.output_limits = (-4, 4)
+                    self.pid.output_limits = (-2, 2)
                     target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                     return target_x, (0, 0, ULTRA_HIGH_SPEED), Mode.AVOID_OBSTACLE
                 else:
-                    self.pid.Kp = 5
+                    self.pid.Kp = 12
                     self.pid.Ki = 0
                     self.pid.Kd = 0
-                    self.pid.output_limits = (-8, 8)
+                    self.pid.output_limits = (-2, 2)
                     target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
                     return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
             else:
