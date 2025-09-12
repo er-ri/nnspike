@@ -928,7 +928,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            if position_diff < 170:
+            if position_diff < 200:
                 if center is not None:
                     target_x = center[0]
                 else:
@@ -961,7 +961,7 @@ class ActionChain(object):
                     return None, (0, 30, 0), Mode.CARRY_BOTTLE2
                 else:
                     return None, (30, 0, 0), Mode.CARRY_BOTTLE2
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | line_detected={line_detected}, position_diff={position_diff} >= {min_limit}, position_diff >= min_limit: {position_diff >= min_limit}, position_diff >= max_limit: {position_diff >= max_limit}")
+            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | line_detected={line_detected} | position_diff={position_diff} >= {max_limit}")
             phase.next_phase()
             # phase4用 右モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
@@ -1218,7 +1218,7 @@ class ActionChain(object):
             color_info = self.get_color_sensor_values(status)
             color_type = color_info["color_type"]
             if position_diff >= 350 or color_type != "white":
-                print(f"[DEBUG] mode={Mode.HEAD_GOAL.value} | phase={phase.get_phase()} | position_diff={position_diff} current_pos={current_pos} >= 350 or color_type={color_type} (color_value={color_info['color']})")
+                print(f"[DEBUG] mode={Mode.HEAD_GOAL.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 350 or color_type={color_type} (color_value={color_info['color']})")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
             else:
