@@ -122,7 +122,7 @@ class ActionChain(object):
         self._init = False
         self._status = None
 
-    def get_motor_position(self, motor_side: str = "right", status) -> int:
+    def get_motor_position(self, motor_side: str = "right", status=None) -> int:
         """
         指定したモーターの現在位置（エンコーダ値, 絶対値）を返す。
         statusはキャッシュ用で、なければ内部で取得。
