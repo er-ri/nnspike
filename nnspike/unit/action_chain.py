@@ -122,7 +122,7 @@ class ActionChain(object):
         self._init = False
         self._status = None
 
-    def get_motor_position(self, motor_side: str = "right", mode: str = "position", status=None) -> int:
+    def get_motor_position(self, motor_side: str = "right", mode: str = "position", status=None):
         """モーター位置・status取得メソッド.
 
         motor_side='right'で右モータ(B)、'left'で左モータ(A)のrelative_positionを返す。
@@ -131,9 +131,6 @@ class ActionChain(object):
         負荷軽減のため、複数回呼び出し時はstatusを外部で取得・使い回すこと。
         ただしmode='status'時は必ず最新statusを再取得する。
         """
-        # statusがint型の場合はNoneに置き換え
-        if isinstance(status, int):
-            status = None
         if mode == "status":
             # 必ず最新statusを取得
             status = self.et.get_spike_status()
@@ -141,6 +138,7 @@ class ActionChain(object):
                 print("[get_motor_position] get_spike_status() returned None")
                 return None
             return status
+        
         if status is None:
             status = self.et.get_spike_status()
             if status is None:
@@ -709,7 +707,7 @@ class ActionChain(object):
             position_limit_reached = position_diff >= max_limit
             # 最低回転量後にblue_target検出、または最大回転量到達で次へ
             if ((position_diff >= 300 and blue_target_detected) or position_limit_reached):
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_limit} or (position_diff >= 300 and blue_target_detected) | position_diff={position_diff}, blue_target_detected={blue_target_detected}")
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_limit} or (position_diff={position_diff} >= 300 and blue_target_detected={blue_target_detected})")
                 if self.course_type == "lower":
                     phase.next_phase(skip=2)  # スキップ
                 else:
@@ -1411,7 +1409,7 @@ class ActionChain(object):
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
             elif current_pos >= FOURTH_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase8->phase10: current_pos={current_pos} >= {FOURTH_INTERSECTION_LIMIT}")
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase8->phase9: current_pos={current_pos} >= {FOURTH_INTERSECTION_LIMIT}")
                 self._phase.next_phase()
 
         # phase9: 条件未満ならDOUBLE_LOOP継続、条件到達で次モードへ（抽象化）
