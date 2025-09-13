@@ -129,11 +129,11 @@ class ActionChain(object):
         """
         if status is None:
             status = self.et.get_spike_status()
-            if status is None:
-                print("[get_motor_position] get_spike_status() returned None")
-                return 0
+        if status is None:
+            print("[get_motor_position] get_spike_status() returned None")
+            return 0
         motor_key = "B" if motor_side == "right" else "A"
-        if status is not None and status.motors.get(motor_key) is not None:
+        if status.motors.get(motor_key) is not None:
             pos = status.motors[motor_key].relative_position
             if isinstance(pos, int):
                 return abs(pos)
@@ -157,7 +157,13 @@ class ActionChain(object):
         Returns:
             dict: {"reflected": int, "ambient": int, "color": int, "is_black": bool}
         """
-        if status is None or not hasattr(status, "sensors") or status.sensors is None:
+        if status is None:
+            status = self.et.get_spike_status()
+        if status is None:
+            print("[get_color_sensor_values] get_spike_status() returned None")
+            return {"reflected": 0, "ambient": 0, "color": 0, "is_black": False}
+        if not hasattr(status, "sensors") or status.sensors is None:
+            print("[get_color_sensor_values] status.sensors is None or missing")
             return {"reflected": 0, "ambient": 0, "color": 0, "is_black": False}
         color = status.sensors.color
         if color is None:
