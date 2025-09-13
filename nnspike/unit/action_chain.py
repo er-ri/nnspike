@@ -122,7 +122,7 @@ class ActionChain(object):
         self._init = False
         self._status = None
 
-    def get_motor_position(self, motor_side: str = "right", status=None) -> int:
+    def get_motor_position(self, motor_side: str = "right", status) -> int:
         """
         指定したモーターの現在位置（エンコーダ値, 絶対値）を返す。
         statusはキャッシュ用で、なければ内部で取得。
@@ -149,29 +149,28 @@ class ActionChain(object):
         print(f"[get_motor_position] status or motor_key invalid (return 0)")
         return 0
 
-    def get_color_sensor_values(self, status):
+    def get_color_sensor_values(self, status) -> dict:
         """
-        カラーセンサーの値（reflected, ambient, color）と黒判定を返す。
+        カラーセンサーの値（reflected, ambient, color, color_type）を返す。
         Args:
             status: SpikeStatusオブジェクト（必須）
         Returns:
-            dict: {"reflected": int, "ambient": int, "color": int, "is_black": bool}
+            dict: {"reflected": int, "ambient": int, "color": int, "color_type": str}
         """
         if status is None:
             status = self.et.get_spike_status()
         if status is None:
             print("[get_color_sensor_values] get_spike_status() returned None")
-            return {"reflected": 0, "ambient": 0, "color": 0, "is_black": False}
+            return {"reflected": 0, "ambient": 0, "color": 0, "color_type": "unknown"}
         if not hasattr(status, "sensors") or status.sensors is None:
             print("[get_color_sensor_values] status.sensors is None or missing")
-            return {"reflected": 0, "ambient": 0, "color": 0, "is_black": False}
+            return {"reflected": 0, "ambient": 0, "color": 0, "color_type": "unknown"}
         color = status.sensors.color
         if color is None:
-            return {"reflected": 0, "ambient": 0, "color": 0, "is_black": False}
+            return {"reflected": 0, "ambient": 0, "color": 0, "color_type": "unknown"}
         reflected = color.reflected if hasattr(color, "reflected") and isinstance(color.reflected, int) else 0
         ambient = color.ambient if hasattr(color, "ambient") and isinstance(color.ambient, int) else 0
         color_value = color.color if hasattr(color, "color") and isinstance(color.color, int) else 0
-        is_black = (color_value < 100)
         # color_valueのみで排他的な色判定（白・赤青・黒）
         if color_value < 200:
             color_type = "black"
