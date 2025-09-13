@@ -357,7 +357,7 @@ class ActionChain(object):
             self.pid.Kp = 12
             self.pid.Ki = 0
             self.pid.Kd = 0
-            self.pid.output_limits = (-2, 2)
+            self.pid.output_limits = (-3, 3)
 
         phase = self._phase
         status = self._status
