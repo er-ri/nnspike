@@ -1027,7 +1027,7 @@ class ActionChain(object):
                     return None, (0, 30, 0), Mode.CARRY_BOTTLE2
                 else:
                     return None, (30, 0, 0), Mode.CARRY_BOTTLE2
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | blue_target_detected={blue_target_detected} | position_diff={position_diff} >= 500")
+            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | blue_target_detected={blue_target_detected} or position_diff={position_diff} >= 500")
             phase.next_phase()
             # phase10用 右モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position(self.course, status=status))
