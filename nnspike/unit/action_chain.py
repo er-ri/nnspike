@@ -113,7 +113,7 @@ class ActionChain(object):
         motor_side: "right"または"left"で初期位置記録対象を指定する。
         """
         self._phase = PhaseManager()
-        self._status = self.get_motor_position(mode="status")
+        self._status = self.et.get_spike_status()
         self._phase.set_position_start("position_start", self.get_motor_position(motor_side, status=self._status))
         self._init = True
 
@@ -122,47 +122,31 @@ class ActionChain(object):
         self._init = False
         self._status = None
 
-    def get_motor_position(self, motor_side: str = "right", mode: str = "position", status=None):
-        """モーター位置・status取得メソッド.
-
-        motor_side='right'で右モータ(B)、'left'で左モータ(A)のrelative_positionを返す。
-        mode='position'なら該当モータのrelative_position（絶対値, Noneなら0）、'status'ならstatusオブジェクト。
-        status引数を指定すればそれを使い、未指定時のみ内部で取得する。
-        負荷軽減のため、複数回呼び出し時はstatusを外部で取得・使い回すこと。
-        ただしmode='status'時は必ず最新statusを再取得する。
+    def get_motor_position(self, motor_side: str = "right", status=None) -> int:
         """
-        if mode == "status":
-            # 必ず最新statusを取得
-            status = self.et.get_spike_status()
-            if status is None:
-                print("[get_motor_position] get_spike_status() returned None")
-                return None
-            return status
-        
+        指定したモーターの現在位置（エンコーダ値, 絶対値）を返す。
+        statusはキャッシュ用で、なければ内部で取得。
+        """
         if status is None:
             status = self.et.get_spike_status()
             if status is None:
                 print("[get_motor_position] get_spike_status() returned None")
                 return 0
-        if mode == "position":
-            motor_key = "B" if motor_side == "right" else "A"
-            if status is not None and status.motors.get(motor_key) is not None:
-                pos = status.motors[motor_key].relative_position
-                if isinstance(pos, int):
-                    return abs(pos)
-                elif isinstance(pos, tuple):
-                    # すべての要素がint型の場合は先頭要素を返す
-                    if len(pos) > 0 and isinstance(pos[0], int):
-                        return abs(pos[0])
-                    # tupleの中身がint型でない場合は初期値
-                    return 0
-                else:
-                    print(f"[get_motor_position] {motor_key} position invalid: {pos} (return 0)")
-                    return 0
-            print(f"[get_motor_position] status or motor_key invalid (return 0)")
-            return 0
-        
-        print("[get_motor_position] Unexpected state reached.")
+        motor_key = "B" if motor_side == "right" else "A"
+        if status is not None and status.motors.get(motor_key) is not None:
+            pos = status.motors[motor_key].relative_position
+            if isinstance(pos, int):
+                return abs(pos)
+            elif isinstance(pos, tuple):
+                # すべての要素がint型の場合は先頭要素を返す
+                if len(pos) > 0 and isinstance(pos[0], int):
+                    return abs(pos[0])
+                # tupleの中身がint型でない場合は初期値
+                return 0
+            else:
+                print(f"[get_motor_position] {motor_key} position invalid: {pos} (return 0)")
+                return 0
+        print(f"[get_motor_position] status or motor_key invalid (return 0)")
         return 0
 
     def get_color_sensor_values(self, status):
