@@ -366,6 +366,10 @@ class ActionChain(object):
         if phase.get_phase() == 0:
             _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow", roi=ROI_COLOR2)
             current_pos = self.get_motor_position(self.course, status=status)
+            if current_pos < 1000:
+                # 右モーター距離が1000未満なら高速で直進し続ける
+                return None, (HIGH_SPEED_BASE, HIGH_SPEED_BASE, 0), Mode.AVOID_OBSTACLE
+
             if yellow_pixel_count > 5000 and current_pos >= 1000:
                 print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | yellow_pixel_count={yellow_pixel_count} > 5000")
                 phase.next_phase()
