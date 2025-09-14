@@ -294,7 +294,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
     # --- カメラウォームアップ（初回タイムラグ対策） ---
-    for _ in range(5):
+    for _ in range(10):
         cap.read()
     # --- スタート待ち ---
     first_key = wait_for_start(et, keyboard, state_flags, manual_mode=manual_mode)
