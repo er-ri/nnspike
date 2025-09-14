@@ -67,28 +67,28 @@ class Position:
 
 
 
-# @dataclass
-# class BatteryStatus:
-#     """Battery status information from the Spike Prime hub."""
-#
-#     voltage: Optional[float] = None
-#     percent: Optional[float] = None
-#
-#     @classmethod
-#     def from_dict(cls, data: Dict[str, Any]) -> "BatteryStatus":
-#         return cls(voltage=data.get("voltage"), percent=data.get("percent"))
+@dataclass
+class BatteryStatus:
+    """Battery status information from the Spike Prime hub."""
+
+    voltage: Optional[float] = None
+    percent: Optional[float] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "BatteryStatus":
+        return cls(voltage=data.get("voltage"), percent=data.get("percent"))
 
 
 @dataclass
 class SensorStatus:
     """Status information for all sensors connected to the Spike Prime hub."""
 
-    # distance: Optional[int] = None
+    distance: Optional[int] = None
     force: Optional[int] = None
     color: ColorSensorStatus = field(default_factory=lambda: ColorSensorStatus(None, None, None))
-    # gyro: Optional[VectorStatus] = None
-    # accelerometer: Optional[VectorStatus] = None
-    # position: Optional[Position] = None
+    gyro: Optional[VectorStatus] = None
+    accelerometer: Optional[VectorStatus] = None
+    position: Optional[Position] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SensorStatus":
@@ -98,12 +98,12 @@ class SensorStatus:
         elif not isinstance(color, ColorSensorStatus):
             color = ColorSensorStatus(None, None, None)
         return cls(
-            # distance=data.get("distance"),
+            distance=data.get("distance"),
             force=data.get("force"),
             color=color,
-            # gyro=(VectorStatus.from_dict(data.get("gyro", {})) if data.get("gyro") else None),
-            # accelerometer=(VectorStatus.from_dict(data.get("accelerometer", {})) if data.get("accelerometer") else None),
-            # position=(Position.from_dict(data.get("position", {})) if data.get("position") else None),
+            gyro=(VectorStatus.from_dict(data.get("gyro", {})) if data.get("gyro") else None),
+            accelerometer=(VectorStatus.from_dict(data.get("accelerometer", {})) if data.get("accelerometer") else None),
+            position=(Position.from_dict(data.get("position", {})) if data.get("position") else None),
         )
 
 
@@ -130,7 +130,7 @@ class SpikeStatus:
             "C": MotorStatus(),  # Add motor arm (port C)
         }
         self.sensors: SensorStatus = SensorStatus()
-        # self.battery: BatteryStatus = BatteryStatus()
+        self.battery: BatteryStatus = BatteryStatus()
         self.raw_data: Dict = {}
 
         if raw_data is not None:
@@ -161,8 +161,8 @@ class SpikeStatus:
         self.sensors = SensorStatus.from_dict(sensors_data)
 
         # Update battery
-        # battery_data = parsed_data.get("battery", {})
-        # self.battery = BatteryStatus.from_dict(battery_data)
+        battery_data = parsed_data.get("battery", {})
+        self.battery = BatteryStatus.from_dict(battery_data)
 
     @staticmethod
     def _parse_data(data: Union[str, bytes, Dict]) -> Dict:
@@ -249,11 +249,10 @@ class SpikeStatus:
                 if force_entries:
                     result["sensors"]["force"] = force_entries[0][1][1] if len(force_entries[0][1]) > 2 else None
 
-                # PERFORMANCE OPTIMIZATION: Comment out unused sensors to reduce parsing time
-                # Distance sensor - Port 62 (UNUSED - disabled for performance)
-                # distance_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 62]
-                # if distance_entries:
-                #     result["sensors"]["distance"] = distance_entries[0][1][0] if len(distance_entries[0][1]) > 0 else None
+                # Distance sensor - Port 62
+                distance_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 62]
+                if distance_entries:
+                    result["sensors"]["distance"] = distance_entries[0][1][0] if len(distance_entries[0][1]) > 0 else None
 
                 # Color sensor - Port 61
                 color_entries = [p for p in payload if p and isinstance(p, list) and p[0] == 61]
@@ -264,37 +263,35 @@ class SpikeStatus:
                         "color": (color_entries[0][1][4] if len(color_entries[0][1]) > 4 else None),
                     }
 
-                # Gyro sensor information (UNUSED - disabled for performance)
-                # if len(payload) > 7 and isinstance(payload[7], list) and len(payload[7]) >= 3:
-                #     result["sensors"]["gyro"] = {
-                #         "x": payload[7][0],
-                #         "y": payload[7][1],
-                #         "z": payload[7][2],
-                #     }
+                # Gyro sensor information
+                if len(payload) > 7 and isinstance(payload[7], list) and len(payload[7]) >= 3:
+                    result["sensors"]["gyro"] = {
+                        "x": payload[7][0],
+                        "y": payload[7][1],
+                        "z": payload[7][2],
+                    }
 
-                # Accelerometer information (UNUSED - disabled for performance)
-                # if len(payload) > 8 and isinstance(payload[8], list) and len(payload[8]) >= 3:
-                #     result["sensors"]["accelerometer"] = {
-                #         "x": payload[8][0],
-                #         "y": payload[8][1],
-                #         "z": payload[8][2],
-                #     }
+                # Accelerometer information
+                if len(payload) > 8 and isinstance(payload[8], list) and len(payload[8]) >= 3:
+                    result["sensors"]["accelerometer"] = {
+                        "x": payload[8][0],
+                        "y": payload[8][1],
+                        "z": payload[8][2],
+                    }
 
-                # Position from sensors (UNUSED - disabled for performance)
-                # if len(payload) > 6 and isinstance(payload[6], list) and len(payload[6]) >= 3:
-                #     result["sensors"]["position"] = {
-                #         "x": payload[6][1],
-                #         "y": payload[6][2],
-                #     }
+                # Position from sensors
+                if len(payload) > 6 and isinstance(payload[6], list) and len(payload[6]) >= 3:
+                    result["sensors"]["position"] = {
+                        "x": payload[6][1],
+                        "y": payload[6][2],
+                    }
 
-            # elif message_type == 2:  # Battery status message
-            #     # Extract battery information if available
-            #     # コメントアウト：get_spike_statusの負荷軽減のため
-            #     if len(payload) > 1:
-            #         result["battery"] = {
-            #             "voltage": payload[0] if len(payload) > 0 else None,
-            #             "percent": payload[1] if len(payload) > 1 else None,
-            #         }
+            elif message_type == 2:  # Battery status message
+                if len(payload) > 1:
+                    result["battery"] = {
+                        "voltage": payload[0] if len(payload) > 0 else None,
+                        "percent": payload[1] if len(payload) > 1 else None,
+                    }
 
             return result
 
@@ -319,26 +316,19 @@ class SpikeStatus:
                 lines.append(f"  Motor {motor_id}: Position: {motor.position}, Power: {motor.power}")
 
         lines.append("Sensors:")
-    # if self.sensors.distance is not None:
-    #     lines.append(f"  Distance: {self.sensors.distance}mm")
+        if self.sensors.distance is not None:
+            lines.append(f"  Distance: {self.sensors.distance}mm")
         if self.sensors.force is not None:
             lines.append(f"  Force: {self.sensors.force}")
-
-
-    # if self.sensors.color:
-    #     lines.append(f"  Color - Reflected: {self.sensors.color.reflected}, " f"Ambient: {self.sensors.color.ambient}, Color: {self.sensors.color.color}")
-
-
-    # if self.sensors.gyro:
-    #     lines.append(f"  Gyro - X: {self.sensors.gyro.x}, Y: {self.sensors.gyro.y}, Z: {self.sensors.gyro.z}")
-
-    # if self.sensors.accelerometer:
-    #     lines.append(f"  Accel - X: {self.sensors.accelerometer.x}, " f"Y: {self.sensors.accelerometer.y}, Z: {self.sensors.accelerometer.z}")
-
-    # if self.sensors.position:
-    #     lines.append(f"  Position - X: {self.sensors.position.x}, Y: {self.sensors.position.y}")
-
-    # if self.battery and self.battery.percent is not None:
-    #     lines.append(f"Battery: {self.battery.percent}% ({self.battery.voltage}V)")
+        if self.sensors.color:
+            lines.append(f"  Color - Reflected: {self.sensors.color.reflected}, Ambient: {self.sensors.color.ambient}, Color: {self.sensors.color.color}")
+        if self.sensors.gyro:
+            lines.append(f"  Gyro - X: {self.sensors.gyro.x}, Y: {self.sensors.gyro.y}, Z: {self.sensors.gyro.z}")
+        if self.sensors.accelerometer:
+            lines.append(f"  Accel - X: {self.sensors.accelerometer.x}, Y: {self.sensors.accelerometer.y}, Z: {self.sensors.accelerometer.z}")
+        if self.sensors.position:
+            lines.append(f"  Position - X: {self.sensors.position.x}, Y: {self.sensors.position.y}")
+        if self.battery and self.battery.percent is not None:
+            lines.append(f"Battery: {self.battery.percent}% ({self.battery.voltage}V)")
 
         return "\n".join(lines)

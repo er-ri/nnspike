@@ -73,17 +73,16 @@ class ETRobot(object):
         last = self.last_spike_status
 
         # Update sensors with valid readings
-        # PERFORMANCE OPTIMIZATION: Comment out unused sensors
-        # Distance sensor (UNUSED - disabled for performance)
-        # if current.sensors.distance is not None:
-        #     last.sensors.distance = current.sensors.distance
-        # else:
-        #     last.sensors.distance = 0
+        # Distance sensor
+        if current.sensors.distance is not None:
+            last.sensors.distance = current.sensors.distance
+        else:
+            last.sensors.distance = 0
 
         if current.sensors.force is not None:
             last.sensors.force = current.sensors.force
 
-        # Color sensor data (UNUSED - disabled for performance)
+        # Color sensor data
         if current.sensors.color:
             if not last.sensors.color:
                 from .spike_status import ColorSensorStatus
@@ -92,47 +91,42 @@ class ETRobot(object):
                 last.sensors.color.reflected = current.sensors.color.reflected
             if current.sensors.color.ambient is not None:
                 last.sensors.color.ambient = current.sensors.color.ambient
-            # ...
             if current.sensors.color.color is not None:
                 last.sensors.color.color = current.sensors.color.color
-            # ...
 
-        # Gyro data (UNUSED - disabled for performance)
-        # if current.sensors.gyro:
-        #     if not last.sensors.gyro:
-        #         from .spike_status import VectorStatus
-        # 
-        #         last.sensors.gyro = VectorStatus()
-        #     if current.sensors.gyro.x is not None:
-        #         last.sensors.gyro.x = current.sensors.gyro.x
-        #     if current.sensors.gyro.y is not None:
-        #         last.sensors.gyro.y = current.sensors.gyro.y
-        #     if current.sensors.gyro.z is not None:
-        #         last.sensors.gyro.z = current.sensors.gyro.z
+        # Gyro data
+        if current.sensors.gyro:
+            if not last.sensors.gyro:
+                from .spike_status import VectorStatus
+                last.sensors.gyro = VectorStatus()
+            if current.sensors.gyro.x is not None:
+                last.sensors.gyro.x = current.sensors.gyro.x
+            if current.sensors.gyro.y is not None:
+                last.sensors.gyro.y = current.sensors.gyro.y
+            if current.sensors.gyro.z is not None:
+                last.sensors.gyro.z = current.sensors.gyro.z
 
-        # Accelerometer data (UNUSED - disabled for performance)
-        # if current.sensors.accelerometer:
-        #     if not last.sensors.accelerometer:
-        #         from .spike_status import VectorStatus
-        # 
-        #         last.sensors.accelerometer = VectorStatus()
-        #     if current.sensors.accelerometer.x is not None:
-        #         last.sensors.accelerometer.x = current.sensors.accelerometer.x
-        #     if current.sensors.accelerometer.y is not None:
-        #         last.sensors.accelerometer.y = current.sensors.accelerometer.y
-        #     if current.sensors.accelerometer.z is not None:
-        #         last.sensors.accelerometer.z = current.sensors.accelerometer.z
+        # Accelerometer data
+        if current.sensors.accelerometer:
+            if not last.sensors.accelerometer:
+                from .spike_status import VectorStatus
+                last.sensors.accelerometer = VectorStatus()
+            if current.sensors.accelerometer.x is not None:
+                last.sensors.accelerometer.x = current.sensors.accelerometer.x
+            if current.sensors.accelerometer.y is not None:
+                last.sensors.accelerometer.y = current.sensors.accelerometer.y
+            if current.sensors.accelerometer.z is not None:
+                last.sensors.accelerometer.z = current.sensors.accelerometer.z
 
-        # Position data (UNUSED - disabled for performance)
-        # if current.sensors.position:
-        #     if not last.sensors.position:
-        #         from .spike_status import Position
-        # 
-        #         last.sensors.position = Position()
-        #     if current.sensors.position.x is not None:
-        #         last.sensors.position.x = current.sensors.position.x
-        #     if current.sensors.position.y is not None:
-        #         last.sensors.position.y = current.sensors.position.y
+        # Position data
+        if current.sensors.position:
+            if not last.sensors.position:
+                from .spike_status import Position
+                last.sensors.position = Position()
+            if current.sensors.position.x is not None:
+                last.sensors.position.x = current.sensors.position.x
+            if current.sensors.position.y is not None:
+                last.sensors.position.y = current.sensors.position.y
 
         # Update motor data (always update as these are more reliable)
         for motor_id in ["A", "B", "C"]:
@@ -146,11 +140,10 @@ class ETRobot(object):
                 last.motors[motor_id].power = current.motors[motor_id].power
 
         # Update battery data (for HIGH_SPEED_BASE optimization)
-        # コメントアウト：get_spike_statusの負荷軽減のため
-        # if current.battery.voltage is not None:
-        #     last.battery.voltage = current.battery.voltage
-        # if current.battery.percent is not None:
-        #     last.battery.percent = current.battery.percent
+        if current.battery.voltage is not None:
+            last.battery.voltage = current.battery.voltage
+        if current.battery.percent is not None:
+            last.battery.percent = current.battery.percent
         
         # Also update message_type and raw_data for debugging
         last.message_type = current.message_type
