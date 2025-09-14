@@ -316,6 +316,9 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
     # 毎回判定する必要のないフラグを事前計算
     need_status = (record_sensor_data and sensor_recorder is not None) or (send_video_stream and client_socket is not None)
 
+    for _ in range(10):
+        cap.read()
+
     # debug状態を辞書で管理（エレガントな状態管理）
     debug_state = {
         'counter': 0,
