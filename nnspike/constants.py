@@ -16,13 +16,13 @@ ROI_LINE_HORIZON3 = (200, 300, 440, 480)
 ROI_LINE_VERTICAL1 = (200, 200, 440, 480)
 ROI_LINE_CORNER = (0, 250, 400, 480)
 ROI_COLOR = (100, 0, 540, 480)
-ROI_COLOR2 = (200, 0, 440, 480)
+ROI_COLOR2 = (200, 100, 440, 480)
 
 OFFSET_Y = 470  # 0.20 meters to the ground
 
 # Base speed for robot movement (used throughout action logic)
 BASE_SPEED = 45
-HIGH_SPEED_BASE = 98
+HIGH_SPEED_BASE = 80
 
 # Behavior Mode
 class Mode(Enum):
