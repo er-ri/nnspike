@@ -47,11 +47,93 @@ x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
 # Socket connection settings
 HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
 
-# Camera setup with venue-safe settings (no auto-adjustments)
-cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FPS, CAMERA_FPS)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+
+# --- Videoクラス定義（スレッドでcap.read()管理） ---
+import threading
+
+class Video:
+    def __init__(self, mode='realtime'):
+        """
+        mode: 'realtime'（遅延最小化・最新フレーム優先） or 'continuous'（フレーム連続性重視）
+        fps/buffer_sizeは内部定数で管理
+        """
+        self.width = CAMERA_WIDTH
+        self.height = CAMERA_HEIGHT
+        self._FPS_REALTIME = 30
+        self._FPS_CONTINUOUS = 25
+        self.mode = mode
+        self._BUFFER_REALTIME = 1
+        self._BUFFER_CONTINUOUS = 4
+        self.fps = self._FPS_REALTIME if mode == 'realtime' else self._FPS_CONTINUOUS
+        buffer_size = self._BUFFER_REALTIME if mode == 'realtime' else self._BUFFER_CONTINUOUS
+        self.cap = cv2.VideoCapture(0)  # USBカメラ前提で0固定
+        self.cap.set(cv2.CAP_PROP_FPS, self.fps)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
+        self.frame = None
+        self.ret = False
+        self.running = True
+        self.lock = threading.Lock()
+        # continuous用フレームキュー
+        self._frame_queue = []
+        self.thread = threading.Thread(target=self._update, daemon=True)
+        self.thread.start()
+
+    def set_mode(self, mode):
+        """
+        Videoモード（'realtime' or 'continuous'）を切り替え、バッファサイズ・fpsも自動調整
+        """
+        self.mode = mode
+        if mode == 'realtime':
+            self.fps = self._FPS_REALTIME
+            buffer_size = self._BUFFER_REALTIME
+        else:
+            self.fps = self._FPS_CONTINUOUS
+            buffer_size = self._BUFFER_CONTINUOUS
+        self.cap.set(cv2.CAP_PROP_FPS, self.fps)
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
+
+    def warmup(self, count=10):
+        """
+        カメラウォームアップ用: 指定回数read()を呼ぶ
+        """
+        for _ in range(count):
+            self.read()
+
+    def _update(self):
+        while self.running:
+            ret, frame = self.cap.read()
+            with self.lock:
+                self.ret = ret
+                self.frame = frame
+                # continuousモード時のみキューに追加
+                if self.mode == 'continuous':
+                    if frame is not None:
+                        self._frame_queue.append((ret, frame.copy()))
+                        # バッファサイズ超過時は古いものから捨てる
+                        while len(self._frame_queue) > self._BUFFER_CONTINUOUS:
+                            self._frame_queue.pop(0)
+                else:
+                    self._frame_queue.clear()
+            time.sleep(0.001)  # 軽いウェイトでCPU負荷抑制
+
+    def read(self):
+        """
+        - realtime: 最新フレームのみ返す
+        - continuous: 未読フレームを順次返す（最大4枚まで蓄積、乖離防止）
+        """
+        with self.lock:
+            if self.mode == 'continuous' and self._frame_queue:
+                ret, frame = self._frame_queue.pop(0)
+                return ret, frame.copy() if frame is not None else (False, None)
+            else:
+                return self.ret, self.frame.copy() if self.frame is not None else (False, None)
+
+    def release(self):
+        self.running = False
+        self.thread.join()
+        self.cap.release()
 
 def handle_status_and_video(frame, status, mode, target_x, theta, steering_correction, left_speed, right_speed,
                            record_sensor_data, sensor_recorder, send_video_stream, client_socket, 
@@ -293,13 +375,13 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
 
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
-    # --- カメラウォームアップ（初回タイムラグ対策） ---
-    for _ in range(10):
-        cap.read()
+    # --- Videoクラスでカメラ起動・ウォームアップ ---
+    video = Video()
+    video.warmup()
     # --- スタート待ち ---
     first_key = wait_for_start(et, keyboard, state_flags, manual_mode=manual_mode)
     if first_key is None:
-        cap.release()
+        video.release()
         return
 
     # wait_for_start()の後にmodeの初期値を決定
@@ -325,7 +407,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         while et.is_running:
             loop_start = time.time()
             
-            ret, frame = cap.read()
+            ret, frame = video.read()
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
@@ -486,7 +568,7 @@ def main(record_sensor_data=False, save_camera_video=False, send_video_stream=Fa
         print(f"Error: {e}")
     finally:
         et.stop()
-        cap.release()
+        video.release()
 
         # Close socket connection if it was opened
         if client_socket is not None:

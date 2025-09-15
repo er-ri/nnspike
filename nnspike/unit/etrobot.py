@@ -13,6 +13,7 @@ class ETRobot(object):
     COMMAND_SET_MOTOR_RELATIVE_POSITION_ID = 203
     COMMAND_STOP_MOTOR_ID = 204
     COMMAND_MOVE_ARM_ID = 205
+    COMMAND_SET_MOTOR_MIXED_SPEED_ID = 206
 
     CMD_FLAG = b"CF:"
 
@@ -158,6 +159,117 @@ class ETRobot(object):
         """
         return self.last_spike_status
 
+    def get_motor_power(self) -> tuple[int, int]:
+        """
+        左右モーターの出力（power）をタプルで返す。
+
+        Returns:
+            (int, int): (left_power, right_power)
+        """
+        status = self.get_spike_status()
+        left = abs(status.motors["A"].power) if status.motors["A"].power is not None else 0
+        right = abs(status.motors["B"].power) if status.motors["B"].power is not None else 0
+        return (left, right)
+
+    def get_motor_speed(self) -> tuple[int, int]:
+        """
+        左右モーターの速度（speed）をタプルで返す。
+
+        Returns:
+            (int, int): (left_speed, right_speed)
+        """
+        status = self.get_spike_status()
+        left = abs(status.motors["A"].speed) if status.motors["A"].speed is not None else 0
+        right = abs(status.motors["B"].speed) if status.motors["B"].speed is not None else 0
+        return (left, right)
+
+
+    def reset_roll_angle(self) -> None:
+        """
+        ロール（左右傾き）積分角度をリセットする。
+        SpikeStatusのreset_gyro_angle()を呼ぶだけ。
+        """
+        self.get_spike_status().reset_gyro_angle()
+
+    def is_roll_angle_exceeded(self, threshold: float, direction: str) -> bool:
+        """
+        ロール角度が指定した方向・閾値を超えたか判定する。
+        Args:
+            threshold (float): 閾値（度）。必須。
+            direction (str): 'left'（負方向へthreshold度以上）, 'right'（正方向へthreshold度以上）
+        Returns:
+            bool: 条件を満たせばTrue、そうでなければFalse
+        """
+        angle = self.get_spike_status().get_gyro_angle_y()
+        if direction == 'left':
+            return angle <= -threshold
+        elif direction == 'right':
+            return angle >= threshold
+        else:
+            raise ValueError("direction must be 'left' or 'right'")
+
+    def get_side_adjust_by_roll(self) -> tuple[int, int]:
+        """
+        ロール角度（左右傾き）による補正値を返す。
+        Returns:
+            (int, int): (左補正, 右補正)
+        """
+        roll_angle = self.get_spike_status().get_gyro_angle_y()
+        if roll_angle > 1.0:
+            return (-1, 0)
+        elif roll_angle < -1.0:
+            return (0, -1)
+        else:
+            return (0, 0)
+
+    def get_side_adjust_by_speed_diff(self) -> tuple[int, int]:
+        """
+        モーターspeed差分による補正値を返す。
+        Returns:
+            (int, int): (左補正, 右補正)
+        """
+        left_speed, right_speed = self.get_motor_speed()
+        speed_diff = right_speed - left_speed
+        threshold = 3
+        if speed_diff > threshold:
+            return (-1, 0)
+        elif speed_diff < -threshold:
+            return (0, -1)
+        else:
+            return (0, 0)
+
+    def calc_max_speed_with_roll_control(
+        self,
+        max_speed: int = 100
+    ) -> tuple[int, int]:
+        """
+        ロール補正のみで最大速度指令値を計算する。
+        Args:
+            max_speed (int): 目標最大速度
+        Returns:
+            (int, int): (left_speed, right_speed)
+        """
+        roll_adj_left, roll_adj_right = self.get_side_adjust_by_roll()
+        left_cmd = max_speed + roll_adj_left
+        right_cmd = max_speed + roll_adj_right
+        return int(left_cmd), int(right_cmd)
+
+    def calc_max_speed_with_speed_diff_control(
+        self,
+        max_speed: int = 100
+    ) -> tuple[int, int]:
+        """
+        speed差分補正のみで最大速度指令値を計算する。
+        Args:
+            max_speed (int): 目標最大速度
+        Returns:
+            (int, int): (left_speed, right_speed)
+        """
+        speed_adj_left, speed_adj_right = self.get_side_adjust_by_speed_diff()
+        left_cmd = max_speed + speed_adj_left
+        right_cmd = max_speed + speed_adj_right
+        return int(left_cmd), int(right_cmd)
+
     def set_motor_relative_position(self, left_positon: int, right_position: int) -> None:
         id_byte = self.COMMAND_SET_MOTOR_RELATIVE_POSITION_ID.to_bytes(1, "big")
         parameter1_byte = left_positon.to_bytes(1, "big")
@@ -170,42 +282,63 @@ class ETRobot(object):
             self.__send_command(command)
             time.sleep(0.05)
 
-    def retrieve_motors_relative_position(self) -> int:
+    def get_motor_relative_position(self, side: str) -> int:
         """
-        Retrieve the relative positions of the motors.
+        指定したサイド（'right' または 'left'）のモーター相対位置を返す。
+
+        Args:
+            side (str): 'right' または 'left'
 
         Returns:
-            int: The sum of the absolute values of the relative positions of both motors.
+            int: 指定したモーターの相対位置（Noneの場合は0）
         """
         status = self.get_spike_status()
-
-        if status.motors["A"].relative_position is not None:
-            motor_a_position = abs(status.motors["A"].relative_position)
+        if side == 'right':
+            return abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
+        elif side == 'left':
+            return abs(status.motors["A"].relative_position) if status.motors["A"].relative_position is not None else 0
         else:
-            motor_a_position = 0
+            return 0
 
-        if status.motors["B"].relative_position is not None:
-            motor_b_position = abs(status.motors["B"].relative_position)
+    def get_color_sensor(self) -> tuple[int, str]:
+        """
+        現在のカラーセンサーのカラータイプ値（color.color）と、値によるカラータイプ（black/white/other）を返す。
+
+        Returns:
+            Tuple[Optional[int], str]: (カラータイプ値, カラータイプ名)
+        """
+        status = self.get_spike_status()
+        color_value_raw = status.sensors.color.color
+        if color_value_raw is None:
+            color_value = 0
+            color_type = "unknown"
         else:
-            motor_b_position = 0
-
-        return motor_a_position + motor_b_position
+            color_value = int(color_value_raw)
+            if color_value < 200:
+                color_type = "black"
+            elif color_value > 900:
+                color_type = "white"
+            else:
+                color_type = "other"
+        return (color_value, color_type)
 
     def set_motor_speed(self, left_speed: int, right_speed: int) -> None:
         """
-        Set the ETRobot motor's speed.
+        左右のモーター速度を個別に正転・逆転（マイナス値）で設定できる（ID=206コマンド送信）。
 
         Args:
-            left_speed (int): Left motor speed (-100-100).
-            right_speed (int): Right motor speed (-100-100).
+            left_speed (int): 左モーター速度（-100～100、負なら逆転）
+            right_speed (int): 右モーター速度（-100～100、負なら逆転）
         """
         if left_speed < -100 or left_speed > 100 or right_speed < -100 or right_speed > 100:
             raise ValueError("Motor speeds must be between -100 and 100.")
 
-        if left_speed < 0 or right_speed < 0:
-            self.set_motor_backward_speed(-left_speed, -right_speed)
-        else:
-            self.set_motor_forward_speed(left_speed, right_speed)
+        id_byte = self.COMMAND_SET_MOTOR_MIXED_SPEED_ID.to_bytes(1, "big")
+        # -100～+100 → 0～200 に変換して送信
+        parameter1_byte = (left_speed + 100).to_bytes(1, "big", signed=False)
+        parameter2_byte = (right_speed + 100).to_bytes(1, "big", signed=False)
+        command = id_byte + parameter1_byte + parameter2_byte
+        self.__send_command(command)
 
     def set_motor_forward_speed(self, left_speed: int, right_speed: int) -> None:
         """

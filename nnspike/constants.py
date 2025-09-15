@@ -43,10 +43,11 @@ class Mode(Enum):
     SMALL_TURN_LEFT = 15
     SMALL_TURN_RIGHT = 16
     BLUE_BOTTLE_CATCH = 17
-    TURN_LEFT_RELATIVE = 19
-    TURN_RIGHT_RELATIVE = 20
+    TURN_LEFT = 19
+    TURN_RIGHT = 20
     NVIDIA_FOLLOW = 21
     DOUBLE_LOOP = 22  # key1ダブルループモード
+    TEST = 99  # テスト用モード
 
 # One-Hot Encoding for Modes
 NUM_MODES = 6  # クラス分類用

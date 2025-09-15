@@ -107,6 +107,7 @@ class SensorStatus:
         )
 
 
+
 class SpikeStatus:
     """
     Class to represent and access the status of a Lego Spike Prime hub.
@@ -114,6 +115,7 @@ class SpikeStatus:
     This class provides a structured way to access the data received from the
     Spike Prime, including sensor readings, motor positions, and battery status.
     """
+
 
     def __init__(self, raw_data: Optional[Union[str, bytes, Dict]] = None):
         """
@@ -133,8 +135,29 @@ class SpikeStatus:
         self.battery: BatteryStatus = BatteryStatus()
         self.raw_data: Dict = {}
 
+        # --- gyro積分角度用 ---
+        self._gyro_angle_x: float = 0.0
+        self._gyro_angle_y: float = 0.0
+        self._gyro_angle_z: float = 0.0
+        self._last_gyro_update_time: Optional[float] = None
+        self._last_gyro_x: Optional[float] = None
+        self._last_gyro_y: Optional[float] = None
+        self._last_gyro_z: Optional[float] = None
+
         if raw_data is not None:
             self.update(raw_data)
+
+    def reset_gyro_angle(self) -> None:
+        """
+        積分したジャイロ角度のみをリセットする。
+        """
+        self._gyro_angle_x = 0.0
+        self._gyro_angle_y = 0.0
+        self._gyro_angle_z = 0.0
+        self._last_gyro_update_time = None
+        self._last_gyro_x = None
+        self._last_gyro_y = None
+        self._last_gyro_z = None
 
     def update(self, data: Union[str, bytes, Dict]) -> None:
         """
@@ -160,9 +183,56 @@ class SpikeStatus:
         sensors_data = parsed_data.get("sensors", {})
         self.sensors = SensorStatus.from_dict(sensors_data)
 
+        # --- gyro積分角度の更新 ---
+        now = self.timestamp
+        gyro = self.sensors.gyro
+        if gyro is not None:
+            # 前回値があればdtを計算
+            if self._last_gyro_update_time is not None:
+                dt = now - self._last_gyro_update_time
+                # 積分（台形則: 前回と今回の平均 × dt）
+                if self._last_gyro_x is not None:
+                    self._gyro_angle_x += ((self._last_gyro_x + gyro.x) / 2.0) * dt
+                if self._last_gyro_y is not None:
+                    self._gyro_angle_y += ((self._last_gyro_y + gyro.y) / 2.0) * dt
+                if self._last_gyro_z is not None:
+                    self._gyro_angle_z += ((self._last_gyro_z + gyro.z) / 2.0) * dt
+            # 値を保存
+            self._last_gyro_update_time = now
+            self._last_gyro_x = gyro.x
+            self._last_gyro_y = gyro.y
+            self._last_gyro_z = gyro.z
+        else:
+            # gyroがNoneなら前回値はクリアしない（センサ未接続時など）
+            pass
+
         # Update battery
         battery_data = parsed_data.get("battery", {})
         self.battery = BatteryStatus.from_dict(battery_data)
+
+    def get_gyro_angle_x(self) -> float:
+        """
+        積分したgyro_x角度（度）を返す。
+        Returns:
+            float: x軸（ロール）角度（度）
+        """
+        return self._gyro_angle_x
+
+    def get_gyro_angle_y(self) -> float:
+        """
+        積分したgyro_y角度（度）を返す。
+        Returns:
+            float: y軸（ピッチ or ロール）角度（度）
+        """
+        return self._gyro_angle_y
+
+    def get_gyro_angle_z(self) -> float:
+        """
+        積分したgyro_z角度（度）を返す。
+        Returns:
+            float: z軸（ヨー）角度（度）
+        """
+        return self._gyro_angle_z
 
     @staticmethod
     def _parse_data(data: Union[str, bytes, Dict]) -> Dict:

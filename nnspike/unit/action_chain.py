@@ -124,63 +124,16 @@ class ActionChain(object):
 
     def get_motor_position(self, motor_side: str = "right", status=None) -> int:
         """
-        指定したモーターの現在位置（エンコーダ値, 絶対値）を返す。
-        statusはキャッシュ用で、なければ内部で取得。
+        ETRobotのget_motor_relative_positionを直接呼び出す。
         """
-        if status is None:
-            status = self.et.get_spike_status()
-        if status is None:
-            print("[get_motor_position] get_spike_status() returned None")
-            return 0
-        motor_key = "B" if motor_side == "right" else "A"
-        if status.motors.get(motor_key) is not None:
-            pos = status.motors[motor_key].relative_position
-            if isinstance(pos, int):
-                return abs(pos)
-            elif isinstance(pos, tuple):
-                # すべての要素がint型の場合は先頭要素を返す
-                if len(pos) > 0 and isinstance(pos[0], int):
-                    return abs(pos[0])
-                # tupleの中身がint型でない場合は初期値
-                return 0
-            else:
-                print(f"[get_motor_position] {motor_key} position invalid: {pos} (return 0)")
-                return 0
-        print(f"[get_motor_position] status or motor_key invalid (return 0)")
-        return 0
+        return self.et.get_motor_relative_position(motor_side)
 
-    def get_color_sensor_values(self, status) -> dict:
+    def get_color_sensor_values(self) -> dict:
         """
-        カラーセンサーの値（reflected, ambient, color, color_type）を返す。
-        Args:
-            status: SpikeStatusオブジェクト（必須）
-        Returns:
-            dict: {"reflected": int, "ambient": int, "color": int, "color_type": str}
+        ETRobotのget_color_sensorを直接呼び出し、colorとcolor_typeのみ返す。
         """
-        if status is None:
-            status = self.et.get_spike_status()
-        if status is None:
-            print("[get_color_sensor_values] get_spike_status() returned None")
-            return {"reflected": 0, "ambient": 0, "color": 0, "color_type": "unknown"}
-        if not hasattr(status, "sensors") or status.sensors is None:
-            print("[get_color_sensor_values] status.sensors is None or missing")
-            return {"reflected": 0, "ambient": 0, "color": 0, "color_type": "unknown"}
-        color = status.sensors.color
-        if color is None:
-            return {"reflected": 0, "ambient": 0, "color": 0, "color_type": "unknown"}
-        reflected = color.reflected if hasattr(color, "reflected") and isinstance(color.reflected, int) else 0
-        ambient = color.ambient if hasattr(color, "ambient") and isinstance(color.ambient, int) else 0
-        color_value = color.color if hasattr(color, "color") and isinstance(color.color, int) else 0
-        # color_valueのみで排他的な色判定（白・赤青・黒）
-        if color_value < 200:
-            color_type = "black"
-        elif color_value > 900:
-            color_type = "white"
-        else:
-            color_type = "other"
+        color_value, color_type = self.et.get_color_sensor()
         return {
-            "reflected": reflected,
-            "ambient": ambient,
             "color": color_value,
             "color_type": color_type
         }
@@ -453,7 +406,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            color_info = self.get_color_sensor_values(status)
+            color_info = self.get_color_sensor_values()
             color_type = color_info["color_type"]
             # 距離450に到達する、もしくはcolor_typeが白以外になったら次フェーズ
             if position_diff >= 450 or color_type != "white":
@@ -745,7 +698,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             threshold = 300
-            color_info = self.get_color_sensor_values(status)
+            color_info = self.get_color_sensor_values()
             color_type = color_info["color_type"]
             position_diff = abs(current_pos - position_start)
             if position_diff >= threshold or color_type == "other":
@@ -1068,7 +1021,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            color_info = self.get_color_sensor_values(status)
+            color_info = self.get_color_sensor_values()
             color_type = color_info["color_type"]
             if position_diff >= 300 or color_type == "other":
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 300 or color_type={color_type} (color_value={color_info['color']})")
@@ -1179,7 +1132,7 @@ class ActionChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course, status=status)
             position_diff = abs(current_pos - position_start)
-            color_info = self.get_color_sensor_values(status)
+            color_info = self.get_color_sensor_values()
             color_type = color_info["color_type"]
             if position_diff >= 350 or color_type != "white":
                 print(f"[DEBUG] mode={Mode.HEAD_GOAL.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 350 or color_type={color_type} (color_value={color_info['color']})")

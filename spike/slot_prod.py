@@ -12,6 +12,7 @@ COMMAND_SET_MOTOR_BACKWARD_SPEED_ID = 202
 COMMAND_SET_MOTOR_RELATIVE_POSITION_ID = 203
 COMMAND_STOP_MOTOR_ID = 204
 COMMAND_MOVE_ARM_ID = 205
+COMMAND_SET_MOTOR_MIXED_SPEED_ID = 206
 
 CMD_FLAG = b"CF:"
 
@@ -91,6 +92,21 @@ class LegoSpike(object):
             self.motor_right.brake()
         elif command_id == COMMAND_MOVE_ARM_ID:
             self._move_arm(command_parameter1)
+        elif command_id == COMMAND_SET_MOTOR_MIXED_SPEED_ID:
+            # 正負値をそのまま左右に適用
+            self._set_motor_mixed_speed(command_parameter1, command_parameter2)
+
+    def _set_motor_mixed_speed(self, left_speed: int, right_speed: int) -> None:
+        """
+        左右のモーターに正負値を適用する（右前進・左バック等の個別制御用）
+        Args:
+            left_speed: 左モーター速度（0～200で受信、-100～+100に復元）
+            right_speed: 右モーター速度（0～200で受信、-100～+100に復元）
+        """
+        left = int(left_speed) - 100
+        right = int(right_speed) - 100
+        self.motor_left.run_at_speed(-left)
+        self.motor_right.run_at_speed(right)
 
     def _set_motor_speed(self, left_speed: int, right_speed: int) -> None:
         """Method to control the steering wheel angle.

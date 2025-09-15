@@ -13,7 +13,7 @@ class KeyboardController:
         # 有効なモードキーリスト（run_manual.pyから移動）
         self._mode_keys = set([
             "a", "d", "h", "f", "j", "k", "i", "o", "b", "g", "e", "u",
-            "1", "2", "3", "4", "5", "6", "7", "8", "p", "n", "q"
+            "1", "2", "3", "4", "5", "6", "7", "8", "p", "n", "q", "t"
         ])
 
     def get_key(self):
@@ -37,15 +37,15 @@ class KeyboardController:
         """キー入力からモードとメッセージを返す。quit判定も含む"""
         if key == "q":
             return "quit", "Quitting..."
-        keymap = {
+    keymap = {
             "a": (Mode.FOLLOW_LEFT_EDGE, "Switched to following: left edge"),
             "d": (Mode.FOLLOW_RIGHT_EDGE, "Switched to following: right edge"),
             "h": (Mode.HIGH_SPEED, "Switched to HIGH_SPEED mode"),
             "f": (Mode.FORWARD, "Switched to forward mode"),
             "j": (Mode.SMALL_TURN_LEFT, "Switched to small turn left mode"),
             "k": (Mode.SMALL_TURN_RIGHT, "Switched to small turn right mode"),
-            "i": (Mode.TURN_LEFT_RELATIVE, "Switched to turn left (relative) mode"),
-            "o": (Mode.TURN_RIGHT_RELATIVE, "Switched to turn right (relative) mode"),
+            "i": (Mode.TURN_LEFT, "Switched to turn left mode"),
+            "o": (Mode.TURN_RIGHT, "Switched to turn right mode"),
             "b": (Mode.BACKWARD, "Switched to backward mode"),
             "g": (Mode.GATE_PASS, "Switched to gate pass mode"),
             "e": (Mode.EYE_BLUE, "Switched to blue eyes mode"),
@@ -58,6 +58,7 @@ class KeyboardController:
             "6": (Mode.BACK_AND_TURN2, "Switched to back and turn 2 mode"),
             "7": (Mode.HEAD_GOAL, "Switched to heading goal mode"),
             "8": (Mode.PAUSE, "Pausing robot"),
+            "t": (Mode.TEST, "Switched to TEST mode"),
             "p": (Mode.PAUSE, "Pausing robot"),
         }
         return keymap.get(key, (None, None))

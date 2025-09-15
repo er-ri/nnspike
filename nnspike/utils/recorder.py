@@ -75,6 +75,8 @@ class SensorRecorder:
             "motor_c_relative_position",
             "motor_c_speed",
             "motor_c_power",
+            "left_speed",
+            "right_speed",
         ]
 
     def start_recording(self) -> None:
@@ -99,13 +101,15 @@ class SensorRecorder:
 
         self.logger.info(f"CSV logging started: {self.csv_filename}")
 
-    def log_frame_data(self, spike_status, mode=None) -> None:
+    def log_frame_data(self, spike_status, mode=None, left_speed=0, right_speed=0) -> None:
         """
         Log sensor data for a single frame.
 
         Args:
             spike_status: SpikeStatus object with sensor data
             mode: Current behavior mode (e.g., Mode.LEFT_EDGE_FOLLOWING)
+            left_speed: current left wheel speed (optional)
+            right_speed: current right wheel speed (optional)
         """
         if not self.is_recording or self.csv_writer is None or self.csv_file is None:
             return
@@ -121,28 +125,19 @@ class SensorRecorder:
             current_time,
             self.frame_count,
             mode.value if mode else "UNKNOWN",
-            # self._safe_get(sensors.distance, 0),
-            0,
+            self._safe_get(sensors.distance, 0),
             self._safe_get(sensors.force, 0),
             self._safe_get(sensors.color.reflected if sensors.color else None, 0),
             self._safe_get(sensors.color.ambient if sensors.color else None, 0),
             self._safe_get(sensors.color.color if sensors.color else None, 0),
-            # self._safe_get(sensors.gyro.x if sensors.gyro else None, 0.0),
-            0.0,
-            # self._safe_get(sensors.gyro.y if sensors.gyro else None, 0.0),
-            0.0,
-            # self._safe_get(sensors.gyro.z if sensors.gyro else None, 0.0),
-            0.0,
-            # self._safe_get(sensors.accelerometer.x if sensors.accelerometer else None, 0.0),
-            0.0,
-            # self._safe_get(sensors.accelerometer.y if sensors.accelerometer else None, 0.0),
-            0.0,
-            # self._safe_get(sensors.accelerometer.z if sensors.accelerometer else None, 0.0),
-            0.0,
-            # self._safe_get(sensors.position.x if sensors.position else None, 0.0),
-            0.0,
-            # self._safe_get(sensors.position.y if sensors.position else None, 0.0),
-            0.0,
+            self._safe_get(sensors.gyro.x if sensors.gyro else None, 0.0),
+            self._safe_get(sensors.gyro.y if sensors.gyro else None, 0.0),
+            self._safe_get(sensors.gyro.z if sensors.gyro else None, 0.0),
+            self._safe_get(sensors.accelerometer.x if sensors.accelerometer else None, 0.0),
+            self._safe_get(sensors.accelerometer.y if sensors.accelerometer else None, 0.0),
+            self._safe_get(sensors.accelerometer.z if sensors.accelerometer else None, 0.0),
+            self._safe_get(sensors.position.x if sensors.position else None, 0.0),
+            self._safe_get(sensors.position.y if sensors.position else None, 0.0),
             self._safe_get(motors["A"].position, 0),
             self._safe_get(motors["A"].relative_position, 0),
             self._safe_get(motors["A"].speed, 0),
@@ -155,6 +150,8 @@ class SensorRecorder:
             self._safe_get(motors["C"].relative_position, 0),
             self._safe_get(motors["C"].speed, 0),
             self._safe_get(motors["C"].power, 0),
+            left_speed if left_speed is not None else 0,
+            right_speed if right_speed is not None else 0,
         ]
 
         try:
