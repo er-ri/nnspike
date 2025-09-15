@@ -270,9 +270,6 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     left_speed = None
     right_speed = None
     turn_left_started = False
-    key = None
-    mode_result = None
-    msg = None
 
     # 毎回判定する必要のないフラグを事前計算
     need_status = (record_sensor_data and sensor_recorder is not None)
@@ -307,7 +304,11 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if not manual_mode and not state_flags.first_key_used:
                     state_flags.first_key_used = True
             
-            mode_result, msg = keyboard.get_mode_from_key(key)
+            result = keyboard.get_mode_from_key(key)
+            if result is not None:
+                mode_result, msg = result
+            else:
+                mode_result, msg = None, None
             if mode_result == "quit":
                 print(msg)
                 keyboard.running = False
