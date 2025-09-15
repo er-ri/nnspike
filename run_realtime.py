@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-# シンプルなOpenCVロボット制御スクリプト（FORWARD/BACKWARD/PAUSEのみ対応）
-
 import argparse
 import sys
 import time
@@ -208,7 +206,6 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
     return first_key
 
 def main(record_sensor_data=False, save_camera_video=False, course="right", course_type="upper", manual_mode=False):
-
 
     def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.05):
         """debug出力処理＋ループ周期50msに制御"""
