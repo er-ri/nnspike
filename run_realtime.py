@@ -12,15 +12,6 @@ import cv2
 import numpy as np
 from nnspike.constants import BASE_SPEED, HIGH_SPEED_BASE, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS, OFFSET_Y, ROI_CNN, Mode, ROI_COLOR
 from nnspike.utils import PIDController, SensorRecorder, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x, get_offset_pixels
-
-# User defined constants
-x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
-
-
-
-# --- Videoクラス定義（スレッドでcap.read()管理） ---
- 
-# --- Videoクラス定義（スレッドでcap.read()管理） ---
 import threading
 
 class Video:
@@ -315,9 +306,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 mode = mode_result
                 print(msg)
 
-            # --- 変数初期化はループ外で集約 ---
-
-            # --- モード分岐: FORWARD, BACKWARD, PAUSE, TURN_LEFT, TEST ---
+            # モード分岐
             if mode == Mode.FORWARD:
                 # シンプルに直進のみ
                 left_speed = BASE_SPEED
@@ -348,7 +337,6 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.PAUSE:
                 left_speed, right_speed = 0, 0
-            # else: 何もしない（他モードは未対応）
 
             # --- ループ周期制限とdebug出力（最後） ---
             loop_end = time.time()
@@ -359,8 +347,6 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     finally:
         et.stop()
         video.release()
-
-        # (send-video機能削除済み)
 
         # Clean up video writer if it was used
         if save_camera_video and video_writer is not None:
