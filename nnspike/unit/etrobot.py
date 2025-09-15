@@ -33,6 +33,8 @@ class ETRobot(object):
 
         self.__thread = threading.Thread(target=self.__update_status)
         self.__thread.start()
+        self.last_update_time = None
+        self.update_count = 0
 
     def __send_command(self, command) -> None:
         """Send a command to the robot via the serial port."""
@@ -40,8 +42,19 @@ class ETRobot(object):
 
     def __update_status(self) -> None:
         """Background thread that continuously receives data from the serial connection."""
+        prev_time = None
         while self.is_running:
             self.receive()
+            now = time.time()
+            self.last_update_time = now
+            self.update_count += 1
+            # 差分（サイクル時間ms）をデバッグ出力
+            if prev_time is not None:
+                diff_ms = int((now - prev_time) * 1000)
+            else:
+                diff_ms = 0
+            print(f"[ETRobotThread] update={self.update_count} since_last={diff_ms}ms")
+            prev_time = now
 
     def receive(self) -> None:
         """

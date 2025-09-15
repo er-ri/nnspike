@@ -40,6 +40,8 @@ class Video:
         self.lock = threading.Lock()
         # continuous用フレームキュー
         self._frame_queue = []
+        self.last_update_time = None
+        self.update_count = 0
         self.thread = threading.Thread(target=self._update, daemon=True)
         self.thread.start()
 
@@ -65,11 +67,15 @@ class Video:
             self.read()
 
     def _update(self):
+        prev_time = None
         while self.running:
             ret, frame = self.cap.read()
             with self.lock:
                 self.ret = ret
                 self.frame = frame
+                now = time.time()
+                self.last_update_time = now
+                self.update_count += 1
                 # continuousモード時のみキューに追加
                 if self.mode == 'continuous':
                     if frame is not None:
@@ -79,6 +85,13 @@ class Video:
                             self._frame_queue.pop(0)
                 else:
                     self._frame_queue.clear()
+                # デバッグ出力: 差分msのみ
+                if prev_time is not None:
+                    diff_ms = int((now - prev_time) * 1000)
+                else:
+                    diff_ms = 0
+                print(f"[VideoThread] update={self.update_count} since_last={diff_ms}ms")
+                prev_time = now
             time.sleep(0.001)  # 軽いウェイトでCPU負荷抑制
 
     def read(self):
