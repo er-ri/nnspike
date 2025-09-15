@@ -202,7 +202,8 @@ class ETRobot(object):
         ロール（左右傾き）積分角度をリセットする。
         SpikeStatusのreset_gyro_angle()を呼ぶだけ。
         """
-        self.get_spike_status().reset_gyro_angle()
+        status = self.get_spike_status()
+        status.reset_gyro_angle()
 
     def is_roll_angle_exceeded(self, threshold: float, direction: str) -> bool:
         """
@@ -213,7 +214,8 @@ class ETRobot(object):
         Returns:
             bool: 条件を満たせばTrue、そうでなければFalse
         """
-        angle = self.get_spike_status().get_gyro_angle_y()
+        status = self.get_spike_status()
+        angle = status.get_gyro_angle_y()
         if direction == 'left':
             return angle <= -threshold
         elif direction == 'right':
@@ -227,7 +229,8 @@ class ETRobot(object):
         Returns:
             (int, int): (左補正, 右補正)
         """
-        roll_angle = self.get_spike_status().get_gyro_angle_y()
+        status = self.get_spike_status()
+        roll_angle = status.get_gyro_angle_y()
         if roll_angle > 1.0:
             return (-1, 0)
         elif roll_angle < -1.0:
@@ -251,36 +254,36 @@ class ETRobot(object):
         else:
             return (0, 0)
 
-    def calc_max_speed_with_roll_control(
+    def calc_speed_with_roll_control(
         self,
-        max_speed: int = 100
+        speed: int = 100
     ) -> tuple[int, int]:
         """
-        ロール補正のみで最大速度指令値を計算する。
+        ロール補正のみで速度指令値を計算する。
         Args:
-            max_speed (int): 目標最大速度
+            speed (int): 目標速度
         Returns:
             (int, int): (left_speed, right_speed)
         """
         roll_adj_left, roll_adj_right = self.get_side_adjust_by_roll()
-        left_cmd = max_speed + roll_adj_left
-        right_cmd = max_speed + roll_adj_right
+        left_cmd = speed + roll_adj_left
+        right_cmd = speed + roll_adj_right
         return int(left_cmd), int(right_cmd)
 
-    def calc_max_speed_with_speed_diff_control(
+    def calc_speed_with_speed_diff_control(
         self,
-        max_speed: int = 100
+        speed: int = 100
     ) -> tuple[int, int]:
         """
-        speed差分補正のみで最大速度指令値を計算する。
+        speed差分補正のみで速度指令値を計算する。
         Args:
-            max_speed (int): 目標最大速度
+            speed (int): 目標速度
         Returns:
             (int, int): (left_speed, right_speed)
         """
         speed_adj_left, speed_adj_right = self.get_side_adjust_by_speed_diff()
-        left_cmd = max_speed + speed_adj_left
-        right_cmd = max_speed + speed_adj_right
+        left_cmd = speed + speed_adj_left
+        right_cmd = speed + speed_adj_right
         return int(left_cmd), int(right_cmd)
 
     def set_motor_relative_position(self, left_positon: int, right_position: int) -> None:
