@@ -197,7 +197,7 @@ class ETRobot(object):
         以降の判定はこの基準値との差分で行う。
         """
         status = self.get_spike_status()
-        self._roll_angle_offset = status.get_gyro_angle_z()
+        self._roll_angle_offset = status.get_gyro_angle_y()
 
     def is_roll_angle_exceeded(self, threshold: float, direction: str) -> bool:
         """
@@ -209,7 +209,7 @@ class ETRobot(object):
             bool: 条件を満たせばTrue、そうでなければFalse
         """
         status = self.get_spike_status()
-        angle = status.get_gyro_angle_z()
+        angle = status.get_gyro_angle_y()
         offset = getattr(self, '_roll_angle_offset', 0.0)
         diff = angle - offset
         print(f"[ETRobot判定] gyro_z={angle}, offset={offset}, diff={diff}, threshold={threshold}, direction={direction}")
