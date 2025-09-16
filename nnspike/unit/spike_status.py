@@ -189,8 +189,12 @@ class SpikeStatus:
             self._last_gyro_y = gyro.y
             self._last_gyro_z = gyro.z
 
-        # ジャイロ積分値を表示
-        print(f"[SpikeStatus] gyro_integrated: x={self._gyro_angle_x:.2f}, y={self._gyro_angle_y:.2f}, z={self._gyro_angle_z:.2f}")
+        # ジャイロ積分値とdt（加算に使った値）を表示
+        if gyro is not None and self._last_gyro_update_time is not None:
+            dt = now - self._last_gyro_update_time
+        else:
+            dt = 0.0
+        print(f"[SpikeStatus] gyro_integrated: x={self._gyro_angle_x:.2f}, y={self._gyro_angle_y:.2f}, z={self._gyro_angle_z:.2f}, dt={dt:.4f}")
 
         self.battery = BatteryStatus.from_dict(parsed_data.get("battery", {}))
 
