@@ -348,7 +348,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 # 判定直前デバッグ
 
                 # ロール積分値で90度左回転判定
-                if et.is_roll_angle_exceeded(90, 'left'):
+                if et.is_roll_angle_exceeded(80, 'left'):
                     # デバッグ出力: 判定値・モード・速度・ジャイロ値
                     status = et.get_spike_status()
 
