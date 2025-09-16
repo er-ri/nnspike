@@ -165,6 +165,13 @@ async def receiver_task():
             lego_spike.execute_command(command_id, command_parameter1, command_parameter2)
         await uasyncio.sleep(0.01)
 
+sender_task_last_values = {
+    "motors": {"A": [0,0,0,0], "B": [0,0,0,0], "C": [0,0,0,0]},
+    "force": 0,
+    "color": [0,0,0],
+    "gyro": [0,0,0],
+}
+
 # 送信タスク
 async def sender_task():
     while True:
@@ -174,16 +181,8 @@ async def sender_task():
             ma = lego_spike.motor_arm.get()
             fs = lego_spike.force_sensor.get()
             cs = lego_spike.color_sensor.get()
-            gyro = hub.motion.gyro()
-            # last値保持用のstatic変数
-            if not hasattr(sender_task, "last_values"):
-                sender_task.last_values = {
-                    "motors": {"A": [0,0,0,0], "B": [0,0,0,0], "C": [0,0,0,0]},
-                    "force": 0,
-                    "color": [0,0,0],
-                    "gyro": [0,0,0],
-                }
-            lv = sender_task.last_values
+            yaw, pitch, roll = hub.motion.yaw_pitch_roll()
+            lv = sender_task_last_values
             # 値取得（Noneならlast値、last値もNoneなら0）
             def get_with_last(val, last):
                 return val if val is not None else (last if last is not None else 0)
@@ -202,10 +201,8 @@ async def sender_task():
                 v = safe_color_get(cs, idx)
                 color_data.append(get_with_last(v, lv["color"][i]))
                 lv["color"][i] = color_data[i]
-            gyro_data = []
+            gyro_data = [yaw, pitch, roll]
             for i in range(3):
-                v = gyro[i] if i < len(gyro) else None
-                gyro_data.append(get_with_last(v, lv["gyro"][i]))
                 lv["gyro"][i] = gyro_data[i]
             # accel/positionは不要
             data = {
@@ -226,11 +223,12 @@ async def sender_task():
                 },
             }
             send_str = json.dumps(data) + "\r"
-            lego_spike.usb.write(send_str.encode())
+            sent_bytes = lego_spike.usb.write(send_str.encode())
+            # print("USB write bytes:", sent_bytes)
             await uasyncio.sleep(0.01)  # 送信直後にバッファ安定化
         except Exception as e:
-            pass
-        await uasyncio.sleep(0.05)  # 送信間隔厳守
+            print("[SEND ERROR]", repr(e))
+        await uasyncio.sleep(0.01)  # 送信間隔厳守
 
 async def main_task():
     recv_task = uasyncio.create_task(receiver_task())
@@ -242,6 +240,14 @@ async def main_task():
 gc.collect()
 
 print("Starting LEGO Prime Hub..")
+lego_spike = LegoSpike()
+    # print("motor_right:", lego_spike.motor_right.get())
+    # print("motor_left:", lego_spike.motor_left.get())
+    # print("motor_arm:", lego_spike.motor_arm.get())
+    # print("force_sensor:", lego_spike.force_sensor.get())
+    # print("color_sensor:", lego_spike.color_sensor.get())
+    # print("gyro:", hub.motion.yaw_pitch_roll())
+    # print("USB isconnected:", lego_spike.usb.isconnected())
 
 try:
     lego_spike = LegoSpike()

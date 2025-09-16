@@ -223,7 +223,7 @@ class ETRobot(object):
 
     def is_roll_angle_exceeded(self, threshold: float, direction: str) -> bool:
         """
-        ロール角度が指定した方向・閾値を超えたか判定する。
+        ロール角度（z軸）が指定した方向・閾値を超えたか判定する。
         Args:
             threshold (float): 閾値（度）。必須。
             direction (str): 'left'（負方向へthreshold度以上）, 'right'（正方向へthreshold度以上）
@@ -231,8 +231,8 @@ class ETRobot(object):
             bool: 条件を満たせばTrue、そうでなければFalse
         """
         status = self.get_spike_status()
-        angle = status.get_gyro_angle_y()
-        # print(f"[DEBUG] is_roll_angle_exceeded: gyro_y={angle}, threshold={threshold}, direction={direction}")
+        angle = status.get_gyro_angle_z()
+        # print(f"[DEBUG] is_roll_angle_exceeded: gyro_z={angle}, threshold={threshold}, direction={direction}")
         if direction == 'left':
             return angle <= -threshold
         elif direction == 'right':
@@ -242,12 +242,12 @@ class ETRobot(object):
 
     def get_side_adjust_by_roll(self) -> tuple[int, int]:
         """
-        ロール角度（左右傾き）による補正値を返す。
+        ロール角度（z軸）による補正値を返す。
         Returns:
             (int, int): (左補正, 右補正)
         """
         status = self.get_spike_status()
-        roll_angle = status.get_gyro_angle_y()
+        roll_angle = status.get_gyro_angle_z()
         if roll_angle > 1.0:
             return (-1, 0)
         elif roll_angle < -1.0:
@@ -276,7 +276,7 @@ class ETRobot(object):
         speed: int = 100
     ) -> tuple[int, int]:
         """
-        ロール補正のみで速度指令値を計算する。
+        ロール補正（z軸）で速度指令値を計算する。
         Args:
             speed (int): 目標速度
         Returns:
