@@ -308,6 +308,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 state_flags.first_key_used = True
             else:
                 key = keyboard.get_key()
+                print(f"[DEBUG] key入力: {key}")
                 if not manual_mode and not state_flags.first_key_used:
                     state_flags.first_key_used = True
             
@@ -336,6 +337,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 right_speed = BASE_SPEED
                 et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.TURN_LEFT:
+                print(f"[DEBUG] TURN_LEFT分岐: mode={mode}, turn_left_started={turn_left_started}")
                 # 非ブロッキングで1ループごとに進捗管理
                 if not turn_left_started:
                     turn_left_started = True
