@@ -159,13 +159,17 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
             status_init = et.get_spike_status()
             force_val_init = getattr(status_init.sensors, "force", None)
         if force_val_init is not None:
-            # デバッグ出力削除
+            print("Force sensor is active. You can press it anytime to switch edge-following mode.")
+            print("\r", end="")
+            sys.stdout.flush()
         else:
-            # デバッグ出力削除
+            print("Force sensor is NOT detected. Please check connection.")
+            print("\r", end="")
+            sys.stdout.flush()
     except Exception:
-        pass
+        print("Force sensor check failed. Please check hardware.")
 
-    # デバッグ出力削除
+    print("Press the force sensor or any mode key to start...")
     started = False
     first_key = None
     while not started and keyboard.running:
@@ -176,18 +180,18 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
             key = keyboard.get_key()
             # forceセンサー押下でスタート
             if (force_val is not None and force_val > 0):
-                # デバッグ出力削除
+                print("Start!")
                 started = True
                 first_key = "__force__"  # forceセンサーでスタートした場合はダミー値をセット
                 break
             # manual_mode時のみ有効なモードキーでスタート
             elif manual_mode and key is not None and keyboard.is_mode_key(key):
-                # デバッグ出力削除
+                print("Start!")
                 first_key = key
                 started = True
                 break
             if not keyboard.running:
-                # デバッグ出力削除
+                print("Quitting before start. Exiting...")
                 et.stop()
                 keyboard.cleanup()
                 return None
