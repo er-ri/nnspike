@@ -136,9 +136,9 @@ class SpikeStatus:
         self.raw_data: Dict = {}
 
         # --- gyro積分角度用 ---
-        # self._gyro_angle_x: float = 0.0
-        # self._gyro_angle_y: float = 0.0
-        # self._gyro_angle_z: float = 0.0
+        self._gyro_angle_x = 0.0
+        self._gyro_angle_y = 0.0
+        self._gyro_angle_z = 0.0
         # self._last_gyro_update_time: Optional[float] = None
         self._last_gyro_x = None
         self._last_gyro_y = None

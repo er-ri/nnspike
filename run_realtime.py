@@ -336,26 +336,10 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 right_speed = BASE_SPEED
                 et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.TURN_LEFT:
-
-                # 非ブロッキングで1ループごとに進捗管理
-                if not turn_left_started:
-                    turn_left_started = True
-                    et.reset_roll_angle()  # ロール積分値リセット
                 # 回転中は常に左回転指令
                 left_speed = -BASE_SPEED
                 right_speed = BASE_SPEED
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-                # 判定直前デバッグ
-
-                # ロール積分値で90度左回転判定
-                if et.is_roll_angle_exceeded(70, 'left'):
-                    # デバッグ出力: 判定値・モード・速度・ジャイロ値
-                    status = et.get_spike_status()
-
-                    mode = Mode.PAUSE
-                    left_speed = right_speed = 0
-                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-                    turn_left_started = False
             elif mode == Mode.TEST:
                 # ロール補正のみでベーススピード走行
                 # left_speed, right_speed = et.calc_max_speed_with_roll_control(BASE_SPEED)

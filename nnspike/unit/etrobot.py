@@ -191,44 +191,44 @@ class ETRobot(object):
         return (left, right)
 
 
-    def reset_roll_angle(self) -> None:
-        """
-        ピッチ（z軸）積分角度の基準値を保存する。
-        以降の判定はこの基準値との差分で行う。
-        """
-        status = self.get_spike_status()
-        self._roll_angle_offset = status.get_gyro_angle_y()
+    # def reset_roll_angle(self) -> None:
+    #     """
+    #     ピッチ（z軸）積分角度の基準値を保存する。
+    #     以降の判定はこの基準値との差分で行う。
+    #     """
+    #     status = self.get_spike_status()
+    #     self._roll_angle_offset = status.get_gyro_angle_y()
 
-    def is_roll_angle_exceeded(self, threshold: float, direction: str) -> bool:
-        """
-        ピッチ角度（z軸積分値）が指定した方向・閾値を超えたか判定する。
-        Args:
-            threshold (float): 閾値（度）。必須。
-            direction (str): 'left'（正方向へthreshold度以上）, 'right'（負方向へthreshold度以上）
-        Returns:
-            bool: 条件を満たせばTrue、そうでなければFalse
-        """
-        status = self.get_spike_status()
-        angle = status.get_gyro_angle_y()
-        offset = getattr(self, '_roll_angle_offset', 0.0)
-        diff = angle - offset
-        # デバッグ出力削除
-        if direction == 'left':
-            return diff >= threshold
-        elif direction == 'right':
-            return diff <= -threshold
-        else:
-            raise ValueError("direction must be 'left' or 'right'")
+    # def is_roll_angle_exceeded(self, threshold: float, direction: str) -> bool:
+    #     """
+    #     ピッチ角度（z軸積分値）が指定した方向・閾値を超えたか判定する。
+    #     Args:
+    #         threshold (float): 閾値（度）。必須。
+    #         direction (str): 'left'（正方向へthreshold度以上）, 'right'（負方向へthreshold度以上）
+    #     Returns:
+    #         bool: 条件を満たせばTrue、そうでなければFalse
+    #     """
+    #     status = self.get_spike_status()
+    #     angle = status.get_gyro_angle_y()
+    #     offset = getattr(self, '_roll_angle_offset', 0.0)
+    #     diff = angle - offset
+    #     # デバッグ出力削除
+    #     if direction == 'left':
+    #         return diff >= threshold
+    #     elif direction == 'right':
+    #         return diff <= -threshold
+    #     else:
+    #         raise ValueError("direction must be 'left' or 'right'")
 
-    def get_side_adjust_by_roll(self) -> tuple[int, int]:
-        status = self.get_spike_status()
-        roll_angle = status.get_gyro_angle_z()
-        if roll_angle > 1.0:
-            return (-1, 0)
-        elif roll_angle < -1.0:
-            return (0, -1)
-        else:
-            return (0, 0)
+    # def get_side_adjust_by_roll(self) -> tuple[int, int]:
+    #     status = self.get_spike_status()
+    #     roll_angle = status.get_gyro_angle_z()
+    #     if roll_angle > 1.0:
+    #         return (-1, 0)
+    #     elif roll_angle < -1.0:
+    #         return (0, -1)
+    #     else:
+    #         return (0, 0)
 
     def get_side_adjust_by_speed_diff(self) -> tuple[int, int]:
         """
