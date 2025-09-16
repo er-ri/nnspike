@@ -61,4 +61,4 @@ class KeyboardController:
             "t": (Mode.TEST, "Switched to TEST mode"),
             "p": (Mode.PAUSE, "Pausing robot"),
         }
-        return keymap.get(key, (None, None))
+    return keymap.get(key, (None, None))
