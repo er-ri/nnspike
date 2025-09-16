@@ -342,7 +342,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     turn_left_started = True
                     et.reset_roll_angle()  # ロール積分値リセット
                 # 回転中は常に左回転指令
-                left_speed = 0
+                left_speed = -BASE_SPEED
                 right_speed = BASE_SPEED
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 # 判定直前デバッグ
