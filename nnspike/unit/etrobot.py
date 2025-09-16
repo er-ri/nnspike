@@ -20,7 +20,7 @@ class ETRobot(object):
     DUMMY = 1  # Dummy value for parameters
 
     def __init__(self, port="/dev/ttyACM0") -> None:
-        self.__serial_port = serial.Serial(port=port, baudrate=115200, timeout=0.02)
+        self.__serial_port = serial.Serial(port=port, baudrate=115200, timeout=0.01)
         self.__serial_port.reset_input_buffer()
         self.__serial_port.reset_output_buffer()
 
