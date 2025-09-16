@@ -183,11 +183,8 @@ async def sender_task():
                 sender_task.last_values = {
                     "motors": {"A": [0,0,0,0], "B": [0,0,0,0], "C": [0,0,0,0]},
                     "force": 0,
-                    "distance": 0,
                     "color": [0,0,0],
                     "gyro": [0,0,0],
-                    "accel": [0,0,0],
-                    "position": [0,0],
                 }
             lv = sender_task.last_values
             # 値取得（Noneならlast値、last値もNoneなら0）
@@ -202,8 +199,7 @@ async def sender_task():
                     lv["motors"][key][i] = motors_data[key][field]
             force_val = get_with_last(fs[1], lv["force"])
             lv["force"] = force_val
-            distance_val = get_with_last(us[0], lv["distance"])
-            lv["distance"] = distance_val
+            # distanceは不要
             color_data = []
             for i, idx in enumerate([2,3,4]):
                 v = safe_color_get(cs, idx)
@@ -214,22 +210,12 @@ async def sender_task():
                 v = gyro[i] if i < len(gyro) else None
                 gyro_data.append(get_with_last(v, lv["gyro"][i]))
                 lv["gyro"][i] = gyro_data[i]
-            accel_data = []
-            for i in range(3):
-                v = accel[i] if i < len(accel) else None
-                accel_data.append(get_with_last(v, lv["accel"][i]))
-                lv["accel"][i] = accel_data[i]
-            pos_data = []
-            for i in range(2):
-                v = pos[i+1] if (i+1) < len(pos) else None
-                pos_data.append(get_with_last(v, lv["position"][i]))
-                lv["position"][i] = pos_data[i]
+            # accel/positionは不要
             data = {
                 "message_type": 0,
                 "motors": motors_data,
                 "sensors": {
                     "force": force_val,
-                    "distance": distance_val,
                     "color": {
                         "reflected": color_data[0],
                         "ambient": color_data[1],
@@ -240,15 +226,6 @@ async def sender_task():
                         "y": gyro_data[1],
                         "z": gyro_data[2],
                     },
-                    "accelerometer": {
-                        "x": accel_data[0],
-                        "y": accel_data[1],
-                        "z": accel_data[2],
-                    },
-                    "position": {
-                        "x": pos_data[0],
-                        "y": pos_data[1],
-                    },
                 },
             }
             send_str = json.dumps(data) + "\r"
@@ -256,7 +233,7 @@ async def sender_task():
             await uasyncio.sleep(0)  # 送信直後にyieldでバッファ安定化
         except Exception:
             pass
-        await uasyncio.sleep(0.01)
+    await uasyncio.sleep(0.05)
 
 async def main_task():
     recv_task = uasyncio.create_task(receiver_task())
