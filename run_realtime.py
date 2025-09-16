@@ -223,7 +223,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         sleep_time = min_interval - loop_elapsed
         if sleep_time > 0:
             time.sleep(sleep_time)
-        print(f"[DEBUG] loop={debug_state['counter']} since_last={diff_ms}ms")
+        print(f"[DEBUG] loop={debug_state['counter']} since_last={diff_ms}ms elapsed={int(loop_elapsed*1000)}ms sleep={int(max(sleep_time,0)*1000)}ms")
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled

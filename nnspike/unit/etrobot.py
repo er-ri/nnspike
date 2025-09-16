@@ -53,7 +53,8 @@ class ETRobot(object):
                 diff_ms = int((now - prev_time) * 1000)
             else:
                 diff_ms = 0
-            # print(f"[ETRobotThread] update={self.update_count} since_last={diff_ms}ms")
+            msg_type = getattr(self.spike_status, 'message_type', 'N/A')
+            print(f"[ETRobotThread] update={self.update_count} since_last={diff_ms}ms m={msg_type}")
             prev_time = now
 
     def receive(self) -> None:
