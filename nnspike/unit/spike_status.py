@@ -182,11 +182,13 @@ class SpikeStatus:
         Args:
             data: Raw data from the Spike Prime (string, bytes, or dictionary)
         """
+        import traceback
         try:
             parsed_data = self._parse_data(data)
         except Exception as e:
             print(f"[SpikeStatus] Exception in _parse_data: {e}")
             print(f"[SpikeStatus] RAW (error): {data}")
+            traceback.print_exc()
             return
 
     # print(f"[SpikeStatus] parsed_data: {parsed_data}")
