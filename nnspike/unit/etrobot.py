@@ -97,7 +97,7 @@ class ETRobot(object):
             if current.sensors.color.color is not None:
                 last.sensors.color.color = current.sensors.color.color
 
-        # Gyro data
+        # Gyro data（生値）
         if current.sensors.gyro:
             if not last.sensors.gyro:
                 from .spike_status import VectorStatus
@@ -108,6 +108,11 @@ class ETRobot(object):
                 last.sensors.gyro.y = current.sensors.gyro.y
             if current.sensors.gyro.z is not None:
                 last.sensors.gyro.z = current.sensors.gyro.z
+
+        # Gyro積分値もコピー
+        last._gyro_angle_x = current._gyro_angle_x
+        last._gyro_angle_y = current._gyro_angle_y
+        last._gyro_angle_z = current._gyro_angle_z
 
         # Accelerometer data
         if current.sensors.accelerometer:
