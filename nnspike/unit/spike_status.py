@@ -160,7 +160,7 @@ class SpikeStatus:
         self._last_gyro_z = None
 
     def update(self, data: Union[str, bytes, Dict]) -> None:
-        # update呼び出し間隔（ms）をデバッグ出力
+        # update呼び出し間隔（ms）を計算（m=0時のみprint）
         now = time.time()
         if not hasattr(self, '_last_update_time'):
             self._last_update_time = now
@@ -194,7 +194,8 @@ class SpikeStatus:
             self.battery = BatteryStatus.from_dict(battery_data)
             print(f"m={self.message_type} skip")
             return
-        # m=0のとき、各センサー値を個別にprint
+        # m=0のとき、受信間隔と各センサー値を個別にprint
+        print(f"[SpikeStatus][m=0] interval: {dt:.1f}ms")
         motors_data = parsed_data.get("motors", {})
         sensors_data = parsed_data.get("sensors", {})
         force = sensors_data.get("force", None)
@@ -229,7 +230,6 @@ class SpikeStatus:
                     self._gyro_angle_x += ((self._last_gyro_x + gyro.x) / 2.0) * dt
                 if self._last_gyro_y is not None:
                     self._gyro_angle_y += ((self._last_gyro_y + gyro.y) / 2.0) * dt
-                    print(f"[DEBUG] _gyro_angle_y={self._gyro_angle_y:.2f}, dt={dt*1000:.1f}ms, raw_gyro_y={gyro.y:.2f}, now={now:.3f}")
                 if self._last_gyro_z is not None:
                     self._gyro_angle_z += ((self._last_gyro_z + gyro.z) / 2.0) * dt
             # 値を保存
