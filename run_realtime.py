@@ -339,26 +339,17 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 # 非ブロッキングで1ループごとに進捗管理
                 if not turn_left_started:
                     turn_left_started = True
-                    # Yaw基準の初期値取得（開始時のみセット）
-                    yaw_start = et.get_spike_status().sensors.gyro.x if et.get_spike_status().sensors.gyro and et.get_spike_status().sensors.gyro.x is not None else 0.0
+                    et.reset_roll_angle()  # ロール積分値リセット
                 # 回転中は常に左回転指令
-                left_speed = -10
-                right_speed = 10
+                left_speed = 0
+                right_speed = BASE_SPEED
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-                # 90度到達でPAUSEに遷移（Yaw基準、ラップ処理付き）
-                yaw_now = et.get_spike_status().sensors.gyro.x if et.get_spike_status().sensors.gyro and et.get_spike_status().sensors.gyro.x is not None else 0.0
-                if yaw_start is not None:
-                    yaw_diff = yaw_now - yaw_start
-                    while yaw_diff > 180:
-                        yaw_diff -= 360
-                    while yaw_diff < -180:
-                        yaw_diff += 360
-                    if yaw_diff <= -90:
-                        mode = Mode.PAUSE
-                        left_speed = right_speed = 0
-                        et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-                        turn_left_started = False
-                        yaw_start = None
+                # ロール積分値で90度左回転判定
+                if et.is_roll_angle_exceeded(90, 'left'):
+                    mode = Mode.PAUSE
+                    left_speed = right_speed = 0
+                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+                    turn_left_started = False
             elif mode == Mode.TEST:
                 # ロール補正のみでベーススピード走行
                 # left_speed, right_speed = et.calc_max_speed_with_roll_control(BASE_SPEED)

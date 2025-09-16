@@ -188,15 +188,16 @@ class ETRobot(object):
 
     def reset_roll_angle(self) -> None:
         """
-        ロール（左右傾き）積分角度をリセットする。
-        SpikeStatusのreset_gyro_angle()を呼ぶだけ。
+        ロール（y軸）積分角度をリセットする。
+        SpikeStatusのreset_gyro_angle()を呼び、y軸のみ0にする。
         """
         status = self.get_spike_status()
         status.reset_gyro_angle()
+        status._gyro_angle_y = 0.0  # y軸のみリセット
 
     def is_roll_angle_exceeded(self, threshold: float, direction: str) -> bool:
         """
-        ロール角度（z軸）が指定した方向・閾値を超えたか判定する。
+        ロール角度（y軸積分値）が指定した方向・閾値を超えたか判定する。
         Args:
             threshold (float): 閾値（度）。必須。
             direction (str): 'left'（負方向へthreshold度以上）, 'right'（正方向へthreshold度以上）
@@ -204,8 +205,8 @@ class ETRobot(object):
             bool: 条件を満たせばTrue、そうでなければFalse
         """
         status = self.get_spike_status()
-        angle = status.get_gyro_angle_z()
-        # print(f"[DEBUG] is_roll_angle_exceeded: gyro_z={angle}, threshold={threshold}, direction={direction}")
+        angle = status.get_gyro_angle_y()  # y軸（ロール）積分値
+        # print(f"[DEBUG] is_roll_angle_exceeded: gyro_y={angle}, threshold={threshold}, direction={direction}")
         if direction == 'left':
             return angle <= -threshold
         elif direction == 'right':
