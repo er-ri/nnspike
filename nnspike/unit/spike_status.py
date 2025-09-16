@@ -165,17 +165,7 @@ class SpikeStatus:
         if not hasattr(self, '_last_update_time'):
             self._last_update_time = now
         dt = (now - self._last_update_time) * 1000
-        print(f"[SpikeStatus] update called (dt={dt:.1f}ms)")
         self._last_update_time = now
-        # 生データ（raw）を必ず出力
-        if isinstance(data, bytes):
-            print(f"[SpikeStatus] RAW bytes: {data}")
-            try:
-                print(f"[SpikeStatus] RAW decoded: {data.decode('utf-8', errors='replace')}")
-            except Exception:
-                pass
-        else:
-            print(f"[SpikeStatus] RAW str: {data}")
         """
         Update the status with new data from the Spike Prime.
 
@@ -186,8 +176,8 @@ class SpikeStatus:
         try:
             parsed_data = self._parse_data(data)
         except Exception as e:
-            print(f"[SpikeStatus] Exception in _parse_data: {e}")
-            print(f"[SpikeStatus] RAW (error): {data}")
+            # print(f"Exception in _parse_data: {e}")
+            # print(f"RAW (error): {data}")
             traceback.print_exc()
             return
 
@@ -202,30 +192,26 @@ class SpikeStatus:
             # バッテリー情報のみ更新
             battery_data = parsed_data.get("battery", {})
             self.battery = BatteryStatus.from_dict(battery_data)
-            print(f"[SpikeStatus] m={self.message_type} skip")
+            # print(f"m={self.message_type} skip")
             return
 
         # Update motors
         motors_data = parsed_data.get("motors", {})
-        print(f"[SpikeStatus] motors_data: {motors_data}")
         for motor_id, motor_data in motors_data.items():
             if motor_id in self.motors:
                 self.motors[motor_id] = MotorStatus.from_dict(motor_data)
 
         # Update sensors
         sensors_data = parsed_data.get("sensors", {})
-        print(f"[SpikeStatus] sensors_data: {sensors_data}")
         self.sensors = SensorStatus.from_dict(sensors_data)
 
         # --- gyro積分角度の更新 ---
         now = self.timestamp
         gyro = self.sensors.gyro
-        print(f"[SpikeStatus] gyro: {gyro}")
         if gyro is not None:
             # 前回値があればdtを計算
             if self._last_gyro_update_time is not None:
                 dt = now - self._last_gyro_update_time
-                print(f"[SpikeStatus] dt={dt*1000:.1f}ms, last_gyro_y={self._last_gyro_y}, gyro_y={gyro.y}")
                 # 積分（台形則: 前回と今回の平均 × dt）
                 if self._last_gyro_x is not None:
                     self._gyro_angle_x += ((self._last_gyro_x + gyro.x) / 2.0) * dt
