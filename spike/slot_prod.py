@@ -194,7 +194,7 @@ async def sender_task():
             for key, arr in zip(["A","B","C"], [mr, ml, ma]):
                 motors_data[key] = {}
                 for i, field in enumerate(["speed","relative_position","position","power"]):
-                    v = arr[i] if i < len(arr) else None
+                    v = arr[i] if i < len(arr) else 0  # 要素不足時は必ず0
                     motors_data[key][field] = get_with_last(v, lv["motors"][key][i])
                     lv["motors"][key][i] = motors_data[key][field]
             force_val = get_with_last(fs[1], lv["force"])
