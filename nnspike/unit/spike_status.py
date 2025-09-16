@@ -160,36 +160,47 @@ class SpikeStatus:
         self._last_gyro_z = None
 
     def update(self, data: Union[str, bytes, Dict]) -> None:
+        print("[SpikeStatus] update called")
+        print(f"[SpikeStatus] raw input: {data}")
         """
         Update the status with new data from the Spike Prime.
 
         Args:
             data: Raw data from the Spike Prime (string, bytes, or dictionary)
         """
-        parsed_data = self._parse_data(data)
+        try:
+            parsed_data = self._parse_data(data)
+        except Exception as e:
+            print(f"[SpikeStatus] Exception in _parse_data: {e}")
+            return
 
-        # Update basic metadata
-        self.timestamp = parsed_data.get("timestamp", time.time())
-        self.message_type = parsed_data.get("message_type", -1)
-        self.raw_data = parsed_data.get("raw", {})
+    print(f"[SpikeStatus] parsed_data: {parsed_data}")
+    # Update basic metadata
+    self.timestamp = parsed_data.get("timestamp", time.time())
+    self.message_type = parsed_data.get("message_type", -1)
+    self.raw_data = parsed_data.get("raw", {})
 
         # Update motors
         motors_data = parsed_data.get("motors", {})
+        print(f"[SpikeStatus] motors_data: {motors_data}")
         for motor_id, motor_data in motors_data.items():
             if motor_id in self.motors:
                 self.motors[motor_id] = MotorStatus.from_dict(motor_data)
 
         # Update sensors
-        sensors_data = parsed_data.get("sensors", {})
-        self.sensors = SensorStatus.from_dict(sensors_data)
+    sensors_data = parsed_data.get("sensors", {})
+    print(f"[SpikeStatus] sensors_data: {sensors_data}")
+    self.sensors = SensorStatus.from_dict(sensors_data)
 
         # --- gyro積分角度の更新 ---
-        now = self.timestamp
-        gyro = self.sensors.gyro
-        if gyro is not None:
+    now = self.timestamp
+    gyro = self.sensors.gyro
+    print(f"[SpikeStatus] gyro: {gyro}")
+    if gyro is not None:
             # 前回値があればdtを計算
             if self._last_gyro_update_time is not None:
                 dt = now - self._last_gyro_update_time
+                print(f"[SpikeStatus] dt={dt*1000:.1f}ms, last_gyro_y={self._last_gyro_y}, gyro_y={gyro.y}")
                 # 積分（台形則: 前回と今回の平均 × dt）
                 if self._last_gyro_x is not None:
                     self._gyro_angle_x += ((self._last_gyro_x + gyro.x) / 2.0) * dt
