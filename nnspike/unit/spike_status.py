@@ -160,110 +160,54 @@ class SpikeStatus:
         self._last_gyro_z = None
 
     def update(self, data: Union[str, bytes, Dict]) -> None:
-        # update呼び出し間隔（ms）を計算（m=0時のみprint）
-        now = time.time()
-        if not hasattr(self, '_last_update_time'):
-            self._last_update_time = now
-        dt = (now - self._last_update_time) * 1000
-        self._last_update_time = now
         """
         Update the status with new data from the Spike Prime.
-
         Args:
             data: Raw data from the Spike Prime (string, bytes, or dictionary)
         """
-        import traceback
         try:
             parsed_data = self._parse_data(data)
-        except Exception as e:
-            print(f"Exception in _parse_data: {e}")
-            print(f"RAW (error): {data}")
-            traceback.print_exc()
+        except Exception:
             return
 
-        # Gyro値は[Yaw, Pitch, Roll]で統一して表示
-        if 'sensors' in parsed_data and 'gyro' in parsed_data['sensors']:
-            gyro = parsed_data['sensors']['gyro']
-            # x=Yaw, y=Roll, z=Pitch
-            gyro_list = [gyro.get('x', 0), gyro.get('y', 0), gyro.get('z', 0)]
-            print(f"[SpikeStatus] parsed_data: ... gyro: [Yaw={gyro_list[0]}, Roll={gyro_list[1]}, Pitch={gyro_list[2]}]  # [x=Yaw, y=Roll, z=Pitch]")
-        else:
-            print(f"[SpikeStatus] parsed_data: {parsed_data}")
-        # Update basic metadata
         self.timestamp = parsed_data.get("timestamp", time.time())
         self.message_type = parsed_data.get("message_type", -1)
         self.raw_data = parsed_data.get("raw", {})
 
-        # m=0（センサーデータ）以外は積分・センサー・モーター処理を完全にスキップ
-        if self.message_type not in [0, -1]:
-            # バッテリー情報のみ更新
-            battery_data = parsed_data.get("battery", {})
-            self.battery = BatteryStatus.from_dict(battery_data)
-            print(f"m={self.message_type} skip")
-            return
-        # m=0またはm=-1のとき、受信間隔と各センサー値を個別にprint（ジャイロはm=-1も正常扱い）
-        print(f"[SpikeStatus][m={self.message_type}] interval: {dt:.1f}ms")
-        motors_data = parsed_data.get("motors", {})
-        sensors_data = parsed_data.get("sensors", {})
-        force = sensors_data.get("force", None)
-        color = sensors_data.get("color", {})
-        color_list = [color.get("reflected", 0), color.get("ambient", 0), color.get("color", 0)] if color else None
-        gyro = sensors_data.get("gyro", {})
-        if gyro:
-            # x=Yaw, y=Roll, z=Pitch
-            gyro_list = [gyro.get("x", 0), gyro.get("y", 0), gyro.get("z", 0)]
-            print(f"[SpikeStatus][m={self.message_type}] motors: {motors_data}")
-            print(f"[SpikeStatus][m={self.message_type}] force: {force}")
-            print(f"[SpikeStatus][m={self.message_type}] color: {color_list}")
-            print(f"[SpikeStatus][m={self.message_type}] gyro: [Yaw={gyro_list[0]}, Roll={gyro_list[1]}, Pitch={gyro_list[2]}]  # [x=Yaw, y=Roll, z=Pitch]")
-        else:
-            print(f"[SpikeStatus][m={self.message_type}] motors: {motors_data}")
-            print(f"[SpikeStatus][m={self.message_type}] force: {force}")
-            print(f"[SpikeStatus][m={self.message_type}] color: {color_list}")
-            print(f"[SpikeStatus][m={self.message_type}] gyro: None  # [Yaw, Roll, Pitch]")
+        # message_typeによる分岐・returnを廃止。常に全データを更新。
 
         # Update motors
-        motors_data = parsed_data.get("motors", {})
-        for motor_id, motor_data in motors_data.items():
+        for motor_id, motor_data in parsed_data.get("motors", {}).items():
             if motor_id in self.motors:
                 self.motors[motor_id] = MotorStatus.from_dict(motor_data)
 
         # Update sensors
-        sensors_data = parsed_data.get("sensors", {})
-        self.sensors = SensorStatus.from_dict(sensors_data)
+        self.sensors = SensorStatus.from_dict(parsed_data.get("sensors", {}))
 
-        # --- gyro積分角度の更新 ---
+        # Gyro integration
         now = self.timestamp
         gyro = self.sensors.gyro
         if gyro is not None:
-            # 前回値があればdtを計算
             if self._last_gyro_update_time is not None:
                 dt = now - self._last_gyro_update_time
-                # 積分（台形則: 前回と今回の平均 × dt）
                 if self._last_gyro_x is not None:
                     self._gyro_angle_x += ((self._last_gyro_x + gyro.x) / 2.0) * dt
                 if self._last_gyro_y is not None:
                     self._gyro_angle_y += ((self._last_gyro_y + gyro.y) / 2.0) * dt
                 if self._last_gyro_z is not None:
                     self._gyro_angle_z += ((self._last_gyro_z + gyro.z) / 2.0) * dt
-            # 値を保存
             self._last_gyro_update_time = now
             self._last_gyro_x = gyro.x
             self._last_gyro_y = gyro.y
             self._last_gyro_z = gyro.z
-        else:
-            # gyroがNoneなら前回値はクリアしない（センサ未接続時など）
-            pass
 
-        # Update battery
-        battery_data = parsed_data.get("battery", {})
-        self.battery = BatteryStatus.from_dict(battery_data)
+        self.battery = BatteryStatus.from_dict(parsed_data.get("battery", {}))
 
     def get_gyro_angle_x(self) -> float:
         """
         積分したgyro_x角度（度）を返す。
         Returns:
-            float: x軸（ヨー/Yaw）角度（度）
+            float: x軸角度（度）
         """
         return self._gyro_angle_x
 
@@ -271,7 +215,7 @@ class SpikeStatus:
         """
         積分したgyro_y角度（度）を返す。
         Returns:
-            float: y軸（ロール/Roll）角度（度）
+            float: y軸角度（度）
         """
         return self._gyro_angle_y
 
@@ -279,7 +223,7 @@ class SpikeStatus:
         """
         積分したgyro_z角度（度）を返す。
         Returns:
-            float: z軸（ピッチ/Pitch）角度（度）
+            float: z軸角度（度）
         """
         return self._gyro_angle_z
 
@@ -442,8 +386,8 @@ class SpikeStatus:
         if self.sensors.color:
             lines.append(f"  Color - Reflected: {self.sensors.color.reflected}, Ambient: {self.sensors.color.ambient}, Color: {self.sensors.color.color}")
         if self.sensors.gyro:
-            # 表示順を[x=Yaw, y=Roll, z=Pitch]で統一
-            lines.append(f"  Gyro - Yaw: {self.sensors.gyro.x}, Roll: {self.sensors.gyro.y}, Pitch: {self.sensors.gyro.z}")
+            # 表示順を[x, y, z]で統一
+            lines.append(f"  Gyro - x: {self.sensors.gyro.x}, y: {self.sensors.gyro.y}, z: {self.sensors.gyro.z}")
         if self.sensors.accelerometer:
             lines.append(f"  Accel - X: {self.sensors.accelerometer.x}, Y: {self.sensors.accelerometer.y}, Z: {self.sensors.accelerometer.z}")
         if self.sensors.position:
