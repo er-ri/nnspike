@@ -174,11 +174,11 @@ class SpikeStatus:
             print(f"[SpikeStatus] Exception in _parse_data: {e}")
             return
 
-    print(f"[SpikeStatus] parsed_data: {parsed_data}")
-    # Update basic metadata
-    self.timestamp = parsed_data.get("timestamp", time.time())
-    self.message_type = parsed_data.get("message_type", -1)
-    self.raw_data = parsed_data.get("raw", {})
+        print(f"[SpikeStatus] parsed_data: {parsed_data}")
+        # Update basic metadata
+        self.timestamp = parsed_data.get("timestamp", time.time())
+        self.message_type = parsed_data.get("message_type", -1)
+        self.raw_data = parsed_data.get("raw", {})
 
         # Update motors
         motors_data = parsed_data.get("motors", {})
@@ -188,15 +188,15 @@ class SpikeStatus:
                 self.motors[motor_id] = MotorStatus.from_dict(motor_data)
 
         # Update sensors
-    sensors_data = parsed_data.get("sensors", {})
-    print(f"[SpikeStatus] sensors_data: {sensors_data}")
-    self.sensors = SensorStatus.from_dict(sensors_data)
+        sensors_data = parsed_data.get("sensors", {})
+        print(f"[SpikeStatus] sensors_data: {sensors_data}")
+        self.sensors = SensorStatus.from_dict(sensors_data)
 
         # --- gyro積分角度の更新 ---
-    now = self.timestamp
-    gyro = self.sensors.gyro
-    print(f"[SpikeStatus] gyro: {gyro}")
-    if gyro is not None:
+        now = self.timestamp
+        gyro = self.sensors.gyro
+        print(f"[SpikeStatus] gyro: {gyro}")
+        if gyro is not None:
             # 前回値があればdtを計算
             if self._last_gyro_update_time is not None:
                 dt = now - self._last_gyro_update_time
