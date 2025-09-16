@@ -107,7 +107,7 @@ class Video:
     def release(self):
         self.running = False
         self.thread.join()
-        self.cap.release()
+        # self.cap.release()
 
 def handle_status_and_video(frame, status, mode, left_speed, right_speed,
                            record_sensor_data, sensor_recorder, save_camera_video, video_writer):
@@ -219,7 +219,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         else:
             diff_ms = 0
         debug_state['last_print'] = now
-        print(f"[DEBUG] loop={debug_state['counter']} since_last={diff_ms}ms")
+    # print(f"[DEBUG] loop={debug_state['counter']} since_last={diff_ms}ms")
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
@@ -251,13 +251,14 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
 
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
-    # --- Videoクラスでカメラ起動・ウォームアップ ---
-    video = Video()
-    video.warmup()
+    # --- Videoクラスでカメラ起動・ウォームアップ（カメラ停止中） ---
+    # video = Video()
+    # video.warmup()
     # --- スタート待ち ---
     first_key = wait_for_start(et, keyboard, state_flags, manual_mode=manual_mode)
     if first_key is None:
-        video.release()
+        # if 'video' is used, release it
+        # video.release()
         return
 
     # wait_for_start()の後にmodeの初期値を決定
@@ -283,11 +284,11 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         turn_left_started = False
         while et.is_running:
             loop_start = time.time()
-            
-            ret, frame = video.read()
-            if not ret:
-                print("Can't receive frame (stream end?). Exiting ...")
-                break
+            # カメラ停止中のためframe取得・処理は省略
+            # ret, frame = video.read()
+            # if not ret:
+            #     print("Can't receive frame (stream end?). Exiting ...")
+            #     break
 
             # status取得・センサー記録・動画送信処理
             if need_status:
@@ -357,7 +358,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         print(f"Error: {e}")
     finally:
         et.stop()
-        video.release()
+        # if 'video' is used, release it
+        # video.release()
 
         # Clean up video writer if it was used
         if save_camera_video and video_writer is not None:

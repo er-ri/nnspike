@@ -216,6 +216,7 @@ class ETRobot(object):
         """
         status = self.get_spike_status()
         angle = status.get_gyro_angle_y()
+        print(f"[DEBUG] is_roll_angle_exceeded: gyro_y={angle}, threshold={threshold}, direction={direction}")
         if direction == 'left':
             return angle <= -threshold
         elif direction == 'right':

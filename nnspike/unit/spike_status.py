@@ -195,6 +195,7 @@ class SpikeStatus:
                     self._gyro_angle_x += ((self._last_gyro_x + gyro.x) / 2.0) * dt
                 if self._last_gyro_y is not None:
                     self._gyro_angle_y += ((self._last_gyro_y + gyro.y) / 2.0) * dt
+                    print(f"[DEBUG] _gyro_angle_y={self._gyro_angle_y:.2f}, dt={dt*1000:.1f}ms, raw_gyro_y={gyro.y:.2f}, now={now:.3f}")
                 if self._last_gyro_z is not None:
                     self._gyro_angle_z += ((self._last_gyro_z + gyro.z) / 2.0) * dt
             # 値を保存
