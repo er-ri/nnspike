@@ -202,11 +202,13 @@ class SpikeStatus:
         color = sensors_data.get("color", {})
         color_list = [color.get("reflected", 0), color.get("ambient", 0), color.get("color", 0)] if color else None
         gyro = sensors_data.get("gyro", {})
+        # slot_prod.pyの送信順（x=Yaw, y=Pitch, z=Roll）に合わせる
+        # 表示も[Yaw, Pitch, Roll]の順で統一
         gyro_list = [gyro.get("x", 0), gyro.get("y", 0), gyro.get("z", 0)] if gyro else None
         print(f"[SpikeStatus][m=0] motors: {motors_data}")
         print(f"[SpikeStatus][m=0] force: {force}")
         print(f"[SpikeStatus][m=0] color: {color_list}")
-        print(f"[SpikeStatus][m=0] gyro: {gyro_list}")
+        print(f"[SpikeStatus][m=0] gyro: {gyro_list}  # [Yaw, Pitch, Roll]")
 
         # Update motors
         motors_data = parsed_data.get("motors", {})
