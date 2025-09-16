@@ -181,7 +181,13 @@ class SpikeStatus:
             traceback.print_exc()
             return
 
-        print(f"[SpikeStatus] parsed_data: {parsed_data}")
+        # Gyro値は[Yaw, Pitch, Roll]で統一して表示
+        if 'sensors' in parsed_data and 'gyro' in parsed_data['sensors']:
+            gyro = parsed_data['sensors']['gyro']
+            gyro_list = [gyro.get('x', 0), gyro.get('y', 0), gyro.get('z', 0)]
+            print(f"[SpikeStatus] parsed_data: ... gyro: [Yaw={gyro_list[0]}, Pitch={gyro_list[1]}, Roll={gyro_list[2]}] ...")
+        else:
+            print(f"[SpikeStatus] parsed_data: {parsed_data}")
         # Update basic metadata
         self.timestamp = parsed_data.get("timestamp", time.time())
         self.message_type = parsed_data.get("message_type", -1)
@@ -204,11 +210,17 @@ class SpikeStatus:
         gyro = sensors_data.get("gyro", {})
         # slot_prod.pyの送信順（x=Yaw, y=Pitch, z=Roll）に合わせる
         # 表示も[Yaw, Pitch, Roll]の順で統一
-        gyro_list = [gyro.get("x", 0), gyro.get("y", 0), gyro.get("z", 0)] if gyro else None
-        print(f"[SpikeStatus][m=0] motors: {motors_data}")
-        print(f"[SpikeStatus][m=0] force: {force}")
-        print(f"[SpikeStatus][m=0] color: {color_list}")
-        print(f"[SpikeStatus][m=0] gyro: {gyro_list}  # [Yaw, Pitch, Roll]")
+        if gyro:
+            gyro_list = [gyro.get("x", 0), gyro.get("y", 0), gyro.get("z", 0)]
+            print(f"[SpikeStatus][m=0] motors: {motors_data}")
+            print(f"[SpikeStatus][m=0] force: {force}")
+            print(f"[SpikeStatus][m=0] color: {color_list}")
+            print(f"[SpikeStatus][m=0] gyro: [Yaw={gyro_list[0]}, Pitch={gyro_list[1]}, Roll={gyro_list[2]}]  # [Yaw, Pitch, Roll]")
+        else:
+            print(f"[SpikeStatus][m=0] motors: {motors_data}")
+            print(f"[SpikeStatus][m=0] force: {force}")
+            print(f"[SpikeStatus][m=0] color: {color_list}")
+            print(f"[SpikeStatus][m=0] gyro: None  # [Yaw, Pitch, Roll]")
 
         # Update motors
         motors_data = parsed_data.get("motors", {})
@@ -430,7 +442,8 @@ class SpikeStatus:
         if self.sensors.color:
             lines.append(f"  Color - Reflected: {self.sensors.color.reflected}, Ambient: {self.sensors.color.ambient}, Color: {self.sensors.color.color}")
         if self.sensors.gyro:
-            lines.append(f"  Gyro - X: {self.sensors.gyro.x}, Y: {self.sensors.gyro.y}, Z: {self.sensors.gyro.z}")
+            # 表示順を[Yaw, Pitch, Roll]で統一
+            lines.append(f"  Gyro - Yaw: {self.sensors.gyro.x}, Pitch: {self.sensors.gyro.y}, Roll: {self.sensors.gyro.z}")
         if self.sensors.accelerometer:
             lines.append(f"  Accel - X: {self.sensors.accelerometer.x}, Y: {self.sensors.accelerometer.y}, Z: {self.sensors.accelerometer.z}")
         if self.sensors.position:
