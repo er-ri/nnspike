@@ -167,6 +167,15 @@ class SpikeStatus:
         dt = (now - self._last_update_time) * 1000
         print(f"[SpikeStatus] update called (dt={dt:.1f}ms)")
         self._last_update_time = now
+        # 生データ（raw）を必ず出力
+        if isinstance(data, bytes):
+            print(f"[SpikeStatus] RAW bytes: {data}")
+            try:
+                print(f"[SpikeStatus] RAW decoded: {data.decode('utf-8', errors='replace')}")
+            except Exception:
+                pass
+        else:
+            print(f"[SpikeStatus] RAW str: {data}")
         """
         Update the status with new data from the Spike Prime.
 
@@ -177,6 +186,7 @@ class SpikeStatus:
             parsed_data = self._parse_data(data)
         except Exception as e:
             print(f"[SpikeStatus] Exception in _parse_data: {e}")
+            print(f"[SpikeStatus] RAW (error): {data}")
             return
 
     # print(f"[SpikeStatus] parsed_data: {parsed_data}")
