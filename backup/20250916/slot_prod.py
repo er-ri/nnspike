@@ -2,7 +2,7 @@
 
 import gc
 import time
-import json
+
 import hub  # type: ignore
 import uasyncio  # type: ignore
 
@@ -153,65 +153,18 @@ async def receiver():
 
         await uasyncio.sleep(0.01)  # Sleep for 10ms to reduce CPU usage
 
-async def sender():
-    while True:
-        try:
-            data = {
-                "message_type": 0,
-                "motors": {
-                    "A": {
-                        "speed": lego_spike.motor_right.get()[0],
-                        "relative_position": lego_spike.motor_right.get()[1],
-                        "position": lego_spike.motor_right.get()[2],
-                        "power": lego_spike.motor_right.get()[3],
-                    },
-                    "B": {
-                        "speed": lego_spike.motor_left.get()[0],
-                        "relative_position": lego_spike.motor_left.get()[1],
-                        "position": lego_spike.motor_left.get()[2],
-                        "power": lego_spike.motor_left.get()[3],
-                    },
-                    "C": {
-                        "speed": lego_spike.motor_arm.get()[0],
-                        "relative_position": lego_spike.motor_arm.get()[1],
-                        "position": lego_spike.motor_arm.get()[2],
-                        "power": lego_spike.motor_arm.get()[3],
-                    },
-                },
-                "sensors": {
-                    "force": lego_spike.force_sensor.get()[1],
-                    "distance": lego_spike.ultrasonic_sensor.get()[0],
-                    "color": {
-                        "reflected": lego_spike.color_sensor.get()[2],
-                        "ambient": lego_spike.color_sensor.get()[3],
-                        "color": lego_spike.color_sensor.get()[4],
-                    },
-                    "gyro": {
-                        "x": hub.motion.gyro()[0],
-                        "y": hub.motion.gyro()[1],
-                        "z": hub.motion.gyro()[2],
-                    },
-                    "accelerometer": {
-                        "x": hub.motion.accelerometer()[0],
-                        "y": hub.motion.accelerometer()[1],
-                        "z": hub.motion.accelerometer()[2],
-                    },
-                    "position": {
-                        "x": hub.motion.position()[1],
-                        "y": hub.motion.position()[2],
-                    },
-                },
-            }
-            send_str = json.dumps(data) + "\n"
-            lego_spike.usb.write(send_str.encode())
-        except Exception:
-            pass
-        await uasyncio.sleep(0.04)  # 送信周期40ms
 
 async def main_task():
+    tasks = list()
+
     receiver_task = uasyncio.create_task(receiver())
-    sender_task = uasyncio.create_task(sender())
-    await uasyncio.gather(receiver_task, sender_task)
+    tasks.append(receiver_task)
+
+    # Run indefinitely - let the receiver task handle commands continuously
+    try:
+        await receiver_task
+    except uasyncio.CancelledError:
+        pass
 
 
 # Trigger a garbage collection cycle
