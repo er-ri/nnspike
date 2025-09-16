@@ -207,7 +207,7 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
 
 def main(record_sensor_data=False, save_camera_video=False, course="right", course_type="upper", manual_mode=False):
 
-    def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.05):
+    def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.03):
         """debug出力処理＋ループ周期50msに制御"""
         loop_elapsed = loop_end - loop_start
         debug_state['counter'] += 1
@@ -219,7 +219,11 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         else:
             diff_ms = 0
         debug_state['last_print'] = now
-    # print(f"[DEBUG] loop={debug_state['counter']} since_last={diff_ms}ms")
+        # min_interval周期制御（1ループmin_interval未満ならsleepで調整）
+        sleep_time = min_interval - loop_elapsed
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+        print(f"[DEBUG] loop={debug_state['counter']} since_last={diff_ms}ms")
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
