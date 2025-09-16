@@ -184,17 +184,14 @@ class SpikeStatus:
                     self._gyro_angle_y += gyro.y * dt
                 if self._last_gyro_z is not None:
                     self._gyro_angle_z += gyro.z * dt
+                # 積分値加算直後にdtを表示
+                print(f"[SpikeStatus] gyro_integrated: x={self._gyro_angle_x:.2f}, y={self._gyro_angle_y:.2f}, z={self._gyro_angle_z:.2f}, dt={dt:.4f}")
+            else:
+                print(f"[SpikeStatus] gyro_integrated: x={self._gyro_angle_x:.2f}, y={self._gyro_angle_y:.2f}, z={self._gyro_angle_z:.2f}, dt=0.0000")
             self._last_gyro_update_time = now
             self._last_gyro_x = gyro.x
             self._last_gyro_y = gyro.y
             self._last_gyro_z = gyro.z
-
-        # ジャイロ積分値とdt（加算に使った値）を表示
-        if gyro is not None and self._last_gyro_update_time is not None:
-            dt = now - self._last_gyro_update_time
-        else:
-            dt = 0.0
-        print(f"[SpikeStatus] gyro_integrated: x={self._gyro_angle_x:.2f}, y={self._gyro_angle_y:.2f}, z={self._gyro_angle_z:.2f}, dt={dt:.4f}")
 
         self.battery = BatteryStatus.from_dict(parsed_data.get("battery", {}))
 
