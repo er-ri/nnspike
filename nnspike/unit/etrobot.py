@@ -53,7 +53,7 @@ class ETRobot(object):
                 diff_ms = int((now - prev_time) * 1000)
             else:
                 diff_ms = 0
-            print(f"[ETRobotThread] update={self.update_count} since_last={diff_ms}ms")
+            # print(f"[ETRobotThread] update={self.update_count} since_last={diff_ms}ms")
             prev_time = now
 
     def receive(self) -> None:
