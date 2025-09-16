@@ -213,6 +213,24 @@ class ETRobot(object):
         else:
             raise ValueError("direction must be 'left' or 'right'")
 
+    def is_yaw_angle_exceeded(self, threshold: float, direction: str) -> bool:
+        """
+        Yaw角度（x軸）が指定した方向・閾値を超えたか判定する。
+        Args:
+            threshold (float): 閾値（度）。必須。
+            direction (str): 'left'（負方向へthreshold度以上）, 'right'（正方向へthreshold度以上）
+        Returns:
+            bool: 条件を満たせばTrue、そうでなければFalse
+        """
+        status = self.get_spike_status()
+        angle = status.sensors.gyro.x if status.sensors.gyro and status.sensors.gyro.x is not None else 0.0
+        if direction == 'left':
+            return angle <= -threshold
+        elif direction == 'right':
+            return angle >= threshold
+        else:
+            raise ValueError("direction must be 'left' or 'right'")
+
     def get_side_adjust_by_roll(self) -> tuple[int, int]:
         """
         ロール角度（z軸）による補正値を返す。

@@ -338,12 +338,16 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if not turn_left_started:
                     et.reset_roll_angle()
                     turn_left_started = True
+                    # Yaw基準の初期値取得
+                    yaw_start = et.get_spike_status().sensors.gyro.x if et.get_spike_status().sensors.gyro and et.get_spike_status().sensors.gyro.x is not None else 0.0
                 # 回転中は常に左回転指令
                 left_speed = -BASE_SPEED
                 right_speed = BASE_SPEED
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-                # 90度到達でPAUSEに遷移
-                if et.is_roll_angle_exceeded(90, 'left'):
+                # 90度到達でPAUSEに遷移（Yaw基準）
+                yaw_now = et.get_spike_status().sensors.gyro.x if et.get_spike_status().sensors.gyro and et.get_spike_status().sensors.gyro.x is not None else 0.0
+                yaw_diff = yaw_now - yaw_start
+                if et.is_yaw_angle_exceeded(90, 'left') or yaw_diff <= -90:
                     mode = Mode.PAUSE
                     left_speed = right_speed = 0
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
