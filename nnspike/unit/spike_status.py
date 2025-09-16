@@ -139,10 +139,10 @@ class SpikeStatus:
         # self._gyro_angle_x: float = 0.0
         # self._gyro_angle_y: float = 0.0
         # self._gyro_angle_z: float = 0.0
-        self._last_gyro_update_time: Optional[float] = None
-        self._last_gyro_x: Optional[float] = None
-        self._last_gyro_y: Optional[float] = None
-        self._last_gyro_z: Optional[float] = None
+        # self._last_gyro_update_time: Optional[float] = None
+        self._last_gyro_x = None
+        self._last_gyro_y = None
+        self._last_gyro_z = None
 
         if raw_data is not None:
             self.update(raw_data)
@@ -175,7 +175,8 @@ class SpikeStatus:
             if motor_id in self.motors:
                 self.motors[motor_id] = MotorStatus.from_dict(motor_data)
                 # dt（更新間隔）はここで利用可能
-                print(f"Motor {motor_id} update dt: {dt}, position: {self.motors[motor_id].position}, power: {self.motors[motor_id].power}, relative_position: {self.motors[motor_id].relative_position}, speed: {self.motors[motor_id].speed}")
+                dt_ms = dt * 1000 if dt is not None else None
+                print(f"Motor {motor_id} update dt: {dt_ms:.2f} ms, position: {self.motors[motor_id].position}, power: {self.motors[motor_id].power}, relative_position: {self.motors[motor_id].relative_position}, speed: {self.motors[motor_id].speed}")
 
         # Update sensors
         self.sensors = SensorStatus.from_dict(parsed_data.get("sensors", {}))
