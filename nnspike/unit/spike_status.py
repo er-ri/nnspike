@@ -147,18 +147,6 @@ class SpikeStatus:
         if raw_data is not None:
             self.update(raw_data)
 
-    def reset_gyro_angle(self) -> None:
-        """
-        積分したジャイロ角度のみをリセットする。
-        """
-        self._gyro_angle_x = 0.0
-        self._gyro_angle_y = 0.0
-        self._gyro_angle_z = 0.0
-        self._last_gyro_update_time = None
-        self._last_gyro_x = None
-        self._last_gyro_y = None
-        self._last_gyro_z = None
-
     def update(self, data: Union[str, bytes, Dict]) -> None:
         """
         Update the status with new data from the Spike Prime.

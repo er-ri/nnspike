@@ -193,12 +193,11 @@ class ETRobot(object):
 
     def reset_roll_angle(self) -> None:
         """
-        ロール（y軸）積分角度をリセットする。
-        SpikeStatusのreset_gyro_angle()を呼び、y軸のみ0にする。
+        ロール（y軸）積分角度の基準値を保存する。
+        以降の判定はこの基準値との差分で行う。
         """
         status = self.get_spike_status()
-        status.reset_gyro_angle()
-        status._gyro_angle_y = 0.0  # y軸のみリセット
+        self._roll_angle_offset = status.get_gyro_angle_y()
 
     def is_roll_angle_exceeded(self, threshold: float, direction: str) -> bool:
         """
@@ -210,13 +209,14 @@ class ETRobot(object):
             bool: 条件を満たせばTrue、そうでなければFalse
         """
         status = self.get_spike_status()
-        angle = status.get_gyro_angle_y()  # y軸（ロール）積分値
-        # print(f"[DEBUG] is_roll_angle_exceeded: gyro_y={angle}, threshold={threshold}, direction={direction}")
-        print(f"[ETRobot判定] gyro_y={angle}, threshold={threshold}, direction={direction}")
+        angle = status.get_gyro_angle_y()
+        offset = getattr(self, '_roll_angle_offset', 0.0)
+        diff = angle - offset
+        print(f"[ETRobot判定] gyro_y={angle}, offset={offset}, diff={diff}, threshold={threshold}, direction={direction}")
         if direction == 'left':
-            return angle >= threshold
+            return diff >= threshold
         elif direction == 'right':
-            return angle <= -threshold
+            return diff <= -threshold
         else:
             raise ValueError("direction must be 'left' or 'right'")
 
@@ -228,11 +228,12 @@ class ETRobot(object):
             direction (str): 'left'（負方向へthreshold度以上）, 'right'（正方向へthreshold度以上）
         Returns:
             bool: 条件を満たせばTrue、そうでなければFalse
-        """
-        status = self.get_spike_status()
-        angle = status.sensors.gyro.x if status.sensors.gyro and status.sensors.gyro.x is not None else 0.0
-        if direction == 'left':
-            return angle <= -threshold
+            offset = getattr(self, '_roll_angle_offset', 0.0)
+            diff = angle - offset
+            if direction == 'left':
+                return diff >= threshold
+            elif direction == 'right':
+                return diff <= -threshold
         elif direction == 'right':
             return angle >= threshold
         else:
