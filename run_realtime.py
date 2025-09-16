@@ -346,6 +346,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if et.is_roll_angle_exceeded(90, 'left'):
                     mode = Mode.PAUSE
                     left_speed = right_speed = 0
+                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                     turn_left_started = False
             elif mode == Mode.TEST:
                 # ロール補正のみでベーススピード走行
@@ -353,6 +354,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.PAUSE:
                 left_speed, right_speed = 0, 0
+                et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
 
             # --- ループ周期制限とdebug出力（最後） ---
             loop_end = time.time()
