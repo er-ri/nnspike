@@ -204,32 +204,32 @@ class SpikeStatus:
 
         self.battery = BatteryStatus.from_dict(parsed_data.get("battery", {}))
 
-    def get_gyro_angle_x(self) -> float:
-        """
-        積分したgyro_x角度（度）を返す。
-        Returns:
-            float: x軸角度（度）
-        """
-        # return self._gyro_angle_x
-        return 0.0
+    # def get_gyro_angle_x(self) -> float:
+    #     """
+    #     積分したgyro_x角度（度）を返す。
+    #     Returns:
+    #         float: x軸角度（度）
+    #     """
+    #     # return self._gyro_angle_x
+    #     return 0.0
 
-    def get_gyro_angle_y(self) -> float:
-        """
-        積分したgyro_y角度（度）を返す。
-        Returns:
-            float: y軸角度（度）
-        """
-        # return self._gyro_angle_y
-        return 0.0
+    # def get_gyro_angle_y(self) -> float:
+    #     """
+    #     積分したgyro_y角度（度）を返す。
+    #     Returns:
+    #         float: y軸角度（度）
+    #     """
+    #     # return self._gyro_angle_y
+    #     return 0.0
 
-    def get_gyro_angle_z(self) -> float:
-        """
-        積分したgyro_z角度（度）を返す。
-        Returns:
-            float: z軸角度（度）
-        """
-        # return self._gyro_angle_z
-        return 0.0
+    # def get_gyro_angle_z(self) -> float:
+    #     """
+    #     積分したgyro_z角度（度）を返す。
+    #     Returns:
+    #         float: z軸角度（度）
+    #     """
+    #     # return self._gyro_angle_z
+    #     return 0.0
 
     @staticmethod
     def _parse_data(data: Union[str, bytes, Dict]) -> Dict:
