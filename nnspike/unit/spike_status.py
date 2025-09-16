@@ -179,11 +179,11 @@ class SpikeStatus:
             if self._last_gyro_update_time is not None:
                 dt = now - self._last_gyro_update_time
                 if self._last_gyro_x is not None:
-                    self._gyro_angle_x += ((self._last_gyro_x + gyro.x) / 2.0) * dt
+                    self._gyro_angle_x += gyro.x * dt
                 if self._last_gyro_y is not None:
-                    self._gyro_angle_y += ((self._last_gyro_y + gyro.y) / 2.0) * dt
+                    self._gyro_angle_y += gyro.y * dt
                 if self._last_gyro_z is not None:
-                    self._gyro_angle_z += ((self._last_gyro_z + gyro.z) / 2.0) * dt
+                    self._gyro_angle_z += gyro.z * dt
             self._last_gyro_update_time = now
             self._last_gyro_x = gyro.x
             self._last_gyro_y = gyro.y
