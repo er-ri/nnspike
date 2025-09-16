@@ -193,7 +193,7 @@ class ETRobot(object):
 
     def reset_roll_angle(self) -> None:
         """
-        ロール（y軸）積分角度の基準値を保存する。
+        ピッチ（z軸）積分角度の基準値を保存する。
         以降の判定はこの基準値との差分で行う。
         """
         status = self.get_spike_status()
@@ -201,7 +201,7 @@ class ETRobot(object):
 
     def is_roll_angle_exceeded(self, threshold: float, direction: str) -> bool:
         """
-        ロール角度（y軸積分値）が指定した方向・閾値を超えたか判定する。
+        ピッチ角度（z軸積分値）が指定した方向・閾値を超えたか判定する。
         Args:
             threshold (float): 閾値（度）。必須。
             direction (str): 'left'（正方向へthreshold度以上）, 'right'（負方向へthreshold度以上）
@@ -212,7 +212,7 @@ class ETRobot(object):
         angle = status.get_gyro_angle_z()
         offset = getattr(self, '_roll_angle_offset', 0.0)
         diff = angle - offset
-        print(f"[ETRobot判定] gyro_y={angle}, offset={offset}, diff={diff}, threshold={threshold}, direction={direction}")
+        print(f"[ETRobot判定] gyro_z={angle}, offset={offset}, diff={diff}, threshold={threshold}, direction={direction}")
         if direction == 'left':
             return diff >= threshold
         elif direction == 'right':
