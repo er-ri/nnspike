@@ -184,9 +184,9 @@ class SpikeStatus:
         # Gyro値は[Yaw, Pitch, Roll]で統一して表示
         if 'sensors' in parsed_data and 'gyro' in parsed_data['sensors']:
             gyro = parsed_data['sensors']['gyro']
-            # x=Yaw, z=Pitch, y=Roll
-            gyro_list = [gyro.get('x', 0), gyro.get('z', 0), gyro.get('y', 0)]
-            print(f"[SpikeStatus] parsed_data: ... gyro: [Yaw={gyro_list[0]}, Pitch={gyro_list[1]}, Roll={gyro_list[2]}] ...")
+            # x=Yaw, y=Roll, z=Pitch
+            gyro_list = [gyro.get('x', 0), gyro.get('y', 0), gyro.get('z', 0)]
+            print(f"[SpikeStatus] parsed_data: ... gyro: [Yaw={gyro_list[0]}, Roll={gyro_list[1]}, Pitch={gyro_list[2]}]  # [x=Yaw, y=Roll, z=Pitch]")
         else:
             print(f"[SpikeStatus] parsed_data: {parsed_data}")
         # Update basic metadata
@@ -195,34 +195,32 @@ class SpikeStatus:
         self.raw_data = parsed_data.get("raw", {})
 
         # m=0（センサーデータ）以外は積分・センサー・モーター処理を完全にスキップ
-        if self.message_type != 0:
+        if self.message_type not in [0, -1]:
             # バッテリー情報のみ更新
             battery_data = parsed_data.get("battery", {})
             self.battery = BatteryStatus.from_dict(battery_data)
             print(f"m={self.message_type} skip")
             return
-        # m=0のとき、受信間隔と各センサー値を個別にprint
-        print(f"[SpikeStatus][m=0] interval: {dt:.1f}ms")
+        # m=0またはm=-1のとき、受信間隔と各センサー値を個別にprint（ジャイロはm=-1も正常扱い）
+        print(f"[SpikeStatus][m={self.message_type}] interval: {dt:.1f}ms")
         motors_data = parsed_data.get("motors", {})
         sensors_data = parsed_data.get("sensors", {})
         force = sensors_data.get("force", None)
         color = sensors_data.get("color", {})
         color_list = [color.get("reflected", 0), color.get("ambient", 0), color.get("color", 0)] if color else None
         gyro = sensors_data.get("gyro", {})
-        # slot_prod.pyの送信順（x=Yaw, y=Pitch, z=Roll）に合わせる
-        # 表示も[Yaw, Pitch, Roll]の順で統一
         if gyro:
-            # x=Yaw, z=Pitch, y=Roll
-            gyro_list = [gyro.get("x", 0), gyro.get("z", 0), gyro.get("y", 0)]
-            print(f"[SpikeStatus][m=0] motors: {motors_data}")
-            print(f"[SpikeStatus][m=0] force: {force}")
-            print(f"[SpikeStatus][m=0] color: {color_list}")
-            print(f"[SpikeStatus][m=0] gyro: [Yaw={gyro_list[0]}, Pitch={gyro_list[1]}, Roll={gyro_list[2]}]  # [Yaw, Pitch, Roll]")
+            # x=Yaw, y=Roll, z=Pitch
+            gyro_list = [gyro.get("x", 0), gyro.get("y", 0), gyro.get("z", 0)]
+            print(f"[SpikeStatus][m={self.message_type}] motors: {motors_data}")
+            print(f"[SpikeStatus][m={self.message_type}] force: {force}")
+            print(f"[SpikeStatus][m={self.message_type}] color: {color_list}")
+            print(f"[SpikeStatus][m={self.message_type}] gyro: [Yaw={gyro_list[0]}, Roll={gyro_list[1]}, Pitch={gyro_list[2]}]  # [x=Yaw, y=Roll, z=Pitch]")
         else:
-            print(f"[SpikeStatus][m=0] motors: {motors_data}")
-            print(f"[SpikeStatus][m=0] force: {force}")
-            print(f"[SpikeStatus][m=0] color: {color_list}")
-            print(f"[SpikeStatus][m=0] gyro: None  # [Yaw, Pitch, Roll]")
+            print(f"[SpikeStatus][m={self.message_type}] motors: {motors_data}")
+            print(f"[SpikeStatus][m={self.message_type}] force: {force}")
+            print(f"[SpikeStatus][m={self.message_type}] color: {color_list}")
+            print(f"[SpikeStatus][m={self.message_type}] gyro: None  # [Yaw, Roll, Pitch]")
 
         # Update motors
         motors_data = parsed_data.get("motors", {})
@@ -265,7 +263,7 @@ class SpikeStatus:
         """
         積分したgyro_x角度（度）を返す。
         Returns:
-            float: x軸（ヨー）角度（度）
+            float: x軸（ヨー/Yaw）角度（度）
         """
         return self._gyro_angle_x
 
@@ -273,7 +271,7 @@ class SpikeStatus:
         """
         積分したgyro_y角度（度）を返す。
         Returns:
-            float: y軸（ロール）角度（度）
+            float: y軸（ロール/Roll）角度（度）
         """
         return self._gyro_angle_y
 
@@ -281,7 +279,7 @@ class SpikeStatus:
         """
         積分したgyro_z角度（度）を返す。
         Returns:
-            float: z軸（ピッチ）角度（度）
+            float: z軸（ピッチ/Pitch）角度（度）
         """
         return self._gyro_angle_z
 
@@ -444,8 +442,8 @@ class SpikeStatus:
         if self.sensors.color:
             lines.append(f"  Color - Reflected: {self.sensors.color.reflected}, Ambient: {self.sensors.color.ambient}, Color: {self.sensors.color.color}")
         if self.sensors.gyro:
-            # 表示順を[Yaw, Pitch, Roll]で統一
-            lines.append(f"  Gyro - Yaw: {self.sensors.gyro.x}, Pitch: {self.sensors.gyro.y}, Roll: {self.sensors.gyro.z}")
+            # 表示順を[x=Yaw, y=Roll, z=Pitch]で統一
+            lines.append(f"  Gyro - Yaw: {self.sensors.gyro.x}, Roll: {self.sensors.gyro.y}, Pitch: {self.sensors.gyro.z}")
         if self.sensors.accelerometer:
             lines.append(f"  Accel - X: {self.sensors.accelerometer.x}, Y: {self.sensors.accelerometer.y}, Z: {self.sensors.accelerometer.z}")
         if self.sensors.position:
