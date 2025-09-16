@@ -88,7 +88,7 @@ class Video:
                     diff_ms = int((now - prev_time) * 1000)
                 else:
                     diff_ms = 0
-                print(f"[VideoThread] update={self.update_count} since_last={diff_ms}ms")
+                # デバッグ出力削除
                 prev_time = now
             time.sleep(0.001)  # 軽いウェイトでCPU負荷抑制
 
@@ -159,17 +159,13 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
             status_init = et.get_spike_status()
             force_val_init = getattr(status_init.sensors, "force", None)
         if force_val_init is not None:
-            print("Force sensor is active. You can press it anytime to switch edge-following mode.")
-            print("\r", end="")
-            sys.stdout.flush()
+            # デバッグ出力削除
         else:
-            print("Force sensor is NOT detected. Please check connection.")
-            print("\r", end="")
-            sys.stdout.flush()
+            # デバッグ出力削除
     except Exception:
-        print("Force sensor check failed. Please check hardware.")
+        pass
 
-    print("Press the force sensor or any mode key to start...")
+    # デバッグ出力削除
     started = False
     first_key = None
     while not started and keyboard.running:
@@ -180,18 +176,18 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
             key = keyboard.get_key()
             # forceセンサー押下でスタート
             if (force_val is not None and force_val > 0):
-                print("Start!")
+                # デバッグ出力削除
                 started = True
                 first_key = "__force__"  # forceセンサーでスタートした場合はダミー値をセット
                 break
             # manual_mode時のみ有効なモードキーでスタート
             elif manual_mode and key is not None and keyboard.is_mode_key(key):
-                print("Start!")
+                # デバッグ出力削除
                 first_key = key
                 started = True
                 break
             if not keyboard.running:
-                print("Quitting before start. Exiting...")
+                # デバッグ出力削除
                 et.stop()
                 keyboard.cleanup()
                 return None
@@ -223,7 +219,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         sleep_time = min_interval - loop_elapsed
         if sleep_time > 0:
             time.sleep(sleep_time)
-        print(f"[DEBUG] loop={debug_state['counter']} since_last={diff_ms}ms elapsed={int(loop_elapsed*1000)}ms sleep={int(max(sleep_time,0)*1000)}ms")
+    # デバッグ出力削除
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
