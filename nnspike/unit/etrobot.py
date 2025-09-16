@@ -42,35 +42,8 @@ class ETRobot(object):
 
     def __update_status(self) -> None:
         """Background thread that continuously receives data from the serial connection."""
-        prev_time = None
         while self.is_running:
             self.receive()
-            now = time.time()
-            self.last_update_time = now
-            self.update_count += 1
-            # 差分（サイクル時間ms）をデバッグ出力
-            if prev_time is not None:
-                diff_ms = int((now - prev_time) * 1000)
-            else:
-                diff_ms = 0
-            msg_type = getattr(self.spike_status, 'message_type', 'N/A')
-            print(f"[ETRobotThread] update={self.update_count} since_last={diff_ms}ms m={msg_type}")
-            if msg_type == 0:
-                motors = {k: [v.speed, v.relative_position, v.position, v.power] for k, v in self.spike_status.motors.items()}
-                force = getattr(self.spike_status.sensors, 'force', None)
-                color = None
-                if hasattr(self.spike_status.sensors, 'color') and self.spike_status.sensors.color:
-                    c = self.spike_status.sensors.color
-                    color = [getattr(c, 'reflected', 0), getattr(c, 'ambient', 0), getattr(c, 'color', 0)]
-                gyro = None
-                if hasattr(self.spike_status.sensors, 'gyro') and self.spike_status.sensors.gyro:
-                    g = self.spike_status.sensors.gyro
-                    gyro = [getattr(g, 'x', 0), getattr(g, 'y', 0), getattr(g, 'z', 0)]
-                print(f"[ETRobotThread][m=0] motors: {motors}")
-                print(f"[ETRobotThread][m=0] force: {force}")
-                print(f"[ETRobotThread][m=0] color: {color}")
-                print(f"[ETRobotThread][m=0] gyro: {gyro}")
-            prev_time = now
 
     def receive(self) -> None:
         """
