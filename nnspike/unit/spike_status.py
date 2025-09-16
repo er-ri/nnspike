@@ -136,9 +136,9 @@ class SpikeStatus:
         self.raw_data: Dict = {}
 
         # --- gyro積分角度用 ---
-        self._gyro_angle_x: float = 0.0
-        self._gyro_angle_y: float = 0.0
-        self._gyro_angle_z: float = 0.0
+        # self._gyro_angle_x: float = 0.0
+        # self._gyro_angle_y: float = 0.0
+        # self._gyro_angle_z: float = 0.0
         self._last_gyro_update_time: Optional[float] = None
         self._last_gyro_x: Optional[float] = None
         self._last_gyro_y: Optional[float] = None
@@ -165,30 +165,38 @@ class SpikeStatus:
         # message_typeによる分岐・returnを廃止。常に全データを更新。
 
         # Update motors
+        # モーター更新頻度（dt）計算
+        now = self.timestamp
+        dt = None
+        if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:
+            dt = now - self._last_motor_update_time
+        self._last_motor_update_time = now
         for motor_id, motor_data in parsed_data.get("motors", {}).items():
             if motor_id in self.motors:
                 self.motors[motor_id] = MotorStatus.from_dict(motor_data)
+                # dt（更新間隔）はここで利用可能
+                print(f"Motor {motor_id} update dt: {dt}, position: {self.motors[motor_id].position}, power: {self.motors[motor_id].power}, relative_position: {self.motors[motor_id].relative_position}, speed: {self.motors[motor_id].speed}")
 
         # Update sensors
         self.sensors = SensorStatus.from_dict(parsed_data.get("sensors", {}))
 
-        # Gyro integration
-        now = self.timestamp
+        # Gyro integration（完全コメントアウト）
+        # now = self.timestamp
         gyro = self.sensors.gyro
         if gyro is not None:
-            if self._last_gyro_update_time is not None:
-                dt = now - self._last_gyro_update_time
-                if self._last_gyro_x is not None:
-                    self._gyro_angle_x += gyro.x * dt
-                if self._last_gyro_y is not None:
-                    self._gyro_angle_y += gyro.y * dt
-                if self._last_gyro_z is not None:
-                    self._gyro_angle_z += gyro.z * dt
-                # 積分値加算直後にdtを表示
-                print(f"[SpikeStatus] gyro_integrated: x={self._gyro_angle_x:.2f}, y={self._gyro_angle_y:.2f}, z={self._gyro_angle_z:.2f}, dt={dt:.4f}")
-            else:
-                print(f"[SpikeStatus] gyro_integrated: x={self._gyro_angle_x:.2f}, y={self._gyro_angle_y:.2f}, z={self._gyro_angle_z:.2f}, dt=0.0000")
-            self._last_gyro_update_time = now
+        #     if self._last_gyro_update_time is not None:
+        #         dt = now - self._last_gyro_update_time
+        #         if self._last_gyro_x is not None:
+        #             self._gyro_angle_x += gyro.x * dt  # ジャイロ積分値加算をコメントアウト
+        #         if self._last_gyro_y is not None:
+        #             self._gyro_angle_y += gyro.y * dt  # ジャイロ積分値加算をコメントアウト
+        #         if self._last_gyro_z is not None:
+        #             self._gyro_angle_z += gyro.z * dt  # ジャイロ積分値加算をコメントアウト
+        #         # 積分値加算直後にdtを表示
+        #         print(f"[SpikeStatus] gyro_integrated: x={self._gyro_angle_x:.2f}, y={self._gyro_angle_y:.2f}, z={self._gyro_angle_z:.2f}, dt={dt:.4f}")
+        #     else:
+        #         print(f"[SpikeStatus] gyro_integrated: x={self._gyro_angle_x:.2f}, y={self._gyro_angle_y:.2f}, z={self._gyro_angle_z:.2f}, dt=0.0000")
+        #     self._last_gyro_update_time = now
             self._last_gyro_x = gyro.x
             self._last_gyro_y = gyro.y
             self._last_gyro_z = gyro.z
@@ -201,7 +209,8 @@ class SpikeStatus:
         Returns:
             float: x軸角度（度）
         """
-        return self._gyro_angle_x
+        # return self._gyro_angle_x
+        return 0.0
 
     def get_gyro_angle_y(self) -> float:
         """
@@ -209,7 +218,8 @@ class SpikeStatus:
         Returns:
             float: y軸角度（度）
         """
-        return self._gyro_angle_y
+        # return self._gyro_angle_y
+        return 0.0
 
     def get_gyro_angle_z(self) -> float:
         """
@@ -217,7 +227,8 @@ class SpikeStatus:
         Returns:
             float: z軸角度（度）
         """
-        return self._gyro_angle_z
+        # return self._gyro_angle_z
+        return 0.0
 
     @staticmethod
     def _parse_data(data: Union[str, bytes, Dict]) -> Dict:
