@@ -160,8 +160,13 @@ class SpikeStatus:
         self._last_gyro_z = None
 
     def update(self, data: Union[str, bytes, Dict]) -> None:
-        print("[SpikeStatus] update called")
-        print(f"[SpikeStatus] raw input: {data}")
+        # update呼び出し間隔（ms）をデバッグ出力
+        now = time.time()
+        if not hasattr(self, '_last_update_time'):
+            self._last_update_time = now
+        dt = (now - self._last_update_time) * 1000
+        print(f"[SpikeStatus] update called (dt={dt:.1f}ms)")
+        self._last_update_time = now
         """
         Update the status with new data from the Spike Prime.
 
@@ -174,7 +179,7 @@ class SpikeStatus:
             print(f"[SpikeStatus] Exception in _parse_data: {e}")
             return
 
-        print(f"[SpikeStatus] parsed_data: {parsed_data}")
+    # print(f"[SpikeStatus] parsed_data: {parsed_data}")
         # Update basic metadata
         self.timestamp = parsed_data.get("timestamp", time.time())
         self.message_type = parsed_data.get("message_type", -1)
@@ -185,7 +190,7 @@ class SpikeStatus:
             # バッテリー情報のみ更新
             battery_data = parsed_data.get("battery", {})
             self.battery = BatteryStatus.from_dict(battery_data)
-            print(f"[SpikeStatus] m={self.message_type}なのでセンサー・積分処理はスキップ")
+            print(f"[SpikeStatus] m={self.message_type} skip")
             return
 
         # Update motors
