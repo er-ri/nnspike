@@ -346,6 +346,9 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 # ロール積分値で90度左回転判定
                 if et.is_roll_angle_exceeded(30, 'left'):
+                    # デバッグ出力: 判定値・モード・速度・ジャイロ値
+                    status = et.get_spike_status()
+                    print(f"[DEBUG] 判定: gyro_y={status.get_gyro_angle_y():.2f}, left_speed={left_speed}, right_speed={right_speed}, mode={mode}")
                     mode = Mode.PAUSE
                     left_speed = right_speed = 0
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
