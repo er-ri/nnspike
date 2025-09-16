@@ -275,6 +275,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     left_speed = None
     right_speed = None
     turn_left_started = False
+    yaw_start = None
 
     # 毎回判定する必要のないフラグを事前計算
     need_status = (record_sensor_data and sensor_recorder is not None)
@@ -286,6 +287,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     }
     try:
         turn_left_started = False
+        yaw_start = None
         while et.is_running:
             loop_start = time.time()
             # カメラ停止中のためframe取得・処理は省略
@@ -297,7 +299,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             # status取得・センサー記録・動画送信処理
             if need_status:
                 status = et.get_spike_status()
-                handle_status_and_video(frame, status, mode, left_speed, right_speed,
+                handle_status_and_video(None, status, mode, left_speed, right_speed,
                                       record_sensor_data, sensor_recorder, save_camera_video, video_writer)
 
             # キー処理とモード切替（統合版）
@@ -337,27 +339,30 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 # 非ブロッキングで1ループごとに進捗管理
                 if not turn_left_started:
                     turn_left_started = True
-                    # Yaw基準の初期値取得
+                    # Yaw基準の初期値取得（開始時のみセット）
                     yaw_start = et.get_spike_status().sensors.gyro.x if et.get_spike_status().sensors.gyro and et.get_spike_status().sensors.gyro.x is not None else 0.0
                 # 回転中は常に左回転指令
-                left_speed = -BASE_SPEED
-                right_speed = BASE_SPEED
+                left_speed = -10
+                right_speed = 10
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 # 90度到達でPAUSEに遷移（Yaw基準、ラップ処理付き）
                 yaw_now = et.get_spike_status().sensors.gyro.x if et.get_spike_status().sensors.gyro and et.get_spike_status().sensors.gyro.x is not None else 0.0
-                yaw_diff = yaw_now - yaw_start
-                while yaw_diff > 180:
-                    yaw_diff -= 360
-                while yaw_diff < -180:
-                    yaw_diff += 360
-                if yaw_diff <= -90:
-                    mode = Mode.PAUSE
-                    left_speed = right_speed = 0
-                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-                    turn_left_started = False
+                if yaw_start is not None:
+                    yaw_diff = yaw_now - yaw_start
+                    while yaw_diff > 180:
+                        yaw_diff -= 360
+                    while yaw_diff < -180:
+                        yaw_diff += 360
+                    if yaw_diff <= -90:
+                        mode = Mode.PAUSE
+                        left_speed = right_speed = 0
+                        et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+                        turn_left_started = False
+                        yaw_start = None
             elif mode == Mode.TEST:
                 # ロール補正のみでベーススピード走行
-                left_speed, right_speed = et.calc_max_speed_with_roll_control(BASE_SPEED)
+                # left_speed, right_speed = et.calc_max_speed_with_roll_control(BASE_SPEED)
+                left_speed, right_speed = 0, 0  # 仮対応
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.PAUSE:
                 left_speed, right_speed = 0, 0
