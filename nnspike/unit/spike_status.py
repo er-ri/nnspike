@@ -176,12 +176,12 @@ class SpikeStatus:
         try:
             parsed_data = self._parse_data(data)
         except Exception as e:
-            # print(f"Exception in _parse_data: {e}")
-            # print(f"RAW (error): {data}")
+            print(f"Exception in _parse_data: {e}")
+            print(f"RAW (error): {data}")
             traceback.print_exc()
             return
 
-    # print(f"[SpikeStatus] parsed_data: {parsed_data}")
+        print(f"[SpikeStatus] parsed_data: {parsed_data}")
         # Update basic metadata
         self.timestamp = parsed_data.get("timestamp", time.time())
         self.message_type = parsed_data.get("message_type", -1)
@@ -192,8 +192,20 @@ class SpikeStatus:
             # バッテリー情報のみ更新
             battery_data = parsed_data.get("battery", {})
             self.battery = BatteryStatus.from_dict(battery_data)
-            # print(f"m={self.message_type} skip")
+            print(f"m={self.message_type} skip")
             return
+        # m=0のとき、各センサー値を個別にprint
+        motors_data = parsed_data.get("motors", {})
+        sensors_data = parsed_data.get("sensors", {})
+        force = sensors_data.get("force", None)
+        color = sensors_data.get("color", {})
+        color_list = [color.get("reflected", 0), color.get("ambient", 0), color.get("color", 0)] if color else None
+        gyro = sensors_data.get("gyro", {})
+        gyro_list = [gyro.get("x", 0), gyro.get("y", 0), gyro.get("z", 0)] if gyro else None
+        print(f"[SpikeStatus][m=0] motors: {motors_data}")
+        print(f"[SpikeStatus][m=0] force: {force}")
+        print(f"[SpikeStatus][m=0] color: {color_list}")
+        print(f"[SpikeStatus][m=0] gyro: {gyro_list}")
 
         # Update motors
         motors_data = parsed_data.get("motors", {})
