@@ -251,8 +251,9 @@ async def sender_task():
                     },
                 },
             }
-            send_str = json.dumps(data) + "\n"
+            send_str = json.dumps(data) + "\r"
             lego_spike.usb.write(send_str.encode())
+            await uasyncio.sleep(0)  # 送信直後にyieldでバッファ安定化
         except Exception:
             pass
         await uasyncio.sleep(0.01)
