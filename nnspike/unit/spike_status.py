@@ -180,6 +180,14 @@ class SpikeStatus:
         self.message_type = parsed_data.get("message_type", -1)
         self.raw_data = parsed_data.get("raw", {})
 
+        # m=0（センサーデータ）以外は積分・センサー・モーター処理を完全にスキップ
+        if self.message_type != 0:
+            # バッテリー情報のみ更新
+            battery_data = parsed_data.get("battery", {})
+            self.battery = BatteryStatus.from_dict(battery_data)
+            print(f"[SpikeStatus] m={self.message_type}なのでセンサー・積分処理はスキップ")
+            return
+
         # Update motors
         motors_data = parsed_data.get("motors", {})
         print(f"[SpikeStatus] motors_data: {motors_data}")
