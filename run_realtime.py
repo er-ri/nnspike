@@ -345,7 +345,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 right_speed = BASE_SPEED
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 # ロール積分値で90度左回転判定
-                if et.is_roll_angle_exceeded(90, 'left'):
+                if et.is_roll_angle_exceeded(30, 'left'):
                     mode = Mode.PAUSE
                     left_speed = right_speed = 0
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
