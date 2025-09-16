@@ -200,7 +200,7 @@ class ETRobot(object):
         ロール角度（y軸積分値）が指定した方向・閾値を超えたか判定する。
         Args:
             threshold (float): 閾値（度）。必須。
-            direction (str): 'left'（負方向へthreshold度以上）, 'right'（正方向へthreshold度以上）
+            direction (str): 'left'（正方向へthreshold度以上）, 'right'（負方向へthreshold度以上）
         Returns:
             bool: 条件を満たせばTrue、そうでなければFalse
         """
@@ -208,9 +208,9 @@ class ETRobot(object):
         angle = status.get_gyro_angle_y()  # y軸（ロール）積分値
         # print(f"[DEBUG] is_roll_angle_exceeded: gyro_y={angle}, threshold={threshold}, direction={direction}")
         if direction == 'left':
-            return angle <= -threshold
-        elif direction == 'right':
             return angle >= threshold
+        elif direction == 'right':
+            return angle <= -threshold
         else:
             raise ValueError("direction must be 'left' or 'right'")
 
