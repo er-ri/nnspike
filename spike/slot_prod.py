@@ -173,11 +173,8 @@ async def sender_task():
             ml = lego_spike.motor_left.get()
             ma = lego_spike.motor_arm.get()
             fs = lego_spike.force_sensor.get()
-            us = lego_spike.ultrasonic_sensor.get()
             cs = lego_spike.color_sensor.get()
             gyro = hub.motion.gyro()
-            accel = hub.motion.accelerometer()
-            pos = hub.motion.position()
             # last値保持用のstatic変数
             if not hasattr(sender_task, "last_values"):
                 sender_task.last_values = {
@@ -230,10 +227,10 @@ async def sender_task():
             }
             send_str = json.dumps(data) + "\r"
             lego_spike.usb.write(send_str.encode())
-            await uasyncio.sleep(0)  # 送信直後にyieldでバッファ安定化
-        except Exception:
+            await uasyncio.sleep(0.01)  # 送信直後にバッファ安定化
+        except Exception as e:
             pass
-    await uasyncio.sleep(0.05)
+        await uasyncio.sleep(0.05)  # 送信間隔厳守
 
 async def main_task():
     recv_task = uasyncio.create_task(receiver_task())
