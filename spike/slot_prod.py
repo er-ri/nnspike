@@ -1,16 +1,5 @@
-# None安全化関数
-def safe_get(val, default=0):
-    return val if val is not None else default
 
-# カラーセンサー用
-def safe_color_get(val, idx, default=0):
-    try:
-        v = val[idx]
-        return v if v is not None else default
-    except Exception:
-        return default
 """Main controlling program for LEGO Spike Prime Hub"""
-
 import gc
 import time
 import json
@@ -151,6 +140,17 @@ class LegoSpike(object):
 
 
 
+# None安全化関数
+def safe_get(val, default=0):
+    return val if val is not None else default
+
+# カラーセンサー用
+def safe_color_get(val, idx, default=0):
+    try:
+        v = val[idx]
+        return v if v is not None else default
+    except Exception:
+        return default
 
 # 受信タスク
 async def receiver_task():
