@@ -308,7 +308,6 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 state_flags.first_key_used = True
             else:
                 key = keyboard.get_key()
-                print(f"[DEBUG] key入力: {key}")
                 if not manual_mode and not state_flags.first_key_used:
                     state_flags.first_key_used = True
             
@@ -337,7 +336,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 right_speed = BASE_SPEED
                 et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.TURN_LEFT:
-                print(f"[DEBUG] TURN_LEFT分岐: mode={mode}, turn_left_started={turn_left_started}")
+
                 # 非ブロッキングで1ループごとに進捗管理
                 if not turn_left_started:
                     turn_left_started = True
@@ -347,12 +346,12 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 right_speed = BASE_SPEED
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 # 判定直前デバッグ
-                print(f"[DEBUG] 判定直前: gyro_y={et.get_spike_status().get_gyro_angle_y():.2f}")
+
                 # ロール積分値で90度左回転判定
                 if et.is_roll_angle_exceeded(90, 'left'):
                     # デバッグ出力: 判定値・モード・速度・ジャイロ値
                     status = et.get_spike_status()
-                    print(f"[DEBUG] 判定: gyro_y={status.get_gyro_angle_y():.2f}, left_speed={left_speed}, right_speed={right_speed}, mode={mode}")
+
                     mode = Mode.PAUSE
                     left_speed = right_speed = 0
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)

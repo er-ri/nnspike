@@ -153,7 +153,7 @@ class ETRobot(object):
         if current.battery.percent is not None:
             last.battery.percent = current.battery.percent
         
-        # Also update message_type and raw_data for debugging
+        # message_typeとraw_dataも更新
         last.message_type = current.message_type
         last.raw_data = current.raw_data
 
@@ -212,7 +212,7 @@ class ETRobot(object):
         angle = status.get_gyro_angle_y()
         offset = getattr(self, '_roll_angle_offset', 0.0)
         diff = angle - offset
-        print(f"[ETRobot判定] gyro_z={angle}, offset={offset}, diff={diff}, threshold={threshold}, direction={direction}")
+        # デバッグ出力削除
         if direction == 'left':
             return diff >= threshold
         elif direction == 'right':
