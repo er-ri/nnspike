@@ -178,49 +178,76 @@ async def sender_task():
             gyro = hub.motion.gyro()
             accel = hub.motion.accelerometer()
             pos = hub.motion.position()
+            # last値保持用のstatic変数
+            if not hasattr(sender_task, "last_values"):
+                sender_task.last_values = {
+                    "motors": {"A": [0,0,0,0], "B": [0,0,0,0], "C": [0,0,0,0]},
+                    "force": 0,
+                    "distance": 0,
+                    "color": [0,0,0],
+                    "gyro": [0,0,0],
+                    "accel": [0,0,0],
+                    "position": [0,0],
+                }
+            lv = sender_task.last_values
+            # 値取得（Noneならlast値、last値もNoneなら0）
+            def get_with_last(val, last):
+                return val if val is not None else (last if last is not None else 0)
+            motors_data = {}
+            for key, arr in zip(["A","B","C"], [mr, ml, ma]):
+                motors_data[key] = {}
+                for i, field in enumerate(["speed","relative_position","position","power"]):
+                    v = arr[i] if i < len(arr) else None
+                    motors_data[key][field] = get_with_last(v, lv["motors"][key][i])
+                    lv["motors"][key][i] = motors_data[key][field]
+            force_val = get_with_last(fs[1], lv["force"])
+            lv["force"] = force_val
+            distance_val = get_with_last(us[0], lv["distance"])
+            lv["distance"] = distance_val
+            color_data = []
+            for i, idx in enumerate([2,3,4]):
+                v = safe_color_get(cs, idx)
+                color_data.append(get_with_last(v, lv["color"][i]))
+                lv["color"][i] = color_data[i]
+            gyro_data = []
+            for i in range(3):
+                v = gyro[i] if i < len(gyro) else None
+                gyro_data.append(get_with_last(v, lv["gyro"][i]))
+                lv["gyro"][i] = gyro_data[i]
+            accel_data = []
+            for i in range(3):
+                v = accel[i] if i < len(accel) else None
+                accel_data.append(get_with_last(v, lv["accel"][i]))
+                lv["accel"][i] = accel_data[i]
+            pos_data = []
+            for i in range(2):
+                v = pos[i+1] if (i+1) < len(pos) else None
+                pos_data.append(get_with_last(v, lv["position"][i]))
+                lv["position"][i] = pos_data[i]
             data = {
                 "message_type": 0,
-                "motors": {
-                    "A": {
-                        "speed": safe_get(mr[0]),
-                        "relative_position": safe_get(mr[1]),
-                        "position": safe_get(mr[2]),
-                        "power": safe_get(mr[3]),
-                    },
-                    "B": {
-                        "speed": safe_get(ml[0]),
-                        "relative_position": safe_get(ml[1]),
-                        "position": safe_get(ml[2]),
-                        "power": safe_get(ml[3]),
-                    },
-                    "C": {
-                        "speed": safe_get(ma[0]),
-                        "relative_position": safe_get(ma[1]),
-                        "position": safe_get(ma[2]),
-                        "power": safe_get(ma[3]),
-                    },
-                },
+                "motors": motors_data,
                 "sensors": {
-                    "force": safe_get(fs[1]),
-                    "distance": safe_get(us[0]),
+                    "force": force_val,
+                    "distance": distance_val,
                     "color": {
-                        "reflected": safe_color_get(cs, 2),
-                        "ambient": safe_color_get(cs, 3),
-                        "color": safe_color_get(cs, 4),
+                        "reflected": color_data[0],
+                        "ambient": color_data[1],
+                        "color": color_data[2],
                     },
                     "gyro": {
-                        "x": safe_get(gyro[0]),
-                        "y": safe_get(gyro[1]),
-                        "z": safe_get(gyro[2]),
+                        "x": gyro_data[0],
+                        "y": gyro_data[1],
+                        "z": gyro_data[2],
                     },
                     "accelerometer": {
-                        "x": safe_get(accel[0]),
-                        "y": safe_get(accel[1]),
-                        "z": safe_get(accel[2]),
+                        "x": accel_data[0],
+                        "y": accel_data[1],
+                        "z": accel_data[2],
                     },
                     "position": {
-                        "x": safe_get(pos[1]),
-                        "y": safe_get(pos[2]),
+                        "x": pos_data[0],
+                        "y": pos_data[1],
                     },
                 },
             }
