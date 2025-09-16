@@ -37,7 +37,7 @@ class KeyboardController:
         """キー入力からモードとメッセージを返す。quit判定も含む"""
         if key == "q":
             return "quit", "Quitting..."
-    keymap = {
+        keymap = {
             "a": (Mode.FOLLOW_LEFT_EDGE, "Switched to following: left edge"),
             "d": (Mode.FOLLOW_RIGHT_EDGE, "Switched to following: right edge"),
             "h": (Mode.HIGH_SPEED, "Switched to HIGH_SPEED mode"),
@@ -61,4 +61,4 @@ class KeyboardController:
             "t": (Mode.TEST, "Switched to TEST mode"),
             "p": (Mode.PAUSE, "Pausing robot"),
         }
-    return keymap.get(key, (None, None))
+        return keymap.get(key, (None, None))
