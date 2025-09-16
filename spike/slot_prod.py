@@ -1,3 +1,14 @@
+# None安全化関数
+def safe_get(val, default=0):
+    return val if val is not None else default
+
+# カラーセンサー用
+def safe_color_get(val, idx, default=0):
+    try:
+        v = val[idx]
+        return v if v is not None else default
+    except Exception:
+        return default
 """Main controlling program for LEGO Spike Prime Hub"""
 
 import gc
@@ -158,49 +169,58 @@ async def receiver_task():
 async def sender_task():
     while True:
         try:
+            mr = lego_spike.motor_right.get()
+            ml = lego_spike.motor_left.get()
+            ma = lego_spike.motor_arm.get()
+            fs = lego_spike.force_sensor.get()
+            us = lego_spike.ultrasonic_sensor.get()
+            cs = lego_spike.color_sensor.get()
+            gyro = hub.motion.gyro()
+            accel = hub.motion.accelerometer()
+            pos = hub.motion.position()
             data = {
                 "message_type": 0,
                 "motors": {
                     "A": {
-                        "speed": lego_spike.motor_right.get()[0],
-                        "relative_position": lego_spike.motor_right.get()[1],
-                        "position": lego_spike.motor_right.get()[2],
-                        "power": lego_spike.motor_right.get()[3],
+                        "speed": safe_get(mr[0]),
+                        "relative_position": safe_get(mr[1]),
+                        "position": safe_get(mr[2]),
+                        "power": safe_get(mr[3]),
                     },
                     "B": {
-                        "speed": lego_spike.motor_left.get()[0],
-                        "relative_position": lego_spike.motor_left.get()[1],
-                        "position": lego_spike.motor_left.get()[2],
-                        "power": lego_spike.motor_left.get()[3],
+                        "speed": safe_get(ml[0]),
+                        "relative_position": safe_get(ml[1]),
+                        "position": safe_get(ml[2]),
+                        "power": safe_get(ml[3]),
                     },
                     "C": {
-                        "speed": lego_spike.motor_arm.get()[0],
-                        "relative_position": lego_spike.motor_arm.get()[1],
-                        "position": lego_spike.motor_arm.get()[2],
-                        "power": lego_spike.motor_arm.get()[3],
+                        "speed": safe_get(ma[0]),
+                        "relative_position": safe_get(ma[1]),
+                        "position": safe_get(ma[2]),
+                        "power": safe_get(ma[3]),
                     },
                 },
                 "sensors": {
-                    "force": lego_spike.force_sensor.get()[1],
-                    "distance": lego_spike.ultrasonic_sensor.get()[0],
+                    "force": safe_get(fs[1]),
+                    "distance": safe_get(us[0]),
                     "color": {
-                        "reflected": lego_spike.color_sensor.get()[2],
-                        "ambient": lego_spike.color_sensor.get()[3],
-                        "color": lego_spike.color_sensor.get()[4],
+                        "reflected": safe_color_get(cs, 2),
+                        "ambient": safe_color_get(cs, 3),
+                        "color": safe_color_get(cs, 4),
                     },
                     "gyro": {
-                        "x": hub.motion.gyro()[0],
-                        "y": hub.motion.gyro()[1],
-                        "z": hub.motion.gyro()[2],
+                        "x": safe_get(gyro[0]),
+                        "y": safe_get(gyro[1]),
+                        "z": safe_get(gyro[2]),
                     },
                     "accelerometer": {
-                        "x": hub.motion.accelerometer()[0],
-                        "y": hub.motion.accelerometer()[1],
-                        "z": hub.motion.accelerometer()[2],
+                        "x": safe_get(accel[0]),
+                        "y": safe_get(accel[1]),
+                        "z": safe_get(accel[2]),
                     },
                     "position": {
-                        "x": hub.motion.position()[1],
-                        "y": hub.motion.position()[2],
+                        "x": safe_get(pos[1]),
+                        "y": safe_get(pos[2]),
                     },
                 },
             }
