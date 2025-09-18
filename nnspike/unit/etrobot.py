@@ -66,7 +66,7 @@ class ETRobot(object):
                 print(f"Error processing data: {e}")
                 print(f"Raw data: {received_data}")
 
-        time.sleep(0.01)
+        time.sleep(0.005)
 
     def __update_last_spike_status(self) -> None:
         """
