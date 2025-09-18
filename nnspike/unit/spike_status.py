@@ -251,10 +251,20 @@ class SpikeStatus:
                     result["sensors"]["force"] = payload[3][1][2] if len(payload[3][1]) > 2 else None
                 # 4: Color sensor (port 61)
                 if len(payload) > 4 and isinstance(payload[4], list) and payload[4][0] == 61:
+                    # 2番目（インデックス1）にNoneをデフォルトで入れる
+                    color_payload = payload[4][1] if len(payload[4]) > 1 else []
+                    # 0番目はそのまま、1番目はNone、2以降は元データ
+                    color_data = [
+                        color_payload[0] if len(color_payload) > 0 else None,
+                        None,
+                        color_payload[2] if len(color_payload) > 2 else None,
+                        color_payload[3] if len(color_payload) > 3 else None,
+                        color_payload[4] if len(color_payload) > 4 else None,
+                    ]
                     result["sensors"]["color"] = {
-                        "reflected": (payload[4][1][2] if len(payload[4][1]) > 2 else None),
-                        "ambient": (payload[4][1][3] if len(payload[4][1]) > 3 else None),
-                        "color": (payload[4][1][4] if len(payload[4][1]) > 4 else None),
+                        "reflected": color_data[2],
+                        "ambient": color_data[3],
+                        "color": color_data[4],
                     }
                 # 5: Distance sensor (port 62)
                 if len(payload) > 5 and isinstance(payload[5], list) and payload[5][0] == 62:

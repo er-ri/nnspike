@@ -203,7 +203,7 @@ async def sender_task():
                     v = arr[i] if arr and i < len(arr) else None
                     motors_data[key][field] = safe_get(v)
             # Force sensor値
-            force_val = safe_get(fs[1] if fs and len(fs) > 1 else None)
+            force_val = safe_get(fs[2] if fs and len(fs) > 2 else None)
             # Color sensor値
             color_data = []
             for idx in [2,3,4]:
