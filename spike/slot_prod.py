@@ -196,33 +196,33 @@ async def sender_task():
                 motors_data[key] = {}
                 for i, field in enumerate(["speed","relative_position","position","power"]):
                     v = arr[i] if arr and i < len(arr) else None
-                    motors_data[key][field] = v
+                    motors_data[key][field] = safe_get(v)
             # Force sensor値
-            force_val = fs[1] if fs and len(fs) > 1 else None
+            force_val = safe_get(fs[1] if fs and len(fs) > 1 else None)
             # Color sensor値
             color_data = []
             for idx in [2,3,4]:
                 v = cs[idx] if cs and len(cs) > idx else None
-                color_data.append(v)
+                color_data.append(safe_get(v))
             # Ultrasonic sensor値
-            us_val = us[0] if us and len(us) > 0 else None
+            us_val = safe_get(us[0] if us and len(us) > 0 else None)
             # 送信データ構築
             p = []
             p.append([48, [motors_data["A"]["speed"], motors_data["A"]["relative_position"], motors_data["A"]["position"], motors_data["A"]["power"]]])
             p.append([48, [motors_data["B"]["speed"], motors_data["B"]["relative_position"], motors_data["B"]["position"], motors_data["B"]["power"]]])
             p.append([49, [motors_data["C"]["speed"], motors_data["C"]["relative_position"], motors_data["C"]["position"], motors_data["C"]["power"]]])
             p.append([63, [0, 0, force_val]])
-            p.append([61, [0, None, color_data[0], color_data[1], color_data[2]]])
+            p.append([61, [0, 0, color_data[0], color_data[1], color_data[2]]])
             p.append([62, [us_val]])
-            p.append([accel[0], accel[1], accel[2]])
+            p.append([safe_get(accel[0]), safe_get(accel[1]), safe_get(accel[2])])
             p.append([0, 0, 0])
-            p.append([yaw, pitch, roll])
+            p.append([safe_get(yaw), safe_get(pitch), safe_get(roll)])
             p.append("")
             p.append(0)
             data = {"m": 0, "p": p}
             send_str = json.dumps(data) + "\r"
             sent_bytes = lego_spike.usb.write(send_str.encode())
-            print("USB write bytes:", sent_bytes, "| USB write content:", send_str)
+            # print("USB write bytes:", sent_bytes, "| USB write content:", send_str)
             await uasyncio.sleep(0.005)  # 送信直後にバッファ安定化
         except Exception as e:
             print("[SEND ERROR]", repr(e))
@@ -239,15 +239,15 @@ gc.collect()
 
 print("Starting LEGO Prime Hub..")
 lego_spike = LegoSpike()
-print("motor_right:", lego_spike.motor_right.get())
-print("motor_left:", lego_spike.motor_left.get())
-print("motor_arm:", lego_spike.motor_arm.get())
-print("force_sensor:", lego_spike.force_sensor.get())
-print("color_sensor:", lego_spike.color_sensor.get())
-print("ultrasonic_sensor:", lego_spike.ultrasonic_sensor.get())
-print("gyro:", hub.motion.yaw_pitch_roll())
-print("accel:", hub.motion.accelerometer())
-print("USB isconnected:", lego_spike.usb.isconnected())
+# print("motor_right:", lego_spike.motor_right.get())
+# print("motor_left:", lego_spike.motor_left.get())
+# print("motor_arm:", lego_spike.motor_arm.get())
+# print("force_sensor:", lego_spike.force_sensor.get())
+# print("color_sensor:", lego_spike.color_sensor.get())
+# print("ultrasonic_sensor:", lego_spike.ultrasonic_sensor.get())
+# print("gyro:", hub.motion.yaw_pitch_roll())
+# print("accel:", hub.motion.accelerometer())
+# print("USB isconnected:", lego_spike.usb.isconnected())
 
 try:
     lego_spike = LegoSpike()
