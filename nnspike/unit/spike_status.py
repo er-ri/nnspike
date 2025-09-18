@@ -153,15 +153,14 @@ class SpikeStatus:
 
         # message_typeによる分岐・returnを廃止。常に全データを更新。
 
-        # m=0のみ限定したインターバル計算
-        if self.message_type == 0:
-            now = self.timestamp
-            dt = None
-            if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:
-                dt = now - self._last_motor_update_time
-                dt_ms = dt * 1000 if dt is not None else None
-                print(f"interval: {dt_ms:.2f} ms | type: {self.message_type}")
-            self._last_motor_update_time = now
+        # 全てのmessage_typeでインターバル計算
+        now = self.timestamp
+        dt = None
+        if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:
+            dt = now - self._last_motor_update_time
+            dt_ms = dt * 1000 if dt is not None else None
+            print(f"interval: {dt_ms:.2f} ms | type: {self.message_type}")
+        self._last_motor_update_time = now
 
         # Update motors
         for motor_id, motor_data in parsed_data.get("motors", {}).items():
