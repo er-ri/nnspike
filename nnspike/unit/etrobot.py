@@ -476,9 +476,10 @@ class ETRobot(object):
             bool: 条件を満たせばTrue、そうでなければFalse
         """
         angle = self.get_gyro_integrated_y()
+        angle_z = self.get_gyro_integrated_z()
         offset = getattr(self, '_gyro_integration_start_y', 0.0)
         diff = angle - offset
-        print(f"[GyroThreshold] integrated_y={angle:.2f}, offset={offset:.2f}, diff={diff:.2f}, threshold={threshold}, direction={direction}")
+        print(f"[GyroThreshold] integrated_y={angle:.2f}, integrated_z={angle_z:.2f}, offset={offset:.2f}, diff={diff:.2f}, threshold={threshold}, direction={direction}")
         if direction == 'left':
             return diff >= threshold
         elif direction == 'right':
