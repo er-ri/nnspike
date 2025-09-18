@@ -1,4 +1,3 @@
-
 """Main controlling program for LEGO Spike Prime Hub"""
 import gc
 import time
@@ -176,56 +175,54 @@ sender_task_last_values = {
 async def sender_task():
     while True:
         try:
-            mr = lego_spike.motor_right.get()
-            ml = lego_spike.motor_left.get()
-            ma = lego_spike.motor_arm.get()
-            fs = lego_spike.force_sensor.get()
-            cs = lego_spike.color_sensor.get()
-            yaw, pitch, roll = hub.motion.yaw_pitch_roll()
-            lv = sender_task_last_values
-            # 値取得（変換なし、Noneもそのまま送信）
+            # 全センサー値取得（Noneも含めて送信）
+            mr = lego_spike.motor_right.get() if hasattr(lego_spike.motor_right, 'get') else [None]*4
+            ml = lego_spike.motor_left.get() if hasattr(lego_spike.motor_left, 'get') else [None]*4
+            ma = lego_spike.motor_arm.get() if hasattr(lego_spike.motor_arm, 'get') else [None]*4
+            fs = lego_spike.force_sensor.get() if hasattr(lego_spike.force_sensor, 'get') else [None]*2
+            cs = lego_spike.color_sensor.get() if hasattr(lego_spike.color_sensor, 'get') else [None]*5
+            us = lego_spike.ultrasonic_sensor.get() if hasattr(lego_spike.ultrasonic_sensor, 'get') else [None]*2
+            try:
+                yaw, pitch, roll = hub.motion.yaw_pitch_roll()
+            except Exception:
+                yaw, pitch, roll = 0, 0, 0
+            try:
+                accel = hub.motion.accelerometer()
+            except Exception:
+                accel = [0, 0, 0]
+            # モータ値
             motors_data = {}
             for key, arr in zip(["A","B","C"], [mr, ml, ma]):
                 motors_data[key] = {}
                 for i, field in enumerate(["speed","relative_position","position","power"]):
-                    v = arr[i] if i < len(arr) else None
+                    v = arr[i] if arr and i < len(arr) else None
                     motors_data[key][field] = v
-            force_val = fs[1] if len(fs) > 1 else None
-            # distanceは不要
+            # Force sensor値
+            force_val = fs[1] if fs and len(fs) > 1 else None
+            # Color sensor値
             color_data = []
-            for i, idx in enumerate([2,3,4]):
-                v = safe_color_get(cs, idx)
+            for idx in [2,3,4]:
+                v = cs[idx] if cs and len(cs) > idx else None
                 color_data.append(v)
-            gyro_data = [yaw, pitch, roll]
-            # accel/positionは不要
-            # 必ず {'m': 0, 'p': [...]} 形式で送信
-            # p: [[48, [A]], [48, [B]], [49, [C]], [63, [force]], [61, [color]], [62, [distance]], [6, ...], [0, ...], [gyro], '', 0]
+            # Ultrasonic sensor値
+            us_val = us[0] if us and len(us) > 0 else None
+            # 送信データ構築
             p = []
-            # Motor A/B (port 48)
             p.append([48, [motors_data["A"]["speed"], motors_data["A"]["relative_position"], motors_data["A"]["position"], motors_data["A"]["power"]]])
             p.append([48, [motors_data["B"]["speed"], motors_data["B"]["relative_position"], motors_data["B"]["position"], motors_data["B"]["power"]]])
-            # Motor C (port 49)
             p.append([49, [motors_data["C"]["speed"], motors_data["C"]["relative_position"], motors_data["C"]["position"], motors_data["C"]["power"]]])
-            # Force sensor (port 63)
             p.append([63, [0, 0, force_val]])
-            # Color sensor (port 61)
             p.append([61, [0, None, color_data[0], color_data[1], color_data[2]]])
-            # Distance sensor (port 62)（値はNone固定）
-            p.append([62, [None]])
-            # 位置情報（仮）→ 何もないなら0で送信
-            p.append([6, 0, 0])
-            # 予備データ（仮）
+            p.append([62, [us_val]])
+            p.append([7, accel[0], accel[1], accel[2]])
             p.append([0, 0, 0])
-            # Gyro
-            p.append([gyro_data[0], gyro_data[1], gyro_data[2]])
-            # 空文字列
+            p.append([0, yaw, pitch, roll])
             p.append("")
-            # 末尾0
             p.append(0)
             data = {"m": 0, "p": p}
             send_str = json.dumps(data) + "\r"
             sent_bytes = lego_spike.usb.write(send_str.encode())
-            # print("USB write bytes:", sent_bytes)
+            print("USB write bytes:", sent_bytes, "| USB write content:", send_str)
             await uasyncio.sleep(0.005)  # 送信直後にバッファ安定化
         except Exception as e:
             print("[SEND ERROR]", repr(e))
@@ -242,13 +239,15 @@ gc.collect()
 
 print("Starting LEGO Prime Hub..")
 lego_spike = LegoSpike()
-    # print("motor_right:", lego_spike.motor_right.get())
-    # print("motor_left:", lego_spike.motor_left.get())
-    # print("motor_arm:", lego_spike.motor_arm.get())
-    # print("force_sensor:", lego_spike.force_sensor.get())
-    # print("color_sensor:", lego_spike.color_sensor.get())
-    # print("gyro:", hub.motion.yaw_pitch_roll())
-    # print("USB isconnected:", lego_spike.usb.isconnected())
+print("motor_right:", lego_spike.motor_right.get())
+print("motor_left:", lego_spike.motor_left.get())
+print("motor_arm:", lego_spike.motor_arm.get())
+print("force_sensor:", lego_spike.force_sensor.get())
+print("color_sensor:", lego_spike.color_sensor.get())
+print("ultrasonic_sensor:", lego_spike.ultrasonic_sensor.get())
+print("gyro:", hub.motion.yaw_pitch_roll())
+print("accel:", hub.motion.accelerometer())
+print("USB isconnected:", lego_spike.usb.isconnected())
 
 try:
     lego_spike = LegoSpike()
