@@ -466,20 +466,20 @@ class ETRobot(object):
         self._gyro_integrated_z = 0.0
         self._gyro_integration_active = False
 
-    def is_gyro_y_exceeded(self, threshold: float, direction: str) -> bool:
+    def is_gyro_rotation_exceeded(self, threshold: float, direction: str) -> bool:
         """
-        積分加算したgyro_y（ロール角度）が指定した方向・閾値を超えたか判定する。
+        積分加算したジャイロ回転（z軸）角度が指定した方向・閾値を超えたか判定する。
         Args:
             threshold (float): 閾値（度）。必須。
             direction (str): 'left'（正方向へthreshold度以上）, 'right'（負方向へthreshold度以上）
         Returns:
             bool: 条件を満たせばTrue、そうでなければFalse
         """
-        angle = self.get_gyro_integrated_y()
-        angle_z = self.get_gyro_integrated_z()
-        offset = getattr(self, '_gyro_integration_start_y', 0.0)
-        diff = angle - offset
-        print(f"[GyroThreshold] integrated_y={angle:.2f}, integrated_z={angle_z:.2f}, offset={offset:.2f}, diff={diff:.2f}, threshold={threshold}, direction={direction}")
+        integrated_y = self.get_gyro_integrated_y()
+        integrated_z = self.get_gyro_integrated_z()
+        offset = getattr(self, '_gyro_integration_start_z', 0.0)
+        diff = integrated_z - offset
+        print(f"[GyroThreshold] integrated_y={integrated_y:.2f}, integrated_z={integrated_z:.2f}, offset={offset:.2f}, diff={diff:.2f}, threshold={threshold}, direction={direction}")
         if direction == 'left':
             return diff >= threshold
         elif direction == 'right':
