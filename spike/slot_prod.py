@@ -212,7 +212,7 @@ async def sender_task():
             p.append([48, [motors_data["B"]["speed"], motors_data["B"]["relative_position"], motors_data["B"]["position"], motors_data["B"]["power"]]])
             p.append([49, [motors_data["C"]["speed"], motors_data["C"]["relative_position"], motors_data["C"]["position"], motors_data["C"]["power"]]])
             p.append([63, [0, 0, force_val]])
-            p.append([61, [0, 0, color_data[0], color_data[1], color_data[2]]])
+            p.append([61, [0, safe_get(cs[1]), color_data[0], color_data[1], color_data[2]]])
             p.append([62, [us_val]])
             p.append([safe_get(accel[0]), safe_get(accel[1]), safe_get(accel[2])])
             p.append([0, 0, 0])
