@@ -106,8 +106,6 @@ class SensorStatus:
             position=(Position.from_dict(data.get("position", {})) if data.get("position") else None),
         )
 
-
-
 class SpikeStatus:
     """
     Class to represent and access the status of a Lego Spike Prime hub.
@@ -156,12 +154,14 @@ class SpikeStatus:
         # message_typeによる分岐・returnを廃止。常に全データを更新。
 
         # Update motors
-        # モーター更新頻度（dt）計算（未使用のため一時コメントアウト）
-        # now = self.timestamp
-        # dt = None
-        # if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:
-        #     dt = now - self._last_motor_update_time
-        # self._last_motor_update_time = now
+        # モーター更新頻度（dt）計算（有効化）
+        now = self.timestamp
+        dt = None
+        if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:
+            dt = now - self._last_motor_update_time
+            dt_ms = dt * 1000 if dt is not None else None
+            print(f"Motor update interval: {dt_ms:.2f} ms")
+        self._last_motor_update_time = now
         for motor_id, motor_data in parsed_data.get("motors", {}).items():
             if motor_id in self.motors:
                 self.motors[motor_id] = MotorStatus.from_dict(motor_data)
