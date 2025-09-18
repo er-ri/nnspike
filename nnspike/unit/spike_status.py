@@ -87,7 +87,7 @@ class SensorStatus:
             color = ColorSensorStatus(None, None, None)
         accelerometer = VectorStatus.from_dict(data.get("accelerometer", {})) if data.get("accelerometer") else None
         gyroscope = VectorStatus.from_dict(data.get("gyroscope", {})) if data.get("gyroscope") else None
-        yaw_pitch_roll = data.get("yaw_pitch_roll")
+        yaw_pitch_roll = VectorStatus.from_dict(data.get("yaw_pitch_roll", {})) if data.get("yaw_pitch_roll") else None
         return cls(
             distance=data.get("distance"),
             force=data.get("force"),

@@ -77,6 +77,17 @@ class ETRobot(object):
         last = self.last_spike_status
 
         # Update sensors with valid readings
+        # Update motor data (always update as these are more reliable)
+        for motor_id in ["A", "B", "C"]:
+            if current.motors[motor_id].position is not None:
+                last.motors[motor_id].position = current.motors[motor_id].position
+            if current.motors[motor_id].relative_position is not None:
+                last.motors[motor_id].relative_position = current.motors[motor_id].relative_position
+            if current.motors[motor_id].speed is not None:
+                last.motors[motor_id].speed = current.motors[motor_id].speed
+            if current.motors[motor_id].power is not None:
+                last.motors[motor_id].power = current.motors[motor_id].power
+
         # Distance sensor
         if current.sensors.distance is not None:
             last.sensors.distance = current.sensors.distance
@@ -98,18 +109,6 @@ class ETRobot(object):
             if current.sensors.color.color is not None:
                 last.sensors.color.color = current.sensors.color.color
 
-        # Gyroscope data（生値）
-        if current.sensors.gyroscope:
-            if not last.sensors.gyroscope:
-                from .spike_status import VectorStatus
-                last.sensors.gyroscope = VectorStatus()
-            if current.sensors.gyroscope.x is not None:
-                last.sensors.gyroscope.x = current.sensors.gyroscope.x
-            if current.sensors.gyroscope.y is not None:
-                last.sensors.gyroscope.y = current.sensors.gyroscope.y
-            if current.sensors.gyroscope.z is not None:
-                last.sensors.gyroscope.z = current.sensors.gyroscope.z
-
         # Accelerometer data
         if current.sensors.accelerometer:
             if not last.sensors.accelerometer:
@@ -122,16 +121,29 @@ class ETRobot(object):
             if current.sensors.accelerometer.z is not None:
                 last.sensors.accelerometer.z = current.sensors.accelerometer.z
 
-        # Update motor data (always update as these are more reliable)
-        for motor_id in ["A", "B", "C"]:
-            if current.motors[motor_id].position is not None:
-                last.motors[motor_id].position = current.motors[motor_id].position
-            if current.motors[motor_id].relative_position is not None:
-                last.motors[motor_id].relative_position = current.motors[motor_id].relative_position
-            if current.motors[motor_id].speed is not None:
-                last.motors[motor_id].speed = current.motors[motor_id].speed
-            if current.motors[motor_id].power is not None:
-                last.motors[motor_id].power = current.motors[motor_id].power
+        # Gyroscope data（生値）
+        if current.sensors.gyroscope:
+            if not last.sensors.gyroscope:
+                from .spike_status import VectorStatus
+                last.sensors.gyroscope = VectorStatus()
+            if current.sensors.gyroscope.x is not None:
+                last.sensors.gyroscope.x = current.sensors.gyroscope.x
+            if current.sensors.gyroscope.y is not None:
+                last.sensors.gyroscope.y = current.sensors.gyroscope.y
+            if current.sensors.gyroscope.z is not None:
+                last.sensors.gyroscope.z = current.sensors.gyroscope.z
+
+        # YawPitchRoll（ヨー・ピッチ・ロール）データ
+        if current.sensors.yaw_pitch_roll:
+            if not last.sensors.yaw_pitch_roll:
+                from .spike_status import VectorStatus
+                last.sensors.yaw_pitch_roll = VectorStatus()
+            if current.sensors.yaw_pitch_roll.x is not None:
+                last.sensors.yaw_pitch_roll.x = current.sensors.yaw_pitch_roll.x
+            if current.sensors.yaw_pitch_roll.y is not None:
+                last.sensors.yaw_pitch_roll.y = current.sensors.yaw_pitch_roll.y
+            if current.sensors.yaw_pitch_roll.z is not None:
+                last.sensors.yaw_pitch_roll.z = current.sensors.yaw_pitch_roll.z
 
         # Update battery data (for HIGH_SPEED_BASE optimization)
         if current.battery.voltage is not None:
