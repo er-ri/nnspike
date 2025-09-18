@@ -122,16 +122,6 @@ class ETRobot(object):
             if current.sensors.accelerometer.z is not None:
                 last.sensors.accelerometer.z = current.sensors.accelerometer.z
 
-        # Position data
-        if current.sensors.position:
-            if not last.sensors.position:
-                from .spike_status import Position
-                last.sensors.position = Position()
-            if current.sensors.position.x is not None:
-                last.sensors.position.x = current.sensors.position.x
-            if current.sensors.position.y is not None:
-                last.sensors.position.y = current.sensors.position.y
-
         # Update motor data (always update as these are more reliable)
         for motor_id in ["A", "B", "C"]:
             if current.motors[motor_id].position is not None:
