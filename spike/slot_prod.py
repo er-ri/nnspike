@@ -214,9 +214,9 @@ async def sender_task():
             p.append([63, [0, 0, force_val]])
             p.append([61, [0, None, color_data[0], color_data[1], color_data[2]]])
             p.append([62, [us_val]])
-            p.append([7, accel[0], accel[1], accel[2]])
+            p.append([accel[0], accel[1], accel[2]])
             p.append([0, 0, 0])
-            p.append([0, yaw, pitch, roll])
+            p.append([yaw, pitch, roll])
             p.append("")
             p.append(0)
             data = {"m": 0, "p": p}

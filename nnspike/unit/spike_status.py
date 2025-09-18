@@ -255,28 +255,22 @@ class SpikeStatus:
                     result["sensors"]["distance"] = payload[5][1][0] if len(payload[5][1]) > 0 else None
                 # 6: 加速度（IDではなく値）
                 if len(payload) > 6 and isinstance(payload[6], list):
-                    # [7, x, y] or [7, x, y, z] の場合
+                    # [x, y, z] の場合
                     if len(payload[6]) == 3:
                         result["sensors"]["accelerometer"] = {
-                            "x": payload[6][1],
-                            "y": payload[6][2],
-                            "z": 0,
-                        }
-                    elif len(payload[6]) >= 4:
-                        result["sensors"]["accelerometer"] = {
-                            "x": payload[6][1],
-                            "y": payload[6][2],
-                            "z": payload[6][3],
+                            "x": payload[6][0],
+                            "y": payload[6][1],
+                            "z": payload[6][2],
                         }
                 # 7: 未使用（ゼロ埋め）
-                # 8: ジャイロ（ID:0, 値）
-                if len(payload) > 8 and isinstance(payload[8], list) and payload[8][0] == 0:
-                    # [0, x, y, z] の場合
-                    if len(payload[8]) >= 4:
+                # ジャイロ（IDなし、値のみ）
+                if len(payload) > 8 and isinstance(payload[8], list):
+                    # [x, y, z] の場合
+                    if len(payload[8]) == 3:
                         result["sensors"]["gyro"] = {
-                            "x": payload[8][1],
-                            "y": payload[8][2],
-                            "z": payload[8][3],
+                            "x": payload[8][0],
+                            "y": payload[8][1],
+                            "z": payload[8][2],
                         }
 
                 # Position from sensors
@@ -323,7 +317,6 @@ class SpikeStatus:
             lines.append(f"  Gyro - x: {self.sensors.gyro.x}, y: {self.sensors.gyro.y}, z: {self.sensors.gyro.z}")
         if self.sensors.accelerometer:
             lines.append(f"  Accel - X: {self.sensors.accelerometer.x}, Y: {self.sensors.accelerometer.y}, Z: {self.sensors.accelerometer.z}")
-        # 位置情報は送信・パースしないため表示もしない
         if self.battery and self.battery.percent is not None:
             lines.append(f"Battery: {self.battery.percent}% ({self.battery.voltage}V)")
 
