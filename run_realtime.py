@@ -379,6 +379,16 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={yaw:.2f}")
                     # 急停止フラグを立てて、次ループでaccelx判定・逆噴射
                     turn_right_started = 'need_reverse_stop_right'
+                    # 逆噴射フラグON時はaccelx判定して逆噴射、閾値未満ならPAUSEへ
+                    if turn_right_started == 'need_reverse_stop_right':
+                        status = et.get_spike_status()
+                        accelx = status.sensors.accelerometer.x if status.sensors.accelerometer else 0
+                        if abs(accelx) >= 10:
+                            et.set_motor_speed(left_speed=-BASE_SPEED, right_speed=BASE_SPEED)
+                        else:
+                            et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                            mode = Mode.PAUSE
+                            turn_right_started = False
             elif mode == Mode.TEST:
                 # ロール補正のみでベーススピード走行
                 # left_speed, right_speed = et.calc_max_speed_with_roll_control(BASE_SPEED)
