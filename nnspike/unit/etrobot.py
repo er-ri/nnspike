@@ -448,17 +448,3 @@ class ETRobot(object):
             return integrated >= threshold
         raise ValueError("direction must be 'left' or 'right'")
 
-    def get_yaw(self):
-        """
-        現在のヨー（yaw）角度を取得する
-        Returns:
-            float or None: yaw値（取得できなければNone）
-        """
-        status = self.get_spike_status()
-        ypr = getattr(status.sensors, "yaw_pitch_roll", None)
-        if ypr and hasattr(ypr, "z"):
-            try:
-                return float(ypr.z)
-            except (TypeError, ValueError):
-                return 0.0
-        return 0.0
