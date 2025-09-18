@@ -420,18 +420,15 @@ class ETRobot(object):
         self._gyro_integration_last_time = None  # 追加
 
 
-    def is_gyro_integrated_rotation_exceeded(self, axis: str, threshold: float, direction: str) -> bool:
+    def is_gyro_integrated_rotation_exceeded_z(self, threshold: float, direction: str) -> bool:
         """
-        積分加算したジャイロ回転（指定軸）角度が指定した方向・閾値を超えたか判定する。
+        積分加算したジャイロz回転角度が指定した方向・閾値を超えたか判定する。
         Args:
-            axis (str): 'x', 'y', 'z'
             threshold (float): 閾値（度）
-            direction (str): 軸ごとの判定方向
+            direction (str): 'left' or 'right'
         Returns:
             bool: 条件を満たせばTrue
         """
-        if axis != 'z':
-            raise ValueError("axis must be 'z'")
         integrated = self.get_gyro_integrated_z()
         print(f"[GyroZThreshold] integrated={integrated:.2f}, threshold={threshold}, direction={direction}")
         if direction == 'right':

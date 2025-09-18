@@ -367,7 +367,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 print(f"[TURN_LEFT][Gyro] gyro_z={gyro_z:.2f}, integrated_z={gyro_integrated_z:.2f}")
                 # -90度超えたら即停止
-                if gyro_integrated_z <= -90.0:
+                if et.is_gyro_integrated_rotation_exceeded_z(90.0, 'left'):
                     print(f"[TURN_LEFT][Gyro] reached -90 deg and stopped | integrated_z={gyro_integrated_z:.2f}")
                     et.set_motor_forward_speed(left_speed=0, right_speed=0)
                     et.reset_gyro_integration()
@@ -402,7 +402,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 print(f"[TURN_RIGHT][Gyro] gyro_z={gyro_z:.2f}, integrated_z={gyro_integrated_z:.2f}")
                 # +90度超えたら即停止
-                if gyro_integrated_z >= 90.0:
+                if et.is_gyro_integrated_rotation_exceeded_z(90.0, 'right'):
                     print(f"[TURN_RIGHT][Gyro] reached +90 deg and stopped | integrated_z={gyro_integrated_z:.2f}")
                     et.set_motor_forward_speed(left_speed=0, right_speed=0)
                     et.reset_gyro_integration()
