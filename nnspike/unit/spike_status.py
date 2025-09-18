@@ -153,21 +153,20 @@ class SpikeStatus:
 
         # message_typeによる分岐・returnを廃止。常に全データを更新。
 
+        # m=0のみ限定したインターバル計算
+        if self.message_type == 0:
+            now = self.timestamp
+            dt = None
+            if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:
+                dt = now - self._last_motor_update_time
+                dt_ms = dt * 1000 if dt is not None else None
+                print(f"interval: {dt_ms:.2f} ms | raw: {self.raw_data}")
+            self._last_motor_update_time = now
+
         # Update motors
-        # モーター更新頻度（dt）計算（有効化）
-        now = self.timestamp
-        dt = None
-        if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:
-            dt = now - self._last_motor_update_time
-            dt_ms = dt * 1000 if dt is not None else None
-            print(f"Motor update interval: {dt_ms:.2f} ms")
-        self._last_motor_update_time = now
         for motor_id, motor_data in parsed_data.get("motors", {}).items():
             if motor_id in self.motors:
                 self.motors[motor_id] = MotorStatus.from_dict(motor_data)
-                # dt（更新間隔）はここで利用可能（未使用のため一時コメントアウト）
-                # dt_ms = dt * 1000 if dt is not None else None
-                # print(f"Motor {motor_id} update dt: {dt_ms:.2f} ms, position: {self.motors[motor_id].position}, power: {self.motors[motor_id].power}, relative_position: {self.motors[motor_id].relative_position}, speed: {self.motors[motor_id].speed}")
 
         # Update sensors
         self.sensors = SensorStatus.from_dict(parsed_data.get("sensors", {}))
