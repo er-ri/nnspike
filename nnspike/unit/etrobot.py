@@ -364,28 +364,6 @@ class ETRobot(object):
         self.__thread.join()
         self.__serial_port.close()
 
-    def get_gyro_angle_x(self) -> float:
-        """
-        SpikeStatusからgyroscope_x角度（度）を取得
-        Returns:
-            float: x軸角度（度）
-        """
-        status = self.get_spike_status()
-        if status.sensors.gyroscope:
-            return status.sensors.gyroscope.x
-        return 0.0
-
-    def get_gyro_angle_y(self) -> float:
-        """
-        SpikeStatusからgyroscope_y角度（度）を取得
-        Returns:
-            float: y軸角度（度）
-        """
-        status = self.get_spike_status()
-        if status.sensors.gyroscope:
-            return status.sensors.gyroscope.y
-        return 0.0
-
     def get_gyro_angle_z(self) -> float:
         """
         SpikeStatusからgyroscope_z角度（度）を取得
@@ -402,19 +380,15 @@ class ETRobot(object):
         ジャイロ積分の開始（基準値・時刻を記録）
         """
         status = self.get_spike_status()
-        self._gyro_integrated_x = 0.0
-        self._gyro_integrated_y = 0.0
         self._gyro_integrated_z = 0.0
         self._gyro_integration_start_time = time.time()
-        self._gyro_integration_start_x = status.sensors.gyroscope.x if status.sensors.gyroscope else 0.0
-        self._gyro_integration_start_y = status.sensors.gyroscope.y if status.sensors.gyroscope else 0.0
         self._gyro_integration_start_z = status.sensors.gyroscope.z if status.sensors.gyroscope else 0.0
         self._gyro_integration_active = True
 
     def update_gyro_integration(self):
         """
         ジャイロ積分値を最新値で加算（ループ内で呼ぶ）
-        dt（ms）と_gyro_integrated_yをprintデバッグ出力
+        dt（ms）と_gyro_integrated_zをprintデバッグ出力
         """
         if not getattr(self, '_gyro_integration_active', False):
             return
@@ -428,49 +402,39 @@ class ETRobot(object):
             self._gyro_integration_last_time = now
             print(f"[GyroIntegration] dt={dt_ms}ms, gyro_z={status.sensors.gyroscope.z:.2f}, integrated_z={self._gyro_integrated_z:.2f}")
 
-    def get_gyro_integrated_x(self) -> float:
-        """
-        積分したgyro_x角度（度）を返す
-        """
-        return getattr(self, '_gyro_integrated_x', 0.0)
-
-    def get_gyro_integrated_y(self) -> float:
-        """
-        積分したgyro_y角度（度）を返す
-        """
-        return getattr(self, '_gyro_integrated_y', 0.0)
-
     def get_gyro_integrated_z(self) -> float:
         """
         積分したgyro_z角度（度）を返す
         """
         return getattr(self, '_gyro_integrated_z', 0.0)
 
+
     def reset_gyro_integration(self):
         """
         ジャイロ積分値をリセット
         """
-        self._gyro_integrated_x = 0.0
-        self._gyro_integrated_y = 0.0
         self._gyro_integrated_z = 0.0
         self._gyro_integration_active = False
 
-    def is_gyro_rotation_exceeded(self, threshold: float, direction: str) -> bool:
+
+    def is_gyro_integrated_rotation_exceeded(self, axis: str, threshold: float, direction: str) -> bool:
         """
-        積分加算したジャイロ回転（z軸）角度が指定した方向・閾値を超えたか判定する。
+        積分加算したジャイロ回転（指定軸）角度が指定した方向・閾値を超えたか判定する。
         Args:
-            threshold (float): 閾値（度）。必須。
-            direction (str): 'left'（正方向へthreshold度以上）, 'right'（負方向へthreshold度以上）
+            axis (str): 'x', 'y', 'z'
+            threshold (float): 閾値（度）
+            direction (str): 軸ごとの判定方向
         Returns:
-            bool: 条件を満たせばTrue、そうでなければFalse
+            bool: 条件を満たせばTrue
         """
-        integrated_z = self.get_gyro_integrated_z()
+        if axis != 'z':
+            raise ValueError("axis must be 'z'")
+        integrated = self.get_gyro_integrated_z()
         offset = getattr(self, '_gyro_integration_start_z', 0.0)
-        diff = integrated_z - offset
-        print(f"[GyroThreshold] integrated_z={integrated_z:.2f}, offset={offset:.2f}, diff={diff:.2f}, threshold={threshold}, direction={direction}")
-        if direction == 'left':
-            return diff <= -threshold
-        elif direction == 'right':
+        diff = integrated - offset
+        print(f"[GyroZThreshold] integrated={integrated:.2f}, offset={offset:.2f}, diff={diff:.2f}, threshold={threshold}, direction={direction}")
+        if direction == 'right':
             return diff >= threshold
-        else:
-            raise ValueError("direction must be 'left' or 'right'")
+        elif direction == 'left':
+            return diff <= -threshold
+        raise ValueError("direction must be 'left' or 'right'")
