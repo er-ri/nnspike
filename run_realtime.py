@@ -337,34 +337,36 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 right_speed = BASE_SPEED
                 et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.TURN_LEFT:
-                # 30度左回転して自動ストップ
+                # ヨー角で左回転判定（-90度）
+                status = et.get_spike_status()
+                yaw = status.sensors.gyro.x if status.sensors.gyro else 0.0
                 if not turn_left_started:
-                    et.start_gyro_integration()
+                    yaw_start = yaw
                     turn_left_started = True
                 left_speed = -HIGH_SPEED_BASE
                 right_speed = HIGH_SPEED_BASE
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-                # 30度超えたらストップ
-                if et.is_gyro_rotation_exceeded(90.0, 'left'):
-                    print("[TURN_LEFT] reached 90 deg and stopped")
+                # -90度超えたらストップ
+                if (yaw - (yaw_start if yaw_start is not None else 0.0)) <= -90.0:
+                    print("[TURN_LEFT] reached -90 deg and stopped")
                     mode = Mode.PAUSE
                     et.set_motor_forward_speed(0, 0)
-                    et.reset_gyro_integration()
                     turn_left_started = False
             elif mode == Mode.TURN_RIGHT:
-                # 30度右回転して自動ストップ
+                # ヨー角で右回転判定（+90度）
+                status = et.get_spike_status()
+                yaw = status.sensors.gyro.x if status.sensors.gyro else 0.0
                 if not turn_left_started:
-                    et.start_gyro_integration()
+                    yaw_start = yaw
                     turn_left_started = True
                 left_speed = HIGH_SPEED_BASE
                 right_speed = -HIGH_SPEED_BASE
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-                # 30度超えたらストップ
-                if et.is_gyro_rotation_exceeded(90.0, 'right'):
-                    print("[TURN_RIGHT] reached 90 deg and stopped")
+                # +90度超えたらストップ
+                if (yaw - (yaw_start if yaw_start is not None else 0.0)) >= 90.0:
+                    print("[TURN_RIGHT] reached +90 deg and stopped")
                     mode = Mode.PAUSE
                     et.set_motor_forward_speed(0, 0)
-                    et.reset_gyro_integration()
                     turn_left_started = False
             elif mode == Mode.TEST:
                 # ロール補正のみでベーススピード走行
