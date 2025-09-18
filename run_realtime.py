@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+from email.mime import base
 import sys
 import time
 
@@ -340,8 +341,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if not turn_left_started:
                     et.start_gyro_integration()
                     turn_left_started = True
-                left_speed = 0
-                right_speed = BASE_SPEED
+                left_speed = -HIGH_SPEED_BASE
+                right_speed = HIGH_SPEED_BASE
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 # 30度超えたらストップ
                 if et.is_gyro_y_exceeded(90.0, 'left'):
@@ -355,8 +356,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if not turn_left_started:
                     et.start_gyro_integration()
                     turn_left_started = True
-                left_speed = BASE_SPEED
-                right_speed = 0
+                left_speed = HIGH_SPEED_BASE
+                right_speed = -HIGH_SPEED_BASE
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 # 30度超えたらストップ
                 if et.is_gyro_y_exceeded(90.0, 'right'):
