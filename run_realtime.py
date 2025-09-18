@@ -344,10 +344,10 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 right_speed = BASE_SPEED
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 # 30度超えたらストップ
-                if et.is_gyro_y_exceeded(30.0, 'left'):
-                    et.brake()
-                    print("[TURN_LEFT] 30度到達で停止")
+                if et.is_gyro_y_exceeded(90.0, 'left'):
+                    print("[TURN_LEFT] reached 90 deg and stopped")
                     mode = Mode.PAUSE
+                    et.set_motor_forward_speed(0, 0)
                     turn_left_started = False
             elif mode == Mode.TURN_RIGHT:
                 # 30度右回転して自動ストップ
@@ -358,10 +358,10 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 right_speed = -BASE_SPEED
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 # 30度超えたらストップ
-                if et.is_gyro_y_exceeded(30.0, 'right'):
-                    et.brake()
-                    print("[TURN_RIGHT] 30度到達で停止")
+                if et.is_gyro_y_exceeded(90.0, 'right'):
+                    print("[TURN_RIGHT] reached 90 deg and stopped")
                     mode = Mode.PAUSE
+                    et.set_motor_forward_speed(0, 0)
                     turn_left_started = False
             elif mode == Mode.TEST:
                 # ロール補正のみでベーススピード走行
