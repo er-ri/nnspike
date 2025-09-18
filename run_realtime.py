@@ -341,6 +341,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             elif mode == Mode.TURN_LEFT:
                 # --- ヨー角判定ロジック（元の形式） ---
                 status = et.get_spike_status()
+                print(f"DEBUG yaw_pitch_roll (LEFT): {status.sensors.yaw_pitch_roll}")
                 yaw = status.sensors.yaw_pitch_roll.get('yaw') if status.sensors.yaw_pitch_roll else 0.0
                 if not turn_left_started:
                     yaw_start_left = yaw
@@ -357,6 +358,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             elif mode == Mode.TURN_RIGHT:
                 # --- ヨー角判定ロジック（元の形式） ---
                 status = et.get_spike_status()
+                print(f"DEBUG yaw_pitch_roll (RIGHT): {status.sensors.yaw_pitch_roll}")
                 yaw = status.sensors.yaw_pitch_roll.get('yaw') if status.sensors.yaw_pitch_roll else 0.0
                 if not turn_right_started:
                     yaw_start_right = yaw
