@@ -432,7 +432,7 @@ class ETRobot(object):
         integrated = self.get_gyro_integrated_z()
         print(f"[GyroZThreshold] integrated={integrated:.2f}, threshold={threshold}, direction={direction}")
         if direction == 'right':
-            return integrated >= threshold
-        elif direction == 'left':
             return integrated <= -threshold
+        elif direction == 'left':
+            return integrated >= threshold
         raise ValueError("direction must be 'left' or 'right'")
