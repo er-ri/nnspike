@@ -183,45 +183,46 @@ async def sender_task():
             cs = lego_spike.color_sensor.get()
             yaw, pitch, roll = hub.motion.yaw_pitch_roll()
             lv = sender_task_last_values
-            # 値取得（Noneならlast値、last値もNoneなら0）
-            def get_with_last(val, last):
-                return val if val is not None else (last if last is not None else 0)
+            # 値取得（変換なし、Noneもそのまま送信）
             motors_data = {}
             for key, arr in zip(["A","B","C"], [mr, ml, ma]):
                 motors_data[key] = {}
                 for i, field in enumerate(["speed","relative_position","position","power"]):
-                    v = arr[i] if i < len(arr) else 0  # 要素不足時は必ず0
-                    motors_data[key][field] = get_with_last(v, lv["motors"][key][i])
-                    lv["motors"][key][i] = motors_data[key][field]
-            force_val = get_with_last(fs[1], lv["force"])
-            lv["force"] = force_val
+                    v = arr[i] if i < len(arr) else None
+                    motors_data[key][field] = v
+            force_val = fs[1] if len(fs) > 1 else None
             # distanceは不要
             color_data = []
             for i, idx in enumerate([2,3,4]):
                 v = safe_color_get(cs, idx)
-                color_data.append(get_with_last(v, lv["color"][i]))
-                lv["color"][i] = color_data[i]
+                color_data.append(v)
             gyro_data = [yaw, pitch, roll]
-            for i in range(3):
-                lv["gyro"][i] = gyro_data[i]
             # accel/positionは不要
-            data = {
-                "message_type": 0,
-                "motors": motors_data,
-                "sensors": {
-                    "force": force_val,
-                    "color": {
-                        "reflected": color_data[0],
-                        "ambient": color_data[1],
-                        "color": color_data[2],
-                    },
-                    "gyro": {
-                        "x": gyro_data[0],
-                        "y": gyro_data[1],
-                        "z": gyro_data[2],
-                    },
-                },
-            }
+            # 必ず {'m': 0, 'p': [...]} 形式で送信
+            # p: [[48, [A]], [48, [B]], [49, [C]], [63, [force]], [61, [color]], [62, [distance]], [6, ...], [0, ...], [gyro], '', 0]
+            p = []
+            # Motor A/B (port 48)
+            p.append([48, [motors_data["A"]["speed"], motors_data["A"]["relative_position"], motors_data["A"]["position"], motors_data["A"]["power"]]])
+            p.append([48, [motors_data["B"]["speed"], motors_data["B"]["relative_position"], motors_data["B"]["position"], motors_data["B"]["power"]]])
+            # Motor C (port 49)
+            p.append([49, [motors_data["C"]["speed"], motors_data["C"]["relative_position"], motors_data["C"]["position"], motors_data["C"]["power"]]])
+            # Force sensor (port 63)
+            p.append([63, [0, 0, force_val]])
+            # Color sensor (port 61)
+            p.append([61, [0, None, color_data[0], color_data[1], color_data[2]]])
+            # Distance sensor (port 62)（値はNone固定）
+            p.append([62, [None]])
+            # 位置情報（仮）→ 何もないなら0で送信
+            p.append([6, 0, 0])
+            # 予備データ（仮）
+            p.append([0, 0, 0])
+            # Gyro
+            p.append([gyro_data[0], gyro_data[1], gyro_data[2]])
+            # 空文字列
+            p.append("")
+            # 末尾0
+            p.append(0)
+            data = {"m": 0, "p": p}
             send_str = json.dumps(data) + "\r"
             sent_bytes = lego_spike.usb.write(send_str.encode())
             # print("USB write bytes:", sent_bytes)
