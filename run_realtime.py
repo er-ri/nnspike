@@ -339,73 +339,35 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 right_speed = BASE_SPEED
                 et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.TURN_LEFT:
-                # --- ヨー角判定ロジックはコメントアウト ---
-                # status = et.get_spike_status()
-                # yaw = status.sensors.yaw_pitch_roll.get('yaw') if status.sensors.yaw_pitch_roll else 0.0
-                # if not turn_left_started:
-                #     yaw_start_left = yaw
-                #     turn_left_started = True
-                # left_speed = 0
-                # right_speed = BASE_SPEED
-                # et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-                # print(f"[TURN_LEFT] yaw={yaw:.2f}, yaw_start={yaw_start_left:.2f}, diff={yaw - (yaw_start_left if yaw_start_left is not None else 0.0):.2f}")
-                # if (yaw - (yaw_start_left if yaw_start_left is not None else 0.0)) <= -90.0:
-                #     print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={yaw:.2f}")
-                #     et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                #     mode = Mode.PAUSE
-                #     turn_left_started = False
-
-                # --- ジャイロz軸積分値で左回転90度判定 ---
+                # --- ヨー角判定ロジック（元の形式） ---
                 status = et.get_spike_status()
-                gyro_z = status.sensors.gyroscope.z if status.sensors.gyroscope else 0.0
-                gyro_integrated_z = et.get_gyro_integrated_z()
+                yaw = status.sensors.yaw_pitch_roll.get('yaw') if status.sensors.yaw_pitch_roll else 0.0
                 if not turn_left_started:
-                    et.start_gyro_integration()
+                    yaw_start_left = yaw
                     turn_left_started = True
                 left_speed = 0
                 right_speed = BASE_SPEED
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-                print(f"[TURN_LEFT][Gyro] gyro_z={gyro_z:.2f}, integrated_z={gyro_integrated_z:.2f}")
-                # -90度超えたら即停止
-                if et.is_gyro_integrated_rotation_exceeded_z(90.0, 'left'):
-                    print(f"[TURN_LEFT][Gyro] reached -90 deg and stopped | integrated_z={gyro_integrated_z:.2f}")
+                print(f"[TURN_LEFT] yaw={yaw:.2f}, yaw_start={yaw_start_left:.2f}, diff={yaw - (yaw_start_left if yaw_start_left is not None else 0.0):.2f}")
+                if (yaw - (yaw_start_left if yaw_start_left is not None else 0.0)) <= -90.0:
+                    print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={yaw:.2f}")
                     et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                    et.reset_gyro_integration()
                     mode = Mode.PAUSE
                     turn_left_started = False
             elif mode == Mode.TURN_RIGHT:
-                # --- ヨー角判定ロジックはコメントアウト ---
-                # status = et.get_spike_status()
-                # yaw = status.sensors.yaw_pitch_roll.get('yaw') if status.sensors.yaw_pitch_roll else 0.0
-                # if not turn_right_started:
-                #     yaw_start_right = yaw
-                #     turn_right_started = True
-                # left_speed = BASE_SPEED
-                # right_speed = 0
-                # et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-                # print(f"[TURN_RIGHT] yaw={yaw:.2f}, yaw_start={yaw_start_right:.2f}, diff={yaw - (yaw_start_right if yaw_start_right is not None else 0.0):.2f}")
-                # if (yaw - (yaw_start_right if yaw_start_right is not None else 0.0)) >= 90.0:
-                #     print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={yaw:.2f}")
-                #     et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                #     mode = Mode.PAUSE
-                #     turn_right_started = False
-
-                # --- ジャイロz軸積分値で右回転90度判定 ---
+                # --- ヨー角判定ロジック（元の形式） ---
                 status = et.get_spike_status()
-                gyro_z = status.sensors.gyroscope.z if status.sensors.gyroscope else 0.0
-                gyro_integrated_z = et.get_gyro_integrated_z()
+                yaw = status.sensors.yaw_pitch_roll.get('yaw') if status.sensors.yaw_pitch_roll else 0.0
                 if not turn_right_started:
-                    et.start_gyro_integration()
+                    yaw_start_right = yaw
                     turn_right_started = True
                 left_speed = BASE_SPEED
                 right_speed = 0
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-                print(f"[TURN_RIGHT][Gyro] gyro_z={gyro_z:.2f}, integrated_z={gyro_integrated_z:.2f}")
-                # +90度超えたら即停止
-                if et.is_gyro_integrated_rotation_exceeded_z(90.0, 'right'):
-                    print(f"[TURN_RIGHT][Gyro] reached +90 deg and stopped | integrated_z={gyro_integrated_z:.2f}")
+                print(f"[TURN_RIGHT] yaw={yaw:.2f}, yaw_start={yaw_start_right:.2f}, diff={yaw - (yaw_start_right if yaw_start_right is not None else 0.0):.2f}")
+                if (yaw - (yaw_start_right if yaw_start_right is not None else 0.0)) >= 90.0:
+                    print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={yaw:.2f}")
                     et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                    et.reset_gyro_integration()
                     mode = Mode.PAUSE
                     turn_right_started = False
             elif mode == Mode.TEST:
