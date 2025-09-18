@@ -340,7 +340,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if not turn_left_started:
                     et.start_gyro_integration()
                     turn_left_started = True
-                left_speed = -BASE_SPEED
+                left_speed = 0
                 right_speed = BASE_SPEED
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 # 30度超えたらストップ
@@ -356,7 +356,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     et.start_gyro_integration()
                     turn_left_started = True
                 left_speed = BASE_SPEED
-                right_speed = -BASE_SPEED
+                right_speed = 0
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 # 30度超えたらストップ
                 if et.is_gyro_y_exceeded(90.0, 'right'):
