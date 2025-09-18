@@ -430,11 +430,9 @@ class ETRobot(object):
         if axis != 'z':
             raise ValueError("axis must be 'z'")
         integrated = self.get_gyro_integrated_z()
-        offset = getattr(self, '_gyro_integration_start_z', 0.0)
-        diff = integrated - offset
-        print(f"[GyroZThreshold] integrated={integrated:.2f}, offset={offset:.2f}, diff={diff:.2f}, threshold={threshold}, direction={direction}")
+        print(f"[GyroZThreshold] integrated={integrated:.2f}, threshold={threshold}, direction={direction}")
         if direction == 'right':
-            return diff >= threshold
+            return integrated >= threshold
         elif direction == 'left':
-            return diff <= -threshold
+            return integrated <= -threshold
         raise ValueError("direction must be 'left' or 'right'")
