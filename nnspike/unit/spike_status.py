@@ -160,7 +160,7 @@ class SpikeStatus:
             if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:
                 dt = now - self._last_motor_update_time
                 dt_ms = dt * 1000 if dt is not None else None
-                print(f"interval: {dt_ms:.2f} ms | raw: {self.raw_data}")
+                print(f"interval: {dt_ms:.2f} ms | type: {self.message_type}")
             self._last_motor_update_time = now
 
         # Update motors
