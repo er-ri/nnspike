@@ -420,14 +420,13 @@ class ETRobot(object):
             return
         status = self.get_spike_status()
         now = time.time()
-        dt = now - getattr(self, '_gyro_integration_start_time', now)
+        last_time = getattr(self, '_gyro_integration_last_time', getattr(self, '_gyro_integration_start_time', now))
+        dt = now - last_time
         dt_ms = int(dt * 1000)
         if status.sensors.gyro:
-            self._gyro_integrated_x += status.sensors.gyro.x * dt
-            self._gyro_integrated_y += status.sensors.gyro.y * dt
             self._gyro_integrated_z += status.sensors.gyro.z * dt
             self._gyro_integration_last_time = now
-            print(f"[GyroIntegration] dt={dt_ms}ms, gyro_y={status.sensors.gyro.y:.2f}, gyro_z={status.sensors.gyro.z:.2f}, integrated_y={self._gyro_integrated_y:.2f}, integrated_z={self._gyro_integrated_z:.2f}")
+            print(f"[GyroIntegration] dt={dt_ms}ms, gyro_z={status.sensors.gyro.z:.2f}, integrated_z={self._gyro_integrated_z:.2f}")
 
     def get_gyro_integrated_x(self) -> float:
         """
@@ -465,14 +464,13 @@ class ETRobot(object):
         Returns:
             bool: 条件を満たせばTrue、そうでなければFalse
         """
-        integrated_y = self.get_gyro_integrated_y()
         integrated_z = self.get_gyro_integrated_z()
         offset = getattr(self, '_gyro_integration_start_z', 0.0)
         diff = integrated_z - offset
-        print(f"[GyroThreshold] integrated_y={integrated_y:.2f}, integrated_z={integrated_z:.2f}, offset={offset:.2f}, diff={diff:.2f}, threshold={threshold}, direction={direction}")
+        print(f"[GyroThreshold] integrated_z={integrated_z:.2f}, offset={offset:.2f}, diff={diff:.2f}, threshold={threshold}, direction={direction}")
         if direction == 'left':
-            return diff >= threshold
-        elif direction == 'right':
             return diff <= -threshold
+        elif direction == 'right':
+            return diff >= threshold
         else:
             raise ValueError("direction must be 'left' or 'right'")
