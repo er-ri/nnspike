@@ -150,6 +150,9 @@ class SpikeStatus:
         self.timestamp = parsed_data.get("timestamp", time.time())
         self.message_type = parsed_data.get("message_type", -1)
         self.raw_data = parsed_data.get("raw", {})
+        # type: -1のときrawデータを表示して原因調査
+        if self.message_type == -1:
+            print("[type:-1 raw]", self.raw_data)
 
         # message_typeによる分岐・returnを廃止。常に全データを更新。
 
