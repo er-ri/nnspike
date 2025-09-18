@@ -110,11 +110,6 @@ class ETRobot(object):
             if current.sensors.gyro.z is not None:
                 last.sensors.gyro.z = current.sensors.gyro.z
 
-        # Gyro積分値もコピー
-        last._gyro_angle_x = current._gyro_angle_x
-        last._gyro_angle_y = current._gyro_angle_y
-        last._gyro_angle_z = current._gyro_angle_z
-
         # Accelerometer data
         if current.sensors.accelerometer:
             if not last.sensors.accelerometer:
