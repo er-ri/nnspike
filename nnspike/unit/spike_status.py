@@ -222,9 +222,6 @@ class SpikeStatus:
 
             # Process the payload based on message type
             if message_type == 0:  # Sensor data message
-                # デバッグ: payload[8]の内容を必ず表示
-                if len(payload) > 8:
-                    print(f"DEBUG payload[8]: {payload[8]}")
                 # 順番通りに処理
                 # 0: Motor A (port 48)
                 if len(payload) > 0 and isinstance(payload[0], list) and payload[0][0] == 48:
