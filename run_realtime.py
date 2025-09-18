@@ -348,6 +348,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     print("[TURN_LEFT] reached 90 deg and stopped")
                     mode = Mode.PAUSE
                     et.set_motor_forward_speed(0, 0)
+                    et.reset_gyro_integration()
                     turn_left_started = False
             elif mode == Mode.TURN_RIGHT:
                 # 30度右回転して自動ストップ
@@ -362,6 +363,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     print("[TURN_RIGHT] reached 90 deg and stopped")
                     mode = Mode.PAUSE
                     et.set_motor_forward_speed(0, 0)
+                    et.reset_gyro_integration()
                     turn_left_started = False
             elif mode == Mode.TEST:
                 # ロール補正のみでベーススピード走行
