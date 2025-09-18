@@ -382,6 +382,7 @@ class ETRobot(object):
         status = self.get_spike_status()
         self._gyro_integrated_z = 0.0
         self._gyro_integration_start_time = time.time()
+        self._gyro_integration_last_time = self._gyro_integration_start_time  # 追加
         self._gyro_integration_start_z = status.sensors.gyroscope.z if status.sensors.gyroscope else 0.0
         self._gyro_integration_active = True
 
@@ -398,7 +399,8 @@ class ETRobot(object):
         dt = now - last_time
         dt_ms = int(dt * 1000)
         if status.sensors.gyroscope:
-            self._gyro_integrated_z += status.sensors.gyroscope.z
+            # 角速度（deg/s）× dt（s）で積分
+            self._gyro_integrated_z += status.sensors.gyroscope.z * dt
             self._gyro_integration_last_time = now
             print(f"[GyroIntegration] dt={dt_ms}ms, gyro_z={status.sensors.gyroscope.z:.2f}, integrated_z={self._gyro_integrated_z:.2f}")
 
@@ -415,6 +417,7 @@ class ETRobot(object):
         """
         self._gyro_integrated_z = 0.0
         self._gyro_integration_active = False
+        self._gyro_integration_last_time = None  # 追加
 
 
     def is_gyro_integrated_rotation_exceeded(self, axis: str, threshold: float, direction: str) -> bool:
