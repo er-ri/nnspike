@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Union
 class MotorStatus:
     """Status information for a motor connected to the Spike Prime hub."""
 
-    position: Optional[int] = None
+    position: Optional[int] = None  # モーター用positionは残す（A/B/C用）
     power: Optional[int] = None
     relative_position: Optional[int] = None
     speed: Optional[int] = None
@@ -302,8 +302,8 @@ class SpikeStatus:
         ]
 
         for motor_id, motor in self.motors.items():
-            if motor and motor.position is not None:
-                lines.append(f"  Motor {motor_id}: Position: {motor.position}, Power: {motor.power}")
+            if motor and motor.relative_position is not None:
+                lines.append(f"  Motor {motor_id}: Relative Position: {motor.relative_position}, Power: {motor.power}")
 
         lines.append("Sensors:")
         if self.sensors.distance is not None:
@@ -313,7 +313,6 @@ class SpikeStatus:
         if self.sensors.color:
             lines.append(f"  Color - Reflected: {self.sensors.color.reflected}, Ambient: {self.sensors.color.ambient}, Color: {self.sensors.color.color}")
         if self.sensors.gyro:
-            # 表示順を[x, y, z]で統一
             lines.append(f"  Gyro - x: {self.sensors.gyro.x}, y: {self.sensors.gyro.y}, z: {self.sensors.gyro.z}")
         if self.sensors.accelerometer:
             lines.append(f"  Accel - X: {self.sensors.accelerometer.x}, Y: {self.sensors.accelerometer.y}, Z: {self.sensors.accelerometer.z}")
