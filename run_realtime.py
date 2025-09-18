@@ -276,7 +276,9 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     left_speed = None
     right_speed = None
     turn_left_started = False
-    yaw_start = None
+    turn_right_started = False
+    yaw_start_left = None
+    yaw_start_right = None
 
     # 毎回判定する必要のないフラグを事前計算
     need_status = (record_sensor_data and sensor_recorder is not None)
@@ -341,43 +343,37 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 status = et.get_spike_status()
                 yaw = status.sensors.gyro.x if status.sensors.gyro else 0.0
                 if not turn_left_started:
-                    yaw_start = yaw
+                    yaw_start_left = yaw
                     turn_left_started = True
                 left_speed = -BASE_SPEED
                 right_speed = BASE_SPEED
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-                print(f"[TURN_LEFT] yaw={yaw:.2f}, yaw_start={yaw_start:.2f}, diff={yaw - (yaw_start if yaw_start is not None else 0.0):.2f}")
+                print(f"[TURN_LEFT] yaw={yaw:.2f}, yaw_start={yaw_start_left:.2f}, diff={yaw - (yaw_start_left if yaw_start_left is not None else 0.0):.2f}")
                 # -90度超えたらストップ
-                if (yaw - (yaw_start if yaw_start is not None else 0.0)) <= -90.0:
+                if (yaw - (yaw_start_left if yaw_start_left is not None else 0.0)) <= -90.0:
                     print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={yaw:.2f}")
                     mode = Mode.PAUSE
                     # 急停止: 逆方向に同じmotor値を1ループだけ出力
                     et.set_motor_speed(left_speed=BASE_SPEED, right_speed=-BASE_SPEED)
                     turn_left_started = 'reverse_stop_left'
-                elif turn_left_started == 'reverse_stop_left':
-                    et.set_motor_speed(left_speed=0, right_speed=0)
-                    turn_left_started = False
             elif mode == Mode.TURN_RIGHT:
                 # ヨー角で右回転判定（+90度）
                 status = et.get_spike_status()
                 yaw = status.sensors.gyro.x if status.sensors.gyro else 0.0
-                if not turn_left_started:
-                    yaw_start = yaw
-                    turn_left_started = True
+                if not turn_right_started:
+                    yaw_start_right = yaw
+                    turn_right_started = True
                 left_speed = BASE_SPEED
                 right_speed = -BASE_SPEED
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-                print(f"[TURN_RIGHT] yaw={yaw:.2f}, yaw_start={yaw_start:.2f}, diff={yaw - (yaw_start if yaw_start is not None else 0.0):.2f}")
+                print(f"[TURN_RIGHT] yaw={yaw:.2f}, yaw_start={yaw_start_right:.2f}, diff={yaw - (yaw_start_right if yaw_start_right is not None else 0.0):.2f}")
                 # +90度超えたらストップ
-                if (yaw - (yaw_start if yaw_start is not None else 0.0)) >= 90.0:
+                if (yaw - (yaw_start_right if yaw_start_right is not None else 0.0)) >= 90.0:
                     print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={yaw:.2f}")
                     mode = Mode.PAUSE
                     # 急停止: 逆方向に同じmotor値を1ループだけ出力
                     et.set_motor_speed(left_speed=-BASE_SPEED, right_speed=BASE_SPEED)
-                    turn_left_started = 'reverse_stop_right'
-                elif turn_left_started == 'reverse_stop_right':
-                    et.set_motor_speed(left_speed=0, right_speed=0)
-                    turn_left_started = False
+                    turn_right_started = 'reverse_stop_right'
             elif mode == Mode.TEST:
                 # ロール補正のみでベーススピード走行
                 # left_speed, right_speed = et.calc_max_speed_with_roll_control(BASE_SPEED)
@@ -386,6 +382,11 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             elif mode == Mode.PAUSE:
                 left_speed, right_speed = 0, 0
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+                # 急停止フラグが残っていればゼロ速度出力＆フラグクリア
+                if turn_left_started == 'reverse_stop_left':
+                    turn_left_started = False
+                if turn_right_started == 'reverse_stop_right':
+                    turn_right_started = False
 
             # --- ループ周期制限とdebug出力（最後） ---
             loop_end = time.time()
