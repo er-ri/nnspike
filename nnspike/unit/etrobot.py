@@ -98,17 +98,17 @@ class ETRobot(object):
             if current.sensors.color.color is not None:
                 last.sensors.color.color = current.sensors.color.color
 
-        # Gyro data（生値）
-        if current.sensors.gyro:
-            if not last.sensors.gyro:
+        # Gyroscope data（生値）
+        if current.sensors.gyroscope:
+            if not last.sensors.gyroscope:
                 from .spike_status import VectorStatus
-                last.sensors.gyro = VectorStatus()
-            if current.sensors.gyro.x is not None:
-                last.sensors.gyro.x = current.sensors.gyro.x
-            if current.sensors.gyro.y is not None:
-                last.sensors.gyro.y = current.sensors.gyro.y
-            if current.sensors.gyro.z is not None:
-                last.sensors.gyro.z = current.sensors.gyro.z
+                last.sensors.gyroscope = VectorStatus()
+            if current.sensors.gyroscope.x is not None:
+                last.sensors.gyroscope.x = current.sensors.gyroscope.x
+            if current.sensors.gyroscope.y is not None:
+                last.sensors.gyroscope.y = current.sensors.gyroscope.y
+            if current.sensors.gyroscope.z is not None:
+                last.sensors.gyroscope.z = current.sensors.gyroscope.z
 
         # Accelerometer data
         if current.sensors.accelerometer:
@@ -366,35 +366,35 @@ class ETRobot(object):
 
     def get_gyro_angle_x(self) -> float:
         """
-        SpikeStatusからgyro_x角度（度）を取得
+        SpikeStatusからgyroscope_x角度（度）を取得
         Returns:
             float: x軸角度（度）
         """
         status = self.get_spike_status()
-        if status.sensors.gyro:
-            return status.sensors.gyro.x
+        if status.sensors.gyroscope:
+            return status.sensors.gyroscope.x
         return 0.0
 
     def get_gyro_angle_y(self) -> float:
         """
-        SpikeStatusからgyro_y角度（度）を取得
+        SpikeStatusからgyroscope_y角度（度）を取得
         Returns:
             float: y軸角度（度）
         """
         status = self.get_spike_status()
-        if status.sensors.gyro:
-            return status.sensors.gyro.y
+        if status.sensors.gyroscope:
+            return status.sensors.gyroscope.y
         return 0.0
 
     def get_gyro_angle_z(self) -> float:
         """
-        SpikeStatusからgyro_z角度（度）を取得
+        SpikeStatusからgyroscope_z角度（度）を取得
         Returns:
             float: z軸角度（度）
         """
         status = self.get_spike_status()
-        if status.sensors.gyro:
-            return status.sensors.gyro.z
+        if status.sensors.gyroscope:
+            return status.sensors.gyroscope.z
         return 0.0
 
     def start_gyro_integration(self):
@@ -406,9 +406,9 @@ class ETRobot(object):
         self._gyro_integrated_y = 0.0
         self._gyro_integrated_z = 0.0
         self._gyro_integration_start_time = time.time()
-        self._gyro_integration_start_x = status.sensors.gyro.x if status.sensors.gyro else 0.0
-        self._gyro_integration_start_y = status.sensors.gyro.y if status.sensors.gyro else 0.0
-        self._gyro_integration_start_z = status.sensors.gyro.z if status.sensors.gyro else 0.0
+        self._gyro_integration_start_x = status.sensors.gyroscope.x if status.sensors.gyroscope else 0.0
+        self._gyro_integration_start_y = status.sensors.gyroscope.y if status.sensors.gyroscope else 0.0
+        self._gyro_integration_start_z = status.sensors.gyroscope.z if status.sensors.gyroscope else 0.0
         self._gyro_integration_active = True
 
     def update_gyro_integration(self):
@@ -423,10 +423,10 @@ class ETRobot(object):
         last_time = getattr(self, '_gyro_integration_last_time', getattr(self, '_gyro_integration_start_time', now))
         dt = now - last_time
         dt_ms = int(dt * 1000)
-        if status.sensors.gyro:
-            self._gyro_integrated_z += status.sensors.gyro.z
+        if status.sensors.gyroscope:
+            self._gyro_integrated_z += status.sensors.gyroscope.z
             self._gyro_integration_last_time = now
-            print(f"[GyroIntegration] dt={dt_ms}ms, gyro_z={status.sensors.gyro.z:.2f}, integrated_z={self._gyro_integrated_z:.2f}")
+            print(f"[GyroIntegration] dt={dt_ms}ms, gyro_z={status.sensors.gyroscope.z:.2f}, integrated_z={self._gyro_integrated_z:.2f}")
 
     def get_gyro_integrated_x(self) -> float:
         """

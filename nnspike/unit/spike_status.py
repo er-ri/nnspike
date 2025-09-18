@@ -69,11 +69,13 @@ class BatteryStatus:
 class SensorStatus:
     """Status information for all sensors connected to the Spike Prime hub."""
 
-    distance: Optional[int] = None
-    force: Optional[int] = None
-    color: ColorSensorStatus = field(default_factory=lambda: ColorSensorStatus(None, None, None))
-    gyro: Optional[VectorStatus] = None
-    accelerometer: Optional[VectorStatus] = None
+    def __init__(self, distance=None, force=None, color=None, accelerometer=None, gyroscope=None, yaw_pitch_roll=None):
+        self.distance = distance
+        self.force = force
+        self.color = color if color is not None else ColorSensorStatus(None, None, None)
+        self.accelerometer = accelerometer
+        self.gyroscope = gyroscope
+        self.yaw_pitch_roll = yaw_pitch_roll
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SensorStatus":
@@ -82,12 +84,16 @@ class SensorStatus:
             color = ColorSensorStatus.from_dict(color)
         elif not isinstance(color, ColorSensorStatus):
             color = ColorSensorStatus(None, None, None)
+        accelerometer = VectorStatus.from_dict(data.get("accelerometer", {})) if data.get("accelerometer") else None
+        gyroscope = VectorStatus.from_dict(data.get("gyroscope", {})) if data.get("gyroscope") else None
+        yaw_pitch_roll = data.get("yaw_pitch_roll")
         return cls(
             distance=data.get("distance"),
             force=data.get("force"),
             color=color,
-            gyro=(VectorStatus.from_dict(data.get("gyro", {})) if data.get("gyro") else None),
-            accelerometer=(VectorStatus.from_dict(data.get("accelerometer", {})) if data.get("accelerometer") else None),
+            accelerometer=accelerometer,
+            gyroscope=gyroscope,
+            yaw_pitch_roll=yaw_pitch_roll,
         )
 
 class SpikeStatus:
@@ -262,15 +268,21 @@ class SpikeStatus:
                             "y": payload[6][1],
                             "z": payload[6][2],
                         }
-                # 7: 未使用（ゼロ埋め）
-                # ジャイロ（IDなし、値のみ）
+                # 7: gyroscope (x/y/z)
+                if len(payload) > 7 and isinstance(payload[7], list):
+                    if len(payload[7]) == 3:
+                        result["sensors"]["gyroscope"] = {
+                            "x": payload[7][0],
+                            "y": payload[7][1],
+                            "z": payload[7][2],
+                        }
+                # 8: yaw_pitch_roll (yaw, pitch, roll)
                 if len(payload) > 8 and isinstance(payload[8], list):
-                    # [x, y, z] の場合
                     if len(payload[8]) == 3:
-                        result["sensors"]["gyro"] = {
-                            "x": payload[8][0],
-                            "y": payload[8][1],
-                            "z": payload[8][2],
+                        result["sensors"]["yaw_pitch_roll"] = {
+                            "yaw": payload[8][0],
+                            "pitch": payload[8][1],
+                            "roll": payload[8][2],
                         }
 
                 # Position from sensors
@@ -312,10 +324,12 @@ class SpikeStatus:
             lines.append(f"  Force: {self.sensors.force}")
         if self.sensors.color:
             lines.append(f"  Color - Reflected: {self.sensors.color.reflected}, Ambient: {self.sensors.color.ambient}, Color: {self.sensors.color.color}")
-        if self.sensors.gyro:
-            lines.append(f"  Gyro - x: {self.sensors.gyro.x}, y: {self.sensors.gyro.y}, z: {self.sensors.gyro.z}")
         if self.sensors.accelerometer:
-            lines.append(f"  Accel - X: {self.sensors.accelerometer.x}, Y: {self.sensors.accelerometer.y}, Z: {self.sensors.accelerometer.z}")
+            lines.append(f"  Accelerometer - x: {self.sensors.accelerometer.x}, y: {self.sensors.accelerometer.y}, z: {self.sensors.accelerometer.z}")
+        if self.sensors.gyroscope:
+            lines.append(f"  Gyroscope - x: {self.sensors.gyroscope.x}, y: {self.sensors.gyroscope.y}, z: {self.sensors.gyroscope.z}")
+        if self.sensors.yaw_pitch_roll:
+            lines.append(f"  YawPitchRoll - yaw: {self.sensors.yaw_pitch_roll.get('yaw')}, pitch: {self.sensors.yaw_pitch_roll.get('pitch')}, roll: {self.sensors.yaw_pitch_roll.get('roll')}")
         if self.battery and self.battery.percent is not None:
             lines.append(f"Battery: {self.battery.percent}% ({self.battery.voltage}V)")
 

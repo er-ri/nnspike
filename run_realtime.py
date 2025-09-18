@@ -341,7 +341,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             elif mode == Mode.TURN_LEFT:
                 # ヨー角で左回転判定（-90度）
                 status = et.get_spike_status()
-                yaw = status.sensors.gyro.x if status.sensors.gyro else 0.0
+                yaw = status.sensors.yaw_pitch_roll.get('yaw') if status.sensors.yaw_pitch_roll else 0.0
                 if not turn_left_started:
                     yaw_start_left = yaw
                     turn_left_started = True
@@ -358,7 +358,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             elif mode == Mode.TURN_RIGHT:
                 # ヨー角で右回転判定（+90度）
                 status = et.get_spike_status()
-                yaw = status.sensors.gyro.x if status.sensors.gyro else 0.0
+                yaw = status.sensors.yaw_pitch_roll.get('yaw') if status.sensors.yaw_pitch_roll else 0.0
                 if not turn_right_started:
                     yaw_start_right = yaw
                     turn_right_started = True

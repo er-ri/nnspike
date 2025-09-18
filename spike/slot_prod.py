@@ -182,14 +182,19 @@ async def sender_task():
             fs = lego_spike.force_sensor.get() if hasattr(lego_spike.force_sensor, 'get') else [None]*2
             cs = lego_spike.color_sensor.get() if hasattr(lego_spike.color_sensor, 'get') else [None]*5
             us = lego_spike.ultrasonic_sensor.get() if hasattr(lego_spike.ultrasonic_sensor, 'get') else [None]*2
-            try:
-                yaw, pitch, roll = hub.motion.yaw_pitch_roll()
-            except Exception:
-                yaw, pitch, roll = 0, 0, 0
+            # --- センサー値取得 ---
             try:
                 accel = hub.motion.accelerometer()
             except Exception:
                 accel = [0, 0, 0]
+            try:
+                gyro_accel = hub.motion.gyroscope()
+            except Exception:
+                gyro_accel = [0, 0, 0]
+            try:
+                yaw, pitch, roll = hub.motion.yaw_pitch_roll()
+            except Exception:
+                yaw, pitch, roll = 0, 0, 0
             # モータ値
             motors_data = {}
             for key, arr in zip(["A","B","C"], [mr, ml, ma]):
@@ -214,9 +219,9 @@ async def sender_task():
             p.append([63, [0, 0, force_val]])
             p.append([61, [0, safe_get(cs[1]), color_data[0], color_data[1], color_data[2]]])
             p.append([62, [us_val]])
-            p.append([safe_get(accel[0]), safe_get(accel[1]), safe_get(accel[2])])
-            p.append([0, 0, 0])
-            p.append([safe_get(yaw), safe_get(pitch), safe_get(roll)])
+            p.append([safe_get(accel[0]), safe_get(accel[1]), safe_get(accel[2])])  # 加速度
+            p.append([safe_get(gyro_accel[0]), safe_get(gyro_accel[1]), safe_get(gyro_accel[2])])  # ジャイロ（角速度）
+            p.append([safe_get(yaw), safe_get(pitch), safe_get(roll)])  # ヨー・ピッチ・ロール
             p.append("")
             p.append(0)
             data = {"m": 0, "p": p}
@@ -245,9 +250,9 @@ lego_spike = LegoSpike()
 # print("force_sensor:", lego_spike.force_sensor.get())
 # print("color_sensor:", lego_spike.color_sensor.get())
 # print("ultrasonic_sensor:", lego_spike.ultrasonic_sensor.get())
-# print("gyro:", hub.motion.yaw_pitch_roll())
-# print("accel:", hub.motion.accelerometer())
-# print("USB isconnected:", lego_spike.usb.isconnected())
+# print("accelerometer:", hub.motion.accelerometer())
+# print("gyroscope:", hub.motion.gyroscope())
+# print("yaw_pitch_roll:", hub.motion.yaw_pitch_roll())
 
 try:
     lego_spike = LegoSpike()
