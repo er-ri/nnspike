@@ -430,9 +430,7 @@ class ETRobot(object):
             return
         status = self.get_spike_status()
         now = time.time()
-        # 前回加算時刻を保持（初回は積分開始時刻）
-        last_time = getattr(self, '_gyro_integration_last_time', getattr(self, '_gyro_integration_start_time', now))
-        dt = now - last_time
+        dt = now - getattr(self, '_gyro_integration_start_time', now)
         dt_ms = int(dt * 1000)
         if status.sensors.gyro:
             self._gyro_integrated_x += status.sensors.gyro.x * dt
