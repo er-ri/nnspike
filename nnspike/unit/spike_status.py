@@ -79,6 +79,7 @@ class SensorStatus:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SensorStatus":
+        print(f"DEBUG SensorStatus.from_dict data: {data}")
         color = data.get("color")
         if isinstance(color, dict):
             color = ColorSensorStatus.from_dict(color)
