@@ -345,24 +345,16 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if not turn_left_started:
                     yaw_start_left = yaw
                     turn_left_started = True
-                left_speed = -BASE_SPEED
+                left_speed = 0
                 right_speed = BASE_SPEED
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 print(f"[TURN_LEFT] yaw={yaw:.2f}, yaw_start={yaw_start_left:.2f}, diff={yaw - (yaw_start_left if yaw_start_left is not None else 0.0):.2f}")
-                # -90度超えたら逆噴射フラグON
+                # -90度超えたら即停止
                 if (yaw - (yaw_start_left if yaw_start_left is not None else 0.0)) <= -90.0:
                     print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={yaw:.2f}")
-                    turn_left_started = 'need_reverse_stop_left'
-                # 逆噴射フラグON時はaccelx判定して逆噴射、閾値未満ならPAUSEへ
-                if turn_left_started == 'need_reverse_stop_left':
-                    status = et.get_spike_status()
-                    accelx = status.sensors.accelerometer.x if status.sensors.accelerometer else 0
-                    if abs(accelx) >= 10:
-                        et.set_motor_speed(left_speed=BASE_SPEED, right_speed=-BASE_SPEED)
-                    else:
-                        et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                        mode = Mode.PAUSE
-                        turn_left_started = False
+                    et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                    mode = Mode.PAUSE
+                    turn_left_started = False
             elif mode == Mode.TURN_RIGHT:
                 # ヨー角で右回転判定（+90度）
                 status = et.get_spike_status()
@@ -371,23 +363,15 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     yaw_start_right = yaw
                     turn_right_started = True
                 left_speed = BASE_SPEED
-                right_speed = -BASE_SPEED
+                right_speed = 0
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 print(f"[TURN_RIGHT] yaw={yaw:.2f}, yaw_start={yaw_start_right:.2f}, diff={yaw - (yaw_start_right if yaw_start_right is not None else 0.0):.2f}")
-                # +90度超えたら逆噴射フラグON（TURN_LEFTと同じ構造に統一）
+                # +90度超えたら即停止
                 if (yaw - (yaw_start_right if yaw_start_right is not None else 0.0)) >= 90.0:
                     print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={yaw:.2f}")
-                    turn_right_started = 'need_reverse_stop_right'
-                # 逆噴射フラグON時はaccelx判定して逆噴射、閾値未満ならPAUSEへ
-                if turn_right_started == 'need_reverse_stop_right':
-                    status = et.get_spike_status()
-                    accelx = status.sensors.accelerometer.x if status.sensors.accelerometer else 0
-                    if abs(accelx) >= 10:
-                        et.set_motor_speed(left_speed=-BASE_SPEED, right_speed=BASE_SPEED)
-                    else:
-                        et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                        mode = Mode.PAUSE
-                        turn_right_started = False
+                    et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                    mode = Mode.PAUSE
+                    turn_right_started = False
             elif mode == Mode.TEST:
                 # ロール補正のみでベーススピード走行
                 # left_speed, right_speed = et.calc_max_speed_with_roll_control(BASE_SPEED)
