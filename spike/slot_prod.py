@@ -225,10 +225,10 @@ async def sender_task():
             send_str = json.dumps(data) + "\r"
             sent_bytes = lego_spike.usb.write(send_str.encode())
             # print("USB write bytes:", sent_bytes)
-            await uasyncio.sleep(0.01)  # 送信直後にバッファ安定化
+            await uasyncio.sleep(0.005)  # 送信直後にバッファ安定化
         except Exception as e:
             print("[SEND ERROR]", repr(e))
-        await uasyncio.sleep(0.005)  # 送信間隔厳守
+    await uasyncio.sleep(0.005)  # 送信間隔厳守
 
 async def main_task():
     recv_task = uasyncio.create_task(receiver_task())
