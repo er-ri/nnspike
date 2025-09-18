@@ -455,12 +455,10 @@ class ETRobot(object):
             float or None: yaw値（取得できなければNone）
         """
         status = self.get_spike_status()
-        if status and hasattr(status.sensors, "yaw_pitch_roll"):
-            ypr = status.sensors.yaw_pitch_roll
-            if ypr and "yaw" in ypr:
-                val = ypr["yaw"]
-                try:
-                    return float(val)
-                except (TypeError, ValueError):
-                    return 0.0
+        ypr = getattr(status.sensors, "yaw_pitch_roll", None)
+        if ypr and hasattr(ypr, "z"):
+            try:
+                return float(ypr.z)
+            except (TypeError, ValueError):
+                return 0.0
         return 0.0
