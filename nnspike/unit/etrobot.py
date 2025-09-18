@@ -395,12 +395,11 @@ class ETRobot(object):
             return
         status = self.get_spike_status()
         now = time.time()
-        last_time = getattr(self, '_gyro_integration_last_time', getattr(self, '_gyro_integration_start_time', now))
-        dt = now - last_time
+        dt = now - getattr(self, '_gyro_integration_start_time', now)
         dt_ms = int(dt * 1000)
         if status.sensors.gyroscope:
-            # 角速度（deg/s）× dt（s）で積分
-            self._gyro_integrated_z += status.sensors.gyroscope.z * dt
+            # 角速度（deg/s）× dt（s）で積分（スタートからの累積）
+            self._gyro_integrated_z = status.sensors.gyroscope.z * dt
             self._gyro_integration_last_time = now
             print(f"[GyroIntegration] dt={dt_ms}ms, gyro_z={status.sensors.gyroscope.z:.2f}, integrated_z={self._gyro_integrated_z:.2f}")
 
