@@ -351,7 +351,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if (yaw - (yaw_start if yaw_start is not None else 0.0)) <= -90.0:
                     print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={yaw:.2f}")
                     mode = Mode.PAUSE
-                    et.set_motor_forward_speed(0, 0)
+                    et.stop()  # ブレーキ
                     turn_left_started = False
             elif mode == Mode.TURN_RIGHT:
                 # ヨー角で右回転判定（+90度）
@@ -368,7 +368,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if (yaw - (yaw_start if yaw_start is not None else 0.0)) >= 90.0:
                     print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={yaw:.2f}")
                     mode = Mode.PAUSE
-                    et.set_motor_forward_speed(0, 0)
+                    et.stop()  # ブレーキ
                     turn_left_started = False
             elif mode == Mode.TEST:
                 # ロール補正のみでベーススピード走行
