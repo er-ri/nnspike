@@ -424,7 +424,7 @@ class ETRobot(object):
         dt = now - last_time
         dt_ms = int(dt * 1000)
         if status.sensors.gyro:
-            self._gyro_integrated_z += status.sensors.gyro.z * dt
+            self._gyro_integrated_z += status.sensors.gyro.z
             self._gyro_integration_last_time = now
             print(f"[GyroIntegration] dt={dt_ms}ms, gyro_z={status.sensors.gyro.z:.2f}, integrated_z={self._gyro_integrated_z:.2f}")
 
