@@ -373,19 +373,36 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     mode = Mode.PAUSE
                     turn_left_started = False
             elif mode == Mode.TURN_RIGHT:
-                # ヨー角で右回転判定（+90度）
+                # --- ヨー角判定ロジックはコメントアウト ---
+                # status = et.get_spike_status()
+                # yaw = status.sensors.yaw_pitch_roll.get('yaw') if status.sensors.yaw_pitch_roll else 0.0
+                # if not turn_right_started:
+                #     yaw_start_right = yaw
+                #     turn_right_started = True
+                # left_speed = BASE_SPEED
+                # right_speed = 0
+                # et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
+                # print(f"[TURN_RIGHT] yaw={yaw:.2f}, yaw_start={yaw_start_right:.2f}, diff={yaw - (yaw_start_right if yaw_start_right is not None else 0.0):.2f}")
+                # if (yaw - (yaw_start_right if yaw_start_right is not None else 0.0)) >= 90.0:
+                #     print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={yaw:.2f}")
+                #     et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                #     mode = Mode.PAUSE
+                #     turn_right_started = False
+
+                # --- ジャイロz軸積分値で右回転90度判定 ---
                 status = et.get_spike_status()
-                yaw = status.sensors.yaw_pitch_roll.get('yaw') if status.sensors.yaw_pitch_roll else 0.0
+                gyro_z = status.sensors.gyroscope.z if status.sensors.gyroscope else 0.0
+                gyro_integrated_z = et.get_gyro_integrated_z()
                 if not turn_right_started:
-                    yaw_start_right = yaw
+                    et.start_gyro_integration()
                     turn_right_started = True
                 left_speed = BASE_SPEED
                 right_speed = 0
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-                print(f"[TURN_RIGHT] yaw={yaw:.2f}, yaw_start={yaw_start_right:.2f}, diff={yaw - (yaw_start_right if yaw_start_right is not None else 0.0):.2f}")
+                print(f"[TURN_RIGHT][Gyro] gyro_z={gyro_z:.2f}, integrated_z={gyro_integrated_z:.2f}")
                 # +90度超えたら即停止
-                if (yaw - (yaw_start_right if yaw_start_right is not None else 0.0)) >= 90.0:
-                    print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={yaw:.2f}")
+                if gyro_integrated_z >= 90.0:
+                    print(f"[TURN_RIGHT][Gyro] reached +90 deg and stopped | integrated_z={gyro_integrated_z:.2f}")
                     et.set_motor_forward_speed(left_speed=0, right_speed=0)
                     mode = Mode.PAUSE
                     turn_right_started = False
