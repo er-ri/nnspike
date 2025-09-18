@@ -351,7 +351,11 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if (yaw - (yaw_start if yaw_start is not None else 0.0)) <= -90.0:
                     print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={yaw:.2f}")
                     mode = Mode.PAUSE
-                    et.brake()  # モーターのみ停止
+                    # 急停止: 逆方向に同じmotor値を1ループだけ出力
+                    et.set_motor_speed(left_speed=BASE_SPEED, right_speed=-BASE_SPEED)
+                    turn_left_started = 'reverse_stop_left'
+                elif turn_left_started == 'reverse_stop_left':
+                    et.set_motor_speed(left_speed=0, right_speed=0)
                     turn_left_started = False
             elif mode == Mode.TURN_RIGHT:
                 # ヨー角で右回転判定（+90度）
@@ -368,7 +372,11 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if (yaw - (yaw_start if yaw_start is not None else 0.0)) >= 90.0:
                     print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={yaw:.2f}")
                     mode = Mode.PAUSE
-                    et.brake()  # モーターのみ停止
+                    # 急停止: 逆方向に同じmotor値を1ループだけ出力
+                    et.set_motor_speed(left_speed=-BASE_SPEED, right_speed=BASE_SPEED)
+                    turn_left_started = 'reverse_stop_right'
+                elif turn_left_started == 'reverse_stop_right':
+                    et.set_motor_speed(left_speed=0, right_speed=0)
                     turn_left_started = False
             elif mode == Mode.TEST:
                 # ロール補正のみでベーススピード走行
