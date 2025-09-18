@@ -343,13 +343,13 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if not turn_left_started:
                     yaw_start = yaw
                     turn_left_started = True
-                left_speed = -HIGH_SPEED_BASE
-                right_speed = HIGH_SPEED_BASE
+                left_speed = -BASE_SPEED
+                right_speed = BASE_SPEED
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 print(f"[TURN_LEFT] yaw={yaw:.2f}, yaw_start={yaw_start:.2f}, diff={yaw - (yaw_start if yaw_start is not None else 0.0):.2f}")
                 # -90度超えたらストップ
                 if (yaw - (yaw_start if yaw_start is not None else 0.0)) <= -90.0:
-                    print("[TURN_LEFT] reached -90 deg and stopped")
+                    print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={yaw:.2f}")
                     mode = Mode.PAUSE
                     et.set_motor_forward_speed(0, 0)
                     turn_left_started = False
@@ -360,13 +360,13 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if not turn_left_started:
                     yaw_start = yaw
                     turn_left_started = True
-                left_speed = HIGH_SPEED_BASE
-                right_speed = -HIGH_SPEED_BASE
+                left_speed = BASE_SPEED
+                right_speed = -BASE_SPEED
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 print(f"[TURN_RIGHT] yaw={yaw:.2f}, yaw_start={yaw_start:.2f}, diff={yaw - (yaw_start if yaw_start is not None else 0.0):.2f}")
                 # +90度超えたらストップ
                 if (yaw - (yaw_start if yaw_start is not None else 0.0)) >= 90.0:
-                    print("[TURN_RIGHT] reached +90 deg and stopped")
+                    print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={yaw:.2f}")
                     mode = Mode.PAUSE
                     et.set_motor_forward_speed(0, 0)
                     turn_left_started = False
