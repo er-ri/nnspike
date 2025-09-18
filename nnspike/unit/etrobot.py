@@ -437,7 +437,7 @@ class ETRobot(object):
             self._gyro_integrated_y += status.sensors.gyro.y * dt
             self._gyro_integrated_z += status.sensors.gyro.z * dt
             self._gyro_integration_last_time = now
-            print(f"[GyroIntegration] dt={dt_ms}ms, integrated_y={self._gyro_integrated_y:.2f}")
+            print(f"[GyroIntegration] dt={dt_ms}ms, integrated_y={self._gyro_integrated_y:.2f}, integrated_z={self._gyro_integrated_z:.2f}")
 
     def get_gyro_integrated_x(self) -> float:
         """
