@@ -350,8 +350,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 right_speed = BASE_SPEED
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 print(f"[TURN_LEFT] yaw={yaw:.2f}, yaw_start={yaw_start_left:.2f}, diff={yaw - (yaw_start_left if yaw_start_left is not None else 0.0):.2f}")
-                if (yaw - (yaw_start_left if yaw_start_left is not None else 0.0)) <= -90.0:
-                    print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={yaw:.2f}")
+                if (yaw - (yaw_start_left if yaw_start_left is not None else 0.0)) >= 90.0:
+                    print(f"[TURN_LEFT] reached +90 deg and stopped | yaw={yaw:.2f}")
                     et.set_motor_forward_speed(left_speed=0, right_speed=0)
                     mode = Mode.PAUSE
                     turn_left_started = False
@@ -367,8 +367,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 right_speed = 0
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 print(f"[TURN_RIGHT] yaw={yaw:.2f}, yaw_start={yaw_start_right:.2f}, diff={yaw - (yaw_start_right if yaw_start_right is not None else 0.0):.2f}")
-                if (yaw - (yaw_start_right if yaw_start_right is not None else 0.0)) >= 90.0:
-                    print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={yaw:.2f}")
+                if (yaw - (yaw_start_right if yaw_start_right is not None else 0.0)) <= -90.0:
+                    print(f"[TURN_RIGHT] reached -90 deg and stopped | yaw={yaw:.2f}")
                     et.set_motor_forward_speed(left_speed=0, right_speed=0)
                     mode = Mode.PAUSE
                     turn_right_started = False
