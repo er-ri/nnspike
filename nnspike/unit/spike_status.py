@@ -51,7 +51,11 @@ class VectorStatus:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "VectorStatus":
-        return cls(x=data.get("x", 0.0), y=data.get("y", 0.0), z=data.get("z", 0.0))
+        return cls(
+            x=data.get("x", 0.0),
+            y=data.get("y", 0.0),
+            z=data.get("z", 0.0)
+        )
 
 @dataclass
 class BatteryStatus:
@@ -291,9 +295,9 @@ class SpikeStatus:
                 if len(payload) > 8 and isinstance(payload[8], list):
                     if len(payload[8]) == 3:
                         result["sensors"]["yaw_pitch_roll"] = {
-                            "yaw": payload[8][0],
-                            "pitch": payload[8][1],
-                            "roll": payload[8][2],
+                            "x": payload[8][0],
+                            "y": payload[8][1],
+                            "z": payload[8][2],
                         }
 
                 # Position from sensors
@@ -339,8 +343,8 @@ class SpikeStatus:
             lines.append(f"  Accelerometer - x: {self.sensors.accelerometer.x}, y: {self.sensors.accelerometer.y}, z: {self.sensors.accelerometer.z}")
         if self.sensors.gyroscope:
             lines.append(f"  Gyroscope - x: {self.sensors.gyroscope.x}, y: {self.sensors.gyroscope.y}, z: {self.sensors.gyroscope.z}")
-        if self.sensors.yaw_pitch_roll:
-            lines.append(f"  YawPitchRoll - yaw: {self.sensors.yaw_pitch_roll.get('yaw')}, pitch: {self.sensors.yaw_pitch_roll.get('pitch')}, roll: {self.sensors.yaw_pitch_roll.get('roll')}")
+            if self.sensors.yaw_pitch_roll:
+                lines.append(f"  YawPitchRoll - x: {self.sensors.yaw_pitch_roll.x}, y: {self.sensors.yaw_pitch_roll.y}, z: {self.sensors.yaw_pitch_roll.z}")
         if self.battery and self.battery.percent is not None:
             lines.append(f"Battery: {self.battery.percent}% ({self.battery.voltage}V)")
 
