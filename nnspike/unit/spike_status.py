@@ -135,15 +135,6 @@ class SpikeStatus:
         self.battery: BatteryStatus = BatteryStatus()
         self.raw_data: Dict = {}
 
-        # --- gyro積分角度用 ---
-        self._gyro_angle_x = 0.0
-        self._gyro_angle_y = 0.0
-        self._gyro_angle_z = 0.0
-        # self._last_gyro_update_time: Optional[float] = None
-        self._last_gyro_x = None
-        self._last_gyro_y = None
-        self._last_gyro_z = None
-
         if raw_data is not None:
             self.update(raw_data)
 
@@ -165,71 +156,24 @@ class SpikeStatus:
         # message_typeによる分岐・returnを廃止。常に全データを更新。
 
         # Update motors
-        # モーター更新頻度（dt）計算
-        now = self.timestamp
-        dt = None
-        if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:
-            dt = now - self._last_motor_update_time
-        self._last_motor_update_time = now
+        # モーター更新頻度（dt）計算（未使用のため一時コメントアウト）
+        # now = self.timestamp
+        # dt = None
+        # if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:
+        #     dt = now - self._last_motor_update_time
+        # self._last_motor_update_time = now
         for motor_id, motor_data in parsed_data.get("motors", {}).items():
             if motor_id in self.motors:
                 self.motors[motor_id] = MotorStatus.from_dict(motor_data)
-                # dt（更新間隔）はここで利用可能
-                dt_ms = dt * 1000 if dt is not None else None
-                print(f"Motor {motor_id} update dt: {dt_ms:.2f} ms, position: {self.motors[motor_id].position}, power: {self.motors[motor_id].power}, relative_position: {self.motors[motor_id].relative_position}, speed: {self.motors[motor_id].speed}")
+                # dt（更新間隔）はここで利用可能（未使用のため一時コメントアウト）
+                # dt_ms = dt * 1000 if dt is not None else None
+                # print(f"Motor {motor_id} update dt: {dt_ms:.2f} ms, position: {self.motors[motor_id].position}, power: {self.motors[motor_id].power}, relative_position: {self.motors[motor_id].relative_position}, speed: {self.motors[motor_id].speed}")
 
         # Update sensors
         self.sensors = SensorStatus.from_dict(parsed_data.get("sensors", {}))
 
-        # Gyro integration（完全コメントアウト）
-        # now = self.timestamp
-        gyro = self.sensors.gyro
-        if gyro is not None:
-        #     if self._last_gyro_update_time is not None:
-        #         dt = now - self._last_gyro_update_time
-        #         if self._last_gyro_x is not None:
-        #             self._gyro_angle_x += gyro.x * dt  # ジャイロ積分値加算をコメントアウト
-        #         if self._last_gyro_y is not None:
-        #             self._gyro_angle_y += gyro.y * dt  # ジャイロ積分値加算をコメントアウト
-        #         if self._last_gyro_z is not None:
-        #             self._gyro_angle_z += gyro.z * dt  # ジャイロ積分値加算をコメントアウト
-        #         # 積分値加算直後にdtを表示
-        #         print(f"[SpikeStatus] gyro_integrated: x={self._gyro_angle_x:.2f}, y={self._gyro_angle_y:.2f}, z={self._gyro_angle_z:.2f}, dt={dt:.4f}")
-        #     else:
-        #         print(f"[SpikeStatus] gyro_integrated: x={self._gyro_angle_x:.2f}, y={self._gyro_angle_y:.2f}, z={self._gyro_angle_z:.2f}, dt=0.0000")
-        #     self._last_gyro_update_time = now
-            self._last_gyro_x = gyro.x
-            self._last_gyro_y = gyro.y
-            self._last_gyro_z = gyro.z
-
+        # Update battery
         self.battery = BatteryStatus.from_dict(parsed_data.get("battery", {}))
-
-    # def get_gyro_angle_x(self) -> float:
-    #     """
-    #     積分したgyro_x角度（度）を返す。
-    #     Returns:
-    #         float: x軸角度（度）
-    #     """
-    #     # return self._gyro_angle_x
-    #     return 0.0
-
-    # def get_gyro_angle_y(self) -> float:
-    #     """
-    #     積分したgyro_y角度（度）を返す。
-    #     Returns:
-    #         float: y軸角度（度）
-    #     """
-    #     # return self._gyro_angle_y
-    #     return 0.0
-
-    # def get_gyro_angle_z(self) -> float:
-    #     """
-    #     積分したgyro_z角度（度）を返す。
-    #     Returns:
-    #         float: z軸角度（度）
-    #     """
-    #     # return self._gyro_angle_z
-    #     return 0.0
 
     @staticmethod
     def _parse_data(data: Union[str, bytes, Dict]) -> Dict:
