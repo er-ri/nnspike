@@ -14,21 +14,17 @@ from nnspike.utils import PIDController, SensorRecorder, draw_driving_info, get_
 import threading
 
 class Video:
-    def __init__(self, mode='realtime'):
+    def __init__(self):
         """
-        mode: 'realtime'（遅延最小化・最新フレーム優先） or 'continuous'（フレーム連続性重視）
-        fps/buffer_sizeは内部定数で管理
+        常にrealtimeモードのみ。fps/buffer_sizeは内部定数で管理
         """
         self.width = CAMERA_WIDTH
         self.height = CAMERA_HEIGHT
-        self._FPS_REALTIME = 60
-        self._FPS_CONTINUOUS = 60
-        self.mode = mode
-        self._BUFFER_REALTIME = 1
-        self._BUFFER_CONTINUOUS = 1
-        self.fps = self._FPS_REALTIME if mode == 'realtime' else self._FPS_CONTINUOUS
-        buffer_size = self._BUFFER_REALTIME if mode == 'realtime' else self._BUFFER_CONTINUOUS
+        self.fps = CAMERA_FPS
+        buffer_size = 1
         self.cap = cv2.VideoCapture(0)  # USBカメラ前提で0固定
+        # MJPG（Motion-JPEG）フォーマットで高速化
+        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
         self.cap.set(cv2.CAP_PROP_FPS, self.fps)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
@@ -37,26 +33,13 @@ class Video:
         self.ret = False
         self.running = True
         self.lock = threading.Lock()
-        # continuous用フレームキュー
-        self._frame_queue = []
+        # continuousモード廃止
         self.last_update_time = None
         self.update_count = 0
         self.thread = threading.Thread(target=self._update, daemon=True)
         self.thread.start()
 
-    def set_mode(self, mode):
-        """
-        Videoモード（'realtime' or 'continuous'）を切り替え、バッファサイズ・fpsも自動調整
-        """
-        self.mode = mode
-        if mode == 'realtime':
-            self.fps = self._FPS_REALTIME
-            buffer_size = self._BUFFER_REALTIME
-        else:
-            self.fps = self._FPS_CONTINUOUS
-            buffer_size = self._BUFFER_CONTINUOUS
-        self.cap.set(cv2.CAP_PROP_FPS, self.fps)
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
+    # set_mode廃止（モード切替不可）
 
     def warmup(self, count=10):
         """
@@ -75,15 +58,7 @@ class Video:
                 now = time.time()
                 self.last_update_time = now
                 self.update_count += 1
-                # continuousモード時のみキューに追加
-                if self.mode == 'continuous':
-                    if frame is not None:
-                        self._frame_queue.append((ret, frame.copy()))
-                        # バッファサイズ超過時は古いものから捨てる
-                        while len(self._frame_queue) > self._BUFFER_CONTINUOUS:
-                            self._frame_queue.pop(0)
-                else:
-                    self._frame_queue.clear()
+                # continuousモード廃止
                 # フレーム更新周期デバッグ出力
                 if prev_time is not None:
                     diff_ms = (now - prev_time) * 1000
@@ -93,15 +68,10 @@ class Video:
 
     def read(self):
         """
-        - realtime: 最新フレームのみ返す
-        - continuous: 未読フレームを順次返す（最大4枚まで蓄積、乖離防止）
+        最新フレームのみ返す
         """
         with self.lock:
-            if self.mode == 'continuous' and self._frame_queue:
-                ret, frame = self._frame_queue.pop(0)
-                return ret, frame.copy() if frame is not None else (False, None)
-            else:
-                return self.ret, self.frame.copy() if self.frame is not None else (False, None)
+            return self.ret, self.frame.copy() if self.frame is not None else (False, None)
 
     def release(self):
         self.running = False
