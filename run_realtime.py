@@ -289,6 +289,9 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             loop_start = time.time()
             # --- カメラフレーム取得・保存処理を復活 ---
             ret, frame = video.read()
+            loop_camera = time.time()
+            dt_camera = loop_camera - loop_start
+            print(f"[CAMERA] dt={dt_camera*1000:.2f}ms")
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
