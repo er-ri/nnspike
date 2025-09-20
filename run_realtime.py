@@ -277,17 +277,18 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             loop_start = time.time()
             # --- カメラフレーム取得・保存処理を復活 ---
             ret, frame = video.read()
-            loop_camera = time.time()
+            # loop_camera = time.time()  # カメラ周期デバッグ用（現在未使用）
+            # --- カメラ周期計測・周期デバッグは全てコメントアウト ---
             # 物理的なフレーム周期計測用
-            if last_frame_time is None:
-                last_frame_time = loop_camera
-            dt_camera_physical = loop_camera - last_frame_time
+            # if last_frame_time is None:
+            #     last_frame_time = loop_camera
+            # dt_camera_physical = loop_camera - last_frame_time
             # フレームが変化した場合のみ周期を出力
-            if hasattr(video, 'frame') and video.frame is not None:
-                if last_frame_data is None or not np.array_equal(video.frame, last_frame_data):
-                    print(f"[CAMERA_PHYSICAL] dt={dt_camera_physical*1000:.2f}ms")
-                    last_frame_time = loop_camera
-                    last_frame_data = video.frame.copy() if isinstance(video.frame, np.ndarray) else video.frame
+            # if hasattr(video, 'frame') and video.frame is not None:
+            #     if last_frame_data is None or not np.array_equal(video.frame, last_frame_data):
+            #         print(f"[CAMERA_PHYSICAL] dt={dt_camera_physical*1000:.2f}ms")  # カメラ周期デバッグ出力
+            #         last_frame_time = loop_camera
+            #         last_frame_data = video.frame.copy() if isinstance(video.frame, np.ndarray) else video.frame
             # retがFalseでもframeがNoneでなければ前回画像で制御継続
             if not ret and (frame is None):
                 print("Can't receive frame (stream end?). Exiting ...")
