@@ -504,7 +504,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 # 直進1: 右の走行距離が1000未満
                 if test_phase == "straight1":
                     if (right_pos - test_phase_start_right_pos) < 1000:
-                        et.set_motor_forward_speed(left_speed=BASE_SPEED, right_speed=BASE_SPEED)
+                        et.set_motor_forward_speed(left_speed=HIGH_SPEED_BASE, right_speed=HIGH_SPEED_BASE)
                         print(f"[TEST] straight1 right_pos={right_pos}, start={test_phase_start_right_pos}")
                     else:
                         test_phase = "turn_right"
@@ -526,7 +526,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 elif test_phase == "straight2":
                     if (right_pos - test_phase_start_right_pos) < 1000:
                         # 直進2はyaw_straight_controlを使い、基準ヨー角はet._start_yaw（起動時点＋30度）
-                        left_speed, right_speed = et.yaw_straight_control(base_speed=BASE_SPEED)
+                        left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                         et.set_motor_forward_speed(left_speed=int(left_speed), right_speed=int(right_speed))
                         print(f"[TEST] straight2 right_pos={right_pos}, start={test_phase_start_right_pos}, base_yaw={test_phase_straight2_yaw:.2f}")
                     else:
