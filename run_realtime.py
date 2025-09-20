@@ -160,7 +160,7 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
 
     return first_key
 
-def main(record_sensor_data=False, save_camera_video=False, course="right", course_type="upper", manual_mode=False):
+def main(record_sensor_data=False, save_camera_video=False, course="right", course_type="upper", manual_mode=False, use_camera=False):
 
     def unpack_action_result(result, default_mode=Mode.PAUSE):
         # Noneや不正な戻り値も吸収して安全にアンパック
@@ -255,17 +255,18 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
 
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
-    # --- Videoクラスでカメラ起動・ウォームアップ ---
-    video = Video()
-    video.warmup()
-    # カメラの実際のFPS値を表示
-    actual_fps = video.cap.get(cv2.CAP_PROP_FPS)
-    print(f"[INFO] Camera actual FPS: {actual_fps}")
+    video = None
+    if use_camera:
+        video = Video()
+        video.warmup()
+        # カメラの実際のFPS値を表示
+        actual_fps = video.cap.get(cv2.CAP_PROP_FPS)
+        print(f"[INFO] Camera actual FPS: {actual_fps}")
     # --- スタート待ち ---
     first_key = wait_for_start(et, keyboard, state_flags, manual_mode=manual_mode)
     if first_key is None:
-        # videoを使用している場合は解放
-        video.release()
+        if video is not None:
+            video.release()
         return
 
     # wait_for_start()の後にmodeの初期値を決定
@@ -293,33 +294,23 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     try:
         while et.is_running:
             loop_start = time.time()
-            # --- カメラフレーム取得・保存処理を復活 ---
-            ret, frame = video.read()
-            # loop_camera = time.time()  # カメラ周期デバッグ用（現在未使用）
-            # --- カメラ周期計測・周期デバッグは全てコメントアウト ---
-            # 物理的なフレーム周期計測用
-            # if last_frame_time is None:
-            #     last_frame_time = loop_camera
-            # dt_camera_physical = loop_camera - last_frame_time
-            # フレームが変化した場合のみ周期を出力
-            # if hasattr(video, 'frame') and video.frame is not None:
-            #     if last_frame_data is None or not np.array_equal(video.frame, last_frame_data):
-            #         print(f"[CAMERA_PHYSICAL] dt={dt_camera_physical*1000:.2f}ms")  # カメラ周期デバッグ出力
-            #         last_frame_time = loop_camera
-            #         last_frame_data = video.frame.copy() if isinstance(video.frame, np.ndarray) else video.frame
-            # retがFalseでもframeがNoneでなければ前回画像で制御継続
-            if not ret and (frame is None):
-                print("Can't receive frame (stream end?). Exiting ...")
-                break
-            # retがFalseかつframeがNoneでなければ、前回画像で制御継続（警告のみ）
-            if not ret and (frame is not None):
-                print("[WARN] Camera frame not updated, using previous frame.")
-            if save_camera_video and video_writer is not None and frame is not None and isinstance(frame, np.ndarray):
-                try:
-                    video_queue.put_nowait(frame)
-                except queue.Full:
-                    pass  # キューが満杯なら捨てる
-
+            if video is not None:
+                # --- カメラフレーム取得・保存処理を復活 ---
+                ret, frame = video.read()
+                # retがFalseでもframeがNoneでなければ前回画像で制御継続
+                if not ret and (frame is None):
+                    print("Can't receive frame (stream end?). Exiting ...")
+                    break
+                # retがFalseかつframeがNoneでなければ、前回画像で制御継続（警告のみ）
+                if not ret and (frame is not None):
+                    print("[WARN] Camera frame not updated, using previous frame.")
+                if save_camera_video and video_writer is not None and frame is not None and isinstance(frame, np.ndarray):
+                    try:
+                        video_queue.put_nowait(frame)
+                    except queue.Full:
+                        pass  # キューが満杯なら捨てる
+            else:
+                frame = None
             # status取得・センサー記録（別スレッド化）
             if need_status:
                 status = et.get_spike_status()
@@ -386,8 +377,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         print(f"Error: {e}")
     finally:
         et.stop()
-        # videoを使用している場合は解放
-        video.release()
+        if video is not None:
+            video.release()
 
         # 録画スレッドの停止とクリーンアップ
         if save_camera_video and video_writer is not None:
@@ -412,6 +403,7 @@ if __name__ == "__main__":
     parser.add_argument("--course", choices=["left", "right"], default="right", help="Initial course to follow: 'left' for left edge, 'right' for right edge (default: right)")
     parser.add_argument("--course-type", choices=["upper", "lower"], default="upper", help="Course type: 'upper' or 'lower' (default: upper)")
     parser.add_argument("--manual", action="store_true", help="Enable manual key input control mode")
+    parser.add_argument("--use-camera", action="store_true", help="Enable camera at startup (default: off)")
     args = parser.parse_args()
     print("Starting OpenCV-based line following robot...")
     print(f"Using ROI: {ROI_CNN}")
@@ -430,4 +422,5 @@ if __name__ == "__main__":
         course=args.course,
         course_type=args.course_type,
         manual_mode=args.manual,
+        use_camera=args.use_camera,
     )
