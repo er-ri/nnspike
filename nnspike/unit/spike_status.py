@@ -147,16 +147,14 @@ class SpikeStatus:
         # type: -1のときrawデータを表示して原因調査
         if self.message_type == -1:
             print("[type:-1 raw]", self.raw_data)
-        # 全てのmessage_typeでインターバル計算
-        # インターバル計算・出力を復活
-        # --- interval関連（コメントアウト） ---
-        # now = self.timestamp
-        # dt = None
-        # if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:
-        #     dt = now - self._last_motor_update_time
-        #     dt_ms = dt * 1000 if dt is not None else None
-        #     # print(f"interval: {dt_ms:06.2f} ms | type: {self.message_type} | raw: {self.raw_data}")
-        # self._last_motor_update_time = now
+        # 全てのmessage_typeでインターバル計算・デバッグ出力（ms単位）
+        now = self.timestamp
+        dt = None
+        if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:
+            dt = now - self._last_motor_update_time
+            dt_ms = dt * 1000 if dt is not None else None
+            print(f"[SPIKE_STATUS_INTERVAL] {dt_ms:06.2f} ms | type: {self.message_type}")
+        self._last_motor_update_time = now
 
         # Update motors
         for motor_id, motor_data in parsed_data.get("motors", {}).items():

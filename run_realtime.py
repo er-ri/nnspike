@@ -21,12 +21,8 @@ class Video:
         """
         self.width = CAMERA_WIDTH
         self.height = CAMERA_HEIGHT
-        self.fps = CAMERA_FPS
         buffer_size = 1
         self.cap = cv2.VideoCapture(0)  # USBカメラ前提で0固定
-        # MJPG（Motion-JPEG）フォーマットで高速化
-        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-        self.cap.set(cv2.CAP_PROP_FPS, self.fps)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
@@ -35,8 +31,6 @@ class Video:
         self.running = True
         self.lock = threading.Lock()
         # continuousモード廃止
-        self.last_update_time = None
-        self.update_count = 0
         self.thread = threading.Thread(target=self._update, daemon=True)
         self.thread.start()
 
@@ -50,21 +44,11 @@ class Video:
             self.read()
 
     def _update(self):
-        prev_time = None
         while self.running:
             ret, frame = self.cap.read()
             with self.lock:
                 self.ret = ret
                 self.frame = frame
-                now = time.time()
-                self.last_update_time = now
-                self.update_count += 1
-                # continuousモード廃止
-                # フレーム更新周期デバッグ出力
-                if prev_time is not None:
-                    diff_ms = (now - prev_time) * 1000
-                    print(f"[VIDEO_THREAD] dt={diff_ms:.2f}ms")
-                prev_time = now
 
     def read(self):
         """

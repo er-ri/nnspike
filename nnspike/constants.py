@@ -49,23 +49,8 @@ class Mode(Enum):
     DOUBLE_LOOP = 22  # key1ダブルループモード
     TEST = 99  # テスト用モード
 
-# One-Hot Encoding for Modes
-NUM_MODES = 6  # クラス分類用
-# NUM_MODES = len(Mode)  # 将来的には動的計算に戻す予定
-# Scale for relative position in motor control
-RELATIVE_POSITION_SCALE = 80000
-# Threshold for obstacle avoidance based on yellow pixel count
-OBSTACLE_AVOIDANCE_THRESHOLD = 14000
-
 # Camera and Robot Geometry Constants
 CAMERA_WIDTH = 640  # Camera frame width in pixels
 CAMERA_HEIGHT = 480  # Camera frame height in pixels  
-CAMERA_FPS = 30 # Camera frames per second
-WHEELBASE = 0.11  # Distance between wheels in meters
 
 
-# Data Types used for data balancing
-class DataType(Enum):
-    SINGLE_LINE = 0
-    INTERSECTION = 1
-    SPECIAL = 9
