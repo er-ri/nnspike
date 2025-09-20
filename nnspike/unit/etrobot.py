@@ -487,32 +487,24 @@ class ETRobot(object):
         """
         return getattr(self, '_start_yaw', 0.0)
 
-    def yaw_turn_control(self, side: str = "right", threshold_deg: float = 90.0, base_speed: int = 80) -> tuple[int, int]:
+    def yaw_turn_control(self, side: str = "right", threshold_deg: float = 90.0) -> bool:
         """
-        ヨー角による定速片側旋回（内部start_yawを基準に判定）。
+        ヨー角による片側旋回の停止判定のみ返す。
         Args:
             side (str): 'left' または 'right'（旋回方向）
             threshold_deg (float): 停止判定の閾値（度、絶対値で指定）
-            base_speed (int): 旋回時の基本速度
         Returns:
-            (left_speed, right_speed): 左右速度
+            bool: 停止すべきならTrue
         """
         yaw_val = self.get_yaw()
         yaw_start_val = self.get_start_yaw()
         diff = yaw_val - yaw_start_val
         if side == "left":
-            if diff <= -abs(threshold_deg):
-                return 0, 0
-            left_speed = 0
-            right_speed = base_speed
+            return diff <= -abs(threshold_deg)
         elif side == "right":
-            if diff >= abs(threshold_deg):
-                return 0, 0
-            left_speed = base_speed
-            right_speed = 0
+            return diff >= abs(threshold_deg)
         else:
             raise ValueError("side must be 'left' or 'right'")
-        return left_speed, right_speed
 
     def yaw_straight_control(self, base_speed: int = 80, kp: float = 1.0, deadband: float = 2.0) -> tuple[int, int]:
         """
