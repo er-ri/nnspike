@@ -208,7 +208,7 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
 
 def main(record_sensor_data=False, save_camera_video=False, course="right", course_type="upper", manual_mode=False):
 
-    def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.015):
+    def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.02):
         debug_state['counter'] += 1
         # --- min_interval引数で周期調整＋デバッグ出力 ---
         dt = loop_end - loop_start
