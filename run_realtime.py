@@ -378,71 +378,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.turn_left_yaw(frame))
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.TURN_RIGHT_YAW:
-                if not turn_right_started:
-                    et.set_start_yaw()
-                    turn_right_started = True
-                    turn_right_adjusting = False
-                    turn_right_reference_yaw = None
-                    turn_right_adjust_timer = None
-                    turn_right_in_tolerance_time = None
-                stop_turn = et.is_yaw_turn_finished(
-                    side="right",
-                    threshold_deg=90.0
-                )
-                if not turn_right_adjusting:
-                    if stop_turn:
-                        turn_right_adjusting = True
-                        turn_right_reference_yaw = et.get_yaw()  # 90度到達時の絶対的真理
-                        turn_right_adjust_timer = time.time()  # 微調整監視タイマー開始
-                        turn_right_in_tolerance_time = None
-                        print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={turn_right_reference_yaw:.2f}")
-                        et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                    else:
-                        # et.set_motor_forward_speed(left_speed=BASE_SPEED, right_speed=0)
-                        et.set_motor_speed(left_speed=30, right_speed=-30)
-                        print(f"[TURN_RIGHT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
-                else:
-                    # 微調整: 1秒間連続して±5度以内であることを確認してからPAUSEへ移行
-                    if turn_right_reference_yaw is None:
-                        # まだ基準値がセットされていない場合は何もしない
-                        pass
-                    else:
-                        error = et.get_yaw() - turn_right_reference_yaw
-                        elapsed = time.time() - turn_right_adjust_timer if turn_right_adjust_timer is not None else 0
-                        if abs(error) <= 5.0:
-                            if turn_right_in_tolerance_time is None:
-                                turn_right_in_tolerance_time = time.time()
-                            tolerance_elapsed = time.time() - turn_right_in_tolerance_time
-                            et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                            print(f"[TURN_RIGHT][ADJUST][TOLERANCE] yaw={et.get_yaw():.2f}, ref_yaw={turn_right_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
-                            if tolerance_elapsed >= 1.0:
-                                print(f"[TURN_RIGHT][ADJUST][STOP] yaw={et.get_yaw():.2f}, ref_yaw={turn_right_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
-                                mode = Mode.PAUSE
-                                turn_right_started = False
-                                turn_right_adjusting = False
-                                turn_right_reference_yaw = None
-                                turn_right_adjust_timer = None
-                                turn_right_in_tolerance_time = None
-                        else:
-                            turn_right_in_tolerance_time = None
-                            if elapsed < 1.0:
-                                # オーバーシュート分だけ逆方向に動かす（error < 0なら左回転、error > 0なら右回転）
-                                if error < 0:
-                                    # et.set_motor_forward_speed(left_speed=20, right_speed=0)  # 左回転（右モータ0、左のみ正）
-                                    et.set_motor_speed(left_speed=15, right_speed=-15)  # 両方正転（左回転）
-                                else:
-                                    # et.set_motor_backward_speed(left_speed=20, right_speed=0)  # 右回転（右モータ0、左のみ逆）
-                                    et.set_motor_speed(left_speed=-15, right_speed=15)  # 両方逆転（右回転）
-                                print(f"[TURN_RIGHT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                            else:
-                                et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                                print(f"[TURN_RIGHT][ADJUST][TIMEOUT] yaw={et.get_yaw():.2f}, ref_yaw={turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                                mode = Mode.PAUSE
-                                turn_right_started = False
-                                turn_right_adjusting = False
-                                turn_right_reference_yaw = None
-                                turn_right_adjust_timer = None
-                                turn_right_in_tolerance_time = None
+                _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.turn_right_yaw(frame))
+                et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.TEST:
                 if not prev_mode_test:
                     et.set_start_yaw()
