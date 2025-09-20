@@ -222,7 +222,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     # Initialize robot, keyboard controller
     keyboard = KeyboardController()
 
-    et.set_motor_relative_position(left_positon=0, right_position=0)
+    et.set_motor_relative_position(left_position=0, right_position=0)
 
     # カメラ起動条件をuse_cameraまたはuse_videoどちらかTrueで判定
     video = None
