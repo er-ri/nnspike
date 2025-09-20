@@ -21,11 +21,11 @@ class Video:
         """
         self.width = CAMERA_WIDTH
         self.height = CAMERA_HEIGHT
-        self._FPS_REALTIME = 30
-        self._FPS_CONTINUOUS = 25
+        self._FPS_REALTIME = 60
+        self._FPS_CONTINUOUS = 60
         self.mode = mode
         self._BUFFER_REALTIME = 1
-        self._BUFFER_CONTINUOUS = 4
+        self._BUFFER_CONTINUOUS = 1
         self.fps = self._FPS_REALTIME if mode == 'realtime' else self._FPS_CONTINUOUS
         buffer_size = self._BUFFER_REALTIME if mode == 'realtime' else self._BUFFER_CONTINUOUS
         self.cap = cv2.VideoCapture(0)  # USBカメラ前提で0固定
