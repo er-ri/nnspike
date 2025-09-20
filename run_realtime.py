@@ -361,10 +361,10 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                         et.set_motor_forward_speed(left_speed=0, right_speed=BASE_SPEED)
                         print(f"[TURN_LEFT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
                 else:
-                    # 微調整: 90度到達時のyawを基準に±5度以内か判定＋1秒監視
+                    # 微調整: 90度到達時のyawを基準に±5度以内か判定＋2秒監視
                     error = et.get_yaw() - turn_left_reference_yaw
                     elapsed = time.time() - turn_left_adjust_timer if turn_left_adjust_timer is not None else 0
-                    if abs(error) > 5.0 and elapsed < 1.0:
+                    if abs(error) > 5.0 and elapsed < 2.0:
                         # オーバーシュート分だけ逆方向に動かす（error < 0なら右回転、error > 0なら左回転）
                         if error < 0:
                             et.set_motor_backward_speed(left_speed=0, right_speed=20)  # 右回転（左モータ0、右のみ逆）
