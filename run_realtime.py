@@ -384,12 +384,13 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if not prev_mode_test:
                     target_yaw = yaw if yaw is not None else 0.0
                 prev_mode_test = True
-                kp = 0.0
+                kp = 1.0
                 error = (yaw if yaw is not None else 0.0) - (target_yaw if target_yaw is not None else 0.0)
                 pid_output = kp * error
                 base_speed = HIGH_SPEED_BASE
-                # デッドバンド: 誤差±1度以内なら補正なし
-                if abs(error) <= 1.0:
+                # デッドバンド: 誤差±2度以内なら補正なし
+                deadband = 2.0
+                if abs(error) <= deadband:
                     left_speed = 80
                     right_speed = 80
                 else:
