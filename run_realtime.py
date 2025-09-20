@@ -288,9 +288,13 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     print(f"[CAMERA_PHYSICAL] dt={dt_camera_physical*1000:.2f}ms")
                     last_frame_time = loop_camera
                     last_frame_data = video.frame.copy() if isinstance(video.frame, np.ndarray) else video.frame
-            if not ret:
+            # retがFalseでもframeがNoneでなければ前回画像で制御継続
+            if not ret and (frame is None):
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
+            # retがFalseかつframeがNoneでなければ、前回画像で制御継続（警告のみ）
+            if not ret and (frame is not None):
+                print("[WARN] Camera frame not updated, using previous frame.")
             if save_camera_video and video_writer is not None and frame is not None and isinstance(frame, np.ndarray):
                 try:
                     video_queue.put_nowait(frame)
