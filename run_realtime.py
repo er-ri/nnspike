@@ -271,7 +271,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
 
     # wait_for_start()の後にmodeの初期値を決定
     if state_flags.force_sensor_mode_switch_enabled:
-        mode = Mode.TEST
+        mode = Mode.FAST_LAP
     else:
         mode = Mode.PAUSE
 
