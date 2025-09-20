@@ -534,39 +534,3 @@ class ETRobot(object):
             right_speed = int(max(min(right_speed, base_speed), base_speed-2))
         return left_speed, right_speed
 
-    def adjust_yaw_after_turn(self, side: str = "left", threshold_deg: float = 90.0, tolerance: float = 2.0, adjust_speed: int = 20) -> tuple[bool, int, int]:
-        """
-        旋回停止後に目標角度からのズレを判定し、オーバーシュートなら逆方向に微調整する。
-        Args:
-            side (str): 'left' または 'right'（旋回方向）
-            threshold_deg (float): 目標角度（度）
-            tolerance (float): 許容範囲（度）
-            adjust_speed (int): 微調整時のモーター速度
-        Returns:
-            (調整完了フラグ, 左速度, 右速度)
-        """
-        yaw_val = self.get_yaw()
-        yaw_start_val = self.get_start_yaw()
-        diff = yaw_val - yaw_start_val
-        target = -abs(threshold_deg) if side == "left" else abs(threshold_deg)
-        error = diff - target
-        # 許容範囲内なら調整完了
-        if abs(error) <= tolerance:
-            return True, 0, 0
-        # オーバーシュートなら逆方向に微調整
-        if side == "left":
-            if error < 0:
-                # アンダーシュート: まだ足りない→左回転
-                return False, -adjust_speed, adjust_speed
-            else:
-                # オーバーシュート: 行き過ぎ→右回転
-                return False, adjust_speed, -adjust_speed
-        elif side == "right":
-            if error > 0:
-                # アンダーシュート: まだ足りない→右回転
-                return False, adjust_speed, -adjust_speed
-            else:
-                # オーバーシュート: 行き過ぎ→左回転
-                return False, -adjust_speed, adjust_speed
-        else:
-            raise ValueError("side must be 'left' or 'right'")
