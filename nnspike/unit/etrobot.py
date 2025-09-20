@@ -487,7 +487,7 @@ class ETRobot(object):
         """
         return getattr(self, '_start_yaw', 0.0)
 
-    def yaw_turn_control(self, side: str = "right", threshold_deg: float = 90.0) -> bool:
+    def is_yaw_turn_finished(self, side: str = "right", threshold_deg: float = 90.0) -> bool:
         """
         ヨー角による片側旋回の停止判定のみ返す。
         Args:

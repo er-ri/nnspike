@@ -346,7 +346,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if not turn_left_started:
                     et.set_start_yaw()
                     turn_left_started = True
-                stop_turn = et.yaw_turn_control(
+                stop_turn = et.is_yaw_turn_finished(
                     side="left",
                     threshold_deg=90.0
                 )
@@ -362,7 +362,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if not turn_right_started:
                     et.set_start_yaw()
                     turn_right_started = True
-                stop_turn = et.yaw_turn_control(
+                stop_turn = et.is_yaw_turn_finished(
                     side="right",
                     threshold_deg=90.0
                 )
