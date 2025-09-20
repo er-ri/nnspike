@@ -29,10 +29,9 @@ class Video:
         self.frame = None
         self.ret = False
         self.running = True
-        self.lock = threading.Lock()
-        # continuousモード廃止
-        self.thread = threading.Thread(target=self._update, daemon=True)
-        self.thread.start()
+        # self.lock = threading.Lock()
+        # self.thread = threading.Thread(target=self._update, daemon=True)
+        # self.thread.start()
 
     # set_mode廃止（モード切替不可）
 
@@ -43,23 +42,24 @@ class Video:
         for _ in range(count):
             self.read()
 
-    def _update(self):
-        while self.running:
-            ret, frame = self.cap.read()
-            with self.lock:
-                self.ret = ret
-                self.frame = frame
+    # def _update(self):
+    #     while self.running:
+    #         ret, frame = self.cap.read()
+    #         with self.lock:
+    #             self.ret = ret
+    #             self.frame = frame
 
     def read(self):
         """
-        最新フレームのみ返す
+        最新フレームのみ返す（直接cap.read()）
         """
-        with self.lock:
-            return self.ret, self.frame.copy() if self.frame is not None else (False, None)
+        ret, frame = self.cap.read()
+        return ret, frame
 
     def release(self):
         self.running = False
-        self.thread.join()
+        # if hasattr(self, 'thread'):
+        #     self.thread.join()
         # self.cap.release()
 
 def handle_status_and_video(frame, status, mode, left_speed, right_speed,
