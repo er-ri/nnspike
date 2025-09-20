@@ -507,12 +507,12 @@ class ETRobot(object):
         yaw_start_val = self.get_start_yaw()
         diff = yaw_val - yaw_start_val
         print(f"[is_yaw_turn_finished] yaw={yaw_val:.2f}, start_yaw={yaw_start_val:.2f}, diff={diff:.2f}, side={side}, threshold={threshold_deg}")
-        if side == "left":
-            return diff <= -abs(threshold_deg)
-        elif side == "right":
-            return diff >= abs(threshold_deg)
-        else:
-            raise ValueError("side must be 'left' or 'right'")
+        # 角度ラップアラウンド補正
+        if diff > 180:
+            diff -= 360
+        elif diff < -180:
+            diff += 360
+        return abs(diff) >= abs(threshold_deg)
 
     def yaw_straight_control(self, base_speed: int = HIGH_SPEED_BASE, kp: float = 1.0, deadband: float = 3.0, adjust_speed: int = 1) -> tuple[int, int]:
         """
