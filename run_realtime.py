@@ -372,7 +372,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                         et.set_motor_forward_speed(left_speed=0, right_speed=BASE_SPEED)
                         print(f"[TURN_LEFT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
                 else:
-                    # 微調整: 2秒間連続して±5度以内であることを確認してからPAUSEへ移行
+                    # 微調整: 1秒間連続して±5度以内であることを確認してからPAUSEへ移行
                     if turn_left_reference_yaw is None:
                         # まだ基準値がセットされていない場合は何もしない
                         pass
@@ -385,7 +385,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                             tolerance_elapsed = time.time() - turn_left_in_tolerance_time
                             et.set_motor_forward_speed(left_speed=0, right_speed=0)
                             print(f"[TURN_LEFT][ADJUST][TOLERANCE] yaw={et.get_yaw():.2f}, ref_yaw={turn_left_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
-                            if tolerance_elapsed >= 2.0:
+                            if tolerance_elapsed >= 1.0:
                                 print(f"[TURN_LEFT][ADJUST][STOP] yaw={et.get_yaw():.2f}, ref_yaw={turn_left_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
                                 mode = Mode.PAUSE
                                 turn_left_started = False
@@ -395,7 +395,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                                 turn_left_in_tolerance_time = None
                         else:
                             turn_left_in_tolerance_time = None
-                            if elapsed < 2.0:
+                            if elapsed < 1.0:
                                 # オーバーシュート分だけ逆方向に動かす（error < 0なら右回転、error > 0なら左回転）
                                 if error < 0:
                                     et.set_motor_backward_speed(left_speed=0, right_speed=20)  # 右回転（左モータ0、右のみ逆）
@@ -435,7 +435,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                         et.set_motor_forward_speed(left_speed=BASE_SPEED, right_speed=0)
                         print(f"[TURN_RIGHT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
                 else:
-                    # 微調整: 2秒間連続して±5度以内であることを確認してからPAUSEへ移行
+                    # 微調整: 1秒間連続して±5度以内であることを確認してからPAUSEへ移行
                     if turn_right_reference_yaw is None:
                         # まだ基準値がセットされていない場合は何もしない
                         pass
@@ -448,7 +448,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                             tolerance_elapsed = time.time() - turn_right_in_tolerance_time
                             et.set_motor_forward_speed(left_speed=0, right_speed=0)
                             print(f"[TURN_RIGHT][ADJUST][TOLERANCE] yaw={et.get_yaw():.2f}, ref_yaw={turn_right_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
-                            if tolerance_elapsed >= 2.0:
+                            if tolerance_elapsed >= 1.0:
                                 print(f"[TURN_RIGHT][ADJUST][STOP] yaw={et.get_yaw():.2f}, ref_yaw={turn_right_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
                                 mode = Mode.PAUSE
                                 turn_right_started = False
@@ -458,7 +458,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                                 turn_right_in_tolerance_time = None
                         else:
                             turn_right_in_tolerance_time = None
-                            if elapsed < 2.0:
+                            if elapsed < 1.0:
                                 # オーバーシュート分だけ逆方向に動かす（error < 0なら左回転、error > 0なら右回転）
                                 if error < 0:
                                     et.set_motor_forward_speed(left_speed=20, right_speed=0)  # 左回転（右モータ0、左のみ正）
