@@ -250,14 +250,14 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
 
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
-    # --- Videoクラスでカメラ起動・ウォームアップ（カメラ停止中） ---
-    # video = Video()
-    # video.warmup()
+    # --- Videoクラスでカメラ起動・ウォームアップ ---
+    video = Video()
+    video.warmup()
     # --- スタート待ち ---
     first_key = wait_for_start(et, keyboard, state_flags, manual_mode=manual_mode)
     if first_key is None:
-        # if 'video' is used, release it
-        # video.release()
+        # videoを使用している場合は解放
+        video.release()
         return
 
     # wait_for_start()の後にmodeの初期値を決定
@@ -392,8 +392,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         print(f"Error: {e}")
     finally:
         et.stop()
-        # if 'video' is used, release it
-        # video.release()
+        # videoを使用している場合は解放
+        video.release()
 
         # Clean up video writer if it was used
         if save_camera_video and video_writer is not None:
