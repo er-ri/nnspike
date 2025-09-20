@@ -138,86 +138,161 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
                 started = True
                 first_key = "__force__"  # forceセンサーでスタートした場合はダミー値をセット
                 break
-            # manual_mode時のみ有効なモードキーでスタート
-            elif manual_mode and key is not None and keyboard.is_mode_key(key):
-                print("Start!")
-                first_key = key
-                started = True
-                break
-            if not keyboard.running:
-                print("Quitting before start. Exiting...")
-                et.stop()
-                keyboard.cleanup()
-                return None
-            time.sleep(0.02)
-    # スタート決定後に一度だけモード切替有効化/無効化を判定
-    if started:
-        if first_key == "__force__":
-            state_flags.enable_force_sensor_mode_switch()
-        else:
-            state_flags.disable_force_sensor_mode_switch()
-
-    return first_key
-
-def main(record_sensor_data=False, save_camera_video=False, course="right", course_type="upper", manual_mode=False):
-
-    def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.017):
-        debug_state['counter'] += 1
-        # --- min_interval引数で周期調整＋デバッグ出力 ---
-        dt = loop_end - loop_start
-        sleep_sec = min_interval - dt if dt < min_interval else 0
-        sleep_ms = sleep_sec * 1000
-        if sleep_sec > 0:
-            time.sleep(sleep_sec)
-        total_ms = (time.time() - loop_start) * 1000
-        # print(f"[DEBUG] dt={dt*1000:.2f}ms, sleep={sleep_ms:.2f}ms, total={total_ms:.2f}ms")
-
-    state_flags = StateFlags()
-    # Generate timestamp for consistent naming if recording is enabled
-    TIMESTAMP = time.strftime("%Y%m%d%H%M%S", time.localtime()) if (record_sensor_data or save_camera_video) else None
-
-    # Initialize sensor recorder conditionally
-    sensor_recorder = None
-    record_queue = None
-    record_thread = None
-    record_thread_running = False
-    if record_sensor_data:
-        sensor_recorder = SensorRecorder(timestamp=TIMESTAMP)
-        sensor_recorder.start_recording()
-        record_queue = queue.Queue(maxsize=200)
-        record_thread_running = True
-        def record_worker():
-            while record_thread_running or not record_queue.empty():
-                try:
-                    args = record_queue.get(timeout=0.1)
-                    if args is not None:
-                        status, mode, left_speed, right_speed = args
-                        sensor_recorder.log_frame_data(status, mode, left_speed, right_speed)
-                except queue.Empty:
-                    continue
-        record_thread = threading.Thread(target=record_worker, daemon=True)
-        record_thread.start()
-
-    video_writer = None
-    video_filename = None
-    video_queue = None
-    video_thread = None
-    video_thread_running = False
-    if save_camera_video:
-        fourcc = cv2.VideoWriter_fourcc(*"XVID")  # type: ignore[attr-defined]
-        video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
-        video_writer = cv2.VideoWriter(
-            filename=video_filename,
-            fourcc=fourcc,
-            fps=30,
-            frameSize=(CAMERA_WIDTH, CAMERA_HEIGHT),
-        )
-        video_queue = queue.Queue(maxsize=100)
-        video_thread_running = True
-        def video_save_worker():
-            while video_thread_running or not video_queue.empty():
-                try:
-                    frame = video_queue.get(timeout=0.1)
+            while et.is_running:
+                print(f"[DEBUG][TEST] test_phase={test_phase}")
+                loop_start = time.time()
+                # --- カメラフレーム取得・保存処理を復活 ---
+                ret, frame = video.read()
+                if not ret and (frame is None):
+                    print("Can't receive frame (stream end?). Exiting ...")
+                    break
+                if not ret and (frame is not None):
+                    print("[WARN] Camera frame not updated, using previous frame.")
+                if save_camera_video and video_writer is not None and frame is not None and isinstance(frame, np.ndarray):
+                    try:
+                        video_queue.put_nowait(frame)
+                    except queue.Full:
+                        pass
+                if need_status:
+                    status = et.get_spike_status()
+                    try:
+                        record_queue.put_nowait((status, mode, left_speed, right_speed))
+                    except queue.Full:
+                        pass
+                if manual_mode and not state_flags.first_key_used:
+                    key = first_key
+                    state_flags.first_key_used = True
+                else:
+                    key = keyboard.get_key()
+                    if not manual_mode and not state_flags.first_key_used:
+                        state_flags.first_key_used = True
+                result = keyboard.get_mode_from_key(key)
+                if result is not None:
+                    mode_result, msg = result
+                else:
+                    mode_result, msg = None, None
+                if mode_result == "quit":
+                    print(msg)
+                    keyboard.running = False
+                    break
+                elif manual_mode and mode_result is not None:
+                    mode = mode_result
+                    print(msg)
+                # モード分岐
+                if mode == Mode.FORWARD:
+                    left_speed = BASE_SPEED
+                    right_speed = BASE_SPEED
+                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+                if mode == Mode.FORWARD:
+                    # シンプルに直進のみ
+                    left_speed = BASE_SPEED
+                    right_speed = BASE_SPEED
+                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+                elif mode == Mode.BACKWARD:
+                    # set_motor_backward_speedで後退（左右は入れ替えない）
+                    left_speed = BASE_SPEED
+                    right_speed = BASE_SPEED
+                    et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
+                elif mode == Mode.TURN_LEFT:
+                    ...existing code...
+                elif mode == Mode.TURN_RIGHT:
+                    ...existing code...
+                elif mode == Mode.PAUSE:
+                    turn_left_started = False
+                    turn_right_started = False
+                    prev_mode_test = False
+                    et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                elif mode == Mode.TEST:
+                    # TESTモード: 右の走行距離が1000未満なら直進、1000以上なら30度右に曲がる（左100,右70）、その後直進
+                if mode == Mode.TEST:
+            if mode == Mode.TEST:
+                        test_phase_straight3_yaw = test_phase_start_yaw_init - 30.0
+                        test_phase_straight4_yaw = test_phase_start_yaw_init
+                        prev_mode_test = True
+                    right_pos = et.get_motor_relative_position(side="right")
+                    if right_pos is None:
+                        right_pos = 0
+                    if test_phase == "straight1" and right_pos < 1000:
+                        et.set_start_yaw(test_phase_start_yaw_init)
+                        left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                        et.set_motor_forward_speed(left_speed=int(left_speed), right_speed=int(right_speed))
+                        print(f"[TEST] straight1 right_pos={right_pos}")
+                    elif test_phase == "straight1" and right_pos >= 1000:
+                        test_phase = "turn_right"
+                        test_phase_start_yaw = test_phase_start_yaw_init
+                        print(f"[TEST] start turn_right phase yaw={test_phase_start_yaw:.2f}")
+                        continue
+                    elif test_phase == "turn_right" and et.get_yaw() - test_phase_start_yaw < 30.0:
+                        yaw_val = et.get_yaw()
+                        yaw_diff = yaw_val - test_phase_start_yaw
+                        print(f"[DEBUG][TURN_RIGHT] yaw={yaw_val:.2f}, base_yaw={test_phase_start_yaw:.2f}, yaw_diff={yaw_diff:.2f}")
+                        et.set_motor_forward_speed(left_speed=100, right_speed=70)
+                        print(f"[TEST] turning right yaw_diff={yaw_diff:.2f}")
+                    elif test_phase == "turn_right" and et.get_yaw() - test_phase_start_yaw >= 30.0:
+                        test_phase = "straight2"
+                        test_phase_start_right_pos = right_pos
+                        test_phase_straight2_yaw = test_phase_start_yaw + 30.0
+                        et._start_yaw = test_phase_straight2_yaw
+                        print(f"[TEST] start straight2 phase right_pos={right_pos}, base_yaw={test_phase_straight2_yaw:.2f}")
+                        continue
+                    elif test_phase == "straight2" and right_pos < 2000:
+                        et.set_start_yaw(test_phase_straight2_yaw)
+                        left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                        et.set_motor_forward_speed(left_speed=int(left_speed), right_speed=int(right_speed))
+                        print(f"[TEST] straight2 right_pos={right_pos}, base_yaw={test_phase_straight2_yaw:.2f}")
+                    elif test_phase == "straight2" and right_pos >= 2000:
+                        test_phase_straight3_yaw = test_phase_start_yaw - 30.0
+                        test_phase = "turn_left"
+                        test_phase_start_yaw = test_phase_straight3_yaw
+                        print(f"[TEST] start turn_left phase base_yaw={test_phase_start_yaw:.2f}")
+                        continue
+                    elif test_phase == "turn_left" and et.get_yaw() - test_phase_start_yaw > -60.0:
+                        yaw_diff = et.get_yaw() - test_phase_start_yaw
+                        et.set_motor_forward_speed(left_speed=70, right_speed=100)
+                        print(f"[TEST] turning left yaw_diff={yaw_diff:.2f}")
+                    elif test_phase == "turn_left" and et.get_yaw() - test_phase_start_yaw <= -60.0:
+                        test_phase_straight3_yaw = test_phase_start_yaw - 30.0
+                        test_phase = "straight3"
+                        test_phase_start_right_pos = right_pos
+                        et._start_yaw = test_phase_straight3_yaw
+                        print(f"[TEST] start straight3 phase right_pos={right_pos}, base_yaw={test_phase_straight3_yaw:.2f}")
+                        continue
+                    elif test_phase == "straight3" and right_pos < 3000:
+                        et.set_start_yaw(test_phase_straight3_yaw)
+                        left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                        et.set_motor_forward_speed(left_speed=int(left_speed), right_speed=int(right_speed))
+                        print(f"[TEST] straight3 right_pos={right_pos}, base_yaw={test_phase_straight3_yaw:.2f}")
+                    elif test_phase == "straight3" and right_pos >= 3000:
+                        test_phase = "turn_right2"
+                        test_phase_start_yaw = et.get_yaw()
+                        print(f"[TEST] start turn_right2 phase yaw={test_phase_start_yaw:.2f}")
+                        continue
+                    elif test_phase == "turn_right2" and et.get_yaw() - test_phase_start_yaw < 30.0:
+                        yaw_diff = et.get_yaw() - test_phase_start_yaw
+                        et.set_motor_forward_speed(left_speed=100, right_speed=70)
+                        print(f"[TEST] turning right2 yaw_diff={yaw_diff:.2f}")
+                    elif test_phase == "turn_right2" and et.get_yaw() - test_phase_start_yaw >= 30.0:
+                        test_phase = "straight4"
+                        test_phase_start_right_pos = right_pos
+                        test_phase_straight4_yaw = test_phase_start_yaw
+                        et._start_yaw = test_phase_straight4_yaw
+                        print(f"[TEST] start straight4 phase right_pos={right_pos}, base_yaw={test_phase_straight4_yaw:.2f}")
+                        continue
+                    elif test_phase == "straight4" and right_pos < 4000:
+                        et.set_start_yaw(test_phase_start_yaw)
+                        left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                        et.set_motor_forward_speed(left_speed=int(left_speed), right_speed=int(right_speed))
+                        print(f"[TEST] straight4 right_pos={right_pos}, base_yaw={test_phase_start_yaw:.2f}")
+                    elif test_phase == "straight4" and right_pos >= 4000:
+                        test_phase = "stop"
+                        print(f"[TEST] finished all phases. right_pos={right_pos}")
+                        continue
+                    elif test_phase == "stop":
+                        et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                        print(f"[TEST] stopped.")
+                # --- ループ周期制限とdebug出力（最後） ---
+                loop_end = time.time()
+                handle_debug_output(loop_start, loop_end, debug_state)
                     if frame is not None:
                         video_writer.write(frame)
                 except queue.Empty:
@@ -507,7 +582,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 right_pos = et.get_motor_relative_position(side="right")
                 if right_pos is None:
                     right_pos = 0
-                # 直進1: 右の走行距離が1000未満
+                test_continue = False
                 if test_phase == "straight1" and right_pos < 1000:
                     et.set_start_yaw(test_phase_start_yaw_init)
                     left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
@@ -517,7 +592,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     test_phase = "turn_right"
                     test_phase_start_yaw = test_phase_start_yaw_init
                     print(f"[TEST] start turn_right phase yaw={test_phase_start_yaw:.2f}")
-                    continue  # フェーズ遷移直後は即continueして次ループへ
+                    test_continue = True
                 elif test_phase == "turn_right" and et.get_yaw() - test_phase_start_yaw < 30.0:
                     yaw_val = et.get_yaw()
                     yaw_diff = yaw_val - test_phase_start_yaw
@@ -530,6 +605,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     test_phase_straight2_yaw = test_phase_start_yaw + 30.0
                     et._start_yaw = test_phase_straight2_yaw
                     print(f"[TEST] start straight2 phase right_pos={right_pos}, base_yaw={test_phase_straight2_yaw:.2f}")
+                    test_continue = True
                 elif test_phase == "straight2" and right_pos < 2000:
                     et.set_start_yaw(test_phase_straight2_yaw)
                     left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
@@ -540,6 +616,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     test_phase = "turn_left"
                     test_phase_start_yaw = test_phase_straight3_yaw
                     print(f"[TEST] start turn_left phase base_yaw={test_phase_start_yaw:.2f}")
+                    test_continue = True
                 elif test_phase == "turn_left" and et.get_yaw() - test_phase_start_yaw > -60.0:
                     yaw_diff = et.get_yaw() - test_phase_start_yaw
                     et.set_motor_forward_speed(left_speed=70, right_speed=100)
@@ -550,6 +627,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     test_phase_start_right_pos = right_pos
                     et._start_yaw = test_phase_straight3_yaw
                     print(f"[TEST] start straight3 phase right_pos={right_pos}, base_yaw={test_phase_straight3_yaw:.2f}")
+                    test_continue = True
                 elif test_phase == "straight3" and right_pos < 3000:
                     et.set_start_yaw(test_phase_straight3_yaw)
                     left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
@@ -559,6 +637,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     test_phase = "turn_right2"
                     test_phase_start_yaw = et.get_yaw()
                     print(f"[TEST] start turn_right2 phase yaw={test_phase_start_yaw:.2f}")
+                    test_continue = True
                 elif test_phase == "turn_right2" and et.get_yaw() - test_phase_start_yaw < 30.0:
                     yaw_diff = et.get_yaw() - test_phase_start_yaw
                     et.set_motor_forward_speed(left_speed=100, right_speed=70)
@@ -569,6 +648,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     test_phase_straight4_yaw = test_phase_start_yaw
                     et._start_yaw = test_phase_straight4_yaw
                     print(f"[TEST] start straight4 phase right_pos={right_pos}, base_yaw={test_phase_straight4_yaw:.2f}")
+                    test_continue = True
                 elif test_phase == "straight4" and right_pos < 4000:
                     et.set_start_yaw(test_phase_start_yaw)
                     left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
@@ -577,15 +657,16 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 elif test_phase == "straight4" and right_pos >= 4000:
                     test_phase = "stop"
                     print(f"[TEST] finished all phases. right_pos={right_pos}")
+                    test_continue = True
                 elif test_phase == "stop":
                     et.set_motor_forward_speed(left_speed=0, right_speed=0)
                     print(f"[TEST] stopped.")
-                if turn_left_started == 'reverse_stop_left':
-                    turn_left_started = False
-                if turn_right_started == 'reverse_stop_right':
-                    turn_right_started = False
-                if prev_mode_test:
-                    prev_mode_test = False
+                if test_continue:
+                    continue
+            elif mode == Mode.PAUSE:
+                left_speed, right_speed = 0, 0
+                et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+
 
             # --- ループ周期制限とdebug出力（最後） ---
             loop_end = time.time()
