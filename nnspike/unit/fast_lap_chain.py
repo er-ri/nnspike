@@ -325,4 +325,124 @@ class FastLapChain(object):
             return None, None, Mode.PAUSE
 
         print("[avoid_obstacle] Unexpected state reached.")
-        return None, None, Mode.AVOID_OBSTACLE
+        return None, None, Mode.FAST_LAP
+
+    def shortcut_lap(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+        if not self._init:
+            # フェーズ0: 右モータ距離1000未満ならyaw_straight_controlで直進。1000以上で次フェーズ
+            self.initialize_action(motor_side=self.course)
+            self.et.set_start_yaw()
+            self.start_yaw = self.et.get_start_yaw()
+        phase = self._phase
+        et = self.et
+        # start_yawはインスタンス変数として常に参照
+        start_yaw = self.start_yaw
+
+        # フェーズ0: 右モータ距離1000未満ならyaw_straight_controlで直進。1000以上で次フェーズ（直進区間）
+        if phase.get_phase() == 0:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right')
+            position_diff = abs(current_pos - position_start)
+            if position_diff < 1000:
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                return None, (left_speed, right_speed, 0), Mode.SHORTCUT_LAP
+            else:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position('right'))
+
+        # フェーズ1: 右旋回30度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新（右旋回区間）
+        if phase.get_phase() == 1:
+            stop_turn = et.is_yaw_turn_finished(side="right", threshold_deg=30.0)
+            if stop_turn:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position('right'))
+                self.et.set_start_yaw(start_yaw + 30.0)  # 旋回終了後の基準yawを更新
+            else:
+                return None, (100, 70, 0), Mode.SHORTCUT_LAP
+
+        # フェーズ2: position_startとの差分1000未満ならyaw_straight_control直進。1000以上で次フェーズ、基準yaw更新（直進区間）
+        if phase.get_phase() == 2:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right')
+            position_diff = abs(current_pos - position_start)
+            if position_diff < 1000:
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                return None, (left_speed, right_speed, 0), Mode.SHORTCUT_LAP
+            else:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position('right'))
+
+        # フェーズ3: 左旋回60度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新（左旋回区間）
+        if phase.get_phase() == 3:
+            stop_turn = et.is_yaw_turn_finished(side="left", threshold_deg=60.0)
+            if stop_turn:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position('right'))
+                self.et.set_start_yaw(start_yaw - 30.0)  # 旋回終了後の基準yawを更新
+            else:
+                return None, (70, 100, 0), Mode.SHORTCUT_LAP
+
+        # フェーズ4: position_startとの差分2000未満ならyaw_straight_control直進。2000以上で次フェーズ、基準yaw更新（直進区間）
+        if phase.get_phase() == 4:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right')
+            position_diff = abs(current_pos - position_start)
+            if position_diff < 2000:
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                return None, (left_speed, right_speed, 0), Mode.SHORTCUT_LAP
+            else:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position('right'))
+                self.et.set_start_yaw(start_yaw)
+
+        # フェーズ5: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-90.0に更新
+        if phase.get_phase() == 5:
+            stop_turn = et.is_yaw_turn_finished(side="left", threshold_deg=60.0)
+            if stop_turn:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position('right'))
+                self.et.set_start_yaw(start_yaw - 90.0)
+            else:
+                return None, (70, 100, 0), Mode.SHORTCUT_LAP
+
+        # フェーズ6: position_startとの差分1000未満ならyaw_straight_control直進。1000以上で次フェーズ
+        if phase.get_phase() == 6:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right')
+            position_diff = abs(current_pos - position_start)
+            if position_diff < 1000:
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                return None, (left_speed, right_speed, 0), Mode.SHORTCUT_LAP
+            else:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position('right'))
+
+        # フェーズ7: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-180.0に更新
+        if phase.get_phase() == 7:
+            stop_turn = et.is_yaw_turn_finished(side="left", threshold_deg=90.0)
+            if stop_turn:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position('right'))
+                self.et.set_start_yaw(start_yaw - 180.0)
+            else:
+                return None, (70, 100, 0), Mode.SHORTCUT_LAP
+
+        # フェーズ8: position_startとの差分1000未満ならyaw_straight_control直進。1000以上で次フェーズ
+        if phase.get_phase() == 8:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position('right')
+            position_diff = abs(current_pos - position_start)
+            if position_diff < 3000:
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                return None, (left_speed, right_speed, 0), Mode.SHORTCUT_LAP
+            else:
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position('right'))
+
+        # フェーズ9: reset_action()してPAUSE復帰（ラップ終了）
+        if phase.get_phase() == 9:
+            self.reset_action()
+            return None, None, Mode.PAUSE
+
+        print("[avoid_obstacle] Unexpected state reached.")
+    return None, None, Mode.SHORTCUT_LAP
