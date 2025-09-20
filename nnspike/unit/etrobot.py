@@ -1,3 +1,4 @@
+
 import threading
 import time
 
@@ -473,3 +474,70 @@ class ETRobot(object):
         status = self.get_spike_status()
         val = getattr(getattr(status.sensors, "yaw_pitch_roll", None), "x", None)
         return float(val) if val is not None else 0.0
+
+    def set_start_yaw(self):
+        """
+        現在のヨー角をstart_yawとして記録する（直線安定化・旋回開始時などで使用）
+        """
+        self._start_yaw = self.get_yaw()
+
+    def get_start_yaw(self) -> float:
+        """
+        記録済みのstart_yaw（開始時ヨー角）を取得。未設定時は0.0。
+        """
+        return getattr(self, '_start_yaw', 0.0)
+
+    def yaw_turn_control(self, side: str = "right", threshold_deg: float = 90.0, base_speed: int = 80) -> tuple[int, int]:
+        """
+        ヨー角による定速片側旋回（内部start_yawを基準に判定）。
+        Args:
+            side (str): 'left' または 'right'（旋回方向）
+            threshold_deg (float): 停止判定の閾値（度、絶対値で指定）
+            base_speed (int): 旋回時の基本速度
+        Returns:
+            (left_speed, right_speed): 左右速度
+        """
+        yaw_val = self.get_yaw()
+        yaw_start_val = self.get_start_yaw()
+        diff = yaw_val - yaw_start_val
+        if side == "left":
+            if diff <= -abs(threshold_deg):
+                return 0, 0
+            left_speed = 0
+            right_speed = base_speed
+        elif side == "right":
+            if diff >= abs(threshold_deg):
+                return 0, 0
+            left_speed = base_speed
+            right_speed = 0
+        else:
+            raise ValueError("side must be 'left' or 'right'")
+        return left_speed, right_speed
+
+    def yaw_straight_control(self, base_speed: int = 80, kp: float = 1.0, deadband: float = 2.0) -> tuple[int, int]:
+        """
+        ヨー角による直線安定化制御（P制御、内部start_yaw基準）。
+        Args:
+            base_speed (int): 基本速度
+            kp (float): 比例ゲイン
+            deadband (float): デッドバンド幅
+        Returns:
+            (left_speed, right_speed): 補正後の左右速度
+        """
+        yaw = self.get_yaw()
+        start_yaw = self.get_start_yaw()
+        error = yaw - start_yaw
+        pid_output = kp * error
+        if abs(error) <= deadband:
+            left_speed = base_speed
+            right_speed = base_speed
+        else:
+            left_speed = base_speed
+            right_speed = base_speed
+            if pid_output > 0:
+                left_speed = base_speed - abs(pid_output)
+            elif pid_output < 0:
+                right_speed = base_speed - abs(pid_output)
+            left_speed = int(max(min(left_speed, base_speed), base_speed-2))
+            right_speed = int(max(min(right_speed, base_speed), base_speed-2))
+        return left_speed, right_speed

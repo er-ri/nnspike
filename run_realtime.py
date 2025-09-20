@@ -343,68 +343,48 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 right_speed = BASE_SPEED
                 et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.TURN_LEFT:
-                # --- ヨー角判定ロジック（元の形式） ---
-                yaw = et.get_yaw()
-                # print(f"DEBUG yaw (LEFT): {yaw}")
                 if not turn_left_started:
-                    yaw_start_left = yaw
+                    et.set_start_yaw()
                     turn_left_started = True
-                left_speed = 0
-                right_speed = BASE_SPEED
+                left_speed, right_speed = et.yaw_turn_control(
+                    side="left",
+                    threshold_deg=90.0,
+                    base_speed=BASE_SPEED
+                )
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-                yaw_val = yaw if yaw is not None else 0.0
-                yaw_start_val = yaw_start_left if yaw_start_left is not None else 0.0
-                print(f"[TURN_LEFT] yaw={yaw_val:.2f}, yaw_start={yaw_start_val:.2f}, diff={yaw_val - yaw_start_val:.2f}")
-                if (yaw_val - yaw_start_val) <= -90.0:
-                    print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={yaw_val:.2f}")
+                print(f"[TURN_LEFT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
+                if left_speed == 0 and right_speed == 0:
+                    print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={et.get_yaw():.2f}")
                     et.set_motor_forward_speed(left_speed=0, right_speed=0)
                     mode = Mode.PAUSE
                     turn_left_started = False
             elif mode == Mode.TURN_RIGHT:
-                # --- ヨー角判定ロジック（元の形式） ---
-                yaw = et.get_yaw()
-                # print(f"DEBUG yaw (RIGHT): {yaw}")
                 if not turn_right_started:
-                    yaw_start_right = yaw
+                    et.set_start_yaw()
                     turn_right_started = True
-                left_speed = BASE_SPEED
-                right_speed = 0
+                left_speed, right_speed = et.yaw_turn_control(
+                    side="right",
+                    threshold_deg=90.0,
+                    base_speed=BASE_SPEED
+                )
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-                yaw_val = yaw if yaw is not None else 0.0
-                yaw_start_val = yaw_start_right if yaw_start_right is not None else 0.0
-                print(f"[TURN_RIGHT] yaw={yaw_val:.2f}, yaw_start={yaw_start_val:.2f}, diff={yaw_val - yaw_start_val:.2f}")
-                if (yaw_val - yaw_start_val) >= 90.0:
-                    print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={yaw_val:.2f}")
+                print(f"[TURN_RIGHT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
+                if left_speed == 0 and right_speed == 0:
+                    print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={et.get_yaw():.2f}")
                     et.set_motor_forward_speed(left_speed=0, right_speed=0)
                     mode = Mode.PAUSE
                     turn_right_started = False
             elif mode == Mode.TEST:
-                # ヨー角P制御（kpのみ、誤差比例で速度調整）
-                yaw = et.get_yaw()
                 if not prev_mode_test:
-                    target_yaw = yaw if yaw is not None else 0.0
+                    et.set_start_yaw()
                 prev_mode_test = True
-                kp = 1.0
-                error = (yaw if yaw is not None else 0.0) - (target_yaw if target_yaw is not None else 0.0)
-                pid_output = kp * error
-                base_speed = HIGH_SPEED_BASE
-                # デッドバンド: 誤差±2度以内なら補正なし
-                deadband = 2.0
-                if abs(error) <= deadband:
-                    left_speed = 80
-                    right_speed = 80
-                else:
-                    left_speed = base_speed
-                    right_speed = base_speed
-                    if pid_output > 0:
-                        left_speed = base_speed - abs(pid_output)
-                    elif pid_output < 0:
-                        right_speed = base_speed - abs(pid_output)
-                    left_speed = int(max(min(left_speed, 80), 78))
-                    right_speed = int(max(min(right_speed, 80), 78))
-                print(f"[TEST DEBUG] yaw={yaw:.2f}, target_yaw={target_yaw:.2f}, error={error:.2f}, pid_output={pid_output:.2f}, left_speed={left_speed:.2f}, right_speed={right_speed:.2f}")
+                left_speed, right_speed = et.yaw_straight_control(
+                    base_speed=HIGH_SPEED_BASE,
+                    kp=1.0,
+                    deadband=2.0
+                )
+                print(f"[TEST DEBUG] yaw={et.get_yaw():.2f}, start_yaw={et.get_start_yaw():.2f}, error={et.get_yaw() - et.get_start_yaw():.2f}, left_speed={left_speed:.2f}, right_speed={right_speed:.2f}")
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-                # TESTから離脱した瞬間のみtarget_yawリセット（TESTブロック外からは絶対に触らない）
             elif prev_mode_test:
                 target_yaw = None
                 prev_mode_test = False
