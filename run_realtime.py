@@ -379,27 +379,26 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     mode = Mode.PAUSE
                     turn_right_started = False
             elif mode == Mode.TEST:
-                # ヨー角PID制御でハイスピード直進
+                # ヨー角P制御でハイスピード直進（明示的な速度切替）
                 yaw = et.get_yaw()
-                # TESTモード遷移検知用フラグ（main関数内で管理）
-                # TESTモード突入時のみtarget_yawをセット（走行中は絶対に変更しない）
                 if not prev_mode_test:
                     target_yaw = yaw if yaw is not None else 0.0
                 prev_mode_test = True
-                # PID制御器（Pのみ、必要ならI/D追加）
                 Kp = 1.2
-                error = (target_yaw if target_yaw is not None else 0.0) - (yaw if yaw is not None else 0.0)
+                error = (yaw if yaw is not None else 0.0) - (target_yaw if target_yaw is not None else 0.0)
                 pid_output = Kp * error
-                # ハイスピードベース
-                base_speed = HIGH_SPEED_BASE
-                # 左右速度調整（pid_outputで左右差分）
-                # 高速走行のため速度差分は±2までに限定
+                # 速度差分は±2までに制限
                 pid_output = max(-2, min(2, pid_output))
-                left_speed = base_speed - pid_output
-                right_speed = base_speed + pid_output
-                # 安全のため速度制限
-                left_speed = int(max(0, min(100, left_speed)))
-                right_speed = int(max(0, min(100, right_speed)))
+                base_speed = HIGH_SPEED_BASE
+                if error > 0:
+                    left_speed = base_speed - 2
+                    right_speed = base_speed
+                elif error < 0:
+                    left_speed = base_speed
+                    right_speed = base_speed - 2
+                else:
+                    left_speed = base_speed
+                    right_speed = base_speed
                 print(f"[TEST DEBUG] yaw={yaw:.2f}, target_yaw={target_yaw:.2f}, error={error:.2f}, pid_output={pid_output:.2f}, left_speed={left_speed:.2f}, right_speed={right_speed:.2f}")
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 # TESTから離脱した瞬間のみtarget_yawリセット（TESTブロック外からは絶対に触らない）
