@@ -27,13 +27,17 @@ def test_camera(camera_id=0):
 
         frame_count = 0
         start_time = time.time()
+        last_time = start_time
         while True:
             ret, frame = cap.read()
+            now = time.time()
+            dt = now - last_time
+            last_time = now
             if not ret:
                 print("Error: Failed to grab frame")
                 break
             frame_count += 1
-            # 画面表示・キー入力は不要
+            print(f"Frame {frame_count}: dt={dt*1000:.2f}ms")
             if frame_count >= 100:
                 break
         elapsed = time.time() - start_time
