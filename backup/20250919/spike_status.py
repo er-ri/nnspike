@@ -145,17 +145,19 @@ class SpikeStatus:
         self.message_type = parsed_data.get("message_type", -1)
         self.raw_data = parsed_data.get("raw", {})
         # type: -1のときrawデータを表示して原因調査
-        # if self.message_type == -1:
-        #     print("[type:-1 raw]", self.raw_data)
+        if self.message_type == -1:
+            print("[type:-1 raw]", self.raw_data)
+
+        # message_typeによる分岐・returnを廃止。常に全データを更新。
+
         # 全てのmessage_typeでインターバル計算
-        # インターバル計算・出力は不要なのでコメントアウト
-        # now = self.timestamp
-        # dt = None
-        # if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:
-        #     dt = now - self._last_motor_update_time
-        #     dt_ms = dt * 1000 if dt is not None else None
-        #     # print(f"interval: {dt_ms:06.2f} ms | type: {self.message_type} | raw: {self.raw_data}")
-        # self._last_motor_update_time = now
+        now = self.timestamp
+        dt = None
+        if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:
+            dt = now - self._last_motor_update_time
+            dt_ms = dt * 1000 if dt is not None else None
+            print(f"interval: {dt_ms:06.2f} ms | type: {self.message_type} | raw: {self.raw_data}")
+        self._last_motor_update_time = now
 
         # Update motors
         for motor_id, motor_data in parsed_data.get("motors", {}).items():
@@ -296,6 +298,9 @@ class SpikeStatus:
                             "y": payload[8][1],
                             "z": payload[8][2],
                         }
+
+                # Position from sensors
+                # 位置情報は送信されないため、ここは削除
 
             elif message_type == 2:  # Battery status message
                 if len(payload) > 1:

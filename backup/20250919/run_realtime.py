@@ -210,13 +210,21 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
 
     def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.03):
         """debug出力処理＋ループ周期50msに制御"""
+        loop_elapsed = loop_end - loop_start
         debug_state['counter'] += 1
+        # 前回ループ終了時刻との差分のみ表示
         prev_end = debug_state.get('last_print', None)
         now = loop_end
         if prev_end is not None:
-            cycle_ms = (now - prev_end) * 1000
-            print(f"[DEBUG] cycle: {cycle_ms:.2f} ms")
+            diff_ms = int((now - prev_end) * 1000)
+        else:
+            diff_ms = 0
         debug_state['last_print'] = now
+        # min_interval周期制御（1ループmin_interval未満ならsleepで調整）
+        sleep_time = min_interval - loop_elapsed
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+    # デバッグ出力削除
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
