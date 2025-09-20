@@ -64,7 +64,6 @@ class Video:
                     diff_ms = (now - prev_time) * 1000
                     print(f"[VIDEO_THREAD] dt={diff_ms:.2f}ms")
                 prev_time = now
-            time.sleep(0.001)  # 軽いウェイトでCPU負荷抑制
 
     def read(self):
         """
