@@ -255,6 +255,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     # --- 変数初期化 ---
     left_speed = None
     right_speed = None
+    last_frame_time = None
+    last_frame_data = None
     turn_left_started = False
     turn_right_started = False
     yaw_start_left = None
@@ -268,11 +270,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         'counter': 0,
         'last_print': time.time()
     }
-    last_frame_time = None
-    last_frame_data = None
     try:
-        turn_left_started = False
-        yaw_start = None
         while et.is_running:
             loop_start = time.time()
             # --- カメラフレーム取得・保存処理を復活 ---
