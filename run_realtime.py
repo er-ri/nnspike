@@ -517,6 +517,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     test_phase = "turn_right"
                     test_phase_start_yaw = test_phase_start_yaw_init
                     print(f"[TEST] start turn_right phase yaw={test_phase_start_yaw:.2f}")
+                    return  # フェーズ遷移直後は即returnして無限遷移を防止
                 elif test_phase == "turn_right" and et.get_yaw() - test_phase_start_yaw < 30.0:
                     yaw_val = et.get_yaw()
                     yaw_diff = yaw_val - test_phase_start_yaw
