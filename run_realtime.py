@@ -208,17 +208,10 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
 
 def main(record_sensor_data=False, save_camera_video=False, course="right", course_type="upper", manual_mode=False):
 
-    def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.02):
-        """debug出力処理＋ループ周期50msに制御"""
+    def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.01):
         debug_state['counter'] += 1
-        prev_end = debug_state.get('last_print', None)
-        now = loop_end
-        if prev_end is not None:
-            cycle_ms = (now - prev_end) * 1000
-            # print(f"[DEBUG] cycle: {cycle_ms:.2f} ms")
-        debug_state['last_print'] = now
         # --- min_interval引数で周期調整＋デバッグ出力 ---
-        dt = now - loop_start
+        dt = loop_end - loop_start
         sleep_sec = min_interval - dt if dt < min_interval else 0
         sleep_ms = sleep_sec * 1000
         if sleep_sec > 0:
