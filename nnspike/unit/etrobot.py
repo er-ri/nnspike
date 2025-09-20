@@ -5,6 +5,7 @@ import time
 import serial  # type: ignore
 
 from .spike_status import SpikeStatus
+from nnspike.constants import HIGH_SPEED_BASE
 from typing import Optional
 
 
@@ -512,13 +513,14 @@ class ETRobot(object):
         else:
             raise ValueError("side must be 'left' or 'right'")
 
-    def yaw_straight_control(self, base_speed: int = 80, kp: float = 1.0, deadband: float = 2.0) -> tuple[int, int]:
+    def yaw_straight_control(self, base_speed: int = HIGH_SPEED_BASE, kp: float = 1.0, deadband: float = 2.0, adjust_speed: int = 2) -> tuple[int, int]:
         """
         ヨー角による直線安定化制御（P制御、内部start_yaw基準）。
         Args:
             base_speed (int): 基本速度
             kp (float): 比例ゲイン
             deadband (float): デッドバンド幅
+            adjust_speed (int, optional): 調整値（デフォルト2）
         Returns:
             (left_speed, right_speed): 補正後の左右速度
         """
@@ -526,6 +528,7 @@ class ETRobot(object):
         start_yaw = self.get_start_yaw()
         error = yaw - start_yaw
         pid_output = kp * error
+        min_speed = base_speed - adjust_speed
         if abs(error) <= deadband:
             left_speed = base_speed
             right_speed = base_speed
@@ -536,7 +539,7 @@ class ETRobot(object):
                 left_speed = base_speed - abs(pid_output)
             elif pid_output < 0:
                 right_speed = base_speed - abs(pid_output)
-            left_speed = int(max(min(left_speed, base_speed), base_speed-2))
-            right_speed = int(max(min(right_speed, base_speed), base_speed-2))
+            left_speed = int(max(min(left_speed, base_speed), min_speed))
+            right_speed = int(max(min(right_speed, base_speed), min_speed))
         return left_speed, right_speed
 
