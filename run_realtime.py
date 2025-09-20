@@ -371,9 +371,9 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     mode = Mode.PAUSE
                     turn_right_started = False
             elif mode == Mode.TEST:
-                # ロール補正のみでベーススピード走行
-                # left_speed, right_speed = et.calc_max_speed_with_roll_control(BASE_SPEED)
-                left_speed, right_speed = 0, 0  # 仮対応
+                # ベーススピードで走行
+                left_speed = BASE_SPEED
+                right_speed = BASE_SPEED
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.PAUSE:
                 left_speed, right_speed = 0, 0
