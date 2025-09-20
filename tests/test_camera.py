@@ -33,8 +33,8 @@ def test_camera(camera_id=0):
                 print("Error: Failed to grab frame")
                 break
             frame_count += 1
-            cv2.imshow("Camera Test", frame)
-            if cv2.waitKey(1) & 0xFF == ord("q"):
+            # 画面表示・キー入力は不要
+            if frame_count >= 100:
                 break
         elapsed = time.time() - start_time
         cap.release()
