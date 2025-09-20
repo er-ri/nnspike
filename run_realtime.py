@@ -357,7 +357,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     mode = Mode.PAUSE
                     turn_left_started = False
                 else:
-                    et.set_motor_speed(left_speed=0, right_speed=BASE_SPEED)
+                    et.set_motor_speed(left_speed=-BASE_SPEED, right_speed=BASE_SPEED)
                 print(f"[TURN_LEFT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
             elif mode == Mode.TURN_RIGHT:
                 if not turn_right_started:
@@ -373,7 +373,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     mode = Mode.PAUSE
                     turn_right_started = False
                 else:
-                    et.set_motor_speed(left_speed=BASE_SPEED, right_speed=0)
+                    et.set_motor_speed(left_speed=BASE_SPEED, right_speed=-BASE_SPEED)
                 print(f"[TURN_RIGHT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
             elif mode == Mode.TEST:
                 if not prev_mode_test:
