@@ -270,6 +270,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         'counter': 0,
         'last_print': time.time()
     }
+    target_yaw = None
+    prev_mode_test = False
     try:
         while et.is_running:
             loop_start = time.time()
@@ -342,8 +344,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.TURN_LEFT:
                 # --- ヨー角判定ロジック（元の形式） ---
-                status = et.get_spike_status()
-                yaw = getattr(getattr(status.sensors, "yaw_pitch_roll", None), "x", 0.0)
+                yaw = et.get_yaw()
                 # print(f"DEBUG yaw (LEFT): {yaw}")
                 if not turn_left_started:
                     yaw_start_left = yaw
@@ -361,8 +362,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     turn_left_started = False
             elif mode == Mode.TURN_RIGHT:
                 # --- ヨー角判定ロジック（元の形式） ---
-                status = et.get_spike_status()
-                yaw = getattr(getattr(status.sensors, "yaw_pitch_roll", None), "x", 0.0)
+                yaw = et.get_yaw()
                 # print(f"DEBUG yaw (RIGHT): {yaw}")
                 if not turn_right_started:
                     yaw_start_right = yaw
@@ -379,10 +379,33 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     mode = Mode.PAUSE
                     turn_right_started = False
             elif mode == Mode.TEST:
-                # ベーススピードで走行
-                left_speed = BASE_SPEED
-                right_speed = BASE_SPEED
+                # ヨー角PID制御でハイスピード直進
+                yaw = et.get_yaw()
+                # TESTモード遷移検知用フラグ（main関数内で管理）
+                if not prev_mode_test:
+                    if yaw is not None:
+                        target_yaw = yaw
+                prev_mode_test = True
+                # PID制御器（Pのみ、必要ならI/D追加）
+                Kp = 1.2
+                error = (target_yaw if target_yaw is not None else 0.0) - (yaw if yaw is not None else 0.0)
+                pid_output = Kp * error
+                # ハイスピードベース
+                base_speed = HIGH_SPEED_BASE
+                # 左右速度調整（pid_outputで左右差分）
+                # 高速走行のため速度差分は±2までに限定
+                pid_output = max(-2, min(2, pid_output))
+                left_speed = base_speed - pid_output
+                right_speed = base_speed + pid_output
+                # 安全のため速度制限
+                left_speed = max(0, min(100, left_speed))
+                right_speed = max(0, min(100, right_speed))
+                print(f"[TEST DEBUG] yaw={yaw:.2f}, target_yaw={target_yaw:.2f}, error={error:.2f}, pid_output={pid_output:.2f}, left_speed={left_speed:.2f}, right_speed={right_speed:.2f}")
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+                # TESTから離脱した瞬間のみtarget_yawリセット（TESTブロック外からは絶対に触らない）
+            elif prev_mode_test:
+                target_yaw = None
+                prev_mode_test = False
             elif mode == Mode.PAUSE:
                 left_speed, right_speed = 0, 0
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)

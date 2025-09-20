@@ -7,6 +7,7 @@ from .spike_status import SpikeStatus
 
 
 class ETRobot(object):
+
     # Command IDs should be as same as (`spike/slot_prod.py`) the script in LEGO Spike Prime.
     COMMAND_SET_MOTOR_FORWARD_SPEED_ID = 201
     COMMAND_SET_MOTOR_BACKWARD_SPEED_ID = 202
@@ -465,3 +466,10 @@ class ETRobot(object):
             return integrated >= threshold
         raise ValueError("direction must be 'left' or 'right'")
 
+    def get_yaw(self) -> float:
+        """
+        ヨー角（x軸）を一発取得。Noneは許さず必ずfloat型で返す（未取得時は0.0）。
+        """
+        status = self.get_spike_status()
+        val = getattr(getattr(status.sensors, "yaw_pitch_roll", None), "x", None)
+        return float(val) if val is not None else 0.0
