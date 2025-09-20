@@ -379,26 +379,24 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     mode = Mode.PAUSE
                     turn_right_started = False
             elif mode == Mode.TEST:
-                # ヨー角P制御でハイスピード直進（明示的な速度切替）
+                # ヨー角P制御（kpのみ、誤差比例で速度調整）
                 yaw = et.get_yaw()
                 if not prev_mode_test:
                     target_yaw = yaw if yaw is not None else 0.0
                 prev_mode_test = True
-                Kp = 1.2
+                kp = 1.0
                 error = (yaw if yaw is not None else 0.0) - (target_yaw if target_yaw is not None else 0.0)
-                pid_output = Kp * error
-                # 速度差分は±2までに制限
-                pid_output = max(-2, min(2, pid_output))
+                pid_output = kp * error
                 base_speed = HIGH_SPEED_BASE
-                if error > 0:
-                    left_speed = base_speed - 2
-                    right_speed = base_speed
-                elif error < 0:
-                    left_speed = base_speed
-                    right_speed = base_speed - 2
-                else:
-                    left_speed = base_speed
-                    right_speed = base_speed
+                left_speed = base_speed
+                right_speed = base_speed
+                if pid_output > 0:
+                    left_speed = base_speed - abs(pid_output)
+                elif pid_output < 0:
+                    right_speed = base_speed - abs(pid_output)
+                # 速度は78～80に限定
+                left_speed = max(min(left_speed, 80), 78)
+                right_speed = max(min(right_speed, 80), 78)
                 print(f"[TEST DEBUG] yaw={yaw:.2f}, target_yaw={target_yaw:.2f}, error={error:.2f}, pid_output={pid_output:.2f}, left_speed={left_speed:.2f}, right_speed={right_speed:.2f}")
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 # TESTから離脱した瞬間のみtarget_yawリセット（TESTブロック外からは絶対に触らない）
