@@ -527,6 +527,11 @@ class ETRobot(object):
         yaw = self.get_yaw()
         start_yaw = self.get_start_yaw()
         error = yaw - start_yaw
+        # 角度ラップアラウンド補正
+        if error > 180:
+            error -= 360
+        elif error < -180:
+            error += 360
         pid_output = kp * error
         min_speed = base_speed - adjust_speed
         if abs(error) <= deadband:
