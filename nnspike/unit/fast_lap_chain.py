@@ -103,7 +103,8 @@ class FastLapChain(object):
                     self.turn_left_reference_yaw = None
                     self.turn_left_adjust_timer = None
                     self.turn_left_in_tolerance_time = None
-                    return None, (0, 0, 0), Mode.PAUSE
+                    self.reset_action()
+                    return None, None, Mode.PAUSE
             else:
                 self.turn_left_in_tolerance_time = None
                 if elapsed < 1.0:
@@ -115,11 +116,11 @@ class FastLapChain(object):
                         return None, (-15, 15, 0), Mode.TURN_LEFT_YAW
                 else:
                     print(f"[TURN_LEFT][ADJUST][TIMEOUT] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_left_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                    self._phase = None
                     self.turn_left_reference_yaw = None
                     self.turn_left_adjust_timer = None
                     self.turn_left_in_tolerance_time = None
-                    return None, (0, 0, 0), Mode.TURN_LEFT_YAW
+                    self.reset_action()
+                    return None, None, Mode.PAUSE
 
         # 速度返却（NoneでOK、et.set_motor_speedで直接制御）
         return None, None, Mode.TURN_LEFT_YAW
