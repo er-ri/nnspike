@@ -209,7 +209,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         video_writer = cv2.VideoWriter(
             filename=video_filename,
             fourcc=fourcc,
-            fps=CAMERA_FPS,
+            fps=30,
             frameSize=(CAMERA_WIDTH, CAMERA_HEIGHT),
         )
         video_queue = queue.Queue(maxsize=100)
