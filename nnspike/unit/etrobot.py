@@ -506,6 +506,7 @@ class ETRobot(object):
         yaw_val = self.get_yaw()
         yaw_start_val = self.get_start_yaw()
         diff = yaw_val - yaw_start_val
+        print(f"[is_yaw_turn_finished] yaw={yaw_val:.2f}, start_yaw={yaw_start_val:.2f}, diff={diff:.2f}, side={side}, threshold={threshold_deg}")
         if side == "left":
             return diff <= -abs(threshold_deg)
         elif side == "right":
