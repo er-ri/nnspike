@@ -197,8 +197,10 @@ class FastLapChain(object):
 
         # フェーズ0: 右モータ距離1000未満ならyaw_straight_controlで直進。1000以上で次フェーズ
         if phase.get_phase() == 0:
+            position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position('right')
-            if current_pos < 1000:
+            position_diff = abs(current_pos - position_start)
+            if position_diff < 1000:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return None, (left_speed, right_speed, 0), Mode.FAST_LAP
             else:
