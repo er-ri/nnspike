@@ -25,13 +25,14 @@ class Video:
         self.cap = cv2.VideoCapture(0)  # USBカメラ前提で0固定
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+        self.cap.set(cv2.CAP_PROP_FPS, 30)
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
         self.frame = None
         self.ret = False
         self.running = True
-        # self.lock = threading.Lock()
-        # self.thread = threading.Thread(target=self._update, daemon=True)
-        # self.thread.start()
+        self.lock = threading.Lock()
+        self.thread = threading.Thread(target=self._update, daemon=True)
+        self.thread.start()
 
     # set_mode廃止（モード切替不可）
 
@@ -42,24 +43,23 @@ class Video:
         for _ in range(count):
             self.read()
 
-    # def _update(self):
-    #     while self.running:
-    #         ret, frame = self.cap.read()
-    #         with self.lock:
-    #             self.ret = ret
-    #             self.frame = frame
+    def _update(self):
+        while self.running:
+            ret, frame = self.cap.read()
+            with self.lock:
+                self.ret = ret
+                self.frame = frame
 
     def read(self):
         """
-        最新フレームのみ返す（直接cap.read()）
+        最新フレームのみ返す（スレッドで取得した最新フレーム）
         """
-        ret, frame = self.cap.read()
-        return ret, frame
+        with self.lock:
+            return self.ret, self.frame.copy() if self.frame is not None else (False, None)
 
     def release(self):
         self.running = False
-        # if hasattr(self, 'thread'):
-        #     self.thread.join()
+        self.thread.join()
         # self.cap.release()
 
 def handle_status_and_video(frame, status, mode, left_speed, right_speed,
