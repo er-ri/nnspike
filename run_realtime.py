@@ -373,6 +373,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                         print(f"[TURN_LEFT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={turn_left_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
                     else:
                         et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                        print(f"[TURN_LEFT][ADJUST][STOP] yaw={et.get_yaw():.2f}, ref_yaw={turn_left_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
                         mode = Mode.PAUSE
                         turn_left_started = False
                         turn_left_adjusting = False
@@ -412,6 +413,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                         print(f"[TURN_RIGHT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
                     else:
                         et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                        print(f"[TURN_RIGHT][ADJUST][STOP] yaw={et.get_yaw():.2f}, ref_yaw={turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
                         mode = Mode.PAUSE
                         turn_right_started = False
                         turn_right_adjusting = False
