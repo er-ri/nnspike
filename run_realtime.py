@@ -251,6 +251,9 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     # --- Videoクラスでカメラ起動・ウォームアップ ---
     video = Video()
     video.warmup()
+    # カメラの実際のFPS値を表示
+    actual_fps = video.cap.get(cv2.CAP_PROP_FPS)
+    print(f"[INFO] Camera actual FPS: {actual_fps}")
     # --- スタート待ち ---
     first_key = wait_for_start(et, keyboard, state_flags, manual_mode=manual_mode)
     if first_key is None:
