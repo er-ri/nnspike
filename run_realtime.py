@@ -288,6 +288,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     prev_mode_test = False
     try:
         while et.is_running:
+            print(f"[DEBUG][TEST] test_phase={test_phase}")
             loop_start = time.time()
             # --- カメラフレーム取得・保存処理を復活 ---
             ret, frame = video.read()
