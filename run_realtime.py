@@ -255,12 +255,9 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     # --- 変数初期化 ---
     left_speed = None
     right_speed = None
-    last_frame_time = None
-    last_frame_data = None
     turn_left_started = False
     turn_right_started = False
-    yaw_start_left = None
-    yaw_start_right = None
+    prev_mode_test = False
 
     # 毎回判定する必要のないフラグを事前計算
     need_status = (record_sensor_data and sensor_recorder is not None)
@@ -270,8 +267,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         'counter': 0,
         'last_print': time.time()
     }
-    target_yaw = None
-    prev_mode_test = False
+
     try:
         while et.is_running:
             loop_start = time.time()
@@ -347,34 +343,50 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if not turn_left_started:
                     et.set_start_yaw()
                     turn_left_started = True
+                    turn_left_adjusting = False
                 stop_turn = et.is_yaw_turn_finished(
                     side="left",
                     threshold_deg=90.0
                 )
-                if stop_turn:
+                if stop_turn and not 'turn_left_adjusting' in locals():
+                    turn_left_adjusting = True
                     print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={et.get_yaw():.2f}")
-                    et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                    mode = Mode.PAUSE
-                    turn_left_started = False
-                else:
+                if 'turn_left_adjusting' in locals() and turn_left_adjusting:
+                    done, l_adj, r_adj = et.adjust_yaw_after_turn(side="left", threshold_deg=90.0, tolerance=2.0, adjust_speed=20)
+                    et.set_motor_speed(left_speed=l_adj, right_speed=r_adj)
+                    print(f"[TURN_LEFT][ADJUST] yaw={et.get_yaw():.2f}, target=-90, error={et.get_yaw() - et.get_start_yaw() + 90:.2f}, l_adj={l_adj}, r_adj={r_adj}")
+                    if done:
+                        et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                        mode = Mode.PAUSE
+                        turn_left_started = False
+                        del turn_left_adjusting
+                elif not stop_turn:
                     et.set_motor_speed(left_speed=-BASE_SPEED, right_speed=BASE_SPEED)
-                print(f"[TURN_LEFT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
+                    print(f"[TURN_LEFT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
             elif mode == Mode.TURN_RIGHT:
                 if not turn_right_started:
                     et.set_start_yaw()
                     turn_right_started = True
+                    turn_right_adjusting = False
                 stop_turn = et.is_yaw_turn_finished(
                     side="right",
                     threshold_deg=90.0
                 )
-                if stop_turn:
+                if stop_turn and not 'turn_right_adjusting' in locals():
+                    turn_right_adjusting = True
                     print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={et.get_yaw():.2f}")
-                    et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                    mode = Mode.PAUSE
-                    turn_right_started = False
-                else:
+                if 'turn_right_adjusting' in locals() and turn_right_adjusting:
+                    done, l_adj, r_adj = et.adjust_yaw_after_turn(side="right", threshold_deg=90.0, tolerance=2.0, adjust_speed=20)
+                    et.set_motor_speed(left_speed=l_adj, right_speed=r_adj)
+                    print(f"[TURN_RIGHT][ADJUST] yaw={et.get_yaw():.2f}, target=+90, error={et.get_yaw() - et.get_start_yaw() - 90:.2f}, l_adj={l_adj}, r_adj={r_adj}")
+                    if done:
+                        et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                        mode = Mode.PAUSE
+                        turn_right_started = False
+                        del turn_right_adjusting
+                elif not stop_turn:
                     et.set_motor_speed(left_speed=BASE_SPEED, right_speed=-BASE_SPEED)
-                print(f"[TURN_RIGHT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
+                    print(f"[TURN_RIGHT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
             elif mode == Mode.TEST:
                 if not prev_mode_test:
                     et.set_start_yaw()
@@ -386,9 +398,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 )
                 print(f"[TEST DEBUG] yaw={et.get_yaw():.2f}, start_yaw={et.get_start_yaw():.2f}, error={et.get_yaw() - et.get_start_yaw():.2f}, left_speed={left_speed:.2f}, right_speed={right_speed:.2f}")
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-            elif prev_mode_test:
-                target_yaw = None
-                prev_mode_test = False
+                elif prev_mode_test:
+                    prev_mode_test = False
             elif mode == Mode.PAUSE:
                 left_speed, right_speed = 0, 0
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
