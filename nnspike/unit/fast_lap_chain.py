@@ -307,12 +307,12 @@ class FastLapChain(object):
             else:
                 return None, (70, 100, 0), Mode.FAST_LAP
 
-        # フェーズ10: position_startとの差分1000未満ならyaw_straight_control直進。1000以上で次フェーズ
+        # フェーズ10: position_startとの差分2000未満ならyaw_straight_control直進。2000以上で次フェーズ
         if phase.get_phase() == 10:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position('right')
             position_diff = abs(current_pos - position_start)
-            if position_diff < 3000:
+            if position_diff < 2000:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return None, (left_speed, right_speed, 0), Mode.FAST_LAP
             else:
@@ -426,12 +426,12 @@ class FastLapChain(object):
             else:
                 return None, (70, 100, 0), Mode.SHORTCUT_LAP
 
-        # フェーズ8: position_startとの差分1000未満ならyaw_straight_control直進。1000以上で次フェーズ
+        # フェーズ8: position_startとの差分2000未満ならyaw_straight_control直進。2000以上で次フェーズ
         if phase.get_phase() == 8:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position('right')
             position_diff = abs(current_pos - position_start)
-            if position_diff < 3000:
+            if position_diff < 2000:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return None, (left_speed, right_speed, 0), Mode.SHORTCUT_LAP
             else:
