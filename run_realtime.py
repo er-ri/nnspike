@@ -200,31 +200,12 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
 
     # Initialize sensor recorder conditionally
     sensor_recorder = None
-    record_queue = None
-    record_thread = None
-    record_thread_running = False
     if record_sensor_data:
         sensor_recorder = SensorRecorder(timestamp=TIMESTAMP)
         sensor_recorder.start_recording()
-        record_queue = queue.Queue(maxsize=200)
-        record_thread_running = True
-        def record_worker():
-            while record_thread_running or not record_queue.empty():
-                try:
-                    args = record_queue.get(timeout=0.1)
-                    if args is not None:
-                        status, mode, left_speed, right_speed = args
-                        sensor_recorder.log_frame_data(status, mode, left_speed, right_speed)
-                except queue.Empty:
-                    continue
-        record_thread = threading.Thread(target=record_worker, daemon=True)
-        record_thread.start()
 
     video_writer = None
     video_filename = None
-    video_queue = None
-    video_thread = None
-    video_thread_running = False
     if save_camera_video:
         fourcc = cv2.VideoWriter_fourcc(*"XVID")  # type: ignore[attr-defined]
         video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
@@ -234,18 +215,6 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             fps=30,
             frameSize=(CAMERA_WIDTH, CAMERA_HEIGHT),
         )
-        video_queue = queue.Queue(maxsize=100)
-        video_thread_running = True
-        def video_save_worker():
-            while video_thread_running or not video_queue.empty():
-                try:
-                    frame = video_queue.get(timeout=0.1)
-                    if frame is not None:
-                        video_writer.write(frame)
-                except queue.Empty:
-                    continue
-        video_thread = threading.Thread(target=video_save_worker, daemon=True)
-        video_thread.start()
 
     # Initialize edge following preference based on the course parameter
     et = ETRobot()
@@ -278,6 +247,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     # --- 変数初期化 ---
     left_speed = None
     right_speed = None
+    prev_frame = None
 
     # FastLapChainインスタンス生成
     fast_lap_chain = FastLapChain(et, course)
@@ -295,29 +265,29 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         while et.is_running:
             loop_start = time.time()
             if video is not None:
-                # --- カメラフレーム取得・保存処理を復活 ---
-                ret, frame = video.read()
-                # retがFalseでもframeがNoneでなければ前回画像で制御継続
-                if not ret and (frame is None):
-                    print("Can't receive frame (stream end?). Exiting ...")
-                    break
-                # retがFalseかつframeがNoneでなければ、前回画像で制御継続（警告のみ）
-                if not ret and (frame is not None):
-                    print("[WARN] Camera frame not updated, using previous frame.")
+                # --- カメラフレーム取得・保存処理（集約版） ---
+                ret, new_frame = video.read()
+                # 取得できた場合のみframe更新
+                if ret and isinstance(new_frame, np.ndarray):
+                    frame = new_frame
+                else:
+                    # 取得失敗時は前回フレーム、なければダミー画像
+                    print("[WARN] Camera frame not received. Using previous frame or blank.")
+                    if prev_frame is not None and isinstance(prev_frame, np.ndarray):
+                        frame = prev_frame
+                    else:
+                        frame = np.zeros((CAMERA_HEIGHT, CAMERA_WIDTH, 3), dtype=np.uint8)
+                # frameは常にndarray型
+                prev_frame = frame
                 if save_camera_video and video_writer is not None and frame is not None and isinstance(frame, np.ndarray):
-                    try:
-                        video_queue.put_nowait(frame)
-                    except queue.Full:
-                        pass  # キューが満杯なら捨てる
+                    video_writer.write(frame)
             else:
                 frame = None
-            # status取得・センサー記録（別スレッド化）
+
+            # status取得・センサー記録（メインスレッドで直接処理）
             if need_status:
                 status = et.get_spike_status()
-                try:
-                    record_queue.put_nowait((status, mode, left_speed, right_speed))
-                except queue.Full:
-                    pass  # キューが満杯なら捨てる
+                sensor_recorder.log_frame_data(status, mode, left_speed, right_speed)
 
             # キー処理とモード切替（統合版）
             if manual_mode and not state_flags.first_key_used:
@@ -343,12 +313,10 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
 
             # モード分岐
             if mode == Mode.FORWARD:
-                # シンプルに直進のみ
                 left_speed = BASE_SPEED
                 right_speed = BASE_SPEED
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.BACKWARD:
-                # set_motor_backward_speedで後退（左右は入れ替えない）
                 left_speed = BASE_SPEED
                 right_speed = BASE_SPEED
                 et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
@@ -380,11 +348,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         if video is not None:
             video.release()
 
-        # 録画スレッドの停止とクリーンアップ
+        # 録画クリーンアップ
         if save_camera_video and video_writer is not None:
-            video_thread_running = False
-            if video_thread is not None:
-                video_thread.join(timeout=2)
             video_writer.release()
             if video_filename:
                 print(f"Video saved to: {video_filename}")
