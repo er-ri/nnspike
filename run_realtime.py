@@ -160,7 +160,7 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
 
     return first_key
 
-def main(record_sensor_data=False, save_camera_video=False, course="right", course_type="upper", manual_mode=False, use_camera=False):
+def main(record_sensor_data=False, save_camera_video=False, course="right", course_type="upper", manual_mode=False, use_video=False):
 
     def unpack_action_result(result, default_mode=Mode.PAUSE):
         # Noneや不正な戻り値も吸収して安全にアンパック
@@ -255,11 +255,11 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
 
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
+    # カメラ起動条件をuse_cameraまたはuse_videoどちらかTrueで判定
     video = None
-    if use_camera:
+    if use_video:
         video = Video()
         video.warmup()
-        # カメラの実際のFPS値を表示
         actual_fps = video.cap.get(cv2.CAP_PROP_FPS)
         print(f"[INFO] Camera actual FPS: {actual_fps}")
     # --- スタート待ち ---
@@ -403,7 +403,7 @@ if __name__ == "__main__":
     parser.add_argument("--course", choices=["left", "right"], default="right", help="Initial course to follow: 'left' for left edge, 'right' for right edge (default: right)")
     parser.add_argument("--course-type", choices=["upper", "lower"], default="upper", help="Course type: 'upper' or 'lower' (default: upper)")
     parser.add_argument("--manual", action="store_true", help="Enable manual key input control mode")
-    parser.add_argument("--use-camera", action="store_true", help="Enable camera at startup (default: off)")
+    parser.add_argument("--use-video", action="store_true", help="Enable camera at startup")
     args = parser.parse_args()
     print("Starting OpenCV-based line following robot...")
     print(f"Using ROI: {ROI_CNN}")
@@ -422,5 +422,5 @@ if __name__ == "__main__":
         course=args.course,
         course_type=args.course_type,
         manual_mode=args.manual,
-        use_camera=args.use_camera,
+        use_video=args.use_video,
     )
