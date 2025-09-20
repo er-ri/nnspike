@@ -84,12 +84,10 @@ class Video:
                             self._frame_queue.pop(0)
                 else:
                     self._frame_queue.clear()
-                # デバッグ出力: 差分msのみ
+                # フレーム更新周期デバッグ出力
                 if prev_time is not None:
-                    diff_ms = int((now - prev_time) * 1000)
-                else:
-                    diff_ms = 0
-                # デバッグ出力削除
+                    diff_ms = (now - prev_time) * 1000
+                    print(f"[VIDEO_THREAD] dt={diff_ms:.2f}ms")
                 prev_time = now
             time.sleep(0.001)  # 軽いウェイトでCPU負荷抑制
 
@@ -282,6 +280,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         'counter': 0,
         'last_print': time.time()
     }
+    last_frame_time = None
+    last_frame_data = None
     try:
         turn_left_started = False
         yaw_start = None
@@ -290,8 +290,16 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             # --- カメラフレーム取得・保存処理を復活 ---
             ret, frame = video.read()
             loop_camera = time.time()
-            dt_camera = loop_camera - loop_start
-            print(f"[CAMERA] dt={dt_camera*1000:.2f}ms")
+            # 物理的なフレーム周期計測用
+            if last_frame_time is None:
+                last_frame_time = loop_camera
+            dt_camera_physical = loop_camera - last_frame_time
+            # フレームが変化した場合のみ周期を出力
+            if hasattr(video, 'frame') and video.frame is not None:
+                if last_frame_data is None or not np.array_equal(video.frame, last_frame_data):
+                    print(f"[CAMERA_PHYSICAL] dt={dt_camera_physical*1000:.2f}ms")
+                    last_frame_time = loop_camera
+                    last_frame_data = video.frame.copy() if isinstance(video.frame, np.ndarray) else video.frame
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
