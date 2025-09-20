@@ -6,6 +6,7 @@ import sys
 import time
 
 from nnspike.unit import ETRobot, KeyboardController
+from nnspike.unit.fast_lap_chain import FastLapChain
 
 import cv2
 import numpy as np
@@ -161,6 +162,27 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
 
 def main(record_sensor_data=False, save_camera_video=False, course="right", course_type="upper", manual_mode=False):
 
+    def unpack_action_result(result, default_mode=Mode.PAUSE):
+        # Noneや不正な戻り値も吸収して安全にアンパック
+        if result is None:
+            return None, (0, 0, 0), default_mode
+        if len(result) == 3:
+            target_x, speeds, mode = result
+            # speedsが2要素なら3要素化（currentはBASE_SPEED）
+            if speeds is None:
+                speeds = (0, 0, 0)
+            elif len(speeds) == 2:
+                speeds = (speeds[0], speeds[1], BASE_SPEED)
+            elif len(speeds) == 3:
+                left, right, current = speeds
+                if current is None or current == 0:
+                    current = BASE_SPEED
+                speeds = (left, right, current)
+            if mode is None:
+                mode = default_mode
+            return target_x, speeds, mode
+        return None, (0, 0, 0), default_mode
+
     def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.017):
         debug_state['counter'] += 1
         # --- min_interval引数で周期調整＋デバッグ出力 ---
@@ -268,6 +290,9 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     turn_right_reference_yaw = None
     turn_right_adjust_timer = None
 
+    # FastLapChainインスタンス生成
+    fast_lap_chain = FastLapChain(et, course)
+
     # 毎回判定する必要のないフラグを事前計算
     need_status = (record_sensor_data and sensor_recorder is not None)
 
@@ -348,73 +373,11 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 left_speed = BASE_SPEED
                 right_speed = BASE_SPEED
                 et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
-            elif mode == Mode.TURN_LEFT:
-                if not turn_left_started:
-                    et.set_start_yaw()
-                    turn_left_started = True
-                    turn_left_adjusting = False
-                    turn_left_reference_yaw = None
-                    turn_left_adjust_timer = None
-                    turn_left_in_tolerance_time = None
-                stop_turn = et.is_yaw_turn_finished(
-                    side="left",
-                    threshold_deg=90.0
-                )
-                if not turn_left_adjusting:
-                    if stop_turn:
-                        turn_left_adjusting = True
-                        turn_left_reference_yaw = et.get_yaw()  # 90度到達時の絶対的真理
-                        turn_left_adjust_timer = time.time()  # 微調整監視タイマー開始
-                        turn_left_in_tolerance_time = None
-                        print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={turn_left_reference_yaw:.2f}")
-                        et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                    else:
-                        # et.set_motor_forward_speed(left_speed=0, right_speed=BASE_SPEED)
-                        et.set_motor_speed(left_speed=-30, right_speed=30)
-                        print(f"[TURN_LEFT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
-                else:
-                    # 微調整: 1秒間連続して±5度以内であることを確認してからPAUSEへ移行
-                    if turn_left_reference_yaw is None:
-                        # まだ基準値がセットされていない場合は何もしない
-                        pass
-                    else:
-                        error = et.get_yaw() - turn_left_reference_yaw
-                        elapsed = time.time() - turn_left_adjust_timer if turn_left_adjust_timer is not None else 0
-                        if abs(error) <= 5.0:
-                            if turn_left_in_tolerance_time is None:
-                                turn_left_in_tolerance_time = time.time()
-                            tolerance_elapsed = time.time() - turn_left_in_tolerance_time
-                            et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                            print(f"[TURN_LEFT][ADJUST][TOLERANCE] yaw={et.get_yaw():.2f}, ref_yaw={turn_left_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
-                            if tolerance_elapsed >= 1.0:
-                                print(f"[TURN_LEFT][ADJUST][STOP] yaw={et.get_yaw():.2f}, ref_yaw={turn_left_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
-                                mode = Mode.PAUSE
-                                turn_left_started = False
-                                turn_left_adjusting = False
-                                turn_left_reference_yaw = None
-                                turn_left_adjust_timer = None
-                                turn_left_in_tolerance_time = None
-                        else:
-                            turn_left_in_tolerance_time = None
-                            if elapsed < 1.0:
-                                # オーバーシュート分だけ逆方向に動かす（error < 0なら右回転、error > 0なら左回転）
-                                if error < 0:
-                                    # et.set_motor_backward_speed(left_speed=0, right_speed=20)  # 右回転（左モータ0、右のみ逆）
-                                    et.set_motor_speed(left_speed=15, right_speed=-15)  # 両方逆転（右回転）
-                                else:
-                                    # et.set_motor_forward_speed(left_speed=0, right_speed=20)  # 左回転（左モータ0、右のみ正）
-                                    et.set_motor_speed(left_speed=-15, right_speed=15)  # 両方正転（左回転）
-                                print(f"[TURN_LEFT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={turn_left_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                            else:
-                                et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                                print(f"[TURN_LEFT][ADJUST][TIMEOUT] yaw={et.get_yaw():.2f}, ref_yaw={turn_left_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                                mode = Mode.PAUSE
-                                turn_left_started = False
-                                turn_left_adjusting = False
-                                turn_left_reference_yaw = None
-                                turn_left_adjust_timer = None
-                                turn_left_in_tolerance_time = None
-            elif mode == Mode.TURN_RIGHT:
+            elif mode == Mode.TURN_LEFT_YAW:
+                # target_xは使わないので_にする
+                _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.turn_left_yaw(frame))
+                et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
+            elif mode == Mode.TURN_RIGHT_YAW:
                 if not turn_right_started:
                     et.set_start_yaw()
                     turn_right_started = True

@@ -40,13 +40,14 @@ class Mode(Enum):
     BACKWARD = 12
     GATE_PASS = 13
     EYE_BLUE = 14
-    SMALL_TURN_LEFT = 15
-    SMALL_TURN_RIGHT = 16
+    TURN_LEFT_YAW = 15
+    TURN_RIGHT_YAW = 16
     BLUE_BOTTLE_CATCH = 17
     TURN_LEFT = 19
     TURN_RIGHT = 20
     NVIDIA_FOLLOW = 21
     DOUBLE_LOOP = 22  # key1ダブルループモード
+    FAST_LAP = 50  # 最速ラップモード
     TEST = 99  # テスト用モード
 
 # Camera and Robot Geometry Constants

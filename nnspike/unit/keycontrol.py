@@ -42,8 +42,8 @@ class KeyboardController:
             "d": (Mode.FOLLOW_RIGHT_EDGE, "Switched to following: right edge"),
             "h": (Mode.HIGH_SPEED, "Switched to HIGH_SPEED mode"),
             "f": (Mode.FORWARD, "Switched to forward mode"),
-            "j": (Mode.SMALL_TURN_LEFT, "Switched to small turn left mode"),
-            "k": (Mode.SMALL_TURN_RIGHT, "Switched to small turn right mode"),
+            "j": (Mode.TURN_LEFT_YAW, "Switched to small turn left (yaw) mode"),
+            "k": (Mode.TURN_RIGHT_YAW, "Switched to small turn right (yaw) mode"),
             "i": (Mode.TURN_LEFT, "Switched to turn left mode"),
             "o": (Mode.TURN_RIGHT, "Switched to turn right mode"),
             "b": (Mode.BACKWARD, "Switched to backward mode"),
@@ -58,7 +58,7 @@ class KeyboardController:
             "6": (Mode.BACK_AND_TURN2, "Switched to back and turn 2 mode"),
             "7": (Mode.HEAD_GOAL, "Switched to heading goal mode"),
             "8": (Mode.PAUSE, "Pausing robot"),
-            "t": (Mode.TEST, "Switched to TEST mode"),
+            "t": (Mode.FAST_LAP, "Switched to FAST_LAP mode"),
             "p": (Mode.PAUSE, "Pausing robot"),
         }
         return keymap.get(key, (None, None))
