@@ -281,7 +281,10 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     test_phase = None
     test_phase_start_right_pos = 0
     test_phase_start_yaw = 0.0
-    test_phase_straight2_yaw = None
+    test_phase_straight2_yaw = 0.0
+    test_phase_start_yaw_init = 0.0
+    test_phase_straight3_yaw = 0.0
+    test_phase_straight4_yaw = 0.0
     prev_mode_test = False
     try:
         while et.is_running:
@@ -491,12 +494,14 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if not prev_mode_test:
                     et.set_start_yaw()  # 起動時のヨー
                     test_phase = "straight1"
-                    test_phase_start_yaw = et.get_start_yaw()  # 起動時のヨー
+                    test_phase_start_yaw_init = et.get_start_yaw()  # 起動時のヨー（絶対基準）
+                    test_phase_start_yaw = test_phase_start_yaw_init
                     test_phase_start_right_pos = et.get_motor_relative_position(side="right")
                     if test_phase_start_right_pos is None:
                         test_phase_start_right_pos = 0
-                    test_phase_straight2_yaw = test_phase_start_yaw + 30.0
-                    test_phase_straight3_yaw = test_phase_start_yaw - 30.0
+                    test_phase_straight2_yaw = test_phase_start_yaw_init + 30.0
+                    test_phase_straight3_yaw = test_phase_start_yaw_init - 30.0
+                    test_phase_straight4_yaw = test_phase_start_yaw_init
                     prev_mode_test = True
                 right_pos = et.get_motor_relative_position(side="right")
                 if right_pos is None:
@@ -504,13 +509,17 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 # 直進1: 右の走行距離が1000未満
                 if test_phase == "straight1":
                     if right_pos < 1000:
-                        et.set_start_yaw(test_phase_start_yaw)  # 起動時のヨー
+                        if 'test_phase_start_yaw_init' not in locals():
+                            test_phase_start_yaw_init = et.get_start_yaw()
+                        et.set_start_yaw(test_phase_start_yaw_init)  # 起動時のヨー
                         left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                         et.set_motor_forward_speed(left_speed=int(left_speed), right_speed=int(right_speed))
                         print(f"[TEST] straight1 right_pos={right_pos}")
                     else:
                         test_phase = "turn_right"
-                        test_phase_start_yaw = et.get_yaw()
+                        if 'test_phase_start_yaw_init' not in locals():
+                            test_phase_start_yaw_init = et.get_start_yaw()
+                        test_phase_start_yaw = test_phase_start_yaw_init  # 起動時のヨーを絶対基準
                         print(f"[TEST] start turn_right phase yaw={test_phase_start_yaw:.2f}")
                 # 右に30度曲がる: 左100,右70
                 elif test_phase == "turn_right":
@@ -551,6 +560,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 # 直進3: 右の走行距離が1000進んだら右30度ターンへ
                 elif test_phase == "straight3":
                     if right_pos < 3000:
+                        if 'test_phase_straight3_yaw' not in locals():
+                            test_phase_straight3_yaw = test_phase_start_yaw_init - 30.0
                         et.set_start_yaw(test_phase_straight3_yaw)  # 起動時-30
                         left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                         et.set_motor_forward_speed(left_speed=int(left_speed), right_speed=int(right_speed))
