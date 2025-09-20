@@ -194,102 +194,133 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
                     right_speed = BASE_SPEED
                     et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
                 elif mode == Mode.TURN_LEFT:
-                    ...existing code...
+                    if not turn_left_started:
+                        et.set_start_yaw()
+                        turn_left_started = True
+                        turn_left_adjusting = False
+                        turn_left_reference_yaw = None
+                        turn_left_adjust_timer = None
+                        turn_left_in_tolerance_time = None
+                    stop_turn = et.is_yaw_turn_finished(
+                        side="left",
+                        threshold_deg=90.0
+                    )
+                    if not turn_left_adjusting:
+                        if stop_turn:
+                            turn_left_adjusting = True
+                            turn_left_reference_yaw = et.get_yaw()  # 90度到達時の絶対的真理
+                            turn_left_adjust_timer = time.time()  # 微調整監視タイマー開始
+                            turn_left_in_tolerance_time = None
+                            print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={turn_left_reference_yaw:.2f}")
+                            et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                        else:
+                            et.set_motor_speed(left_speed=-30, right_speed=30)
+                            print(f"[TURN_LEFT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
+                    else:
+                        # 微調整: 1秒間連続して±5度以内であることを確認してからPAUSEへ移行
+                        if turn_left_reference_yaw is None:
+                            pass
+                        else:
+                            error = et.get_yaw() - turn_left_reference_yaw
+                            elapsed = time.time() - turn_left_adjust_timer if turn_left_adjust_timer is not None else 0
+                            if abs(error) <= 5.0:
+                                if turn_left_in_tolerance_time is None:
+                                    turn_left_in_tolerance_time = time.time()
+                                tolerance_elapsed = time.time() - turn_left_in_tolerance_time
+                                et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                                print(f"[TURN_LEFT][ADJUST][TOLERANCE] yaw={et.get_yaw():.2f}, ref_yaw={turn_left_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
+                                if tolerance_elapsed >= 1.0:
+                                    print(f"[TURN_LEFT][ADJUST][STOP] yaw={et.get_yaw():.2f}, ref_yaw={turn_left_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
+                                    mode = Mode.PAUSE
+                                    turn_left_started = False
+                                    turn_left_adjusting = False
+                                    turn_left_reference_yaw = None
+                                    turn_left_adjust_timer = None
+                                    turn_left_in_tolerance_time = None
+                            else:
+                                turn_left_in_tolerance_time = None
+                                if elapsed < 1.0:
+                                    if error < 0:
+                                        et.set_motor_speed(left_speed=15, right_speed=-15)
+                                    else:
+                                        et.set_motor_speed(left_speed=-15, right_speed=15)
+                                    print(f"[TURN_LEFT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={turn_left_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
+                                else:
+                                    et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                                    print(f"[TURN_LEFT][ADJUST][TIMEOUT] yaw={et.get_yaw():.2f}, ref_yaw={turn_left_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
+                                    mode = Mode.PAUSE
+                                    turn_left_started = False
+                                    turn_left_adjusting = False
+                                    turn_left_reference_yaw = None
+                                    turn_left_adjust_timer = None
+                                    turn_left_in_tolerance_time = None
                 elif mode == Mode.TURN_RIGHT:
-                    ...existing code...
+                    if not turn_right_started:
+                        et.set_start_yaw()
+                        turn_right_started = True
+                        turn_right_adjusting = False
+                        turn_right_reference_yaw = None
+                        turn_right_adjust_timer = None
+                        turn_right_in_tolerance_time = None
+                    stop_turn = et.is_yaw_turn_finished(
+                        side="right",
+                        threshold_deg=90.0
+                    )
+                    if not turn_right_adjusting:
+                        if stop_turn:
+                            turn_right_adjusting = True
+                            turn_right_reference_yaw = et.get_yaw()  # 90度到達時の絶対的真理
+                            turn_right_adjust_timer = time.time()  # 微調整監視タイマー開始
+                            turn_right_in_tolerance_time = None
+                            print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={turn_right_reference_yaw:.2f}")
+                            et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                        else:
+                            et.set_motor_speed(left_speed=30, right_speed=-30)
+                            print(f"[TURN_RIGHT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
+                    else:
+                        # 微調整: 1秒間連続して±5度以内であることを確認してからPAUSEへ移行
+                        if turn_right_reference_yaw is None:
+                            pass
+                        else:
+                            error = et.get_yaw() - turn_right_reference_yaw
+                            elapsed = time.time() - turn_right_adjust_timer if turn_right_adjust_timer is not None else 0
+                            if abs(error) <= 5.0:
+                                if turn_right_in_tolerance_time is None:
+                                    turn_right_in_tolerance_time = time.time()
+                                tolerance_elapsed = time.time() - turn_right_in_tolerance_time
+                                et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                                print(f"[TURN_RIGHT][ADJUST][TOLERANCE] yaw={et.get_yaw():.2f}, ref_yaw={turn_right_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
+                                if tolerance_elapsed >= 1.0:
+                                    print(f"[TURN_RIGHT][ADJUST][STOP] yaw={et.get_yaw():.2f}, ref_yaw={turn_right_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
+                                    mode = Mode.PAUSE
+                                    turn_right_started = False
+                                    turn_right_adjusting = False
+                                    turn_right_reference_yaw = None
+                                    turn_right_adjust_timer = None
+                                    turn_right_in_tolerance_time = None
+                            else:
+                                turn_right_in_tolerance_time = None
+                                if elapsed < 1.0:
+                                    if error < 0:
+                                        et.set_motor_speed(left_speed=15, right_speed=-15)
+                                    else:
+                                        et.set_motor_speed(left_speed=-15, right_speed=15)
+                                    print(f"[TURN_RIGHT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
+                                else:
+                                    et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                                    print(f"[TURN_RIGHT][ADJUST][TIMEOUT] yaw={et.get_yaw():.2f}, ref_yaw={turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
+                                    mode = Mode.PAUSE
+                                    turn_right_started = False
+                                    turn_right_adjusting = False
+                                    turn_right_reference_yaw = None
+                                    turn_right_adjust_timer = None
+                                    turn_right_in_tolerance_time = None
                 elif mode == Mode.PAUSE:
                     turn_left_started = False
                     turn_right_started = False
                     prev_mode_test = False
                     et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                elif mode == Mode.TEST:
-                    # TESTモード: 右の走行距離が1000未満なら直進、1000以上なら30度右に曲がる（左100,右70）、その後直進
-                if mode == Mode.TEST:
-            if mode == Mode.TEST:
-                        test_phase_straight3_yaw = test_phase_start_yaw_init - 30.0
-                        test_phase_straight4_yaw = test_phase_start_yaw_init
-                        prev_mode_test = True
-                    right_pos = et.get_motor_relative_position(side="right")
-                    if right_pos is None:
-                        right_pos = 0
-                    if test_phase == "straight1" and right_pos < 1000:
-                        et.set_start_yaw(test_phase_start_yaw_init)
-                        left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
-                        et.set_motor_forward_speed(left_speed=int(left_speed), right_speed=int(right_speed))
-                        print(f"[TEST] straight1 right_pos={right_pos}")
-                    elif test_phase == "straight1" and right_pos >= 1000:
-                        test_phase = "turn_right"
-                        test_phase_start_yaw = test_phase_start_yaw_init
-                        print(f"[TEST] start turn_right phase yaw={test_phase_start_yaw:.2f}")
-                        continue
-                    elif test_phase == "turn_right" and et.get_yaw() - test_phase_start_yaw < 30.0:
-                        yaw_val = et.get_yaw()
-                        yaw_diff = yaw_val - test_phase_start_yaw
-                        print(f"[DEBUG][TURN_RIGHT] yaw={yaw_val:.2f}, base_yaw={test_phase_start_yaw:.2f}, yaw_diff={yaw_diff:.2f}")
-                        et.set_motor_forward_speed(left_speed=100, right_speed=70)
-                        print(f"[TEST] turning right yaw_diff={yaw_diff:.2f}")
-                    elif test_phase == "turn_right" and et.get_yaw() - test_phase_start_yaw >= 30.0:
-                        test_phase = "straight2"
-                        test_phase_start_right_pos = right_pos
-                        test_phase_straight2_yaw = test_phase_start_yaw + 30.0
-                        et._start_yaw = test_phase_straight2_yaw
-                        print(f"[TEST] start straight2 phase right_pos={right_pos}, base_yaw={test_phase_straight2_yaw:.2f}")
-                        continue
-                    elif test_phase == "straight2" and right_pos < 2000:
-                        et.set_start_yaw(test_phase_straight2_yaw)
-                        left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
-                        et.set_motor_forward_speed(left_speed=int(left_speed), right_speed=int(right_speed))
-                        print(f"[TEST] straight2 right_pos={right_pos}, base_yaw={test_phase_straight2_yaw:.2f}")
-                    elif test_phase == "straight2" and right_pos >= 2000:
-                        test_phase_straight3_yaw = test_phase_start_yaw - 30.0
-                        test_phase = "turn_left"
-                        test_phase_start_yaw = test_phase_straight3_yaw
-                        print(f"[TEST] start turn_left phase base_yaw={test_phase_start_yaw:.2f}")
-                        continue
-                    elif test_phase == "turn_left" and et.get_yaw() - test_phase_start_yaw > -60.0:
-                        yaw_diff = et.get_yaw() - test_phase_start_yaw
-                        et.set_motor_forward_speed(left_speed=70, right_speed=100)
-                        print(f"[TEST] turning left yaw_diff={yaw_diff:.2f}")
-                    elif test_phase == "turn_left" and et.get_yaw() - test_phase_start_yaw <= -60.0:
-                        test_phase_straight3_yaw = test_phase_start_yaw - 30.0
-                        test_phase = "straight3"
-                        test_phase_start_right_pos = right_pos
-                        et._start_yaw = test_phase_straight3_yaw
-                        print(f"[TEST] start straight3 phase right_pos={right_pos}, base_yaw={test_phase_straight3_yaw:.2f}")
-                        continue
-                    elif test_phase == "straight3" and right_pos < 3000:
-                        et.set_start_yaw(test_phase_straight3_yaw)
-                        left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
-                        et.set_motor_forward_speed(left_speed=int(left_speed), right_speed=int(right_speed))
-                        print(f"[TEST] straight3 right_pos={right_pos}, base_yaw={test_phase_straight3_yaw:.2f}")
-                    elif test_phase == "straight3" and right_pos >= 3000:
-                        test_phase = "turn_right2"
-                        test_phase_start_yaw = et.get_yaw()
-                        print(f"[TEST] start turn_right2 phase yaw={test_phase_start_yaw:.2f}")
-                        continue
-                    elif test_phase == "turn_right2" and et.get_yaw() - test_phase_start_yaw < 30.0:
-                        yaw_diff = et.get_yaw() - test_phase_start_yaw
-                        et.set_motor_forward_speed(left_speed=100, right_speed=70)
-                        print(f"[TEST] turning right2 yaw_diff={yaw_diff:.2f}")
-                    elif test_phase == "turn_right2" and et.get_yaw() - test_phase_start_yaw >= 30.0:
-                        test_phase = "straight4"
-                        test_phase_start_right_pos = right_pos
-                        test_phase_straight4_yaw = test_phase_start_yaw
-                        et._start_yaw = test_phase_straight4_yaw
-                        print(f"[TEST] start straight4 phase right_pos={right_pos}, base_yaw={test_phase_straight4_yaw:.2f}")
-                        continue
-                    elif test_phase == "straight4" and right_pos < 4000:
-                        et.set_start_yaw(test_phase_start_yaw)
-                        left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
-                        et.set_motor_forward_speed(left_speed=int(left_speed), right_speed=int(right_speed))
-                        print(f"[TEST] straight4 right_pos={right_pos}, base_yaw={test_phase_start_yaw:.2f}")
-                    elif test_phase == "straight4" and right_pos >= 4000:
-                        test_phase = "stop"
-                        print(f"[TEST] finished all phases. right_pos={right_pos}")
-                        continue
-                    elif test_phase == "stop":
-                        et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                        print(f"[TEST] stopped.")
+
                 # --- ループ周期制限とdebug出力（最後） ---
                 loop_end = time.time()
                 handle_debug_output(loop_start, loop_end, debug_state)
