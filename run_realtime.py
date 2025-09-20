@@ -287,11 +287,13 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         yaw_start = None
         while et.is_running:
             loop_start = time.time()
-            # カメラ停止中のためframe取得・処理は省略
-            # ret, frame = video.read()
-            # if not ret:
-            #     print("Can't receive frame (stream end?). Exiting ...")
-            #     break
+            # --- カメラフレーム取得・保存処理を復活 ---
+            ret, frame = video.read()
+            if not ret:
+                print("Can't receive frame (stream end?). Exiting ...")
+                break
+            if save_camera_video and video_writer is not None and frame is not None and isinstance(frame, np.ndarray):
+                video_writer.write(frame)
 
             # status取得・センサー記録・動画送信処理
             if need_status:
