@@ -145,17 +145,17 @@ class SpikeStatus:
         self.message_type = parsed_data.get("message_type", -1)
         self.raw_data = parsed_data.get("raw", {})
         # type: -1のときrawデータを表示して原因調査
-        # if self.message_type == -1:
-        #     print("[type:-1 raw]", self.raw_data)
+        if self.message_type == -1:
+            print("[type:-1 raw]", self.raw_data)
         # 全てのmessage_typeでインターバル計算
-        # インターバル計算・出力は不要なのでコメントアウト
-        # now = self.timestamp
-        # dt = None
-        # if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:
-        #     dt = now - self._last_motor_update_time
-        #     dt_ms = dt * 1000 if dt is not None else None
-        #     # print(f"interval: {dt_ms:06.2f} ms | type: {self.message_type} | raw: {self.raw_data}")
-        # self._last_motor_update_time = now
+        # インターバル計算・出力を復活
+        now = self.timestamp
+        dt = None
+        if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:
+            dt = now - self._last_motor_update_time
+            dt_ms = dt * 1000 if dt is not None else None
+            print(f"interval: {dt_ms:06.2f} ms | type: {self.message_type} | raw: {self.raw_data}")
+        self._last_motor_update_time = now
 
         # Update motors
         for motor_id, motor_data in parsed_data.get("motors", {}).items():
