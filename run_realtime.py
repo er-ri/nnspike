@@ -215,7 +215,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         now = loop_end
         if prev_end is not None:
             cycle_ms = (now - prev_end) * 1000
-            print(f"[DEBUG] cycle: {cycle_ms:.2f} ms")
+            # print(f"[DEBUG] cycle: {cycle_ms:.2f} ms")
         debug_state['last_print'] = now
 
     state_flags = StateFlags()
