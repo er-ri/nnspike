@@ -517,8 +517,6 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                         print(f"[TEST] straight1 right_pos={right_pos}")
                     else:
                         test_phase = "turn_right"
-                        if 'test_phase_start_yaw_init' not in locals():
-                            test_phase_start_yaw_init = et.get_start_yaw()
                         test_phase_start_yaw = test_phase_start_yaw_init  # 起動時のヨーを絶対基準
                         print(f"[TEST] start turn_right phase yaw={test_phase_start_yaw:.2f}")
                 # 右に30度曲がる: 左100,右70
