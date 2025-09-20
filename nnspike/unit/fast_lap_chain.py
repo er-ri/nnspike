@@ -7,6 +7,11 @@ from nnspike.constants import HIGH_SPEED_BASE
 from nnspike.unit.action_chain import PhaseManager
 from nnspike.constants import ROI_CNN
 from nnspike.constants import Mode
+from nnspike.constants import BASE_SPEED, ROI_COLOR2
+from nnspike.utils import find_bottle_center
+
+SpeedTuple = Tuple[int, int, int]
+from nnspike.constants import Mode
 
 class FastLapChain(object):
 
