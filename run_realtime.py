@@ -370,7 +370,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                         et.set_motor_forward_speed(left_speed=0, right_speed=0)
                     else:
                         # et.set_motor_forward_speed(left_speed=0, right_speed=BASE_SPEED)
-                        et.set_motor_speed(left_speed=-BASE_SPEED, right_speed=BASE_SPEED)
+                        et.set_motor_speed(left_speed=-30, right_speed=30)
                         print(f"[TURN_LEFT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
                 else:
                     # 微調整: 1秒間連続して±5度以内であることを確認してからPAUSEへ移行
@@ -436,7 +436,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                         et.set_motor_forward_speed(left_speed=0, right_speed=0)
                     else:
                         # et.set_motor_forward_speed(left_speed=BASE_SPEED, right_speed=0)
-                        et.set_motor_speed(left_speed=BASE_SPEED, right_speed=-BASE_SPEED)
+                        et.set_motor_speed(left_speed=30, right_speed=-30)
                         print(f"[TURN_RIGHT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
                 else:
                     # 微調整: 1秒間連続して±5度以内であることを確認してからPAUSEへ移行
