@@ -398,8 +398,6 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 )
                 print(f"[TEST DEBUG] yaw={et.get_yaw():.2f}, start_yaw={et.get_start_yaw():.2f}, error={et.get_yaw() - et.get_start_yaw():.2f}, left_speed={left_speed:.2f}, right_speed={right_speed:.2f}")
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-                elif prev_mode_test:
-                    prev_mode_test = False
             elif mode == Mode.PAUSE:
                 left_speed, right_speed = 0, 0
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
@@ -408,6 +406,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     turn_left_started = False
                 if turn_right_started == 'reverse_stop_right':
                     turn_right_started = False
+                if prev_mode_test:
+                    prev_mode_test = False
 
             # --- ループ周期制限とdebug出力（最後） ---
             loop_end = time.time()
