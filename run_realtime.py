@@ -517,6 +517,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     else:
                         test_phase = "turn_right"
                         test_phase_start_yaw = et.get_yaw()
+                        test_phase_start_right_pos = right_pos
                         print(f"[TEST] start turn_right phase yaw={test_phase_start_yaw:.2f}")
                 # 右に30度曲がる: 左100,右70
                 elif test_phase == "turn_right":
@@ -539,6 +540,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     else:
                         test_phase = "turn_left"
                         test_phase_start_yaw = et.get_yaw()
+                        test_phase_start_right_pos = right_pos
                         print(f"[TEST] start turn_left phase yaw={test_phase_start_yaw:.2f}")
                 # 左に60度曲がる: 左-100,右100
                 elif test_phase == "turn_left":
@@ -561,6 +563,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     else:
                         test_phase = "turn_right2"
                         test_phase_start_yaw = et.get_yaw()
+                        test_phase_start_right_pos = right_pos
                         print(f"[TEST] start turn_right2 phase yaw={test_phase_start_yaw:.2f}")
                 # 右に30度曲がる: 左100,右70
                 elif test_phase == "turn_right2":
