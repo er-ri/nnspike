@@ -277,18 +277,6 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     # --- 変数初期化 ---
     left_speed = None
     right_speed = None
-    turn_left_started = False
-    turn_right_started = False
-    prev_mode_test = False
-    # 微調整監視用変数（2秒間±5度以内判定用）
-    turn_left_in_tolerance_time = None
-    turn_right_in_tolerance_time = None
-    turn_left_adjusting = False
-    turn_left_reference_yaw = None
-    turn_left_adjust_timer = None
-    turn_right_adjusting = False
-    turn_right_reference_yaw = None
-    turn_right_adjust_timer = None
 
     # FastLapChainインスタンス生成
     fast_lap_chain = FastLapChain(et, course)
@@ -380,27 +368,12 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             elif mode == Mode.TURN_RIGHT_YAW:
                 _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.turn_right_yaw(frame))
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-            elif mode == Mode.TEST:
-                if not prev_mode_test:
-                    et.set_start_yaw()
-                prev_mode_test = True
-                left_speed, right_speed = et.yaw_straight_control(
-                    base_speed=HIGH_SPEED_BASE,
-                    kp=1.0,
-                    deadband=2.0
-                )
-                print(f"[TEST DEBUG] yaw={et.get_yaw():.2f}, start_yaw={et.get_start_yaw():.2f}, error={et.get_yaw() - et.get_start_yaw():.2f}, left_speed={left_speed:.2f}, right_speed={right_speed:.2f}")
+            elif mode == Mode.FAST_LAP:
+                _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.fast_lap(frame))
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.PAUSE:
                 left_speed, right_speed = 0, 0
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-                # 急停止フラグが残っていればゼロ速度出力＆フラグクリア
-                if turn_left_started == 'reverse_stop_left':
-                    turn_left_started = False
-                if turn_right_started == 'reverse_stop_right':
-                    turn_right_started = False
-                if prev_mode_test:
-                    prev_mode_test = False
 
             # --- ループ周期制限とdebug出力（最後） ---
             loop_end = time.time()
