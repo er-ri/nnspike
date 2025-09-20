@@ -514,7 +514,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                         left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                         et.set_motor_forward_speed(left_speed=int(left_speed), right_speed=int(right_speed))
                         print(f"[TEST] straight1 right_pos={right_pos}")
-                    elif test_phase == "straight1":
+                    else:
                         test_phase = "turn_right"
                         test_phase_start_yaw = test_phase_start_yaw_init  # 起動時のヨーを絶対基準
                         print(f"[TEST] start turn_right phase yaw={test_phase_start_yaw:.2f}")
