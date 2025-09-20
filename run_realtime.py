@@ -194,9 +194,25 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
 
     # Initialize sensor recorder conditionally
     sensor_recorder = None
+    record_queue = None
+    record_thread = None
+    record_thread_running = False
     if record_sensor_data:
         sensor_recorder = SensorRecorder(timestamp=TIMESTAMP)
-        sensor_recorder.start_recording()  # Initialize video writer conditionally
+        sensor_recorder.start_recording()
+        record_queue = queue.Queue(maxsize=200)
+        record_thread_running = True
+        def record_worker():
+            while record_thread_running or not record_queue.empty():
+                try:
+                    args = record_queue.get(timeout=0.1)
+                    if args is not None:
+                        status, mode, left_speed, right_speed = args
+                        sensor_recorder.log_frame_data(status, mode, left_speed, right_speed)
+                except queue.Empty:
+                    continue
+        record_thread = threading.Thread(target=record_worker, daemon=True)
+        record_thread.start()
 
     video_writer = None
     video_filename = None
@@ -297,11 +313,13 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 except queue.Full:
                     pass  # キューが満杯なら捨てる
 
-            # status取得・センサー記録・動画送信処理
+            # status取得・センサー記録（別スレッド化）
             if need_status:
                 status = et.get_spike_status()
-                handle_status_and_video(None, status, mode, left_speed, right_speed,
-                                      record_sensor_data, sensor_recorder, save_camera_video, video_writer)
+                try:
+                    record_queue.put_nowait((status, mode, left_speed, right_speed))
+                except queue.Full:
+                    pass  # キューが満杯なら捨てる
 
             # キー処理とモード切替（統合版）
             if manual_mode and not state_flags.first_key_used:
