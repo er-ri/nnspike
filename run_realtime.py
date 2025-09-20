@@ -365,8 +365,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     error = et.get_yaw() - turn_left_reference_yaw
                     elapsed = time.time() - turn_left_adjust_timer if turn_left_adjust_timer is not None else 0
                     if abs(error) > 5.0 and elapsed < 1.0:
-                        # オーバーシュート分だけ逆方向に動かす
-                        if error > 0:
+                        # オーバーシュート分だけ逆方向に動かす（error < 0なら右回転、error > 0なら左回転）
+                        if error < 0:
                             et.set_motor_speed(left_speed=20, right_speed=-20)  # 右回転
                         else:
                             et.set_motor_speed(left_speed=-20, right_speed=20)  # 左回転
