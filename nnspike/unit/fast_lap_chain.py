@@ -393,7 +393,6 @@ class FastLapChain(object):
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position('right'))
-                self.et.set_start_yaw(start_yaw)
 
         # フェーズ5: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-90.0に更新
         if phase.get_phase() == 5:
