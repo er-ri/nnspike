@@ -12,6 +12,7 @@ import numpy as np
 from nnspike.constants import BASE_SPEED, HIGH_SPEED_BASE, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS, OFFSET_Y, ROI_CNN, Mode, ROI_COLOR
 from nnspike.utils import PIDController, SensorRecorder, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x, get_offset_pixels
 import threading
+import queue
 
 class Video:
     def __init__(self):
@@ -198,7 +199,10 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         sensor_recorder.start_recording()  # Initialize video writer conditionally
 
     video_writer = None
-    video_filename = None  # Initialize to avoid UnboundLocalError
+    video_filename = None
+    video_queue = None
+    video_thread = None
+    video_thread_running = False
     if save_camera_video:
         fourcc = cv2.VideoWriter_fourcc(*"XVID")  # type: ignore[attr-defined]
         video_filename = f"storage/videos/{TIMESTAMP}_picamera.avi"
@@ -208,6 +212,18 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             fps=CAMERA_FPS,
             frameSize=(CAMERA_WIDTH, CAMERA_HEIGHT),
         )
+        video_queue = queue.Queue(maxsize=100)
+        video_thread_running = True
+        def video_save_worker():
+            while video_thread_running or not video_queue.empty():
+                try:
+                    frame = video_queue.get(timeout=0.1)
+                    if frame is not None:
+                        video_writer.write(frame)
+                except queue.Empty:
+                    continue
+        video_thread = threading.Thread(target=video_save_worker, daemon=True)
+        video_thread.start()
 
     # Initialize edge following preference based on the course parameter
     et = ETRobot()
@@ -276,7 +292,10 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
             if save_camera_video and video_writer is not None and frame is not None and isinstance(frame, np.ndarray):
-                video_writer.write(frame)
+                try:
+                    video_queue.put_nowait(frame)
+                except queue.Full:
+                    pass  # キューが満杯なら捨てる
 
             # status取得・センサー記録・動画送信処理
             if need_status:
@@ -380,8 +399,11 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         # videoを使用している場合は解放
         video.release()
 
-        # Clean up video writer if it was used
+        # 録画スレッドの停止とクリーンアップ
         if save_camera_video and video_writer is not None:
+            video_thread_running = False
+            if video_thread is not None:
+                video_thread.join(timeout=2)
             video_writer.release()
             if video_filename:
                 print(f"Video saved to: {video_filename}")
