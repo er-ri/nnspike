@@ -488,31 +488,25 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                                 turn_right_in_tolerance_time = None
             elif mode == Mode.TEST:
                 # TESTモード: 右の走行距離が1000未満なら直進、1000以上なら30度右に曲がる（左100,右70）、その後直進
-                # テストモード内で処理を完結
                 if not prev_mode_test:
-                    et.set_start_yaw()
+                    et.set_start_yaw()  # 起動時のヨー
                     test_phase = "straight1"
-                    test_phase_start_yaw = et.get_yaw()
-                if not prev_mode_test:
-                    et.set_start_yaw()
-                    test_phase = "straight1"
-                    test_phase_start_yaw = et.get_yaw()
+                    test_phase_start_yaw = et.get_start_yaw()  # 起動時のヨー
                     test_phase_start_right_pos = et.get_motor_relative_position(side="right")
                     if test_phase_start_right_pos is None:
                         test_phase_start_right_pos = 0
                     test_phase_straight2_yaw = test_phase_start_yaw + 30.0
-                    test_phase_turn_left_yaw = test_phase_start_yaw - 30.0
-                    test_phase_straight3_yaw = 0.0
-                    test_phase_turn_right2_yaw = test_phase_start_yaw
-                    test_phase_straight4_yaw = 0.0
-                prev_mode_test = True
+                    test_phase_straight3_yaw = test_phase_start_yaw - 30.0
+                    prev_mode_test = True
                 right_pos = et.get_motor_relative_position(side="right")
                 if right_pos is None:
                     right_pos = 0
                 # 直進1: 右の走行距離が1000未満
                 if test_phase == "straight1":
                     if right_pos < 1000:
-                        et.set_motor_forward_speed(left_speed=HIGH_SPEED_BASE, right_speed=HIGH_SPEED_BASE)
+                        et.set_start_yaw(test_phase_start_yaw)  # 起動時のヨー
+                        left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                        et.set_motor_forward_speed(left_speed=int(left_speed), right_speed=int(right_speed))
                         print(f"[TEST] straight1 right_pos={right_pos}")
                     else:
                         test_phase = "turn_right"
@@ -520,9 +514,9 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                         print(f"[TEST] start turn_right phase yaw={test_phase_start_yaw:.2f}")
                 # 右に30度曲がる: 左100,右70
                 elif test_phase == "turn_right":
-                    yaw_diff = et.get_yaw() - (test_phase_start_yaw if test_phase_start_yaw is not None else 0.0)
+                    yaw_diff = et.get_yaw() - test_phase_start_yaw
                     if yaw_diff < 30.0:
-                        et.set_motor_forward_speed(left_speed=HIGH_SPEED_BASE, right_speed=-70)
+                        et.set_motor_forward_speed(left_speed=100, right_speed=70)
                         print(f"[TEST] turning right yaw_diff={yaw_diff:.2f}")
                     else:
                         test_phase = "straight2"
@@ -533,40 +527,43 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 # 直進2: 右の走行距離が1000進んだら左60度ターンへ
                 elif test_phase == "straight2":
                     if right_pos < 2000:
+                        et.set_start_yaw(test_phase_straight2_yaw)  # 起動時+30
                         left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                         et.set_motor_forward_speed(left_speed=int(left_speed), right_speed=int(right_speed))
                         print(f"[TEST] straight2 right_pos={right_pos}, base_yaw={test_phase_straight2_yaw:.2f}")
                     else:
+                        test_phase_straight3_yaw = test_phase_start_yaw - 30.0  # 起動時-30を明示
                         test_phase = "turn_left"
-                        test_phase_start_yaw = et.get_yaw()
-                        print(f"[TEST] start turn_left phase yaw={test_phase_start_yaw:.2f}")
+                        test_phase_start_yaw = test_phase_straight3_yaw  # 起動時-30
+                        print(f"[TEST] start turn_left phase base_yaw={test_phase_start_yaw:.2f}")
                 # 左に60度曲がる: 左-100,右100
                 elif test_phase == "turn_left":
-                    yaw_diff = et.get_yaw() - (test_phase_start_yaw if test_phase_start_yaw is not None else 0.0)
+                    yaw_diff = et.get_yaw() - test_phase_start_yaw
                     if yaw_diff > -60.0:
-                        et.set_motor_forward_speed(left_speed=-70, right_speed=HIGH_SPEED_BASE)
+                        et.set_motor_forward_speed(left_speed=70, right_speed=100)
                         print(f"[TEST] turning left yaw_diff={yaw_diff:.2f}")
                     else:
+                        test_phase_straight3_yaw = test_phase_start_yaw - 30.0  # 起動時-30を明示
                         test_phase = "straight3"
                         test_phase_start_right_pos = right_pos
-                        test_phase_straight3_yaw = test_phase_start_yaw - 30.0
                         et._start_yaw = test_phase_straight3_yaw
                         print(f"[TEST] start straight3 phase right_pos={right_pos}, base_yaw={test_phase_straight3_yaw:.2f}")
                 # 直進3: 右の走行距離が1000進んだら右30度ターンへ
                 elif test_phase == "straight3":
                     if right_pos < 3000:
+                        et.set_start_yaw(test_phase_straight3_yaw)  # 起動時-30
                         left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                         et.set_motor_forward_speed(left_speed=int(left_speed), right_speed=int(right_speed))
-                        print(f"[TEST] straight3 right_pos={right_pos}, base_yaw={et._start_yaw:.2f}")
+                        print(f"[TEST] straight3 right_pos={right_pos}, base_yaw={test_phase_straight3_yaw:.2f}")
                     else:
                         test_phase = "turn_right2"
                         test_phase_start_yaw = et.get_yaw()
                         print(f"[TEST] start turn_right2 phase yaw={test_phase_start_yaw:.2f}")
                 # 右に30度曲がる: 左100,右70
                 elif test_phase == "turn_right2":
-                    yaw_diff = et.get_yaw() - (test_phase_start_yaw if test_phase_start_yaw is not None else 0.0)
+                    yaw_diff = et.get_yaw() - test_phase_start_yaw
                     if yaw_diff < 30.0:
-                        et.set_motor_forward_speed(left_speed=HIGH_SPEED_BASE, right_speed=-70)
+                        et.set_motor_forward_speed(left_speed=100, right_speed=70)
                         print(f"[TEST] turning right2 yaw_diff={yaw_diff:.2f}")
                     else:
                         test_phase = "straight4"
@@ -577,9 +574,10 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 # 直進4: 右の走行距離が1000進んだら停止
                 elif test_phase == "straight4":
                     if right_pos < 4000:
+                        et.set_start_yaw(test_phase_start_yaw)  # 起動時（±ゼロ）
                         left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                         et.set_motor_forward_speed(left_speed=int(left_speed), right_speed=int(right_speed))
-                        print(f"[TEST] straight4 right_pos={right_pos}, base_yaw={et._start_yaw:.2f}")
+                        print(f"[TEST] straight4 right_pos={right_pos}, base_yaw={test_phase_start_yaw:.2f}")
                     else:
                         test_phase = "stop"
                         print(f"[TEST] finished all phases. right_pos={right_pos}")

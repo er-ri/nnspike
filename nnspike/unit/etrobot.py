@@ -5,6 +5,7 @@ import time
 import serial  # type: ignore
 
 from .spike_status import SpikeStatus
+from typing import Optional
 
 
 class ETRobot(object):
@@ -475,11 +476,16 @@ class ETRobot(object):
         val = getattr(getattr(status.sensors, "yaw_pitch_roll", None), "x", None)
         return float(val) if val is not None else 0.0
 
-    def set_start_yaw(self):
+    def set_start_yaw(self, yaw: Optional[float] = None):
         """
-        現在のヨー角をstart_yawとして記録する（直線安定化・旋回開始時などで使用）
+        現在のヨー角または指定値をstart_yawとして記録する（直線安定化・旋回開始時などで使用）
+        Args:
+            yaw (float, optional): 指定したヨー角。Noneなら現在値を使用。
         """
-        self._start_yaw = self.get_yaw()
+        if yaw is not None:
+            self._start_yaw = float(yaw)
+        else:
+            self._start_yaw = self.get_yaw()
 
     def get_start_yaw(self) -> float:
         """
