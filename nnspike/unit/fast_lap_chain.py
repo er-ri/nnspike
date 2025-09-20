@@ -324,7 +324,7 @@ class FastLapChain(object):
             self.reset_action()
             return None, None, Mode.PAUSE
 
-        print("[avoid_obstacle] Unexpected state reached.")
+        print("[FAST_LAP] Warning: Reached unexpected phase. Resetting action.")
         return None, None, Mode.FAST_LAP
 
     def shortcut_lap(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
@@ -443,6 +443,6 @@ class FastLapChain(object):
         if phase.get_phase() == 9:
             self.reset_action()
             return None, None, Mode.PAUSE
-
-        print("[avoid_obstacle] Unexpected state reached.")
-    return None, None, Mode.SHORTCUT_LAP
+        
+        print("[shortcut_lap] Unexpected state reached.")
+        return None, None, Mode.SHORTCUT_LAP
