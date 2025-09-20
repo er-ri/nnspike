@@ -118,10 +118,11 @@ class SpikeStatus:
         """
         self.timestamp: float = time.time()
         self.message_type: int = -1
+        # Motor assignment: A=right, B=left, C=arm
         self.motors: Dict[str, MotorStatus] = {
-            "A": MotorStatus(),
-            "B": MotorStatus(),
-            "C": MotorStatus(),  # Add motor arm (port C)
+            "A": MotorStatus(),  # right motor (port A)
+            "B": MotorStatus(),  # left motor (port B)
+            "C": MotorStatus(),  # arm motor (port C)
         }
         self.sensors: SensorStatus = SensorStatus()
         self.battery: BatteryStatus = BatteryStatus()
@@ -144,10 +145,14 @@ class SpikeStatus:
         self.timestamp = parsed_data.get("timestamp", time.time())
         self.message_type = parsed_data.get("message_type", -1)
         self.raw_data = parsed_data.get("raw", {})
-        # # type: -1のときrawデータを表示して原因調査
+        # Motor assignment convention:
+        #   A = right motor
+        #   B = left motor
+        #   C = arm motor
+        # Debug code for message_type == -1 and interval calculation:
         # if self.message_type == -1:
         #     print("[type:-1 raw]", self.raw_data)
-        # # 全てのmessage_typeでインターバル計算・デバッグ出力（ms単位）
+        # # Interval calculation and debug output (ms):
         # now = self.timestamp
         # dt = None
         # if hasattr(self, '_last_motor_update_time') and self._last_motor_update_time is not None:

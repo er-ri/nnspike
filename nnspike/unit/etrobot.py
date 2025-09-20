@@ -193,8 +193,8 @@ class ETRobot(object):
             (int, int): (left_power, right_power)
         """
         status = self.get_spike_status()
-        left = abs(status.motors["A"].power) if status.motors["A"].power is not None else 0
-        right = abs(status.motors["B"].power) if status.motors["B"].power is not None else 0
+        right = abs(status.motors["A"].power) if status.motors["A"].power is not None else 0
+        left = abs(status.motors["B"].power) if status.motors["B"].power is not None else 0
         return (left, right)
 
     def get_motor_speed(self) -> tuple[int, int]:
@@ -205,8 +205,8 @@ class ETRobot(object):
             (int, int): (left_speed, right_speed)
         """
         status = self.get_spike_status()
-        left = abs(status.motors["A"].speed) if status.motors["A"].speed is not None else 0
-        right = abs(status.motors["B"].speed) if status.motors["B"].speed is not None else 0
+        right = abs(status.motors["A"].speed) if status.motors["A"].speed is not None else 0
+        left = abs(status.motors["B"].speed) if status.motors["B"].speed is not None else 0
         return (left, right)
 
     def get_side_adjust_by_speed_diff(self) -> tuple[int, int]:
@@ -257,10 +257,10 @@ class ETRobot(object):
         right_cmd = speed + speed_adj_right
         return int(left_cmd), int(right_cmd)
 
-    def set_motor_relative_position(self, left_positon: int, right_position: int) -> None:
+    def set_motor_relative_position(self, left_position: int, right_position: int) -> None:
         id_byte = self.COMMAND_SET_MOTOR_RELATIVE_POSITION_ID.to_bytes(1, "big")
-        parameter1_byte = left_positon.to_bytes(1, "big")
-        parameter2_byte = right_position.to_bytes(1, "big")
+        parameter1_byte = left_position.to_bytes(1, "big")   # B=left
+        parameter2_byte = right_position.to_bytes(1, "big")  # A=right
 
         command = id_byte + parameter1_byte + parameter2_byte
 
@@ -281,9 +281,9 @@ class ETRobot(object):
         """
         status = self.get_spike_status()
         if side == 'right':
-            return abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
-        elif side == 'left':
             return abs(status.motors["A"].relative_position) if status.motors["A"].relative_position is not None else 0
+        elif side == 'left':
+            return abs(status.motors["B"].relative_position) if status.motors["B"].relative_position is not None else 0
         else:
             return 0
 
@@ -322,8 +322,8 @@ class ETRobot(object):
 
         id_byte = self.COMMAND_SET_MOTOR_MIXED_SPEED_ID.to_bytes(1, "big")
         # -100～+100 → 0～200 に変換して送信
-        parameter1_byte = (left_speed + 100).to_bytes(1, "big", signed=False)
-        parameter2_byte = (right_speed + 100).to_bytes(1, "big", signed=False)
+        parameter1_byte = (left_speed + 100).to_bytes(1, "big", signed=False)   # B=左
+        parameter2_byte = (right_speed + 100).to_bytes(1, "big", signed=False)  # A=右
         command = id_byte + parameter1_byte + parameter2_byte
         self.__send_command(command)
 
@@ -333,10 +333,11 @@ class ETRobot(object):
 
         Args:
             left_speed (int): Left motor speed (0-100).
-            right_speed (int): Right motor speed (0-100)."""
+            right_speed (int): Right motor speed (0-100).
+        """
         id_byte = self.COMMAND_SET_MOTOR_FORWARD_SPEED_ID.to_bytes(1, "big")
-        parameter1_byte = left_speed.to_bytes(1, "big")
-        parameter2_byte = right_speed.to_bytes(1, "big")
+        parameter1_byte = left_speed.to_bytes(1, "big")   # B=左
+        parameter2_byte = right_speed.to_bytes(1, "big")  # A=右
         command = id_byte + parameter1_byte + parameter2_byte
         self.__send_command(command)
 
@@ -349,8 +350,8 @@ class ETRobot(object):
             right_speed (int): Right motor speed (0-100).
         """
         id_byte = self.COMMAND_SET_MOTOR_BACKWARD_SPEED_ID.to_bytes(1, "big")
-        parameter1_byte = left_speed.to_bytes(1, "big")
-        parameter2_byte = right_speed.to_bytes(1, "big")
+        parameter1_byte = left_speed.to_bytes(1, "big")   # B=左
+        parameter2_byte = right_speed.to_bytes(1, "big")  # A=右
         command = id_byte + parameter1_byte + parameter2_byte
         self.__send_command(command)
 
