@@ -513,7 +513,7 @@ class ETRobot(object):
         else:
             raise ValueError("side must be 'left' or 'right'")
 
-    def yaw_straight_control(self, base_speed: int = HIGH_SPEED_BASE, kp: float = 1.0, deadband: float = 5.0, adjust_speed: int = 1) -> tuple[int, int]:
+    def yaw_straight_control(self, base_speed: int = HIGH_SPEED_BASE, kp: float = 1.0, deadband: float = 3.0, adjust_speed: int = 1) -> tuple[int, int]:
         """
         ヨー角による直線安定化制御（P制御、内部start_yaw基準）。
         Args:
@@ -535,7 +535,7 @@ class ETRobot(object):
         else:
             left_speed = base_speed - pid_output
             right_speed = base_speed + pid_output
-            
+
         left_speed = int(max(min(left_speed, base_speed), min_speed))
         right_speed = int(max(min(right_speed, base_speed), min_speed))
         print(f"[yaw_straight_control] yaw={yaw:.2f}, start_yaw={start_yaw:.2f}, error={error:.2f}, pid_output={pid_output:.2f}, min_speed={min_speed}, left_speed={left_speed}, right_speed={right_speed}")
