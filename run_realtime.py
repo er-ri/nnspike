@@ -369,7 +369,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                         print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={turn_left_reference_yaw:.2f}")
                         et.set_motor_forward_speed(left_speed=0, right_speed=0)
                     else:
-                        et.set_motor_forward_speed(left_speed=0, right_speed=BASE_SPEED)
+                        # et.set_motor_forward_speed(left_speed=0, right_speed=BASE_SPEED)
+                        et.set_motor_speed(left_speed=-BASE_SPEED, right_speed=BASE_SPEED)
                         print(f"[TURN_LEFT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
                 else:
                     # 微調整: 1秒間連続して±5度以内であることを確認してからPAUSEへ移行
@@ -399,10 +400,10 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                                 # オーバーシュート分だけ逆方向に動かす（error < 0なら右回転、error > 0なら左回転）
                                 if error < 0:
                                     # et.set_motor_backward_speed(left_speed=0, right_speed=20)  # 右回転（左モータ0、右のみ逆）
-                                    et.set_motor_speed(left_speed=0, right_speed=-20)  # 右回転（右モータ逆転）
+                                    et.set_motor_speed(left_speed=20, right_speed=-20)  # 両方逆転（右回転）
                                 else:
                                     # et.set_motor_forward_speed(left_speed=0, right_speed=20)  # 左回転（左モータ0、右のみ正）
-                                    et.set_motor_speed(left_speed=0, right_speed=20)  # 左回転（右モータ正転）
+                                    et.set_motor_speed(left_speed=-20, right_speed=20)  # 両方正転（左回転）
                                 print(f"[TURN_LEFT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={turn_left_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
                             else:
                                 et.set_motor_forward_speed(left_speed=0, right_speed=0)
@@ -434,7 +435,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                         print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={turn_right_reference_yaw:.2f}")
                         et.set_motor_forward_speed(left_speed=0, right_speed=0)
                     else:
-                        et.set_motor_forward_speed(left_speed=BASE_SPEED, right_speed=0)
+                        # et.set_motor_forward_speed(left_speed=BASE_SPEED, right_speed=0)
+                        et.set_motor_speed(left_speed=BASE_SPEED, right_speed=-BASE_SPEED)
                         print(f"[TURN_RIGHT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
                 else:
                     # 微調整: 1秒間連続して±5度以内であることを確認してからPAUSEへ移行
@@ -464,10 +466,10 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                                 # オーバーシュート分だけ逆方向に動かす（error < 0なら左回転、error > 0なら右回転）
                                 if error < 0:
                                     # et.set_motor_forward_speed(left_speed=20, right_speed=0)  # 左回転（右モータ0、左のみ正）
-                                    et.set_motor_speed(left_speed=20, right_speed=0)  # 左回転（左モータ正転）
+                                    et.set_motor_speed(left_speed=20, right_speed=-20)  # 両方正転（左回転）
                                 else:
                                     # et.set_motor_backward_speed(left_speed=20, right_speed=0)  # 右回転（右モータ0、左のみ逆）
-                                    et.set_motor_speed(left_speed=-20, right_speed=0)  # 右回転（左モータ逆転）
+                                    et.set_motor_speed(left_speed=-20, right_speed=20)  # 両方逆転（右回転）
                                 print(f"[TURN_RIGHT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
                             else:
                                 et.set_motor_forward_speed(left_speed=0, right_speed=0)
