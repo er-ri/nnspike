@@ -532,17 +532,12 @@ class ETRobot(object):
         if abs(error) <= deadband:
             left_speed = base_speed
             right_speed = base_speed
-            print(f"[yaw_straight_control] yaw={yaw:.2f}, start_yaw={start_yaw:.2f}, error={error:.2f}, pid_output={pid_output:.2f}, min_speed={min_speed}, left_speed={left_speed}, right_speed={right_speed}")
-            return left_speed, right_speed
         else:
-            left_speed = base_speed
-            right_speed = base_speed
-            if pid_output > 0:
-                left_speed = base_speed - abs(pid_output)
-            elif pid_output < 0:
-                right_speed = base_speed - abs(pid_output)
-            left_speed = int(max(min(left_speed, base_speed), min_speed))
-            right_speed = int(max(min(right_speed, base_speed), min_speed))
-            print(f"[yaw_straight_control] yaw={yaw:.2f}, start_yaw={start_yaw:.2f}, error={error:.2f}, pid_output={pid_output:.2f}, min_speed={min_speed}, left_speed={left_speed}, right_speed={right_speed}")
-            return left_speed, right_speed
+            left_speed = base_speed - pid_output
+            right_speed = base_speed + pid_output
+            
+        left_speed = int(max(min(left_speed, base_speed), min_speed))
+        right_speed = int(max(min(right_speed, base_speed), min_speed))
+        print(f"[yaw_straight_control] yaw={yaw:.2f}, start_yaw={start_yaw:.2f}, error={error:.2f}, pid_output={pid_output:.2f}, min_speed={min_speed}, left_speed={left_speed}, right_speed={right_speed}")
+        return left_speed, right_speed
 
