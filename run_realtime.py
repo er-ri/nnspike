@@ -398,8 +398,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 left_speed = base_speed - pid_output
                 right_speed = base_speed + pid_output
                 # 安全のため速度制限
-                left_speed = max(0, min(100, left_speed))
-                right_speed = max(0, min(100, right_speed))
+                left_speed = int(max(0, min(100, left_speed)))
+                right_speed = int(max(0, min(100, right_speed)))
                 print(f"[TEST DEBUG] yaw={yaw:.2f}, target_yaw={target_yaw:.2f}, error={error:.2f}, pid_output={pid_output:.2f}, left_speed={left_speed:.2f}, right_speed={right_speed:.2f}")
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 # TESTから離脱した瞬間のみtarget_yawリセット（TESTブロック外からは絶対に触らない）
