@@ -217,6 +217,10 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             cycle_ms = (now - prev_end) * 1000
             # print(f"[DEBUG] cycle: {cycle_ms:.2f} ms")
         debug_state['last_print'] = now
+        # --- min_intervalによる周期調整を復活 ---
+        interval = now - loop_start
+        if interval < min_interval:
+            time.sleep(min_interval - interval)
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
