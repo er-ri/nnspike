@@ -6,6 +6,7 @@ from nnspike.unit.etrobot import ETRobot
 from nnspike.constants import HIGH_SPEED_BASE
 from nnspike.unit.action_chain import PhaseManager
 from nnspike.constants import ROI_CNN
+from nnspike.constants import Mode
 
 class FastLapChain(object):
 
@@ -61,7 +62,6 @@ class FastLapChain(object):
 
     def turn_left_yaw(self, image: np.ndarray) -> Tuple[Optional[float], Optional[Tuple[int, int, int]], 'Mode']:
         # ActionChain設計に厳密に合わせる: self._init判定→initialize_action→phase管理
-        from nnspike.constants import Mode
         if not self._init:
             self.initialize_action(motor_side='right')
             self.et.set_start_yaw()
