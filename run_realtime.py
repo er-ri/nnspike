@@ -152,15 +152,16 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
     フォースセンサーまたは有効なモードキーでロボットをスタートさせる。
     終了時は first_key（最初に押されたキーまたはforceセンサー）を返す。
     """
+    force_baseline = None
     try:
         status_init = et.get_spike_status()
-        force_val_init = getattr(status_init.sensors, "force", None)
-        if force_val_init is None:
+        force_baseline = getattr(status_init.sensors, "force", None)
+        if force_baseline is None:
             time.sleep(1)
             status_init = et.get_spike_status()
-            force_val_init = getattr(status_init.sensors, "force", None)
-        if force_val_init is not None:
-            print("Force sensor is active. You can press it anytime to switch edge-following mode.")
+            force_baseline = getattr(status_init.sensors, "force", None)
+        if force_baseline is not None:
+            print(f"Force sensor is active. Baseline: {force_baseline}. Press to start.")
             print("\r", end="")
             sys.stdout.flush()
         else:
@@ -170,7 +171,7 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
     except Exception:
         print("Force sensor check failed. Please check hardware.")
 
-    print("Press the force sensor or any mode key to start...")
+    print("Press the force sensor (change >100) or any mode key to start...")
     started = False
     first_key = None
     while not started and keyboard.running:
@@ -179,9 +180,9 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
             status = et.get_spike_status()
             force_val = getattr(status.sensors, "force", None)
             key = keyboard.get_key()
-            # forceセンサー押下でスタート
-            if (force_val is not None and force_val > 0):
-                print("Start!")
+            # forceセンサー押下でスタート（初期値から絶対値100以上変動）
+            if (force_val is not None and force_baseline is not None and abs(force_val - force_baseline) >= 100):
+                print(f"Start! (force changed: {force_baseline} -> {force_val})")
                 started = True
                 first_key = "__force__"  # forceセンサーでスタートした場合はダミー値をセット
                 break
