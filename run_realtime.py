@@ -382,9 +382,9 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 # ヨー角PID制御でハイスピード直進
                 yaw = et.get_yaw()
                 # TESTモード遷移検知用フラグ（main関数内で管理）
+                # TESTモード突入時のみtarget_yawをセット（走行中は絶対に変更しない）
                 if not prev_mode_test:
-                    if yaw is not None:
-                        target_yaw = yaw
+                    target_yaw = yaw if yaw is not None else 0.0
                 prev_mode_test = True
                 # PID制御器（Pのみ、必要ならI/D追加）
                 Kp = 1.2
