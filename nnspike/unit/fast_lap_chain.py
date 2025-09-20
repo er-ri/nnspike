@@ -169,10 +169,10 @@ class FastLapChain(object):
                 if elapsed < 1.0:
                     if error < 0:
                         print(f"[TURN_RIGHT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                        return None, (-15, 15, 0), Mode.TURN_RIGHT_YAW
+                        return None, (15, -15, 0), Mode.TURN_RIGHT_YAW
                     else:
                         print(f"[TURN_RIGHT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                        return None, (15, -15, 0), Mode.TURN_RIGHT_YAW
+                        return None, (-15, 15, 0), Mode.TURN_RIGHT_YAW
                 else:
                     print(f"[TURN_RIGHT][ADJUST][TIMEOUT] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
                     self.turn_right_reference_yaw = None
