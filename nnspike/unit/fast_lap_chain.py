@@ -37,11 +37,11 @@ class FastLapChain(object):
         self.pid = pid  # PIDはNoneでもOK
 
     def initialize_action(self, motor_side: str = "right"):
-    """
-    アクション開始時の状態初期化処理。
-    motor_side: "right"または"left"で初期位置記録対象を指定する。
-    直進・旋回開始時に呼び出される。
-    """
+        """
+        アクション開始時の状態初期化処理。
+        motor_side: "right"または"left"で初期位置記録対象を指定する。
+        直進・旋回開始時に呼び出される。
+        """
         self._phase = PhaseManager()
         self._phase.set_position_start("position_start", self.get_motor_position(motor_side))
         self._init = True
