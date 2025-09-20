@@ -519,7 +519,9 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                         print(f"[TEST] start turn_right phase yaw={test_phase_start_yaw:.2f}")
                 # 右に30度曲がる: 左100,右70
                 elif test_phase == "turn_right":
-                    yaw_diff = et.get_yaw() - test_phase_start_yaw
+                    yaw_val = et.get_yaw()
+                    yaw_diff = yaw_val - test_phase_start_yaw
+                    print(f"[DEBUG][TURN_RIGHT] yaw={yaw_val:.2f}, base_yaw={test_phase_start_yaw:.2f}, yaw_diff={yaw_diff:.2f}")
                     if yaw_diff < 30.0:
                         et.set_motor_forward_speed(left_speed=100, right_speed=70)
                         print(f"[TEST] turning right yaw_diff={yaw_diff:.2f}")
