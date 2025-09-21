@@ -83,7 +83,7 @@ class FastLapChain(object):
                 return None, (0, 0, 0), Mode.TURN_LEFT_YAW
             else:
                 print(f"[TURN_LEFT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
-                return None, (-30, 30, 0), Mode.TURN_LEFT_YAW
+                return None, (0, 30, 0), Mode.TURN_LEFT_YAW
 
         # phase1: 左旋回後の微調整（±5度以内1秒静止でPAUSE）
         if phase.get_phase() == 1:
@@ -111,10 +111,10 @@ class FastLapChain(object):
                 if elapsed < 2.0:
                     if error < 0:
                         print(f"[TURN_LEFT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_left_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                        return None, (20, -20, 0), Mode.TURN_LEFT_YAW
+                        return None, (0, -20, 0), Mode.TURN_LEFT_YAW
                     else:
                         print(f"[TURN_LEFT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_left_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                        return None, (-20, 20, 0), Mode.TURN_LEFT_YAW
+                        return None, (0, 20, 0), Mode.TURN_LEFT_YAW
                 else:
                     print(f"[TURN_LEFT][ADJUST][TIMEOUT] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_left_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
                     self.turn_left_reference_yaw = None
@@ -143,7 +143,7 @@ class FastLapChain(object):
                 return None, (0, 0, 0), Mode.TURN_RIGHT_YAW
             else:
                 print(f"[TURN_RIGHT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
-                return None, (30, -30, 0), Mode.TURN_RIGHT_YAW
+                return None, (30, 0, 0), Mode.TURN_RIGHT_YAW
 
         # phase1: 右旋回後の微調整（±5度以内1秒静止でPAUSE）
         if phase.get_phase() == 1:
@@ -171,10 +171,10 @@ class FastLapChain(object):
                 if elapsed < 2.0:
                     if error < 0:
                         print(f"[TURN_RIGHT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                        return None, (20, -20, 0), Mode.TURN_RIGHT_YAW
+                        return None, (20, 0, 0), Mode.TURN_RIGHT_YAW
                     else:
                         print(f"[TURN_RIGHT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                        return None, (-20, 20, 0), Mode.TURN_RIGHT_YAW
+                        return None, (-20, 0, 0), Mode.TURN_RIGHT_YAW
                 else:
                     print(f"[TURN_RIGHT][ADJUST][TIMEOUT] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
                     self.turn_right_reference_yaw = None
