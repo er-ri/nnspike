@@ -524,14 +524,14 @@ class FastLapChain(object):
 
         # フェーズ1: 右旋回30度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新（右旋回区間）
         if phase.get_phase() == 1:
-            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=20.0)
+            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=30.0)
             if stop_turn:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
                 if self.course == "right":
-                    self.et.set_start_yaw(start_yaw - 20.0)  # 右コースは-20度
+                    self.et.set_start_yaw(start_yaw - 30.0)  # 右コースは-20度
                 else:
-                    self.et.set_start_yaw(start_yaw + 20.0)  # 左コースは+20度
+                    self.et.set_start_yaw(start_yaw + 30.0)  # 左コースは+20度
             else:
                 if self.course == "right":
                     return None, (90, 100, 0), Mode.SHORTCUT_LAP2
@@ -552,7 +552,7 @@ class FastLapChain(object):
 
         # フェーズ3: 左旋回60度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新（左旋回区間）
         if phase.get_phase() == 3:
-            stop_turn = et.is_yaw_turn_finished(side=self.course, threshold_deg=20.0)
+            stop_turn = et.is_yaw_turn_finished(side=self.course, threshold_deg=30.0)
             if stop_turn:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
