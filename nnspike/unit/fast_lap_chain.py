@@ -74,7 +74,7 @@ class FastLapChain(object):
         phase = self._phase
         et = self.et
 
-    # phase0: 左旋回中（yaw判定、90度到達で停止）
+        # phase0: 左旋回中（yaw判定、90度到達で停止）
         if phase.get_phase() == 0:
             stop_turn = et.is_yaw_turn_finished(side="left", threshold_deg=90.0)
             if stop_turn:
@@ -85,7 +85,7 @@ class FastLapChain(object):
                 print(f"[TURN_LEFT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
                 return None, (-30, 30, 0), Mode.TURN_LEFT_YAW
 
-    # phase1: 左旋回後の微調整（±5度以内1秒静止でPAUSE）
+        # phase1: 左旋回後の微調整（±5度以内1秒静止でPAUSE）
         if phase.get_phase() == 1:
             if not hasattr(self, 'turn_left_reference_yaw') or self.turn_left_reference_yaw is None:
                 self.turn_left_reference_yaw = et.get_yaw()
@@ -134,7 +134,7 @@ class FastLapChain(object):
         phase = self._phase
         et = self.et
 
-    # phase0: 右旋回中（yaw判定、90度到達で停止）
+        # phase0: 右旋回中（yaw判定、90度到達で停止）
         if phase.get_phase() == 0:
             stop_turn = et.is_yaw_turn_finished(side="right", threshold_deg=90.0)
             if stop_turn:
@@ -145,7 +145,7 @@ class FastLapChain(object):
                 print(f"[TURN_RIGHT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
                 return None, (30, -30, 0), Mode.TURN_RIGHT_YAW
 
-    # phase1: 右旋回後の微調整（±5度以内1秒静止でPAUSE）
+        # phase1: 右旋回後の微調整（±5度以内1秒静止でPAUSE）
         if phase.get_phase() == 1:
             if not hasattr(self, 'turn_right_reference_yaw') or self.turn_right_reference_yaw is None:
                 self.turn_right_reference_yaw = et.get_yaw()
@@ -225,12 +225,12 @@ class FastLapChain(object):
                 else:
                     return None, (70, 100, 0), Mode.FAST_LAP
 
-        # フェーズ2: position_startとの差分1000未満ならyaw_straight_control直進。1000以上で次フェーズ、基準yaw更新（直進区間）
+        # フェーズ2: position_startとの差分500未満ならyaw_straight_control直進。500以上で次フェーズ、基準yaw更新（直進区間）
         if phase.get_phase() == 2:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
-            if position_diff < 1000:
+            if position_diff < 500:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return None, (left_speed, right_speed, 0), Mode.FAST_LAP
             else:
@@ -253,12 +253,12 @@ class FastLapChain(object):
                 else:
                     return None, (100, 70, 0), Mode.FAST_LAP
 
-        # フェーズ4: position_startとの差分1000未満ならyaw_straight_control直進。1000以上で次フェーズ、基準yaw更新（直進区間）
+        # フェーズ4: position_startとの差分500未満ならyaw_straight_control直進。500以上で次フェーズ、基準yaw更新（直進区間）
         if phase.get_phase() == 4:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
-            if position_diff < 1000:
+            if position_diff < 500:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return None, (left_speed, right_speed, 0), Mode.FAST_LAP
             else:
@@ -393,12 +393,12 @@ class FastLapChain(object):
                 else:
                     return None, (70, 100, 0), Mode.SHORTCUT_LAP
 
-        # フェーズ2: position_startとの差分1000未満ならyaw_straight_control直進。1000以上で次フェーズ、基準yaw更新（直進区間）
+        # フェーズ2: position_startとの差分500未満ならyaw_straight_control直進。500以上で次フェーズ、基準yaw更新（直進区間）
         if phase.get_phase() == 2:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
-            if position_diff < 1000:
+            if position_diff < 500:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return None, (left_speed, right_speed, 0), Mode.SHORTCUT_LAP
             else:
