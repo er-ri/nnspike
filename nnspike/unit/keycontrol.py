@@ -13,7 +13,7 @@ class KeyboardController:
         # 有効なモードキーリスト（run_manual.pyから移動）
         self._mode_keys = set([
             "a", "d", "h", "f", "j", "k", "i", "o", "b", "g", "e", "u",
-            "1", "2", "3", "4", "5", "6", "7", "8", "p", "n", "q", "t", "y"
+            "1", "2", "3", "4", "5", "6", "7", "8", "p", "n", "q", "t", "y", "l"
         ])
 
     def get_key(self):
@@ -60,6 +60,7 @@ class KeyboardController:
             "8": (Mode.PAUSE, "Pausing robot"),
             "t": (Mode.FAST_LAP, "Switched to FAST_LAP mode"),
             "y": (Mode.SHORTCUT_LAP, "Switched to SHORTCUT_LAP mode (shortcut y)"),
+            "l": (Mode.SHORTCUT_LAP2, "Switched to SHORTCUT_LAP2 mode (shortcut l)"),
             "p": (Mode.PAUSE, "Pausing robot"),
         }
         return keymap.get(key, (None, None))
