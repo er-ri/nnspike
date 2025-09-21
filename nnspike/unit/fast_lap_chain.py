@@ -98,7 +98,7 @@ class FastLapChain(object):
                     self.turn_left_in_tolerance_time = time.time()
                 tolerance_elapsed = time.time() - self.turn_left_in_tolerance_time
                 print(f"[TURN_LEFT][ADJUST][TOLERANCE] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_left_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
-                if tolerance_elapsed >= 1.0:
+                if tolerance_elapsed >= 2.0:
                     print(f"[TURN_LEFT][ADJUST][STOP] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_left_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
                     self._phase = None
                     self.turn_left_reference_yaw = None
@@ -108,7 +108,7 @@ class FastLapChain(object):
                     return None, None, Mode.PAUSE
             else:
                 self.turn_left_in_tolerance_time = None
-                if elapsed < 1.0:
+                if elapsed < 2.0:
                     if error < 0:
                         print(f"[TURN_LEFT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_left_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
                         return None, (15, -15, 0), Mode.TURN_LEFT_YAW
@@ -158,7 +158,7 @@ class FastLapChain(object):
                     self.turn_right_in_tolerance_time = time.time()
                 tolerance_elapsed = time.time() - self.turn_right_in_tolerance_time
                 print(f"[TURN_RIGHT][ADJUST][TOLERANCE] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
-                if tolerance_elapsed >= 1.0:
+                if tolerance_elapsed >= 2.0:
                     print(f"[TURN_RIGHT][ADJUST][STOP] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
                     self._phase = None
                     self.turn_right_reference_yaw = None
@@ -168,7 +168,7 @@ class FastLapChain(object):
                     return None, None, Mode.PAUSE
             else:
                 self.turn_right_in_tolerance_time = None
-                if elapsed < 1.0:
+                if elapsed < 2.0:
                     if error < 0:
                         print(f"[TURN_RIGHT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
                         return None, (15, -15, 0), Mode.TURN_RIGHT_YAW
