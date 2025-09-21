@@ -333,6 +333,9 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             elif mode == Mode.SHORTCUT_LAP:
                 _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.shortcut_lap(frame))
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+            elif mode == Mode.SHORTCUT_LAP2:
+                _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.shortcut_lap2(frame))
+                et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.PAUSE:
                 left_speed, right_speed = 0, 0
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
