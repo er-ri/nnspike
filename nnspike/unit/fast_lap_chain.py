@@ -88,12 +88,13 @@ class FastLapChain(object):
         # phase1: 左旋回後の微調整（±4度以内2秒静止でPAUSE）
         if phase.get_phase() == 1:
             if not hasattr(self, 'turn_left_reference_yaw') or self.turn_left_reference_yaw is None:
-                self.turn_left_reference_yaw = et.get_yaw()
+                # 左旋回後の微調整はget_start_yaw()-90.0が目標値
+                self.turn_left_reference_yaw = et.get_start_yaw() - 90.0
                 self.turn_left_adjust_timer = time.time()
                 self.turn_left_in_tolerance_time = None
             error = et.get_yaw() - self.turn_left_reference_yaw
             elapsed = time.time() - self.turn_left_adjust_timer if self.turn_left_adjust_timer is not None else 0
-            if et.is_yaw_turn_finished(side="left", threshold_deg=4.0):
+            if abs(error) <= 4.0:
                 if self.turn_left_in_tolerance_time is None:
                     self.turn_left_in_tolerance_time = time.time()
                 tolerance_elapsed = time.time() - self.turn_left_in_tolerance_time
@@ -148,12 +149,13 @@ class FastLapChain(object):
         # phase1: 右旋回後の微調整（±4度以内2秒静止でPAUSE）
         if phase.get_phase() == 1:
             if not hasattr(self, 'turn_right_reference_yaw') or self.turn_right_reference_yaw is None:
-                self.turn_right_reference_yaw = et.get_yaw()
+                # 右旋回後の微調整はget_start_yaw()+90.0が目標値
+                self.turn_right_reference_yaw = et.get_start_yaw() + 90.0
                 self.turn_right_adjust_timer = time.time()
                 self.turn_right_in_tolerance_time = None
             error = et.get_yaw() - self.turn_right_reference_yaw
             elapsed = time.time() - self.turn_right_adjust_timer if self.turn_right_adjust_timer is not None else 0
-            if et.is_yaw_turn_finished(side="right", threshold_deg=4.0):
+            if abs(error) <= 4.0:
                 if self.turn_right_in_tolerance_time is None:
                     self.turn_right_in_tolerance_time = time.time()
                 tolerance_elapsed = time.time() - self.turn_right_in_tolerance_time
