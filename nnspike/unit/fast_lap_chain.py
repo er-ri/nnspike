@@ -94,7 +94,7 @@ class FastLapChain(object):
                 self.turn_left_in_tolerance_time = None
             error = et.get_yaw() - self.turn_left_reference_yaw
             elapsed = time.time() - self.turn_left_adjust_timer if self.turn_left_adjust_timer is not None else 0
-            if abs(error) <= 4.0:
+            if et.is_yaw_error_within(self.turn_left_reference_yaw, 4.0):
                 if self.turn_left_in_tolerance_time is None:
                     self.turn_left_in_tolerance_time = time.time()
                 tolerance_elapsed = time.time() - self.turn_left_in_tolerance_time
@@ -155,7 +155,7 @@ class FastLapChain(object):
                 self.turn_right_in_tolerance_time = None
             error = et.get_yaw() - self.turn_right_reference_yaw
             elapsed = time.time() - self.turn_right_adjust_timer if self.turn_right_adjust_timer is not None else 0
-            if abs(error) <= 4.0:
+            if et.is_yaw_error_within(self.turn_right_reference_yaw, 4.0):
                 if self.turn_right_in_tolerance_time is None:
                     self.turn_right_in_tolerance_time = time.time()
                 tolerance_elapsed = time.time() - self.turn_right_in_tolerance_time

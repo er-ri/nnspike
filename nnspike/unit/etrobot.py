@@ -515,6 +515,26 @@ class ETRobot(object):
             diff += 360
         return abs(diff) >= abs(threshold_deg)
 
+    def is_yaw_error_within(self, target_yaw: float, tolerance_deg: float) -> bool:
+        """
+        現在のyawが目標yaw（target_yaw）から±tolerance_deg以内か判定する。
+        角度ラップアラウンド補正あり。
+        Args:
+            target_yaw (float): 目標yaw角度
+            tolerance_deg (float): 許容誤差（度）
+        Returns:
+            bool: 許容範囲内ならTrue
+        """
+        yaw_val = self.get_yaw()
+        error = yaw_val - target_yaw
+        # 角度ラップアラウンド補正
+        if error > 180:
+            error -= 360
+        elif error < -180:
+            error += 360
+        print(f"[is_yaw_error_within] yaw={yaw_val:.2f}, target_yaw={target_yaw:.2f}, error={error:.2f}, tolerance={tolerance_deg}")
+        return abs(error) <= abs(tolerance_deg)
+
     def yaw_straight_control(self, base_speed: int = HIGH_SPEED_BASE, kp: float = 1.0, deadband: float = 3.0, adjust_speed: int = 1) -> tuple[int, int]:
         """
         ヨー角による直線安定化制御（P制御、内部start_yaw基準）。
