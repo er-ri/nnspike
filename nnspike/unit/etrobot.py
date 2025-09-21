@@ -506,13 +506,8 @@ class ETRobot(object):
         """
         yaw_val = self.get_yaw()
         yaw_start_val = self.get_start_yaw()
-        diff = yaw_val - yaw_start_val
+        diff = self.wrap_angle(yaw_val - yaw_start_val)
         print(f"[is_yaw_turn_finished] yaw={yaw_val:.2f}, start_yaw={yaw_start_val:.2f}, diff={diff:.2f}, side={side}, threshold={threshold_deg}")
-        # 角度ラップアラウンド補正
-        if diff > 180:
-            diff -= 360
-        elif diff < -180:
-            diff += 360
         return abs(diff) >= abs(threshold_deg)
 
     def is_yaw_error_within(self, target_yaw: float, tolerance_deg: float) -> bool:
@@ -543,12 +538,7 @@ class ETRobot(object):
         """
         yaw = self.get_yaw()
         start_yaw = self.get_start_yaw()
-        error = yaw - start_yaw
-        # 角度ラップアラウンド補正
-        if error > 180:
-            error -= 360
-        elif error < -180:
-            error += 360
+        error = self.wrap_angle(yaw - start_yaw)
         pid_output = kp * error
         min_speed = base_speed - adjust_speed
         if abs(error) <= deadband:
