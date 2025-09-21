@@ -526,12 +526,7 @@ class ETRobot(object):
             bool: 許容範囲内ならTrue
         """
         yaw_val = self.get_yaw()
-        error = yaw_val - target_yaw
-        # 角度ラップアラウンド補正
-        if error > 180:
-            error -= 360
-        elif error < -180:
-            error += 360
+        error = self.wrap_angle(yaw_val - target_yaw)
         print(f"[is_yaw_error_within] yaw={yaw_val:.2f}, target_yaw={target_yaw:.2f}, error={error:.2f}, tolerance={tolerance_deg}")
         return abs(error) <= abs(tolerance_deg)
 
@@ -567,4 +562,10 @@ class ETRobot(object):
         right_speed = int(max(min(right_speed, base_speed), min_speed))
         print(f"[yaw_straight_control] yaw={yaw:.2f}, start_yaw={start_yaw:.2f}, error={error:.2f}, pid_output={pid_output:.2f}, min_speed={min_speed}, left_speed={left_speed}, right_speed={right_speed}")
         return left_speed, right_speed
+    
+    def wrap_angle(self, angle: float) -> float:
+        """
+        角度を-180～+180度の範囲にラップする。
+        """
+        return (angle + 180.0) % 360.0 - 180.0
 
