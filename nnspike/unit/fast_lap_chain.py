@@ -6,8 +6,6 @@ from nnspike.constants import HIGH_SPEED_BASE
 from nnspike.unit.action_chain import PhaseManager
 from nnspike.constants import ROI_CNN
 from nnspike.constants import Mode
-from nnspike.constants import BASE_SPEED, ROI_COLOR2
-from nnspike.utils import find_bottle_center
 
 SpeedTuple = Tuple[int, int, int]
 from nnspike.constants import Mode
@@ -19,7 +17,7 @@ class FastLapChain(object):
     ActionChainの設計・フェーズ管理を踏襲。
     各フェーズで直進・旋回・微調整・復帰などの動作を管理する。
     """
-    def __init__(self, et: ETRobot, course: str, course_type: str = "upper", pid=None) -> None:
+    def __init__(self, et: ETRobot, course: str) -> None:
         """ActionChainの初期化処理."""
         self.et = et  # ロボット本体
         self.course = course  # コース種別
@@ -28,13 +26,8 @@ class FastLapChain(object):
             self.opposite_course = "left"
         else:
             self.opposite_course = "right"
-        self.course_type = course_type  # 上段/下段コース（デフォルトupper）
-        self.start_time = 0.0  # アクション開始時刻
-        self.current_time = 0.0  # 現在時刻
-        self.x1, self.y1, self.x2, self.y2 = ROI_CNN  # 領域定義
         self._init = False
-        self.pre_target_x = (self.x1 + self.x2) // 2
-        self.pid = pid  # PIDはNoneでもOK
+        self.fast_lap_finished = False  # FAST_LAP完了フラグ
 
     def initialize_action(self, motor_side: str = "right"):
         """
@@ -351,6 +344,7 @@ class FastLapChain(object):
         # フェーズ11: reset_action()してPAUSE復帰（ラップ終了）
         if phase.get_phase() == 11:
             self.reset_action()
+            self.fast_lap_finished = True  # FAST_LAPのみでフラグを立てる
             return None, None, Mode.PAUSE
 
         print("[FAST_LAP] Warning: Reached unexpected phase. Resetting action.")

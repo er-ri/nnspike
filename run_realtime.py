@@ -7,13 +7,13 @@ import time
 
 from nnspike.unit import ETRobot, KeyboardController
 from nnspike.unit.fast_lap_chain import FastLapChain
+from nnspike.unit.action_chain import ActionChain
 
 import cv2
 import numpy as np
 from nnspike.constants import BASE_SPEED, HIGH_SPEED_BASE, CAMERA_WIDTH, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode, ROI_COLOR
 from nnspike.utils import PIDController, SensorRecorder, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x, get_offset_pixels
 import threading
-import queue
 
 class Video:
     def __init__(self):
@@ -79,6 +79,14 @@ class StateFlags:
     def __init__(self):
         self._first_key_used = False
         self._force_sensor_mode_switch_enabled = False
+        self._fast_lap_finished = False
+    @property
+    def fast_lap_finished(self):
+        return self._fast_lap_finished
+
+    @fast_lap_finished.setter
+    def fast_lap_finished(self, value: bool):
+        self._fast_lap_finished = value
 
     @property
     def first_key_used(self):
@@ -248,9 +256,13 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     left_speed = None
     right_speed = None
     prev_frame = None
+    dummy_frame = np.zeros((CAMERA_HEIGHT, CAMERA_WIDTH, 3), dtype=np.uint8)
 
     # FastLapChainインスタンス生成
     fast_lap_chain = FastLapChain(et, course)
+    # ActionChainインスタンスは後で生成
+    action_chain = None
+    # fast_lap_finishedはStateFlagsで管理
 
     # 毎回判定する必要のないフラグを事前計算
     need_status = (record_sensor_data and sensor_recorder is not None)
@@ -271,23 +283,25 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 if ret and isinstance(new_frame, np.ndarray):
                     frame = new_frame
                 else:
-                    # 取得失敗時は前回フレーム、なければダミー画像
+                    # 取得失敗時は前回フレーム、なければ初期ダミー画像
                     print("[WARN] Camera frame not received. Using previous frame or blank.")
                     if prev_frame is not None and isinstance(prev_frame, np.ndarray):
                         frame = prev_frame
                     else:
-                        frame = np.zeros((CAMERA_HEIGHT, CAMERA_WIDTH, 3), dtype=np.uint8)
+                        frame = dummy_frame
                 # frameは常にndarray型
                 prev_frame = frame
                 if save_camera_video and video_writer is not None and frame is not None and isinstance(frame, np.ndarray):
                     video_writer.write(frame)
             else:
-                frame = None
+                frame = dummy_frame
 
             # status取得・センサー記録（メインスレッドで直接処理）
             if need_status:
                 status = et.get_spike_status()
-                sensor_recorder.log_frame_data(status, mode, left_speed, right_speed)
+                safe_left_speed = left_speed if left_speed is not None else 0
+                safe_right_speed = right_speed if right_speed is not None else 0
+                sensor_recorder.log_frame_data(status, mode, safe_left_speed, safe_right_speed)
 
             # キー処理とモード切替（統合版）
             if manual_mode and not state_flags.first_key_used:
@@ -311,6 +325,31 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 mode = mode_result
                 print(msg)
 
+            # FAST_LAP完了判定
+            if mode == Mode.PAUSE and not state_flags.fast_lap_finished and not fast_lap_chain.fast_lap_finished:
+                # FAST_LAPが完了したとみなす（_initがFalse＝reset_action済み）
+                state_flags.fast_lap_finished = True
+                print("[INFO] FAST_LAP finished. Switching to DOUBLE_LOOP after camera warmup.")
+                # PIDControllerインスタンス生成
+                pid = PIDController(
+                    Kp=50,
+                    Ki=0,
+                    Kd=5,
+                    setpoint=0,
+                    output_limits=(-BASE_SPEED, BASE_SPEED),
+                )
+                # ActionChainインスタンス化
+                action_chain = ActionChain(et, course, course_type, pid=pid)
+                # カメラ起動（ウォームアップ）
+                if video is None:
+                    video = Video()
+                # ウォームアップ完了までループを一時停止
+                video.warmup()
+                time.sleep(2)  # ウォームアップ完了を確実に待つ
+                # ウォームアップ完了後にダブルループへ
+                mode = Mode.DOUBLE_LOOP
+                continue
+
             # モード分岐
             if mode == Mode.FORWARD:
                 left_speed = BASE_SPEED
@@ -321,7 +360,6 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 right_speed = BASE_SPEED
                 et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.TURN_LEFT_YAW:
-                # target_xは使わないので_にする
                 _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.turn_left_yaw(frame))
                 et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
             elif mode == Mode.TURN_RIGHT_YAW:
@@ -336,7 +374,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             elif mode == Mode.SHORTCUT_LAP2:
                 _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.shortcut_lap2(frame))
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-            elif mode == Mode.PAUSE:
+            elif mode == Mode.PAUSE or mode == Mode.DOUBLE_LOOP:
                 left_speed, right_speed = 0, 0
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
 
