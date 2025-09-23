@@ -71,7 +71,7 @@ class FastLapChain(object):
         if phase.get_phase() == 0:
             stop_turn = et.is_yaw_turn_finished(side="left", threshold_deg=90.0)
             if stop_turn:
-                phase.next_phase()
+                phase.next_phase(2)
                 print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
                 return None, (0, 0, 0), Mode.TURN_LEFT_YAW
             else:
@@ -134,7 +134,7 @@ class FastLapChain(object):
         if phase.get_phase() == 0:
             stop_turn = et.is_yaw_turn_finished(side="right", threshold_deg=90.0)
             if stop_turn:
-                phase.next_phase()
+                phase.next_phase(2)
                 print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
                 return None, (0, 0, 0), Mode.TURN_RIGHT_YAW
             else:
