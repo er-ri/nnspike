@@ -22,11 +22,11 @@ class Video:
         self.lock = threading.Lock()
         self.dummy_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
         self.__prev_frame = None
-        self.__prev_camera_update = None
-        self.__last_update_time = None
+        # self.__prev_camera_update = None  # デバッグ用途のみなのでコメントアウト（後で完全復元可能）
+        # self.__last_update_time = None  # デバッグ用途のみなのでコメントアウト（後で完全復元可能）
         self.thread = threading.Thread(target=self._update, daemon=True)
         self.thread.start()
-        self._frame_id = 0
+        # self._frame_id = 0  # デバッグ用途のみなのでコメントアウト（後で完全復元可能）
 
     def warmup(self, count=10):
         """
@@ -41,9 +41,9 @@ class Video:
             with self.lock:
                 self.ret = ret
                 self.frame = frame
-                self.__last_update_time = time.time()
-                if ret and frame is not None:
-                    self._frame_id += 1
+                # self.__last_update_time = time.time()  # デバッグ用途のみなのでコメントアウト（後で完全復元可能）
+                # if ret and frame is not None:
+                #     self._frame_id += 1  # デバッグ用途のみなのでコメントアウト（後で完全復元可能）
 
     def read(self):
         """
@@ -62,20 +62,21 @@ class Video:
         デバッグ出力（更新判定・dt計算・警告）もこの中で行う。
         """
         with self.lock:
-            last_update = self.__last_update_time
+            # last_update = self.__last_update_time  # デバッグ用途のみなのでコメントアウト（後で完全復元可能）
             frame = self.frame
             ret = self.ret
-            updated = False
-            camera_dt = None
-            if self.__prev_frame is not None and frame is not None:
-                updated = (last_update is not None and last_update != self.__prev_camera_update)
-            if self.__prev_camera_update is not None and last_update is not None and last_update != self.__prev_camera_update:
-                camera_dt = (last_update - self.__prev_camera_update) * 1000
-            if camera_dt is not None:
-                print(f"[DEBUG] Camera dt={camera_dt:.2f}ms, updated={updated}, id={self._frame_id}")
-            else:
-                print(f"[DEBUG] Camera not updated, updated={updated}, id={self._frame_id}")
-            self.__prev_camera_update = last_update
+            # --- デバッグ用途（完全復元用） ---
+            # updated = False
+            # camera_dt = None
+            # if self.__prev_frame is not None and frame is not None:
+            #     updated = (last_update is not None and last_update != self.__prev_camera_update)
+            # if self.__prev_camera_update is not None and last_update is not None and last_update != self.__prev_camera_update:
+            #     camera_dt = (last_update - self.__prev_camera_update) * 1000
+            # if camera_dt is not None:
+            #     print(f"[DEBUG] Camera dt={camera_dt:.2f}ms, updated={updated}, id={self._frame_id}")
+            # else:
+            #     print(f"[DEBUG] Camera not updated, updated={updated}, id={self._frame_id}")
+            # self.__prev_camera_update = last_update  # デバッグ用途のみなのでコメントアウト（後で完全復元可能）
             if not ret or frame is None:
                 if self.__prev_frame is not None:
                     print("[WARN] Camera frame not received. Using previous frame.")
@@ -90,4 +91,4 @@ class Video:
     def release(self):
         self.running = False
         self.thread.join()
-        # self.cap.release()
+
