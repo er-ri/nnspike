@@ -26,6 +26,7 @@ class Video:
         self.__last_update_time = None
         self.thread = threading.Thread(target=self._update, daemon=True)
         self.thread.start()
+        self._frame_id = 0
 
     def warmup(self, count=10):
         """
@@ -41,6 +42,8 @@ class Video:
                 self.ret = ret
                 self.frame = frame
                 self.__last_update_time = time.time()
+                if ret and frame is not None:
+                    self._frame_id += 1
 
     def read(self):
         """
@@ -69,9 +72,9 @@ class Video:
             if self.__prev_camera_update is not None and last_update is not None and last_update != self.__prev_camera_update:
                 camera_dt = (last_update - self.__prev_camera_update) * 1000
             if camera_dt is not None:
-                print(f"[DEBUG] Camera dt={camera_dt:.2f}ms, updated={updated}")
+                print(f"[DEBUG] Camera dt={camera_dt:.2f}ms, updated={updated}, id={self._frame_id}")
             else:
-                print(f"[DEBUG] Camera not updated, updated={updated}")
+                print(f"[DEBUG] Camera not updated, updated={updated}, id={self._frame_id}")
             self.__prev_camera_update = last_update
             if not ret or frame is None:
                 if self.__prev_frame is not None:
