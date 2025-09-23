@@ -22,7 +22,6 @@ class Video:
         """
         self.width = CAMERA_WIDTH
         self.height = CAMERA_HEIGHT
-        buffer_size = 0
         self.cap = cv2.VideoCapture(0)  # USBカメラ前提で0固定
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
@@ -316,7 +315,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 status = et.get_spike_status()
                 safe_left_speed = left_speed if left_speed is not None else 0
                 safe_right_speed = right_speed if right_speed is not None else 0
-                sensor_recorder.log_frame_data(status, mode, safe_left_speed, safe_right_speed)
+                if sensor_recorder is not None:
+                    sensor_recorder.log_frame_data(status, mode, safe_left_speed, safe_right_speed)
 
             # キー処理とモード切替（統合版）
             if manual_mode and not state_flags.first_key_used:
