@@ -1,6 +1,7 @@
 import time  # 時間計測用
 from typing import Optional, Tuple  # 型ヒント用
 
+from IPython import start_ipython
 import numpy as np  # 画像処理用
 
 # 定数・モード・ROI設定
@@ -9,10 +10,12 @@ from nnspike.constants import OFFSET_Y, ROI_CNN, ROI_LINE_TRACING, Mode, BASE_SP
 # --- 閾値定数（全体で統一管理） ---
 BLUE_AREA_MAX_THRESHOLD = 18000
 BLUE_AREA_MIN_THRESHOLD = 3000
-FIRST_INTERSECTION_LIMIT = 13000
-SECOND_INTERSECTION_LIMIT = 17000
-THIRD_INTERSECTION_LIMIT = 19000
-FOURTH_INTERSECTION_LIMIT = 21500
+FIRST_INTERSECTION_LIMIT = 2000
+SECOND_INTERSECTION_LIMIT = 6000
+THIRD_INTERSECTION_LIMIT = 8000
+FOURTH_INTERSECTION_LIMIT = 10500
+
+YAW_GAIN = 10.0  # ジャイロ補正ゲイン（固定値）
 
 # ロボット本体クラス
 from nnspike.unit.etrobot import ETRobot
@@ -525,6 +528,7 @@ class ActionChain(object):
         # 初回呼び出し時のみ初期化
         if not self._init:
             self.initialize_action(motor_side=self.course)
+        et = self.et
         phase = self._phase
 
         # 0. 右エッジトレース（赤ピクセル数が一定値を超えたらphase1へ、右モーター初期位置記録）
@@ -560,10 +564,10 @@ class ActionChain(object):
 
         # 2. 左エッジトレース（コース種別に応じた閾値未満の間、閾値を超えたらphase3へ、右モーター位置記録）
         if phase.get_phase() == 2:
-            position_start = phase.get_position_start("position_start")
+            reference_pos = self._loop_finish_position
             current_pos = self.get_motor_position(self.course)
-            position_diff = abs(current_pos - position_start)
-            threshold = 1220 if self.course_type == "upper" else 700
+            position_diff = abs(current_pos - reference_pos)
+            threshold = 2220 if self.course_type == "upper" else 1700
             if position_diff < threshold:
                 target_x = self.get_target_x_by_course(image, offset_y=300, course=self.opposite_course)
                 return target_x, None, Mode.CARRY_BOTTLE1
@@ -572,22 +576,20 @@ class ActionChain(object):
             phase.next_phase()
             # phase3用 右モーター相対位置記録（絶対値）
             phase.set_position_start("position_start", self.get_motor_position(self.course))
+            et.set_start_yaw(et.get_start_yaw())
 
-        # 3. 左旋回（右モーター相対位置差分が一定値未満の間旋回。一定値超えたらphase4へ、右モーター位置記録）
+        # 3. 旋回（右コースなら左旋回、左コースなら右旋回）
         if phase.get_phase() == 3:
-            position_start = phase.get_position_start("position_start")
-            current_pos = self.get_motor_position(self.course)
-            position_diff = abs(current_pos - position_start)
-            if position_diff < 390:
+            stop_turn = self.et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=90.0)
+            if stop_turn:
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | yaw={et.get_yaw():.2f} | yaw_start={et.get_start_yaw():.2f} | diff={et.get_yaw() - et.get_start_yaw():.2f}")
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course))
+            else
                 if self.course == "right":
                     return None, (0, 30, 0), Mode.CARRY_BOTTLE1
                 else:
                     return None, (30, 0, 0), Mode.CARRY_BOTTLE1
-            # 一定値超えたら次フェーズへ
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 390")
-            phase.next_phase()
-            # phase4用 右モーター相対位置記録（絶対値）
-            phase.set_position_start("position_start", self.get_motor_position(self.course))
 
         # 4. 直進（右モーターが一定値移動まで。一定値超えたらphase5へ、右モーター位置記録、pre_target_x初期化）
         if phase.get_phase() == 4:
@@ -1213,147 +1215,151 @@ class ActionChain(object):
             self.pid.Ki = 0
             self.pid.Kd = 5
             self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
+            # 開始直後の絶対位置を取得し保持
+            self._start_position = self.get_motor_position(self.course)
 
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
+        dist_start = abs(current_pos - self._start_position)
 
         # phase0: 青領域が条件を超えたら即次フェーズへ
         if phase.get_phase() == 0:    
             blue_area = get_blue_line_pixel(image)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase0->phase1: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | current_pos={current_pos}")
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase0->phase1: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | dist_start={dist_start}")
                 self._phase.next_phase()
-            elif current_pos < FIRST_INTERSECTION_LIMIT:
+            elif dist_start < FIRST_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, None, Mode.DOUBLE_LOOP
-            elif current_pos >= FIRST_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase0->phase2: current_pos={current_pos} >= {FIRST_INTERSECTION_LIMIT}")
+            elif dist_start >= FIRST_INTERSECTION_LIMIT:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase0->phase2: dist_start={dist_start} >= {FIRST_INTERSECTION_LIMIT}")
                 self._phase.next_phase(2)
 
         # phase1: 青領域が条件未満になったら次フェーズへ
         if phase.get_phase() == 1:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase1->phase2: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | current_pos={current_pos}")
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase1->phase2: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | dist_start={dist_start}")
                 self._phase.next_phase()
-            elif current_pos < FIRST_INTERSECTION_LIMIT:
+            elif dist_start < FIRST_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, None, Mode.DOUBLE_LOOP
-            elif current_pos >= FIRST_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase1->phase3: current_pos={current_pos} >= {FIRST_INTERSECTION_LIMIT}")
+            elif dist_start >= FIRST_INTERSECTION_LIMIT:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase1->phase3: dist_start={dist_start} >= {FIRST_INTERSECTION_LIMIT}")
                 self._phase.next_phase()
 
         # phase2: get_blue_line_pixelでBLUE_AREA_THRESHOLD超えたら即phase3へ（left_pos閾値15000, 左→右エッジ、right_x使用）
         if phase.get_phase() == 2:
-            if current_pos < FIRST_INTERSECTION_LIMIT:
+            if dist_start < FIRST_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
 
             blue_area = get_blue_line_pixel(image)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase2->phase3: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | current_pos={current_pos}")
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase2->phase3: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | dist_start={dist_start}")
                 self._phase.next_phase()
-            elif current_pos < SECOND_INTERSECTION_LIMIT:
+            elif dist_start < SECOND_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
-            elif current_pos >= SECOND_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase2->phase4: current_pos={current_pos} >= {SECOND_INTERSECTION_LIMIT}")
+            elif dist_start >= SECOND_INTERSECTION_LIMIT:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase2->phase4: dist_start={dist_start} >= {SECOND_INTERSECTION_LIMIT}")
                 self._phase.next_phase(2)
 
         # phase3: 青領域が条件未満になったら次フェーズへ（抽象化）
         if phase.get_phase() == 3:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase3->phase4: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | current_pos={current_pos}")
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase3->phase4: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | dist_start={dist_start}")
                 self._phase.next_phase()
-            elif current_pos < SECOND_INTERSECTION_LIMIT:
+            elif dist_start < SECOND_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
-            elif current_pos >= SECOND_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase3->phase5: current_pos={current_pos} >= {SECOND_INTERSECTION_LIMIT}")
+            elif dist_start >= SECOND_INTERSECTION_LIMIT:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase3->phase5: dist_start={dist_start} >= {SECOND_INTERSECTION_LIMIT}")
                 self._phase.next_phase()
 
         # phase4: 青領域が条件を超えたら即次フェーズへ（抽象化）
         if phase.get_phase() == 4:
-            if current_pos < SECOND_INTERSECTION_LIMIT:
+            if dist_start < SECOND_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, None, Mode.DOUBLE_LOOP
 
             blue_area = get_blue_line_pixel(image)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase4->phase5: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | current_pos={current_pos}")
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase4->phase5: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | dist_start={dist_start}")
                 self._phase.next_phase()
-            elif current_pos < THIRD_INTERSECTION_LIMIT:
+            elif dist_start < THIRD_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, None, Mode.DOUBLE_LOOP
-            elif current_pos >= THIRD_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase4->phase6: current_pos={current_pos} >= {THIRD_INTERSECTION_LIMIT}")
+            elif dist_start >= THIRD_INTERSECTION_LIMIT:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase4->phase6: dist_start={dist_start} >= {THIRD_INTERSECTION_LIMIT}")
                 self._phase.next_phase(2)
 
         # phase5: 青領域が条件未満になったら直進フェーズへ（抽象化）
         if phase.get_phase() == 5:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase5->phase6: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | current_pos={current_pos}")
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase5->phase6: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | dist_start={dist_start}")
                 self._phase.next_phase()  # phase6(直進)へ
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
-            elif current_pos < THIRD_INTERSECTION_LIMIT:
+            elif dist_start < THIRD_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, None, Mode.DOUBLE_LOOP
-            elif current_pos >= THIRD_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase5->phase7: current_pos={current_pos} >= {THIRD_INTERSECTION_LIMIT}")
+            elif dist_start >= THIRD_INTERSECTION_LIMIT:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase5->phase7: dist_start={dist_start} >= {THIRD_INTERSECTION_LIMIT}")
                 self._phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
 
         # phase6: 所定距離だけ直進するフェーズ。条件成立で次のフェーズへ（抽象化）
         if phase.get_phase() == 6:
             position_start = phase.get_position_start("position_start")
-            current_pos = self.get_motor_position(self.course)
+            diff_position = abs(current_pos - position_start)
 
             # 所定距離進んだら次のフェーズへ
-            if abs(current_pos - position_start) >= 150:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase6->phase7: abs(current_pos - position_start) >= 150 | current_pos={current_pos}")
+            if diff_position >= 150:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase6->phase7: diff_position={diff_position} >= 150 | dist_start={dist_start}")
                 self._phase.next_phase()
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             return target_x, None, Mode.DOUBLE_LOOP
 
         # phase7: 青領域が条件を超えたら即次フェーズへ（抽象化）
         if phase.get_phase() == 7:
-            if current_pos < THIRD_INTERSECTION_LIMIT:
+            if dist_start < THIRD_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
 
             blue_area = get_blue_line_pixel(image)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase7->phase8: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | current_pos={current_pos}")
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase7->phase8: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | dist_start={dist_start}")
                 self._phase.next_phase()
-            elif current_pos < FOURTH_INTERSECTION_LIMIT:
+            elif dist_start < FOURTH_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
-            elif current_pos >= FOURTH_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase7->phase9: current_pos={current_pos} >= {FOURTH_INTERSECTION_LIMIT}")
+            elif dist_start >= FOURTH_INTERSECTION_LIMIT:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase7->phase9: dist_start={dist_start} >= {FOURTH_INTERSECTION_LIMIT}")
                 self._phase.next_phase(2)
 
         # phase8: 青領域が条件未満になったら次フェーズへ（抽象化）
         if phase.get_phase() == 8:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase8->phase9: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | current_pos={current_pos}")
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase8->phase9: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | dist_start={dist_start}")
                 self._phase.next_phase()
-            elif current_pos < FOURTH_INTERSECTION_LIMIT:
+            elif dist_start < FOURTH_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
-            elif current_pos >= FOURTH_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase8->phase9: current_pos={current_pos} >= {FOURTH_INTERSECTION_LIMIT}")
+            elif dist_start >= FOURTH_INTERSECTION_LIMIT:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase8->phase9: dist_start={dist_start} >= {FOURTH_INTERSECTION_LIMIT}")
                 self._phase.next_phase()
 
         # phase9: 条件未満ならDOUBLE_LOOP継続、条件到達で次モードへ（抽象化）
         if phase.get_phase() == 9:
-            if current_pos < FOURTH_INTERSECTION_LIMIT:
+            if dist_start < FOURTH_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 return target_x, None, Mode.DOUBLE_LOOP
             else:   
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase9->phase10: current_pos={current_pos} >= {FOURTH_INTERSECTION_LIMIT}")
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase9->phase10: dist_start={dist_start} >= {FOURTH_INTERSECTION_LIMIT}")
+                self._loop_finish_position = current_pos
                 self._phase.next_phase()
 
         # phase10: CARRY_BOTTLE1へ

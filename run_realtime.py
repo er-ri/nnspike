@@ -4,6 +4,7 @@ import argparse
 from email.mime import base
 import sys
 import time
+import math
 
 from nnspike.unit import ETRobot, KeyboardController
 from nnspike.unit.fast_lap_chain import FastLapChain
@@ -173,7 +174,6 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
     return first_key
 
 def main(record_sensor_data=False, save_camera_video=False, course="right", course_type="upper", manual_mode=False, use_video=False):
-
     def unpack_action_result(result, default_mode=Mode.PAUSE):
         # Noneや不正な戻り値も吸収して安全にアンパック
         if result is None:
@@ -184,16 +184,32 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             if speeds is None:
                 speeds = (0, 0, 0)
             elif len(speeds) == 2:
-                speeds = (speeds[0], speeds[1], BASE_SPEED)
+                left, right = speeds
+                left = 0 if left is None else left
+                right = 0 if right is None else right
+                speeds = (left, right, BASE_SPEED)
             elif len(speeds) == 3:
                 left, right, current = speeds
-                if current is None or current == 0:
-                    current = BASE_SPEED
+                left = 0 if left is None else left
+                right = 0 if right is None else right
+                current = BASE_SPEED if current is None else current
                 speeds = (left, right, current)
             if mode is None:
                 mode = default_mode
             return target_x, speeds, mode
         return None, (0, 0, 0), default_mode
+
+    def calc_motor_speed(target_x, left_speed=0, right_speed=0, current_base_speed=BASE_SPEED):
+        if target_x is not None:
+            offset_pixels = get_offset_pixels(target_x, ROI_CNN)
+            theta = math.atan2(offset_pixels, CAMERA_WIDTH)
+            steering_correction = pid.update(theta)
+            left_speed = current_base_speed - steering_correction
+            right_speed = current_base_speed + steering_correction
+        # else: left_speed, right_speedは必ず0以上の値
+        left_speed = int(max(0, min(255, left_speed)))
+        right_speed = int(max(0, min(255, right_speed)))
+        return left_speed, right_speed
 
     def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.017):
         debug_state['counter'] += 1
@@ -230,6 +246,14 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
 
     # Initialize edge following preference based on the course parameter
     et = ETRobot()
+
+    pid = PIDController(
+        Kp=50,
+        Ki=0,
+        Kd=5,
+        setpoint=0,
+        output_limits=(-BASE_SPEED, BASE_SPEED),
+    )
 
     # Initialize robot, keyboard controller
     keyboard = KeyboardController()
@@ -343,23 +367,13 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             # FAST_LAPが終了したら1回だけActionChainとVideoを有効化
             if fast_lap_chain.fast_lap_finished and not state_flags.fast_lap_finished:
                 state_flags.fast_lap_finished = True
+                et.set_motor_forward_speed(left_speed=0, right_speed=0)
                 print("[INFO] FAST_LAP finished. Switching to DOUBLE_LOOP after camera warmup.")
-                # PIDControllerインスタンス生成
-                pid = PIDController(
-                    Kp=50,
-                    Ki=0,
-                    Kd=5,
-                    setpoint=0,
-                    output_limits=(-BASE_SPEED, BASE_SPEED),
-                )
-                # ActionChainインスタンス化
                 action_chain = ActionChain(et, course, course_type, pid=pid)
-                # カメラ起動（ウォームアップ）
                 if video is None:
                     video = Video()
                     video.warmup()
-                    time.sleep(2)
-                # ウォームアップ完了後にダブルループへ
+                time.sleep(2)
                 mode = Mode.DOUBLE_LOOP
                 continue
 
@@ -387,7 +401,14 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             elif mode == Mode.SHORTCUT_LAP2:
                 _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.shortcut_lap2(frame))
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-            elif mode == Mode.PAUSE or mode == Mode.DOUBLE_LOOP:
+            elif mode == Mode.DOUBLE_LOOP:
+                if action_chain is not None:
+                    target_x, (left_speed, right_speed, current_base_speed), mode = unpack_action_result(action_chain.execute_double_loop(frame))
+                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, current_base_speed)
+                else:
+                    left_speed, right_speed = 0, 0
+                et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+            elif mode == Mode.PAUSE:
                 left_speed, right_speed = 0, 0
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
 
