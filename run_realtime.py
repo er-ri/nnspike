@@ -357,9 +357,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 # カメラ起動（ウォームアップ）
                 if video is None:
                     video = Video()
-                # ウォームアップ完了までループを一時停止
-                video.warmup()
-                time.sleep(2)  # ウォームアップ完了を確実に待つ
+                    video.warmup()
+                    time.sleep(2)
                 # ウォームアップ完了後にダブルループへ
                 mode = Mode.DOUBLE_LOOP
                 continue
