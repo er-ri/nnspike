@@ -27,7 +27,7 @@ class Video:
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
         self.cap.set(cv2.CAP_PROP_FPS, 30)
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
+        # self.cap.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
         self.frame = None
         self.ret = False
         self.running = True
