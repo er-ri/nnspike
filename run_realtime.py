@@ -378,10 +378,9 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 left_speed, right_speed = 0, 0
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
 
-            # --- ループ周期・フレーム取得周期デバッグ出力 ---
+            # --- ループ周期・フレーム取得周期デバッグ出力（詳細&sleep調整） ---
             loop_end = time.time()
-            dt = loop_end - loop_start
-            print(f"[DEBUG] loop dt={dt*1000:.2f}ms")
+            handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.017)
 
     except Exception as e:
         print(f"Error: {e}")
