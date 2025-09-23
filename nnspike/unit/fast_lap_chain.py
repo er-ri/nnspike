@@ -94,12 +94,10 @@ class FastLapChain(object):
                 print(f"[TURN_LEFT][ADJUST][TOLERANCE] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_left_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
                 if tolerance_elapsed >= 2.0:
                     print(f"[TURN_LEFT][ADJUST][STOP] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_left_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
-                    self._phase = None
+                    self._phase.next_phase()
                     self.turn_left_reference_yaw = None
                     self.turn_left_adjust_timer = None
                     self.turn_left_in_tolerance_time = None
-                    self.reset_action()
-                    return None, None, Mode.PAUSE
             else:
                 self.turn_left_in_tolerance_time = None
                 if elapsed < 2.0:
@@ -111,11 +109,15 @@ class FastLapChain(object):
                         return None, (0, 15, 0), Mode.TURN_LEFT_YAW
                 else:
                     print(f"[TURN_LEFT][ADJUST][TIMEOUT] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_left_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
+                    self._phase.next_phase()
                     self.turn_left_reference_yaw = None
                     self.turn_left_adjust_timer = None
                     self.turn_left_in_tolerance_time = None
-                    self.reset_action()
-                    return None, None, Mode.PAUSE
+
+        # phase2のみポーズ復帰＋リセット
+        if phase.get_phase() == 2:
+            self.reset_action()
+            return None, None, Mode.PAUSE
 
         # 速度返却（NoneでOK、et.set_motor_speedで直接制御）
         return None, None, Mode.TURN_LEFT_YAW
@@ -155,12 +157,10 @@ class FastLapChain(object):
                 print(f"[TURN_RIGHT][ADJUST][TOLERANCE] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
                 if tolerance_elapsed >= 2.0:
                     print(f"[TURN_RIGHT][ADJUST][STOP] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
-                    self._phase = None
+                    self._phase.next_phase()
                     self.turn_right_reference_yaw = None
                     self.turn_right_adjust_timer = None
                     self.turn_right_in_tolerance_time = None
-                    self.reset_action()
-                    return None, None, Mode.PAUSE
             else:
                 self.turn_right_in_tolerance_time = None
                 if elapsed < 2.0:
@@ -172,11 +172,15 @@ class FastLapChain(object):
                         return None, (-15, 0, 0), Mode.TURN_RIGHT_YAW
                 else:
                     print(f"[TURN_RIGHT][ADJUST][TIMEOUT] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
+                    self._phase.next_phase()
                     self.turn_right_reference_yaw = None
                     self.turn_right_adjust_timer = None
                     self.turn_right_in_tolerance_time = None
-                    self.reset_action()
-                    return None, None, Mode.PAUSE
+
+        # phase2のみポーズ復帰＋リセット
+        if phase.get_phase() == 2:
+            self.reset_action()
+            return None, None, Mode.PAUSE
 
         # 速度返却（NoneでOK、et.set_motor_speedで直接制御）
         return None, None, Mode.TURN_RIGHT_YAW
