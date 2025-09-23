@@ -32,6 +32,10 @@ class Video:
         self.ret = False
         self.running = True
         self.lock = threading.Lock()
+        self.dummy_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
+        self.__prev_frame = None
+        self.__prev_camera_update = None
+        self.__last_update_time = None
         self.thread = threading.Thread(target=self._update, daemon=True)
         self.thread.start()
 
@@ -50,7 +54,7 @@ class Video:
             with self.lock:
                 self.ret = ret
                 self.frame = frame
-                self._last_update_time = time.time()
+                self.__last_update_time = time.time()
 
     def read(self):
         """
@@ -62,6 +66,37 @@ class Video:
                 return True, self.frame
             else:
                 return False, None
+
+    def get_frame(self):
+        """
+        最新フレームを返す。取得失敗時は前回フレーム→ダミー画像。
+        デバッグ出力（更新判定・dt計算・警告）もこの中で行う。
+        """
+        with self.lock:
+            last_update = self.__last_update_time
+            frame = self.frame
+            ret = self.ret
+            updated = False
+            camera_dt = None
+            if self.__prev_frame is not None and frame is not None:
+                updated = (last_update is not None and last_update != self.__prev_camera_update)
+            if self.__prev_camera_update is not None and last_update is not None and last_update != self.__prev_camera_update:
+                camera_dt = (last_update - self.__prev_camera_update) * 1000
+            if camera_dt is not None:
+                print(f"[DEBUG] Camera dt={camera_dt:.2f}ms, updated={updated}")
+            else:
+                print(f"[DEBUG] Camera not updated, updated={updated}")
+            self.__prev_camera_update = last_update
+            if not ret or frame is None:
+                if self.__prev_frame is not None:
+                    print("[WARN] Camera frame not received. Using previous frame.")
+                    frame = self.__prev_frame
+                else:
+                    print("[WARN] Camera frame not received. Using blank image.")
+                    frame = self.dummy_frame
+            else:
+                self.__prev_frame = frame
+            return frame
 
     def release(self):
         self.running = False
@@ -260,6 +295,10 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
 
     et.set_motor_relative_position(left_position=0, right_position=0)
 
+    # FastLapChainインスタンス生成
+    fast_lap_chain = FastLapChain(et, course)
+    action_chain = ActionChain(et, course, course_type, pid=pid)
+
     # カメラ起動条件をuse_cameraまたはuse_videoどちらかTrueで判定
     video = None
     if use_video:
@@ -286,13 +325,6 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     dummy_frame = np.zeros((CAMERA_HEIGHT, CAMERA_WIDTH, 3), dtype=np.uint8)
     prev_frame = None
     prev_camera_update = None
-    last_camera_dt = None
-
-    # FastLapChainインスタンス生成
-    fast_lap_chain = FastLapChain(et, course)
-    # ActionChainインスタンスは後で生成
-    action_chain = None
-    # fast_lap_finishedはStateFlagsで管理
 
     # 毎回判定する必要のないフラグを事前計算
     need_status = (record_sensor_data and sensor_recorder is not None)
@@ -307,28 +339,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         while et.is_running:
             loop_start = time.time()
             if video is not None:
-                ret, frame = video.read()
-                last_update = getattr(video, '_last_update_time', None)
-                updated = False
-                camera_dt = None
-                if prev_frame is not None and frame is not None:
-                    updated = (last_update is not None and last_update != prev_camera_update)
-                if prev_camera_update is not None and last_update is not None and last_update != prev_camera_update:
-                    camera_dt = (last_update - prev_camera_update) * 1000
-                if camera_dt is not None:
-                    print(f"[DEBUG] Camera dt={camera_dt:.2f}ms, updated={updated}")
-                else:
-                    print(f"[DEBUG] Camera not updated, updated={updated}")
-                prev_camera_update = last_update
-                if not ret or frame is None:
-                    if prev_frame is not None:
-                        print("[WARN] Camera frame not received. Using previous frame.")
-                        frame = prev_frame
-                    else:
-                        print("[WARN] Camera frame not received. Using blank image.")
-                        frame = dummy_frame
-                else:
-                    prev_frame = frame
+                frame = video.get_frame()
                 if save_camera_video and video_writer is not None and frame is not None and isinstance(frame, np.ndarray):
                     video_writer.write(frame)
             else:
@@ -364,12 +375,11 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 mode = mode_result
                 print(msg)
 
-            # FAST_LAPが終了したら1回だけActionChainとVideoを有効化
+            # FAST_LAPが終了したら1回だけVideoを有効化
             if fast_lap_chain.fast_lap_finished and not state_flags.fast_lap_finished:
                 state_flags.fast_lap_finished = True
                 et.set_motor_forward_speed(left_speed=0, right_speed=0)
                 print("[INFO] FAST_LAP finished. Switching to DOUBLE_LOOP after camera warmup.")
-                action_chain = ActionChain(et, course, course_type, pid=pid)
                 if video is None:
                     video = Video()
                     video.warmup()
@@ -377,40 +387,61 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 mode = Mode.DOUBLE_LOOP
                 continue
 
-            # モード分岐
-            if mode == Mode.FORWARD:
-                left_speed = BASE_SPEED
-                right_speed = BASE_SPEED
-                et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-            elif mode == Mode.BACKWARD:
-                left_speed = BASE_SPEED
-                right_speed = BASE_SPEED
-                et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
-            elif mode == Mode.TURN_LEFT_YAW:
-                _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.turn_left_yaw(frame))
-                et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-            elif mode == Mode.TURN_RIGHT_YAW:
-                _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.turn_right_yaw(frame))
-                et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-            elif mode == Mode.FAST_LAP:
-                _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.fast_lap(frame))
-                et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-            elif mode == Mode.SHORTCUT_LAP:
-                _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.shortcut_lap(frame))
-                et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-            elif mode == Mode.SHORTCUT_LAP2:
-                _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.shortcut_lap2(frame))
-                et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-            elif mode == Mode.DOUBLE_LOOP:
-                if action_chain is not None:
-                    target_x, (left_speed, right_speed, current_base_speed), mode = unpack_action_result(action_chain.execute_double_loop(frame))
-                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, current_base_speed)
-                else:
+            # モード分岐（match-case構文）
+            match mode:
+                case Mode.FORWARD:
+                    left_speed = BASE_SPEED
+                    right_speed = BASE_SPEED
+                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+                case Mode.BACKWARD:
+                    left_speed = BASE_SPEED
+                    right_speed = BASE_SPEED
+                    et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
+                case Mode.TURN_LEFT_YAW:
+                    _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.turn_left_yaw(frame))
+                    et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
+                case Mode.TURN_RIGHT_YAW:
+                    _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.turn_right_yaw(frame))
+                    et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
+                case Mode.FAST_LAP:
+                    _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.fast_lap(frame))
+                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+                case Mode.SHORTCUT_LAP:
+                    _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.shortcut_lap(frame))
+                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+                case Mode.SHORTCUT_LAP2:
+                    _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.shortcut_lap2(frame))
+                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+                case Mode.DOUBLE_LOOP:
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.execute_double_loop(frame))
+                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, BASE_SPEED)
+                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+                case Mode.CARRY_BOTTLE1:
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.carry_bottle1_relative(frame))
+                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, BASE_SPEED)
+                case Mode.BACK_AND_TURN1:
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.back_and_turn1_relative(frame))
+                    if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
+                        et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
+                        loop_end = time.time()
+                        handle_debug_output(loop_start, loop_end, debug_state)
+                        continue
+                case Mode.CARRY_BOTTLE2:
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.carry_bottle2_relative(frame))
+                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, BASE_SPEED)
+                case Mode.BACK_AND_TURN2:
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.back_and_turn2_relative(frame))
+                    if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
+                        et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
+                        loop_end = time.time()
+                        handle_debug_output(loop_start, loop_end, debug_state)
+                        continue
+                case Mode.HEAD_GOAL:
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.heading_goal_relative(frame))
+                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, BASE_SPEED)
+                case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
-                et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-            elif mode == Mode.PAUSE:
-                left_speed, right_speed = 0, 0
-                et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
 
             # --- ループ周期・フレーム取得周期デバッグ出力（詳細&sleep調整） ---
             loop_end = time.time()
