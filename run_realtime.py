@@ -55,12 +55,13 @@ class Video:
     def read(self):
         """
         最新フレームのみ返す（スレッドで取得した最新フレーム）
+        取得失敗時は None を返す
         """
         with self.lock:
-            now = time.time()
-            if hasattr(self, '_last_update_time'):
-                print(f"[VIDEO.read] frame updated {now - self._last_update_time:.3f}s ago")
-            return self.ret, self.frame.copy() if self.frame is not None else (False, None)
+            if self.ret and self.frame is not None:
+                return True, self.frame
+            else:
+                return False, None
 
     def release(self):
         self.running = False
@@ -259,8 +260,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     # --- 変数初期化 ---
     left_speed = None
     right_speed = None
-    prev_frame = None
     dummy_frame = np.zeros((CAMERA_HEIGHT, CAMERA_WIDTH, 3), dtype=np.uint8)
+    prev_frame = None
 
     # FastLapChainインスタンス生成
     fast_lap_chain = FastLapChain(et, course)
@@ -281,20 +282,16 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         while et.is_running:
             loop_start = time.time()
             if video is not None:
-                # --- カメラフレーム取得・保存処理（集約版） ---
-                ret, new_frame = video.read()
-                # 取得できた場合のみframe更新
-                if ret and isinstance(new_frame, np.ndarray):
-                    frame = new_frame
-                else:
-                    # 取得失敗時は前回フレーム、なければ初期ダミー画像
-                    print("[WARN] Camera frame not received. Using previous frame or blank.")
-                    if prev_frame is not None and isinstance(prev_frame, np.ndarray):
+                ret, frame = video.read()
+                if not ret or frame is None:
+                    if prev_frame is not None:
+                        print("[WARN] Camera frame not received. Using previous frame.")
                         frame = prev_frame
                     else:
+                        print("[WARN] Camera frame not received. Using blank image.")
                         frame = dummy_frame
-                # frameは常にndarray型
-                prev_frame = frame
+                else:
+                    prev_frame = frame
                 if save_camera_video and video_writer is not None and frame is not None and isinstance(frame, np.ndarray):
                     video_writer.write(frame)
             else:
@@ -381,9 +378,10 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 left_speed, right_speed = 0, 0
                 et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
 
-            # --- ループ周期制限とdebug出力（最後） ---
+            # --- ループ周期・フレーム取得周期デバッグ出力 ---
             loop_end = time.time()
-            handle_debug_output(loop_start, loop_end, debug_state)
+            dt = loop_end - loop_start
+            print(f"[DEBUG] loop dt={dt*1000:.2f}ms")
 
     except Exception as e:
         print(f"Error: {e}")
