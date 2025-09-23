@@ -201,11 +201,11 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         # --- min_interval引数で周期調整＋デバッグ出力 ---
         dt = loop_end - loop_start
         sleep_sec = min_interval - dt if dt < min_interval else 0
-        sleep_ms = sleep_sec * 1000
         if sleep_sec > 0:
             time.sleep(sleep_sec)
-        total_ms = (time.time() - loop_start) * 1000
-        print(f"[DEBUG] dt={dt*1000:.2f}ms, sleep={sleep_ms:.2f}ms, total={total_ms:.2f}ms")
+        # sleep_ms = sleep_sec * 1000
+        # total_ms = (time.time() - loop_start) * 1000
+        # print(f"[DEBUG] dt={dt*1000:.2f}ms, sleep={sleep_ms:.2f}ms, total={total_ms:.2f}ms")
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled

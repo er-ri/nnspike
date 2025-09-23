@@ -435,7 +435,7 @@ class ETRobot(object):
             # 角速度（deg/s）× dt（s）で積分（スタートからの累積）
             self._gyro_integrated_z = status.sensors.gyroscope.z * dt
             self._gyro_integration_last_time = now
-            print(f"[GyroIntegration] dt={dt_ms}ms, gyro_z={status.sensors.gyroscope.z:.2f}, integrated_z={self._gyro_integrated_z:.2f}")
+            # print(f"[GyroIntegration] dt={dt_ms}ms, gyro_z={status.sensors.gyroscope.z:.2f}, integrated_z={self._gyro_integrated_z:.2f}")
 
     def get_gyro_integrated_z(self) -> float:
         """
@@ -463,7 +463,7 @@ class ETRobot(object):
             bool: 条件を満たせばTrue
         """
         integrated = self.get_gyro_integrated_z()
-        print(f"[GyroZThreshold] integrated={integrated:.2f}, threshold={threshold}, direction={direction}")
+        # print(f"[GyroZThreshold] integrated={integrated:.2f}, threshold={threshold}, direction={direction}")
         if direction == 'right':
             return integrated <= -threshold
         elif direction == 'left':
@@ -507,7 +507,7 @@ class ETRobot(object):
         yaw_val = self.get_yaw()
         yaw_start_val = self.get_start_yaw()
         diff = self.wrap_angle(yaw_val - yaw_start_val)
-        print(f"[is_yaw_turn_finished] yaw={yaw_val:.2f}, start_yaw={yaw_start_val:.2f}, diff={diff:.2f}, side={side}, threshold={threshold_deg}")
+        # print(f"[is_yaw_turn_finished] yaw={yaw_val:.2f}, start_yaw={yaw_start_val:.2f}, diff={diff:.2f}, side={side}, threshold={threshold_deg}")
         return abs(diff) >= abs(threshold_deg)
 
     def is_yaw_error_within(self, target_yaw: float, tolerance_deg: float) -> bool:
@@ -522,7 +522,7 @@ class ETRobot(object):
         """
         yaw_val = self.get_yaw()
         error = self.wrap_angle(yaw_val - target_yaw)
-        print(f"[is_yaw_error_within] yaw={yaw_val:.2f}, target_yaw={target_yaw:.2f}, error={error:.2f}, tolerance={tolerance_deg}")
+        # print(f"[is_yaw_error_within] yaw={yaw_val:.2f}, target_yaw={target_yaw:.2f}, error={error:.2f}, tolerance={tolerance_deg}")
         return abs(error) <= abs(tolerance_deg)
 
     def yaw_straight_control(self, base_speed: int = HIGH_SPEED_BASE, kp: float = 1.0, deadband: float = 3.0, adjust_speed: int = 1) -> tuple[int, int]:
@@ -550,7 +550,7 @@ class ETRobot(object):
 
         left_speed = int(max(min(left_speed, base_speed), min_speed))
         right_speed = int(max(min(right_speed, base_speed), min_speed))
-        print(f"[yaw_straight_control] yaw={yaw:.2f}, start_yaw={start_yaw:.2f}, error={error:.2f}, pid_output={pid_output:.2f}, min_speed={min_speed}, left_speed={left_speed}, right_speed={right_speed}")
+        # print(f"[yaw_straight_control] yaw={yaw:.2f}, start_yaw={start_yaw:.2f}, error={error:.2f}, pid_output={pid_output:.2f}, min_speed={min_speed}, left_speed={left_speed}, right_speed={right_speed}")
         return left_speed, right_speed
     
     def wrap_angle(self, angle: float) -> float:
