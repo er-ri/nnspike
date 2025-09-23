@@ -50,12 +50,16 @@ class Video:
             with self.lock:
                 self.ret = ret
                 self.frame = frame
+                self._last_update_time = time.time()
 
     def read(self):
         """
         最新フレームのみ返す（スレッドで取得した最新フレーム）
         """
         with self.lock:
+            now = time.time()
+            if hasattr(self, '_last_update_time'):
+                print(f"[VIDEO.read] frame updated {now - self._last_update_time:.3f}s ago")
             return self.ret, self.frame.copy() if self.frame is not None else (False, None)
 
     def release(self):
@@ -277,10 +281,6 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         while et.is_running:
             loop_start = time.time()
             if video is not None:
-                now = time.time()
-                if 'prev_video_read' in debug_state:
-                    print(f"[MAIN LOOP] video.read() dt={(now - debug_state['prev_video_read'])*1000:.2f}ms")
-                debug_state['prev_video_read'] = now
                 # --- カメラフレーム取得・保存処理（集約版） ---
                 ret, new_frame = video.read()
                 # 取得できた場合のみframe更新
