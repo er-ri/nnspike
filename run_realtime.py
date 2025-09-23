@@ -22,7 +22,7 @@ class Video:
         """
         self.width = CAMERA_WIDTH
         self.height = CAMERA_HEIGHT
-        buffer_size = 1
+        buffer_size = 0
         self.cap = cv2.VideoCapture(0)  # USBカメラ前提で0固定
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
@@ -200,7 +200,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         if sleep_sec > 0:
             time.sleep(sleep_sec)
         total_ms = (time.time() - loop_start) * 1000
-        # print(f"[DEBUG] dt={dt*1000:.2f}ms, sleep={sleep_ms:.2f}ms, total={total_ms:.2f}ms")
+        print(f"[DEBUG] dt={dt*1000:.2f}ms, sleep={sleep_ms:.2f}ms, total={total_ms:.2f}ms")
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
@@ -277,6 +277,10 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         while et.is_running:
             loop_start = time.time()
             if video is not None:
+                now = time.time()
+                if 'prev_video_read' in debug_state:
+                    print(f"[MAIN LOOP] video.read() dt={(now - debug_state['prev_video_read'])*1000:.2f}ms")
+                debug_state['prev_video_read'] = now
                 # --- カメラフレーム取得・保存処理（集約版） ---
                 ret, new_frame = video.read()
                 # 取得できた場合のみframe更新
