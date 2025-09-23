@@ -1,7 +1,6 @@
 import time  # 時間計測用
 from typing import Optional, Tuple  # 型ヒント用
 
-from IPython import start_ipython
 import numpy as np  # 画像処理用
 
 # 定数・モード・ROI設定
