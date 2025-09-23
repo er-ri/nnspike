@@ -164,11 +164,11 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         # --- min_interval引数で周期調整＋デバッグ出力 ---
         dt = loop_end - loop_start
         sleep_sec = min_interval - dt if dt < min_interval else 0
+        sleep_ms = sleep_sec * 1000
+        total_ms = (time.time() - loop_start) * 1000
+        print(f"[DEBUG] dt={dt*1000:.2f}ms, sleep={sleep_ms:.2f}ms, total={total_ms:.2f}ms")
         if sleep_sec > 0:
             time.sleep(sleep_sec)
-        # sleep_ms = sleep_sec * 1000
-        # total_ms = (time.time() - loop_start) * 1000
-        # print(f"[DEBUG] dt={dt*1000:.2f}ms, sleep={sleep_ms:.2f}ms, total={total_ms:.2f}ms")
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
@@ -212,6 +212,14 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     fast_lap_chain = FastLapChain(et, course)
     action_chain = ActionChain(et, course, course_type, pid=pid)
 
+    # --- 変数初期化 ---
+    left_speed = None
+    right_speed = None
+    dummy_frame = np.zeros((CAMERA_HEIGHT, CAMERA_WIDTH, 3), dtype=np.uint8)
+
+    # 毎回判定する必要のないフラグを事前計算
+    need_status = (record_sensor_data and sensor_recorder is not None)
+
     # カメラ起動条件をuse_cameraまたはuse_videoどちらかTrueで判定
     video = None
     if use_video:
@@ -231,16 +239,6 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         mode = Mode.FAST_LAP
     else:
         mode = Mode.PAUSE
-
-    # --- 変数初期化 ---
-    left_speed = None
-    right_speed = None
-    dummy_frame = np.zeros((CAMERA_HEIGHT, CAMERA_WIDTH, 3), dtype=np.uint8)
-    prev_frame = None
-    prev_camera_update = None
-
-    # 毎回判定する必要のないフラグを事前計算
-    need_status = (record_sensor_data and sensor_recorder is not None)
 
     # debug状態を辞書で管理（エレガントな状態管理）
     debug_state = {
