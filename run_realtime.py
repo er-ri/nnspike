@@ -288,7 +288,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 updated = False
                 camera_dt = None
                 if prev_frame is not None and frame is not None:
-                    updated = not np.array_equal(frame, prev_frame)
+                    updated = (last_update is not None and last_update != prev_camera_update)
                 if prev_camera_update is not None and last_update is not None and last_update != prev_camera_update:
                     camera_dt = (last_update - prev_camera_update) * 1000
                 if camera_dt is not None:
