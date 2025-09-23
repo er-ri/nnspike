@@ -329,9 +329,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 mode = mode_result
                 print(msg)
 
-            # FAST_LAP完了判定
-            if mode == Mode.PAUSE and not state_flags.fast_lap_finished and not fast_lap_chain.fast_lap_finished:
-                # FAST_LAPが完了したとみなす（_initがFalse＝reset_action済み）
+            # FAST_LAPが終了したら1回だけActionChainとVideoを有効化
+            if fast_lap_chain.fast_lap_finished and not state_flags.fast_lap_finished:
                 state_flags.fast_lap_finished = True
                 print("[INFO] FAST_LAP finished. Switching to DOUBLE_LOOP after camera warmup.")
                 # PIDControllerインスタンス生成
