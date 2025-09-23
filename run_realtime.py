@@ -262,6 +262,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     right_speed = None
     dummy_frame = np.zeros((CAMERA_HEIGHT, CAMERA_WIDTH, 3), dtype=np.uint8)
     prev_frame = None
+    prev_camera_update = None
 
     # FastLapChainインスタンス生成
     fast_lap_chain = FastLapChain(et, course)
@@ -283,6 +284,17 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             loop_start = time.time()
             if video is not None:
                 ret, frame = video.read()
+                # --- カメラ周期＆画像更新判定デバッグ出力 ---
+                last_update = getattr(video, '_last_update_time', None)
+                updated = False
+                if prev_frame is not None and frame is not None:
+                    updated = not np.array_equal(frame, prev_frame)
+                if prev_camera_update is not None and last_update is not None:
+                    camera_dt = (last_update - prev_camera_update) * 1000
+                else:
+                    camera_dt = 0.0
+                print(f"[DEBUG] Camera dt={camera_dt:.2f}ms, updated={updated}")
+                prev_camera_update = last_update
                 if not ret or frame is None:
                     if prev_frame is not None:
                         print("[WARN] Camera frame not received. Using previous frame.")
