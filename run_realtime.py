@@ -166,9 +166,9 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         sleep_sec = min_interval - dt if dt < min_interval else 0
         sleep_ms = sleep_sec * 1000
         total_ms = (time.time() - loop_start) * 1000
-        print(f"[DEBUG] dt={dt*1000:.2f}ms, sleep={sleep_ms:.2f}ms, total={total_ms:.2f}ms")
         if sleep_sec > 0:
             time.sleep(sleep_sec)
+        print(f"[DEBUG] dt={dt*1000:.2f}ms, sleep={sleep_ms:.2f}ms, total={total_ms:.2f}ms")
 
     state_flags = StateFlags()
     # Generate timestamp for consistent naming if recording is enabled
@@ -272,7 +272,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 key = keyboard.get_key()
                 if not manual_mode and not state_flags.first_key_used:
                     state_flags.first_key_used = True
-            
+
             result = keyboard.get_mode_from_key(key)
             if result is not None:
                 mode_result, msg = result
