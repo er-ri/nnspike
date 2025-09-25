@@ -141,21 +141,19 @@ class ActionChain(object):
         }
 
     # --- action_chain用 motor speed計算関数 ---
-    def calc_motor_speed(self, target_x, current_base_speed=BASE_SPEED):
+    def calc_motor_speed(self, target_x, left_speed=0, right_speed=0, current_base_speed=BASE_SPEED):
         if target_x is not None:
             offset_pixels = get_offset_pixels(target_x, ROI_CNN)
             theta = math.atan2(offset_pixels, CAMERA_WIDTH)
             steering_correction = self.pid.update(theta)
             left_speed = current_base_speed - steering_correction
             right_speed = current_base_speed + steering_correction
-        else:
-            left_speed = current_base_speed
-            right_speed = current_base_speed
+        # else: left_speed, right_speedは必ず0以上の値
         left_speed = int(max(0, min(255, left_speed)))
         right_speed = int(max(0, min(255, right_speed)))
         return left_speed, right_speed
 
-    def get_target_x_by_course(self, image, offset_y, course="right") -> int:
+    def get_target_x_by_course(self, image, offset_y, course="right"):
         """
         image, offset_y, course("right"/"left")を受けてtarget_xを返す共通メソッド
         """
@@ -167,8 +165,31 @@ class ActionChain(object):
             target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
         else:
             target_x = (self.x1 + self.x2) // 2
-        return int(target_x)
-  
+        return target_x
+
+    def get_target_x_by_course_safe(self, image, course="right"):
+        """
+        Safe version: Returns target_x for given image, offset_y, and course ("right"/"left").
+        Handles None values robustly, no exceptions.
+        """
+        offset_y = OFFSET_Y
+        image = fill_green_with_white(image)
+        if course == "right":
+            _, right_x, _ = get_line_edges_at_y(image, ROI_LINE_STRAIGHT, offset_y, 80)
+            if right_x is not None:
+                self.pre_target_x = right_x
+                return right_x
+            else:
+                return self.pre_target_x
+        elif course == "left":
+            left_x, _, _ = get_line_edges_at_y(image, ROI_LINE_STRAIGHT, offset_y, 80)
+            if left_x is not None:
+                self.pre_target_x = left_x
+                return left_x
+            else:
+                return self.pre_target_x
+        return self.pre_target_x
+    
     def small_turn_left(self) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
         """短時間（0.3秒）左旋回アクション.
 
@@ -287,6 +308,218 @@ class ActionChain(object):
             self.reset_action()
             return None, None, Mode.PAUSE
         return None, (30, 0, 0), Mode.TURN_RIGHT_RELATIVE
+
+    def avoid_obstacle(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+        """
+        障害物回避モードの制御を行う。
+
+        各フェーズで画像処理やモーター移動距離、ライン検出・青面積判定などの条件に応じて、速度・ターゲット座標・モードを返却し、障害物を回避する。
+        フェーズ遷移や返却値の詳細は実装内容を参照。
+        """
+
+        if not self._init:
+            self.initialize_action(motor_side=self.course)
+            self.pid.Kp = 12
+            self.pid.Ki = 0
+            self.pid.Kd = 0
+            self.pid.output_limits = (-3, 3)
+
+        phase = self._phase
+
+        # phase0: 領域検出で次フェーズへ。未検出時は中央追従・回避モード返却
+        if phase.get_phase() == 0:
+            _, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow", roi=ROI_COLOR2)
+            current_pos = self.get_motor_position(self.course)
+            if current_pos < 1000:
+                # 右モーター距離が1000未満なら高速で直進し続ける
+                return None, (HIGH_SPEED_BASE, HIGH_SPEED_BASE, 0), Mode.AVOID_OBSTACLE
+
+            if yellow_pixel_count > 5000 and current_pos >= 1000:
+                print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | yellow_pixel_count={yellow_pixel_count} > 5000")
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course))
+                self.pid.Kp = 50
+                self.pid.Ki = 0
+                self.pid.Kd = 5
+                self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
+            else:
+                self.pid.Kp = 12
+                self.pid.Ki = 0
+                self.pid.Kd = 0
+                self.pid.output_limits = (-3, 3)
+                target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
+                return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
+
+        # phase1: 領域検出で次フェーズへ。未検出時は中心または中央追従・回避モード返却
+        if phase.get_phase() == 1:
+            yellow_cx, _, yellow_pixel_count = find_bottle_center(image=image, color="yellow", roi=ROI_COLOR2)
+            if yellow_pixel_count > 18000:
+                print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | yellow_pixel_count={yellow_pixel_count} > 18000")
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course))
+            else:
+                if yellow_cx is not None:
+                    target_x = yellow_cx[0]
+                else:
+                    target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
+                return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
+
+        # phase2: 左旋回（条件成立まで速度調整、到達で次フェーズへ・モーター位置記録）
+        if phase.get_phase() == 2:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course)
+            position_diff = abs(current_pos - position_start)
+            if position_diff < 350:
+                if self.course == "right":
+                    return None, (40, 70, 0), Mode.AVOID_OBSTACLE
+                else:
+                    return None, (70, 40, 0), Mode.AVOID_OBSTACLE
+            else:
+                print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 350")
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course))
+
+        # phase3: 直進（条件成立まで定速走行、到達で次フェーズへ・モーター位置記録）
+        if phase.get_phase() == 3:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course)
+            position_diff = abs(current_pos - position_start)
+            if position_diff < 250:
+                return None, (BASE_SPEED, BASE_SPEED, 0), Mode.AVOID_OBSTACLE
+            else:
+                print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 250")
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.opposite_course))
+
+        # phase4: 条件成立まで定速走行、成立で判定・次フェーズへ（モーター位置記録）
+        if phase.get_phase() == 4:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.opposite_course)
+            position_diff = abs(current_pos - position_start)
+            if position_diff < 450:
+                if self.course == "right":
+                    return None, (70, 40, 0), Mode.AVOID_OBSTACLE
+                else:
+                    return None, (40, 70, 0), Mode.AVOID_OBSTACLE
+                
+            if is_lower_horizontal_line_detected(image, intersection_y=450, roi=ROI_LINE_HORIZON3):
+                print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | position_diff={position_diff} (horizontal line detected)")
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course))
+            else:
+                if self.course == "right":
+                    return None, (70, 40, 0), Mode.AVOID_OBSTACLE
+                else:
+                    return None, (40, 70, 0), Mode.AVOID_OBSTACLE
+
+        # phase5: 右モーター移動距離が所定値未満なら中央追従、以上で次フェーズへ、右モーター位置記録。
+        if phase.get_phase() == 5:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course)
+            position_diff = abs(current_pos - position_start)
+            color_info = self.get_color_sensor_values()
+            color_type = color_info["color_type"]
+            # 距離450に到達する、もしくはcolor_typeが白以外になったら次フェーズ
+            if position_diff >= 450 or color_type != "white":
+                print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 450 or color_type={color_type} != 'white' (color_value={color_info['color']})")
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course))
+            else:
+                return None, (BASE_SPEED, BASE_SPEED, 0), Mode.AVOID_OBSTACLE
+
+        # phase6: 左旋回（短距離は低速、長距離は高速、所定値以上で次フェーズへ。所定値未満かつ垂直黒ライン検出で次フェーズへ）
+        if phase.get_phase() == 6:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course)
+            position_diff = abs(current_pos - position_start)
+            if position_diff < 350:
+                vertical_detected = is_vertical_black_line_detected(image, roi=ROI_LOOP, center_tolerance=150)
+                if vertical_detected:
+                    print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | position_diff={position_diff} (vertical black line detected)")
+                    phase.next_phase()
+                    phase.set_position_start("position_start", self.get_motor_position(self.course))
+                    self.pid.Kp = 50
+                    self.pid.Ki = 0
+                    self.pid.Kd = 5
+                    self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
+                    return None, None, Mode.AVOID_OBSTACLE
+                else:
+                    if self.course == "right":
+                        return None, (5, 35, 0), Mode.AVOID_OBSTACLE
+                    else:
+                        return None, (35, 5, 0), Mode.AVOID_OBSTACLE
+            else:
+                print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 350")
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course))
+                self.pid.Kp = 50
+                self.pid.Ki = 0
+                self.pid.Kd = 5
+                self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
+                return None, None, Mode.AVOID_OBSTACLE
+
+        # phase7: Go to next phase when distance threshold is reached. Otherwise, return get_target_x_by_course with AVOID_OBSTACLE.
+        if phase.get_phase() == 7:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course)
+            position_diff = abs(current_pos - position_start)
+
+            # if is_fast_corner_detected(image, course=self.course):
+            #     print(f"[DEBUG] phase7: is_fast_corner_detected=True at current_pos={current_pos}, course={self.course}")
+
+            if position_diff >= 1500:
+                print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1500 (threshold reached)")
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course))
+            else:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
+
+        # phase8: After right motor travels threshold, check vertical black line to go to next phase. Otherwise, return get_target_x_by_course with AVOID_OBSTACLE.
+        if phase.get_phase() == 8:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course)
+            position_diff = abs(current_pos - position_start)
+            center_line_detected = is_center_line_detected(image)
+
+            # if is_fast_corner_detected(image, course=self.course):
+            #     print(f"[DEBUG] phase8: is_fast_corner_detected=True at current_pos={current_pos}, course={self.course}")
+
+            if position_diff > 2600:
+                print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | position_diff={position_diff} > 2600 (threshold reached)")
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course))
+            elif center_line_detected:
+                self.pid.Kp = 12
+                self.pid.Ki = 0
+                self.pid.Kd = 0
+                self.pid.output_limits = (-3, 3)
+                target_x = self.get_target_x_by_course_safe(image, self.opposite_course)
+                return target_x, (0, 0, HIGH_SPEED_BASE), Mode.AVOID_OBSTACLE
+            else:
+                # Lock if passed once and now False
+                self.pid.Kp = 50
+                self.pid.Ki = 0
+                self.pid.Kd = 5
+                self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
+                image = fill_green_with_white(image)
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
+
+        # phase9: Go to DOUBLE_LOOP if blue area threshold or right motor distance is reached, otherwise continue AVOID_OBSTACLE.
+        if phase.get_phase() == 9:
+            blue_area = get_blue_line_pixel(image)
+            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+            if blue_area > BLUE_AREA_MAX_THRESHOLD:
+                current_pos = self.get_motor_position(self.course)
+                print(f"[DEBUG] mode={Mode.AVOID_OBSTACLE.value} | phase={phase.get_phase()} | blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} (threshold reached)")
+                self.reset_action()
+                return target_x, (0, 0, BASE_SPEED), Mode.DOUBLE_LOOP
+            else:
+                return target_x, (0, 0, BASE_SPEED), Mode.AVOID_OBSTACLE
+
+        print("[avoid_obstacle] Unexpected state reached.")
+        return None, None, Mode.AVOID_OBSTACLE
 
     def carry_bottle1_relative(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
         """
