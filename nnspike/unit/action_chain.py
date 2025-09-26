@@ -362,7 +362,7 @@ class ActionChain(object):
             phase.next_phase()
             # phase3用 右モーター相対位置記録（絶対値）
             phase.set_position_start("position_start", self.get_motor_position(self.course))
-            et.set_start_yaw(et.get_start_yaw())
+            et.set_start_yaw(et.get_yaw())
 
         # 3. 旋回（右コースなら左旋回、左コースなら右旋回）
         if phase.get_phase() == 3:
