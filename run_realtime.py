@@ -148,6 +148,9 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         return None, (0, 0, 0), default_mode
 
     def calc_motor_speed(target_x, left_speed=0, right_speed=0, current_base_speed=BASE_SPEED):
+        # current_base_speedがNoneまたは0ならBASE_SPEEDを使う
+        if current_base_speed is None or current_base_speed == 0:
+            current_base_speed = BASE_SPEED
         if target_x is not None:
             offset_pixels = get_offset_pixels(target_x, ROI_CNN)
             theta = math.atan2(offset_pixels, CAMERA_WIDTH)
@@ -328,8 +331,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, BASE_SPEED)
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.CARRY_BOTTLE1:
-                    target_x, (left_speed, right_speed, current_speed), mode = unpack_action_result(action_chain.carry_bottle1_relative(frame))
-                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, current_speed)
+                    target_x, (left_speed, right_speed, current_base_speed), mode = unpack_action_result(action_chain.carry_bottle1_relative(frame))
+                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, current_base_speed)
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.BACK_AND_TURN1:
                     target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.back_and_turn1_relative(frame))
