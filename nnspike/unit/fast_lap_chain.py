@@ -504,6 +504,7 @@ class FastLapChain(object):
             self.initialize_action(motor_side=self.course)
             self.et.set_start_yaw()
             self.start_yaw = self.et.get_start_yaw()
+            self.lap2_start_time = time.time()
         phase = self._phase
         et = self.et
         # start_yawはインスタンス変数として常に参照
@@ -632,6 +633,9 @@ class FastLapChain(object):
 
         # フェーズ9: reset_action()してPAUSE復帰（ラップ終了）
         if phase.get_phase() == 9:
+            self.lap2_end_time = time.time()
+            lap2_elapsed = self.lap2_end_time - self.lap2_start_time
+            print(f"[LAP2] time: {lap2_elapsed:.3f}秒")
             self.fast_lap_finished = True  # FAST_LAPのみでフラグを立てる
             self.reset_action()
             return None, None, Mode.PAUSE
