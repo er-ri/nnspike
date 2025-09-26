@@ -475,7 +475,7 @@ class ActionChain(object):
                 # phase10用 右モーター相対位置記録（get_motor_positionで統一）
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
             else:
-                return target_x, None, Mode.CARRY_BOTTLE1
+                return target_x, (0, 0, 20), Mode.CARRY_BOTTLE1
 
         # 10. 青が一定値以下になってから右モーターが一定値移動までcenter追従。条件を満たしたら次のphaseへ
         if phase.get_phase() == 10:
