@@ -495,7 +495,7 @@ class ActionChain(object):
                     target_x = center[0]
                 else:
                     target_x = (self.x1 + self.x2) // 2
-                return target_x, (0, 0, 20), Mode.CARRY_BOTTLE1
+                return target_x, (0, 0, 10), Mode.CARRY_BOTTLE1
             
         # 11. 状態リセットしBACK_AND_TURN1へ遷移
         if phase.get_phase() == 11:
