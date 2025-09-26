@@ -350,9 +350,11 @@ class ActionChain(object):
 
         # 2. 左エッジトレース（コース種別に応じた閾値未満の間、閾値を超えたらphase3へ、右モーター位置記録）
         if phase.get_phase() == 2:
-            reference_pos = self._loop_finish_position
+            # reference_pos = self._loop_finish_position
+            # position_diff = abs(current_pos - reference_pos)
+            position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
-            position_diff = abs(current_pos - reference_pos)
+            position_diff = abs(current_pos - position_start)
             threshold = 1220 if self.course_type == "upper" else 700
             if position_diff < threshold:
                 target_x = self.get_target_x_by_course(image, offset_y=300, course=self.opposite_course)
