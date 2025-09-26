@@ -335,9 +335,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.back_and_turn1_relative(frame))
                     if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
                         et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
-                        loop_end = time.time()
-                        handle_debug_output(loop_start, loop_end, debug_state)
-                        continue
+                    else:
+                        et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.CARRY_BOTTLE2:
                     target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.carry_bottle2_relative(frame))
                     left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, BASE_SPEED)
@@ -346,9 +345,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.back_and_turn2_relative(frame))
                     if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
                         et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
-                        loop_end = time.time()
-                        handle_debug_output(loop_start, loop_end, debug_state)
-                        continue
+                    else:
+                        et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.HEAD_GOAL:
                     target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.heading_goal_relative(frame))
                     left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, BASE_SPEED)
