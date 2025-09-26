@@ -110,6 +110,7 @@ class ActionChain(object):
         self._init = False
         self.pre_target_x = (self.x1 + self.x2) // 2
         self.pid = pid  # 必ず外部から渡されたPIDインスタンスのみを使用
+        self._loop_finish_position = 0
 
     def initialize_action(self, motor_side: str = "right"):
         """アクション開始時の状態初期化処理.
@@ -309,6 +310,10 @@ class ActionChain(object):
         # 初回呼び出し時のみ初期化
         if not self._init:
             self.initialize_action(motor_side=self.course)
+            # 初回呼び出し時のみ初期化
+            if self._loop_finish_position == 0:
+                self._loop_finish_position = 1000
+                print(f"[DEBUG] _loop_finish_position was 0. Set to 1000")
         et = self.et
         phase = self._phase
 
@@ -1125,13 +1130,15 @@ class ActionChain(object):
         if phase.get_phase() == 8:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase8->phase9: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | dist_start={dist_start}")
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase8->phase9: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | dist_start={dist_start} | _loop_finish_position={current_pos}")
+                self._loop_finish_position = current_pos
                 self._phase.next_phase()
             elif dist_start < FOURTH_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
                 return target_x, None, Mode.DOUBLE_LOOP
             elif dist_start >= FOURTH_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase8->phase9: dist_start={dist_start} >= {FOURTH_INTERSECTION_LIMIT}")
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase8->phase9: dist_start={dist_start} >= {FOURTH_INTERSECTION_LIMIT} | _loop_finish_position={current_pos}")
+                self._loop_finish_position = current_pos
                 self._phase.next_phase()
 
         # phase9: 条件未満ならDOUBLE_LOOP継続、条件到達で次モードへ（抽象化）
@@ -1141,7 +1148,6 @@ class ActionChain(object):
                 return target_x, None, Mode.DOUBLE_LOOP
             else:   
                 print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase9->phase10: dist_start={dist_start} >= {FOURTH_INTERSECTION_LIMIT}")
-                self._loop_finish_position = current_pos
                 self._phase.next_phase()
 
         # phase10: CARRY_BOTTLE1へ
