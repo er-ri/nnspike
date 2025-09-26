@@ -317,12 +317,6 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 case Mode.TURN_RIGHT_YAW:
                     _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.turn_right_yaw(frame))
                     et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-                case Mode.FAST_LAP:
-                    _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.fast_lap(frame))
-                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-                case Mode.SHORTCUT_LAP:
-                    _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.shortcut_lap(frame))
-                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.SHORTCUT_LAP2:
                     _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.shortcut_lap2(frame))
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
