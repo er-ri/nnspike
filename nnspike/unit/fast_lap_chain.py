@@ -597,7 +597,7 @@ class FastLapChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
-            threshold = 2300 if self.course == "left" else 2000
+            threshold = 2400 if self.course == "left" else 2000
             if position_diff < threshold:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return None, (left_speed, right_speed, 0), Mode.SHORTCUT_LAP2
