@@ -489,6 +489,7 @@ class ActionChain(object):
             if color_type == "blue":
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} or color_type={color_type} (color_value={color_info['color']})")
                 phase.next_phase()
+                return None, None, Mode.CARRY_BOTTLE1
             else:
                 center, _, _ = find_blue_target_center(image)
                 if center is not None:
