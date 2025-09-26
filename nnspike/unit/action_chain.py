@@ -348,7 +348,7 @@ class ActionChain(object):
             reference_pos = self._loop_finish_position
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - reference_pos)
-            threshold = 2220 if self.course_type == "upper" else 1700
+            threshold = 3220 if self.course_type == "upper" else 2700
             if position_diff < threshold:
                 target_x = self.get_target_x_by_course(image, offset_y=300, course=self.opposite_course)
                 return target_x, None, Mode.CARRY_BOTTLE1
