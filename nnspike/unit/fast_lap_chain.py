@@ -66,7 +66,7 @@ class FastLapChain(object):
             self.et.set_start_yaw()
         phase = self._phase
         et = self.et
-
+#
         # phase0: 左旋回中（yaw判定、90度到達で停止）
         if phase.get_phase() == 0:
             stop_turn = et.is_yaw_turn_finished(side="left", threshold_deg=90.0)
