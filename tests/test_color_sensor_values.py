@@ -17,7 +17,8 @@ class TestGetColorSensorValues(unittest.TestCase):
         self.chain = ActionChain(self.et, course="right", course_type="upper", pid=self.pid)
 
     def test_get_color_sensor_values(self):
-        # カラーセンサー値を取得
+        # 最新のセンサー値を取得するため、明示的に受信
+        self.et.receive()
         values = self.chain.get_color_sensor_values()
         print("取得したカラーセンサー値:", values)
         # 値の妥当性チェック
