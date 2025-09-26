@@ -485,7 +485,8 @@ class ActionChain(object):
             color_info = self.get_color_sensor_values()
             color_type = color_info["color_type"]
             position_diff = abs(current_pos - position_start)
-            if position_diff >= threshold or color_type == "other":
+            # if position_diff >= threshold or color_type == "other":
+            if color_type == "other":
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} or color_type={color_type} (color_value={color_info['color']})")
                 phase.next_phase()
             else:
