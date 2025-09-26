@@ -44,28 +44,20 @@ from nnspike.utils.control import (
 SpeedTuple = Tuple[int, int]
 
 class PhaseManager:
-    """フェーズ管理クラス。"""
 
     def __init__(self):
-        """PhaseManagerの初期化処理."""
         self._state = {}
         self._state["phase"] = 0
         self._state["position_start"] = None
 
     def get_phase(self) -> int:
-        """現在のphase値を取得する."""
         phase = self._state.get("phase", 0)
         return phase
 
     def next_phase(self, skip: int = 1) -> None:
-        """phase値をskip分進める（デフォルト1）。"""
         self._state["phase"] = self._state.get("phase", 0) + skip
 
     def set_position_start(self, key: str, value) -> None:
-        """指定したkey（例: 'right_position_start'）にvalue（例: モーター位置）をセットする。
-
-        valueがint型以外の場合は0に変換してセットする。
-        """
         # valueがtuple型の場合は先頭要素をintとして扱う
         if isinstance(value, tuple) and len(value) > 0 and isinstance(value[0], int):
             value = value[0]
@@ -74,7 +66,6 @@ class PhaseManager:
         self._state[key] = value
 
     def get_position_start(self, key: str) -> int:
-        """指定したkeyのposition_start値を取得する（必ずint型で返す）."""
         value = self._state.get(key, None)
         if isinstance(value, int):
             return value
@@ -92,10 +83,8 @@ class PhaseManager:
             return 0
 
 class ActionChain(object):
-    """ETRobotのためのアクションシーケンス管理クラス."""
 
     def __init__(self, et: ETRobot, course: str, course_type: str, pid) -> None:
-        """ActionChainの初期化処理."""
         self.et = et  # ロボット本体
         self.course = course  # コース種別
         # コース種別の逆コースを定義
@@ -110,31 +99,19 @@ class ActionChain(object):
         self._init = False
         self.pre_target_x = (self.x1 + self.x2) // 2
         self.pid = pid  # 必ず外部から渡されたPIDインスタンスのみを使用
-        self._loop_finish_position = 0
 
     def initialize_action(self, motor_side: str = "right"):
-        """アクション開始時の状態初期化処理.
-
-        motor_side: "right"または"left"で初期位置記録対象を指定する。
-        """
         self._phase = PhaseManager()
         self._phase.set_position_start("position_start", self.get_motor_position(motor_side))
         self._init = True
 
     def reset_action(self):
-        """アクション終了時の状態リセット処理."""
         self._init = False
 
     def get_motor_position(self, motor_side: str = "right") -> int:
-        """
-        ETRobotのget_motor_relative_positionを直接呼び出す。
-        """
         return self.et.get_motor_relative_position(motor_side)
 
     def get_color_sensor_values(self) -> dict:
-        """
-        ETRobotのget_color_sensorを直接呼び出し、colorとcolor_typeのみ返す。
-        """
         color_value, color_type = self.et.get_color_sensor()
         return {
             "color": color_value,
@@ -159,9 +136,6 @@ class ActionChain(object):
         return left_speed, right_speed
 
     def get_target_x_by_course(self, image, offset_y, course="right") -> int:
-        """
-        image, offset_y, course("right"/"left")を受けてtarget_xを返す共通メソッド
-        """
         if course == "right":
             _, right_x, _ = get_line_edges_at_y(image, ROI_LINE_TRACING, offset_y, 80)
             target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
@@ -172,71 +146,248 @@ class ActionChain(object):
             target_x = (self.x1 + self.x2) // 2
         return int(target_x)
   
+    def execute_double_loop(self, image: np.ndarray) -> Tuple[SpeedTuple, Mode]:
+
+        if not self._init:
+            self.initialize_action(motor_side=self.course)
+            self.pid.Kp = 50
+            self.pid.Ki = 0
+            self.pid.Kd = 5
+            self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
+            # 開始直後の絶対位置を取得し保持
+            self._start_position = self.get_motor_position(self.course)
+
+        phase = self._phase
+        current_pos = self.get_motor_position(self.course)
+        dist_start = abs(current_pos - self._start_position)
+
+        # phase0: 青領域が条件を超えたら即次フェーズへ
+        if phase.get_phase() == 0:    
+            blue_area = get_blue_line_pixel(image)
+            if blue_area > BLUE_AREA_MAX_THRESHOLD:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase0->phase1: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | dist_start={dist_start}")
+                self._phase.next_phase()
+            elif dist_start < FIRST_INTERSECTION_LIMIT:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                left_speed, right_speed = self.calc_motor_speed(target_x)
+                return (left_speed, right_speed), Mode.DOUBLE_LOOP
+            elif dist_start >= FIRST_INTERSECTION_LIMIT:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase0->phase2: dist_start={dist_start} >= {FIRST_INTERSECTION_LIMIT}")
+                self._phase.next_phase(2)
+
+        # phase1: 青領域が条件未満になったら次フェーズへ
+        if phase.get_phase() == 1:
+            blue_area = get_blue_line_pixel(image)
+            if blue_area < BLUE_AREA_MIN_THRESHOLD:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase1->phase2: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | dist_start={dist_start}")
+                self._phase.next_phase()
+            elif dist_start < FIRST_INTERSECTION_LIMIT:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                left_speed, right_speed = self.calc_motor_speed(target_x)
+                return (left_speed, right_speed), Mode.DOUBLE_LOOP
+            elif dist_start >= FIRST_INTERSECTION_LIMIT:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase1->phase3: dist_start={dist_start} >= {FIRST_INTERSECTION_LIMIT}")
+                self._phase.next_phase()
+
+        # phase2: get_blue_line_pixelでBLUE_AREA_THRESHOLD超えたら即phase3へ（left_pos閾値15000, 左→右エッジ、right_x使用）
+        if phase.get_phase() == 2:
+            if dist_start < FIRST_INTERSECTION_LIMIT:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                left_speed, right_speed = self.calc_motor_speed(target_x)
+                return (left_speed, right_speed), Mode.DOUBLE_LOOP
+
+            blue_area = get_blue_line_pixel(image)
+            if blue_area > BLUE_AREA_MAX_THRESHOLD:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase2->phase3: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | dist_start={dist_start}")
+                self._phase.next_phase()
+            elif dist_start < SECOND_INTERSECTION_LIMIT:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                left_speed, right_speed = self.calc_motor_speed(target_x)
+                return (left_speed, right_speed), Mode.DOUBLE_LOOP
+            elif dist_start >= SECOND_INTERSECTION_LIMIT:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase2->phase4: dist_start={dist_start} >= {SECOND_INTERSECTION_LIMIT}")
+                self._phase.next_phase(2)
+
+        # phase3: 青領域が条件未満になったら次フェーズへ（抽象化）
+        if phase.get_phase() == 3:
+            blue_area = get_blue_line_pixel(image)
+            if blue_area < BLUE_AREA_MIN_THRESHOLD:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase3->phase4: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | dist_start={dist_start}")
+                self._phase.next_phase()
+            elif dist_start < SECOND_INTERSECTION_LIMIT:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                left_speed, right_speed = self.calc_motor_speed(target_x)
+                return (left_speed, right_speed), Mode.DOUBLE_LOOP
+            elif dist_start >= SECOND_INTERSECTION_LIMIT:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase3->phase5: dist_start={dist_start} >= {SECOND_INTERSECTION_LIMIT}")
+                self._phase.next_phase()
+
+        # phase4: 青領域が条件を超えたら即次フェーズへ（抽象化）
+        if phase.get_phase() == 4:
+            if dist_start < SECOND_INTERSECTION_LIMIT:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                left_speed, right_speed = self.calc_motor_speed(target_x)
+                return (left_speed, right_speed), Mode.DOUBLE_LOOP
+
+            blue_area = get_blue_line_pixel(image)
+            if blue_area > BLUE_AREA_MAX_THRESHOLD:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase4->phase5: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | dist_start={dist_start}")
+                self._phase.next_phase()
+            elif dist_start < THIRD_INTERSECTION_LIMIT:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                left_speed, right_speed = self.calc_motor_speed(target_x)
+                return (left_speed, right_speed), Mode.DOUBLE_LOOP
+            elif dist_start >= THIRD_INTERSECTION_LIMIT:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase4->phase6: dist_start={dist_start} >= {THIRD_INTERSECTION_LIMIT}")
+                self._phase.next_phase(2)
+
+        # phase5: 青領域が条件未満になったら直進フェーズへ（抽象化）
+        if phase.get_phase() == 5:
+            blue_area = get_blue_line_pixel(image)
+            if blue_area < BLUE_AREA_MIN_THRESHOLD:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase5->phase6: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | dist_start={dist_start}")
+                self._phase.next_phase()  # phase6(直進)へ
+                phase.set_position_start("position_start", self.get_motor_position(self.course))
+            elif dist_start < THIRD_INTERSECTION_LIMIT:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                left_speed, right_speed = self.calc_motor_speed(target_x)
+                return (left_speed, right_speed), Mode.DOUBLE_LOOP
+            elif dist_start >= THIRD_INTERSECTION_LIMIT:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase5->phase7: dist_start={dist_start} >= {THIRD_INTERSECTION_LIMIT}")
+                self._phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course))
+
+        # phase6: 所定距離だけ直進するフェーズ。条件成立で次のフェーズへ（抽象化）
+        if phase.get_phase() == 6:
+            position_start = phase.get_position_start("position_start")
+            diff_position = abs(current_pos - position_start)
+
+            # 所定距離進んだら次のフェーズへ
+            if diff_position >= 150:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase6->phase7: diff_position={diff_position} >= 150 | dist_start={dist_start}")
+                self._phase.next_phase()
+            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+            left_speed, right_speed = self.calc_motor_speed(target_x)
+            return (left_speed, right_speed), Mode.DOUBLE_LOOP
+
+        # phase7: 青領域が条件を超えたら即次フェーズへ（抽象化）
+        if phase.get_phase() == 7:
+            if dist_start < THIRD_INTERSECTION_LIMIT:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                left_speed, right_speed = self.calc_motor_speed(target_x)
+                return (left_speed, right_speed), Mode.DOUBLE_LOOP
+
+            blue_area = get_blue_line_pixel(image)
+            if blue_area > BLUE_AREA_MAX_THRESHOLD:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase7->phase8: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | dist_start={dist_start}")
+                self._phase.next_phase()
+            elif dist_start < FOURTH_INTERSECTION_LIMIT:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                left_speed, right_speed = self.calc_motor_speed(target_x)
+                return (left_speed, right_speed), Mode.DOUBLE_LOOP
+            elif dist_start >= FOURTH_INTERSECTION_LIMIT:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase7->phase9: dist_start={dist_start} >= {FOURTH_INTERSECTION_LIMIT}")
+                self._phase.next_phase(2)
+
+        # phase8: 青領域が条件未満になったら次フェーズへ（抽象化）
+        if phase.get_phase() == 8:
+            blue_area = get_blue_line_pixel(image)
+            if blue_area < BLUE_AREA_MIN_THRESHOLD:
+                self._phase.next_phase()
+            elif dist_start < FOURTH_INTERSECTION_LIMIT:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
+                left_speed, right_speed = self.calc_motor_speed(target_x)
+                return (left_speed, right_speed), Mode.DOUBLE_LOOP
+            elif dist_start >= FOURTH_INTERSECTION_LIMIT:
+                self._phase.next_phase()
+
+        # phase9: 条件未満ならDOUBLE_LOOP継続、条件到達で次モードへ（抽象化）
+        if phase.get_phase() == 9:
+            if dist_start < FOURTH_INTERSECTION_LIMIT:
+                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                left_speed, right_speed = self.calc_motor_speed(target_x)
+                return (left_speed, right_speed), Mode.DOUBLE_LOOP
+            else:
+                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase9->phase10: dist_start={dist_start} >= {FOURTH_INTERSECTION_LIMIT}")
+                self._phase.next_phase()
+
+        # phase10: CARRY_BOTTLE1へ
+        if phase.get_phase() == 10:
+            self.reset_action()
+            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+            left_speed, right_speed = self.calc_motor_speed(target_x)
+            return (left_speed, right_speed), Mode.CARRY_BOTTLE1
+
+        print("[execute_double_loop] Unexpected state reached.")
+        return (0, 0), Mode.DOUBLE_LOOP
+
     def carry_bottle1_relative(self, image: np.ndarray) -> Tuple[SpeedTuple, Mode]:
-        """
-        carry_bottle1の位置判定バージョン。
-        実装内容に完全一致:
-        0. 右エッジトレース（赤ピクセル数が閾値を超えたらphase1へ、右モーター初期位置記録）
-        1. 赤ボトル中心追従（右モーター相対位置差分が一定値未満の間、赤ピクセルが条件を満たせばcenter、満たさなければ中央。一定値を超えたらphase2へ、右モーター位置記録）
-        2. 左エッジトレース（コース種別に応じた閾値未満の間、閾値を超えたらphase3へ、右モーター位置記録）
-        3. 左旋回（右モーター相対位置差分が一定値未満の間旋回。一定値超えたらphase4へ、右モーター位置記録）
-        4. 直進（右モーターが所定値移動まで。所定値超えたらphase5へ、右モーター位置記録、pre_target_x初期化）
-        5. 仮想ライン直進（右モーターが所定値移動まで仮想ライン中心座標取得処理、pre_target_x更新。所定値超えたらphase6へ、右モーター位置記録）
-        6. 直進（右モーターが所定値移動まで。所定値超えたらphase7へ、右モーター位置記録）
-        7. 左旋回（is_x320_on_blue_targetがTrueになるまで旋回、最低回転量・最大回転量はコース種別で異なる。条件満たせばphase8へ、右モーター位置記録）
-        8. 青検出（青ピクセル数が閾値を超えたらphase9へ）
-        9. 青ピクセル数が閾値以上の間center追従、閾値以下でphase10へ、右モーター位置記録
-        10. 青ピクセル数が閾値以下になってから右モーターが所定値移動までcenter追従。条件を満たしたらphase11へ
-        11. 状態リセットしBACK_AND_TURN1へ遷移
-        戻り値: (target_x, (左速度, 右速度), モード)
-        """
         # 初回呼び出し時のみ初期化
         if not self._init:
             self.initialize_action(motor_side=self.course)
-            # 初回呼び出し時のみ初期化
-            if self._loop_finish_position == 0:
-                self._loop_finish_position = 1000
-                print(f"[DEBUG] _loop_finish_position was 0. Set to 1000")
+            self.et.set_start_yaw_nearest_vertical_pole()
+            self._phase2_timer = None
         et = self.et
         phase = self._phase
 
-        # 0. 右エッジトレース（赤ピクセル数が一定値を超えたらphase1へ、右モーター初期位置記録）
+        # phase0: 赤ピクセル数 > 3000 で phase1へ。右モーター位置記録。
         if phase.get_phase() == 0:
-            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
             _, _, red_pixel_count = find_bottle_center(image=image, color="red", roi=ROI_COLOR2)
             if red_pixel_count > 3000:
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | red_pixel_count={red_pixel_count} > 3000")
                 phase.next_phase()
-                # phase1用 右モーター相対位置記録（絶対値）
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
             else:
-                left_speed, right_speed = self.calc_motor_speed(target_x)
+                # target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                # left_speed, right_speed = self.calc_motor_speed(target_x)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=BASE_SPEED, adjust_speed=3)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 1. 赤ボトル中心追従（右モーター相対位置差分が一定値未満の間、赤ピクセルが条件を満たせばcenter、満たさなければ中央。一定値を超えたらphase2へ、右モーター位置記録）
+        # phase1: 赤ピクセル数 < 500 かつ距離 < 15 で phase2へ。yaw基準セット。
         if phase.get_phase() == 1:
             center, _, red_px = find_bottle_center(image=image, color="red", roi=ROI_COLOR2)
-            position_start = phase.get_position_start("position_start")
-            current_pos = self.get_motor_position(self.course)
-            position_diff = abs(current_pos - position_start)
-            # 右モーター相対位置差分で継続判定（一定値未満の間、赤ピクセルが条件を満たせばcenter、満たさなければ中央）
-            if position_diff < 1000:
-                if center is not None and red_px is not None and red_px >= 500:
-                    target_x = center[0]
-                else:
-                    target_x = (self.x1 + self.x2) // 2
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.CARRY_BOTTLE1
-            # 一定値を超えたら次フェーズへ
-            et.set_start_yaw_nearest_vertical_pole()
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1000 | self._start_yaw set to {et.get_start_yaw()}")
-            phase.next_phase()
-            # phase2用 右モーター相対位置記録（絶対値）
-            phase.set_position_start("position_start", self.get_motor_position(self.course))
+            distance = et.get_distance_sensor()
+            if (red_px is not None and red_px < 500) and (distance < 15):
+                et.set_start_yaw_nearest_vertical_pole()
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | red_px={red_px} < 500 and distance={distance} < 15 | self._start_yaw set to {et.get_start_yaw()}")
+                phase.next_phase()
+                return (0, 0), Mode.CARRY_BOTTLE1
 
-        # 2. 左エッジトレース（コース種別に応じた閾値未満の間、閾値を超えたらphase3へ、右モーター位置記録）
+            # それ以外はcenter追従
+            if center is not None:
+                target_x = center[0]
+            else:
+                target_x = (self.x1 + self.x2) // 2
+            left_speed, right_speed = self.calc_motor_speed(target_x)
+            return (left_speed, right_speed), Mode.CARRY_BOTTLE1
+
+        # phase2: ジャイロ補正。yaw誤差4.0以内かつ2秒経過で phase3へ。誤差大きい場合は最大3秒まで補正。3秒超えたら強制で phase3へ。
         if phase.get_phase() == 2:
-            # reference_pos = self._loop_finish_position
+            # ジャイロ補正（右旋回後の微調整ロジック参考）
+            if self._phase2_timer is None:
+                self._phase2_timer = time.time()
+            adjust_elapsed = time.time() - self._phase2_timer
+            in_tolerance, yaw_error = et.is_start_yaw_error_within(4.0)
+            if in_tolerance:
+                print(f"[CARRY_BOTTLE1][PHASE2][TOLERANCE] yaw={et.get_yaw():.2f}, ref_yaw={et.get_start_yaw():.2f}, yaw_error={yaw_error:.2f}, adjust_elapsed={adjust_elapsed:.2f}s")
+                if adjust_elapsed >= 2.0:
+                    print(f"[CARRY_BOTTLE1][PHASE2][STOP] yaw={et.get_yaw():.2f}, ref_yaw={et.get_start_yaw():.2f}, yaw_error={yaw_error:.2f}, adjust_elapsed={adjust_elapsed:.2f}s")
+                    phase.set_position_start("position_start", self.get_motor_position(self.course))
+                    phase.next_phase()
+            else:
+                if adjust_elapsed < 3.0:
+                    if yaw_error < 0:
+                        print(f"[CARRY_BOTTLE1][PHASE2][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={et.get_start_yaw():.2f}, yaw_error={yaw_error:.2f}, adjust_elapsed={adjust_elapsed:.2f}s")
+                        return (15, -15), Mode.CARRY_BOTTLE1
+                    else:
+                        print(f"[CARRY_BOTTLE1][PHASE2][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={et.get_start_yaw():.2f}, yaw_error={yaw_error:.2f}, adjust_elapsed={adjust_elapsed:.2f}s")
+                        return (-15, 15), Mode.CARRY_BOTTLE1
+                else:
+                    print(f"[CARRY_BOTTLE1][PHASE2][TIMEOUT] yaw={et.get_yaw():.2f}, ref_yaw={et.get_start_yaw():.2f}, yaw_error={yaw_error:.2f}, adjust_elapsed={adjust_elapsed:.2f}s")
+                    phase.set_position_start("position_start", self.get_motor_position(self.course))
+                    phase.next_phase()
+
+        # phase3: 右モーター位置差が閾値（上段1220/下段700）未満なら直進。閾値超えたら phase4へ。yaw基準セット。
+        if phase.get_phase() == 3:
             # position_diff = abs(current_pos - reference_pos)
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
@@ -245,7 +396,7 @@ class ActionChain(object):
             if position_diff < threshold:
                 #target_x = self.get_target_x_by_course(image, offset_y=300, course=self.opposite_course)
                 # left_speed, right_speed = self.calc_motor_speed(target_x)
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=BASE_SPEED, adjust_speed=2)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
             # 閾値を超えたら次フェーズへ
             et.set_start_yaw_nearest_vertical_pole()
@@ -255,8 +406,8 @@ class ActionChain(object):
             phase.set_position_start("position_start", self.get_motor_position(self.course))
             # et.set_start_yaw(et.get_yaw())
 
-        # 3. 旋回（右コースなら左旋回、左コースなら右旋回）
-        if phase.get_phase() == 3:
+        # phase4: ジャイロ90度旋回。旋回終了判定で phase5へ。右モーター位置記録。
+        if phase.get_phase() == 4:
             stop_turn = self.et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=90.0)
             if stop_turn:
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | yaw={et.get_yaw():.2f} | yaw_start={et.get_start_yaw():.2f} | diff={et.get_yaw() - et.get_start_yaw():.2f}")
@@ -269,8 +420,8 @@ class ActionChain(object):
                 else:
                     return (30, 0), Mode.CARRY_BOTTLE1
 
-        # 4. 直進（右モーターが一定値移動まで。一定値超えたらphase5へ、右モーター位置記録、pre_target_x初期化）
-        if phase.get_phase() == 4:
+        # phase5: 右モーター位置差200未満なら直進。超えたら phase6へ。右モーター位置記録、pre_target_x初期化。
+        if phase.get_phase() == 5:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
@@ -283,8 +434,8 @@ class ActionChain(object):
             phase.set_position_start("position_start", self.get_motor_position(self.course))
             self.pre_target_x = (self.x1 + self.x2) // 2
 
-        # 5. 仮想ライン直進（右モーターが一定値移動まで仮想ライン中心座標取得処理、pre_target_x更新。一定値超えたらphase6へ、右モーター位置記録）
-        if phase.get_phase() == 5:
+        # phase6: 右モーター位置差1500未満なら仮想ライン中心追従。超えたら phase7へ。右モーター位置記録。
+        if phase.get_phase() == 6:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
@@ -305,8 +456,8 @@ class ActionChain(object):
             # phase6用 右モーター相対位置記録（絶対値）
             phase.set_position_start("position_start", self.get_motor_position(self.course))
 
-        # 6. 直進（右モーターが一定値移動まで。一定値超えたらphase7へ、右モーター位置記録）
-        if phase.get_phase() == 6:
+        # phase7: 右モーター位置差1300未満なら直進。超えたら phase8へ。右モーター位置記録。
+        if phase.get_phase() == 7:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
@@ -318,8 +469,8 @@ class ActionChain(object):
             # phase7用 右モーター相対位置記録（絶対値）
             phase.set_position_start("position_start", self.get_motor_position(self.course))
 
-        # 7. 左旋回（is_x320_on_blue_targetがTrueになるまで旋回、最低回転量・最大回転量はコース種別で異なる。条件満たせばphase8へ、右モーター位置記録）
-        if phase.get_phase() == 7:
+        # phase8: 青ターゲット検出 or 最低回転量後に検出 or 最大回転量到達で次フェーズ（下段コースは2フェーズスキップ）。
+        if phase.get_phase() == 8:
             blue_target_detected = is_x320_on_blue_target(image, x_tolerance=60)
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
@@ -339,8 +490,8 @@ class ActionChain(object):
                 else:
                     return (30, 0), Mode.CARRY_BOTTLE1
 
-        # 8. 青検出（青ピクセル数が一定値を超えたらphase9へ）
-        if phase.get_phase() == 8:
+        # phase9: 青ターゲット中心検出、青ピクセル数 > 1000 で phase10へ。未満ならcenter追従。
+        if phase.get_phase() == 9:
             center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
@@ -353,8 +504,8 @@ class ActionChain(object):
                 left_speed, right_speed = self.calc_motor_speed(target_x)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 9. 青ピクセル数が一定値以上の間center追従、一定値以下でphase10へ、右モーター位置記録
-        if phase.get_phase() == 9:
+        # phase10: 青ピクセル数 <= 300 で phase11へ、右モーター位置記録。超えていればcenter追従（低速）。
+        if phase.get_phase() == 10:
             center, _, blue_pixel_count = find_blue_target_center(image)
             if center is not None:
                 target_x = center[0]
@@ -369,8 +520,8 @@ class ActionChain(object):
                 left_speed, right_speed = self.calc_motor_speed(target_x, current_base_speed=20)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 10. 青が一定値以下になってから右モーターが一定値移動までcenter追従。条件を満たしたら次のphaseへ
-        if phase.get_phase() == 10:
+        # phase11: 色センサーが青検出で phase12へ（停止）。それ以外はcenter追従（超低速）。
+        if phase.get_phase() == 11:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
             threshold = 300
@@ -391,8 +542,8 @@ class ActionChain(object):
                 left_speed, right_speed = self.calc_motor_speed(target_x, current_base_speed=10)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
             
-        # 11. 状態リセットしBACK_AND_TURN1へ遷移
-        if phase.get_phase() == 11:
+        # phase12: 状態リセットしBACK_AND_TURN1へ遷移。
+        if phase.get_phase() == 12:
             self.reset_action()
             return (0, 0), Mode.BACK_AND_TURN1
 
@@ -400,14 +551,6 @@ class ActionChain(object):
         return (0, 0), Mode.CARRY_BOTTLE1
 
     def back_and_turn1_relative(self, image: np.ndarray) -> Tuple[SpeedTuple, Mode]:
-        """
-        back_and_turn1の位置判定バージョン。
-        実装内容に完全一致:
-        0. 後退（右モーターが所定値移動まで。所定値超えたらphase1へ、右モーター位置記録）
-        1. 左旋回（最低回転量は必ず旋回。最低回転量超えてからターゲット検出または最大回転量到達まで旋回。条件満たせばphase2へ）
-        2. 終了: 状態リセットしCARRY_BOTTLE2へ遷移
-        戻り値: (None, (左速度, 右速度), モード)
-        """
         # 初回呼び出し時のみ初期化
         if not self._init:
             self.initialize_action(motor_side=self.course)
@@ -456,25 +599,6 @@ class ActionChain(object):
         return (0, 0), Mode.BACK_AND_TURN1
 
     def carry_bottle2_relative(self, image: np.ndarray) -> Tuple[SpeedTuple, Mode]:
-        """
-        carry_bottle2の位置判定バージョン。
-        実装内容に完全一致:
-        0. 赤ターゲット中心追従（青ピクセル数が閾値未満の間は赤中心追従、閾値以上でphase1へ）
-        1. 青ボトル中心追従（青ピクセル数が閾値以上の間center追従、閾値未満でphase2へ、右モーター位置記録）
-        2. 右モーターが所定値移動までcenter追従。所定値超えたらphase3へ、右モーター位置記録
-        3. 左黒ライン検出まで左旋回。最大回転量まで。検出または最大回転量超えたらphase4へ、右モーター位置記録
-        4. 直進（右モーターが所定値移動まで、両輪BASE_SPEED。所定値超えたらphase5へ、右モーター位置記録）
-        5. 左旋回（右モーターが所定値移動まで旋回。所定値超えたらphase6へ、右モーター位置記録）
-        6. 直進（右モーターが所定値移動まで、両輪BASE_SPEED。所定値超えたらphase7へ、右モーター位置記録、pre_target_x初期化）
-        7. 仮想ライン直進（右モーターが所定値移動まで仮想ライン中心座標取得処理、pre_target_x更新。所定値超えたらphase8へ、右モーター位置記録）
-        8. 直進（右モーターが所定値移動まで、両輪BASE_SPEED。所定値超えたらphase9へ、右モーター位置記録）
-        9. 左旋回（青ターゲット検出まで、最低回転量・最大回転量。条件満たせばphase10へ、右モーター位置記録）
-        10. 青検出（青ピクセル数が閾値を超えたらphase11へ、最大回転量。条件満たせば右モーター位置記録）
-        11. 青ピクセルが閾値以下まで減るまでcenter追従（閾値以下でphase12へ、最大回転量。条件満たせば右モーター位置記録）
-        12. 右モーターが所定値移動までcenter追従。所定値超えたらphase13へ
-        13. 状態リセットしBACK_AND_TURN2へ遷移
-        戻り値: (target_x, (左速度, 右速度), モード)
-        """
         # 初回呼び出し時のみ初期化
         if not self._init:
             self.initialize_action(motor_side=self.course)
@@ -572,7 +696,7 @@ class ActionChain(object):
             threshold = 870 if self.course_type == "upper" else 1300
             position_diff = abs(current_pos - position_start)
             if position_diff < threshold:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=BASE_SPEED, adjust_speed=2)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
                 # return (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
             et.set_start_yaw_nearest_vertical_pole()
@@ -746,14 +870,6 @@ class ActionChain(object):
         return (0, 0), Mode.CARRY_BOTTLE2
 
     def back_and_turn2_relative(self, image: np.ndarray) -> Tuple[SpeedTuple, Mode]:
-        """
-        back_and_turn2の位置判定バージョン。
-        実装内容:
-        0. 左モーターが所定位置まで後退（両輪定速）。条件成立で次フェーズへ、モーター位置記録。
-        1. 右旋回（所定位置までは必ず旋回。条件成立後、ライン検出または所定位置到達まで所定速度で継続。条件成立で次フェーズへ）
-        2. 終了: 状態リセットし目標モードへ遷移
-        戻り値: (None, (左速度, 右速度), モード)
-        """
         # 初回呼び出し時のみ初期化
         if not self._init:
             self.initialize_action(motor_side=self.opposite_course)
@@ -802,17 +918,6 @@ class ActionChain(object):
         return (0, 0), Mode.BACK_AND_TURN2
 
     def heading_goal_relative(self, image: np.ndarray) -> Tuple[SpeedTuple, Mode]:
-        """
-        heading_goalの位置判定バージョン。
-        実装内容に完全一致:
-        0. 水平ライン検出まで中央追従（移動距離制限なし）。検出でphase1へ、右モーター位置記録。
-        1. 中央追従から左旋回へ遷移判定（移動距離による遷移制御）
-        2. 左旋回（左旋回継続。垂直黒ライン検出または移動距離上限到達でphase3へ）
-        3. 左エッジトレース（青ライン検出でphase4へ。左エッジがなければ中央。青ライン検出時に右モーター位置記録）
-        4. 青ライン検出後、移動距離制限内で左エッジトレース、制限到達でPAUSE（状態リセット）
-        戻り値: (target_x, (左速度, 右速度), モード)
-        各行コメントも実装内容と完全一致させること。
-        """
         # 初回呼び出し時のみ初期化
         if not self._init:
             self.initialize_action(motor_side=self.course)
@@ -904,197 +1009,3 @@ class ActionChain(object):
         print("[heading_goal_relative] Unexpected state reached.")
         return (0, 0), Mode.HEAD_GOAL
 
-    def execute_double_loop(self, image: np.ndarray) -> Tuple[SpeedTuple, Mode]:
-        """
-        double loopの制御。
-        実装内容:
-        0. 青領域が所定値を超えたら即次フェーズへ。未満なら中央追従または次フェーズ。
-        1. 青領域が所定値未満になったら次フェーズへ。
-        ...（以降のフェーズは既存処理に準ずる）
-        戻り値: (target_x, (左速度, 右速度), モード)
-        """
-        """
-        double loopの制御。
-        実装内容:
-        0. 青領域が所定値を超えたら即次フェーズへ。未満なら中央追従または次フェーズ。
-        1. 青領域が所定値未満になったら次フェーズへ。
-        ...（以降のフェーズは既存処理に準ずる）
-        戻り値: (target_x, (左速度, 右速度), モード)
-        """
-
-        if not self._init:
-            self.initialize_action(motor_side=self.course)
-            self.pid.Kp = 50
-            self.pid.Ki = 0
-            self.pid.Kd = 5
-            self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
-            # 開始直後の絶対位置を取得し保持
-            self._start_position = self.get_motor_position(self.course)
-
-        phase = self._phase
-        current_pos = self.get_motor_position(self.course)
-        dist_start = abs(current_pos - self._start_position)
-
-        # phase0: 青領域が条件を超えたら即次フェーズへ
-        if phase.get_phase() == 0:    
-            blue_area = get_blue_line_pixel(image)
-            if blue_area > BLUE_AREA_MAX_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase0->phase1: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | dist_start={dist_start}")
-                self._phase.next_phase()
-            elif dist_start < FIRST_INTERSECTION_LIMIT:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.DOUBLE_LOOP
-            elif dist_start >= FIRST_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase0->phase2: dist_start={dist_start} >= {FIRST_INTERSECTION_LIMIT}")
-                self._phase.next_phase(2)
-
-        # phase1: 青領域が条件未満になったら次フェーズへ
-        if phase.get_phase() == 1:
-            blue_area = get_blue_line_pixel(image)
-            if blue_area < BLUE_AREA_MIN_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase1->phase2: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | dist_start={dist_start}")
-                self._phase.next_phase()
-            elif dist_start < FIRST_INTERSECTION_LIMIT:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.DOUBLE_LOOP
-            elif dist_start >= FIRST_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase1->phase3: dist_start={dist_start} >= {FIRST_INTERSECTION_LIMIT}")
-                self._phase.next_phase()
-
-        # phase2: get_blue_line_pixelでBLUE_AREA_THRESHOLD超えたら即phase3へ（left_pos閾値15000, 左→右エッジ、right_x使用）
-        if phase.get_phase() == 2:
-            if dist_start < FIRST_INTERSECTION_LIMIT:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.DOUBLE_LOOP
-
-            blue_area = get_blue_line_pixel(image)
-            if blue_area > BLUE_AREA_MAX_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase2->phase3: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | dist_start={dist_start}")
-                self._phase.next_phase()
-            elif dist_start < SECOND_INTERSECTION_LIMIT:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.DOUBLE_LOOP
-            elif dist_start >= SECOND_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase2->phase4: dist_start={dist_start} >= {SECOND_INTERSECTION_LIMIT}")
-                self._phase.next_phase(2)
-
-        # phase3: 青領域が条件未満になったら次フェーズへ（抽象化）
-        if phase.get_phase() == 3:
-            blue_area = get_blue_line_pixel(image)
-            if blue_area < BLUE_AREA_MIN_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase3->phase4: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | dist_start={dist_start}")
-                self._phase.next_phase()
-            elif dist_start < SECOND_INTERSECTION_LIMIT:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.DOUBLE_LOOP
-            elif dist_start >= SECOND_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase3->phase5: dist_start={dist_start} >= {SECOND_INTERSECTION_LIMIT}")
-                self._phase.next_phase()
-
-        # phase4: 青領域が条件を超えたら即次フェーズへ（抽象化）
-        if phase.get_phase() == 4:
-            if dist_start < SECOND_INTERSECTION_LIMIT:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.DOUBLE_LOOP
-
-            blue_area = get_blue_line_pixel(image)
-            if blue_area > BLUE_AREA_MAX_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase4->phase5: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | dist_start={dist_start}")
-                self._phase.next_phase()
-            elif dist_start < THIRD_INTERSECTION_LIMIT:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.DOUBLE_LOOP
-            elif dist_start >= THIRD_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase4->phase6: dist_start={dist_start} >= {THIRD_INTERSECTION_LIMIT}")
-                self._phase.next_phase(2)
-
-        # phase5: 青領域が条件未満になったら直進フェーズへ（抽象化）
-        if phase.get_phase() == 5:
-            blue_area = get_blue_line_pixel(image)
-            if blue_area < BLUE_AREA_MIN_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase5->phase6: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | dist_start={dist_start}")
-                self._phase.next_phase()  # phase6(直進)へ
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
-            elif dist_start < THIRD_INTERSECTION_LIMIT:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.DOUBLE_LOOP
-            elif dist_start >= THIRD_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase5->phase7: dist_start={dist_start} >= {THIRD_INTERSECTION_LIMIT}")
-                self._phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
-
-        # phase6: 所定距離だけ直進するフェーズ。条件成立で次のフェーズへ（抽象化）
-        if phase.get_phase() == 6:
-            position_start = phase.get_position_start("position_start")
-            diff_position = abs(current_pos - position_start)
-
-            # 所定距離進んだら次のフェーズへ
-            if diff_position >= 150:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase6->phase7: diff_position={diff_position} >= 150 | dist_start={dist_start}")
-                self._phase.next_phase()
-            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-            left_speed, right_speed = self.calc_motor_speed(target_x)
-            return (left_speed, right_speed), Mode.DOUBLE_LOOP
-
-        # phase7: 青領域が条件を超えたら即次フェーズへ（抽象化）
-        if phase.get_phase() == 7:
-            if dist_start < THIRD_INTERSECTION_LIMIT:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.DOUBLE_LOOP
-
-            blue_area = get_blue_line_pixel(image)
-            if blue_area > BLUE_AREA_MAX_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase7->phase8: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | dist_start={dist_start}")
-                self._phase.next_phase()
-            elif dist_start < FOURTH_INTERSECTION_LIMIT:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.DOUBLE_LOOP
-            elif dist_start >= FOURTH_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase7->phase9: dist_start={dist_start} >= {FOURTH_INTERSECTION_LIMIT}")
-                self._phase.next_phase(2)
-
-        # phase8: 青領域が条件未満になったら次フェーズへ（抽象化）
-        if phase.get_phase() == 8:
-            blue_area = get_blue_line_pixel(image)
-            if blue_area < BLUE_AREA_MIN_THRESHOLD:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase8->phase9: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | dist_start={dist_start} | _loop_finish_position={current_pos}")
-                self._loop_finish_position = current_pos
-                self._phase.next_phase()
-            elif dist_start < FOURTH_INTERSECTION_LIMIT:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.DOUBLE_LOOP
-            elif dist_start >= FOURTH_INTERSECTION_LIMIT:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase8->phase9: dist_start={dist_start} >= {FOURTH_INTERSECTION_LIMIT} | _loop_finish_position={current_pos}")
-                self._loop_finish_position = current_pos
-                self._phase.next_phase()
-
-        # phase9: 条件未満ならDOUBLE_LOOP継続、条件到達で次モードへ（抽象化）
-        if phase.get_phase() == 9:
-            if dist_start < FOURTH_INTERSECTION_LIMIT:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.DOUBLE_LOOP
-            else:
-                print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase9->phase10: dist_start={dist_start} >= {FOURTH_INTERSECTION_LIMIT}")
-                self._phase.next_phase()
-
-        # phase10: CARRY_BOTTLE1へ
-        if phase.get_phase() == 10:
-            self.reset_action()
-            target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-            left_speed, right_speed = self.calc_motor_speed(target_x)
-            return (left_speed, right_speed), Mode.CARRY_BOTTLE1
-
-        print("[execute_double_loop] Unexpected state reached.")
-        return (0, 0), Mode.DOUBLE_LOOP

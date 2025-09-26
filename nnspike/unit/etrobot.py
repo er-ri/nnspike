@@ -48,7 +48,6 @@ class ETRobot(object):
         """Background thread that continuously receives data from the serial connection and updates gyro integration."""
         while self.is_running:
             self.receive()
-            self.update_gyro_integration()
 
     def receive(self) -> None:
         """
@@ -263,6 +262,18 @@ class ETRobot(object):
                 color_type = "other"
         return (color_value, color_type)
 
+    def get_distance_sensor(self) -> int:
+        """
+        超音波センサー（distance）の値を取得する。
+        Returns:
+            int: 距離センサーの値（Noneの場合は0）
+        """
+        status = self.get_spike_status()
+        distance = status.sensors.distance
+        if distance is None:
+            return 0
+        return int(distance)
+
     def set_motor_speed(self, left_speed: int, right_speed: int) -> None:
         """
         左右のモーター速度を個別に正転・逆転（マイナス値）で設定できる（ID=206コマンド送信）。
@@ -391,6 +402,35 @@ class ETRobot(object):
         diff = self.wrap_angle(yaw_val - yaw_start_val)
         # print(f"[is_yaw_turn_finished] yaw={yaw_val:.2f}, start_yaw={yaw_start_val:.2f}, diff={diff:.2f}, side={side}, threshold={threshold_deg}")
         return abs(diff) >= abs(threshold_deg)
+
+    def is_yaw_error_within(self, target_yaw: float, tolerance_deg: float) -> bool:
+        """
+        現在のyawが目標yaw（target_yaw）から±tolerance_deg以内か判定する。
+        角度ラップアラウンド補正あり。
+        Args:
+            target_yaw (float): 目標yaw角度
+            tolerance_deg (float): 許容誤差（度）
+        Returns:
+            bool: 許容範囲内ならTrue
+        """
+        yaw_val = self.get_yaw()
+        error = self.wrap_angle(yaw_val - target_yaw)
+        # print(f"[is_yaw_error_within] yaw={yaw_val:.2f}, target_yaw={target_yaw:.2f}, error={error:.2f}, tolerance={tolerance_deg}")
+        return abs(error) <= abs(tolerance_deg)
+
+    def is_start_yaw_error_within(self, tolerance_deg: float) -> tuple[bool, float]:
+        """
+        現在のyawが記録済みstart_yawから±tolerance_deg以内か判定し、誤差値も返す。
+        角度ラップアラウンド補正あり。
+        Args:
+            tolerance_deg (float): 許容誤差（度）
+        Returns:
+            tuple[bool, float]: (判定, 誤差値)
+        """
+        yaw_val = self.get_yaw()
+        start_yaw = self.get_start_yaw()
+        error = self.wrap_angle(yaw_val - start_yaw)
+        return abs(error) <= abs(tolerance_deg), error
 
     def yaw_straight_control(self, base_speed: int = HIGH_SPEED_BASE, kp: float = 1.0, deadband: float = 3.0, adjust_speed: int = 1) -> tuple[int, int]:
         """
