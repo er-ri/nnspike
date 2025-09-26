@@ -209,54 +209,6 @@ class ETRobot(object):
         left = abs(status.motors["B"].speed) if status.motors["B"].speed is not None else 0
         return (left, right)
 
-    def get_side_adjust_by_speed_diff(self) -> tuple[int, int]:
-        """
-        モーターspeed差分による補正値を返す。
-        Returns:
-            (int, int): (左補正, 右補正)
-        """
-        left_speed, right_speed = self.get_motor_speed()
-        speed_diff = right_speed - left_speed
-        threshold = 3
-        if speed_diff > threshold:
-            return (-1, 0)
-        elif speed_diff < -threshold:
-            return (0, -1)
-        else:
-            return (0, 0)
-
-    def calc_speed_with_roll_control(
-        self,
-        speed: int = 100
-    ) -> tuple[int, int]:
-        """
-        ロール補正（z軸）で速度指令値を計算する。
-        Args:
-            speed (int): 目標速度
-        Returns:
-            (int, int): (left_speed, right_speed)
-        """
-        roll_adj_left, roll_adj_right = self.get_side_adjust_by_roll()
-        left_cmd = speed + roll_adj_left
-        right_cmd = speed + roll_adj_right
-        return int(left_cmd), int(right_cmd)
-
-    def calc_speed_with_speed_diff_control(
-        self,
-        speed: int = 100
-    ) -> tuple[int, int]:
-        """
-        speed差分補正のみで速度指令値を計算する。
-        Args:
-            speed (int): 目標速度
-        Returns:
-            (int, int): (left_speed, right_speed)
-        """
-        speed_adj_left, speed_adj_right = self.get_side_adjust_by_speed_diff()
-        left_cmd = speed + speed_adj_left
-        right_cmd = speed + speed_adj_right
-        return int(left_cmd), int(right_cmd)
-
     def set_motor_relative_position(self, left_position: int, right_position: int) -> None:
         id_byte = self.COMMAND_SET_MOTOR_RELATIVE_POSITION_ID.to_bytes(1, "big")
         parameter1_byte = left_position.to_bytes(1, "big")   # B=left
@@ -400,78 +352,6 @@ class ETRobot(object):
         self.__thread.join()
         self.__serial_port.close()
 
-    def get_gyro_angle_z(self) -> float:
-        """
-        SpikeStatusからgyroscope_z角度（度）を取得
-        Returns:
-            float: z軸角度（度）
-        """
-        status = self.get_spike_status()
-        if status.sensors.gyroscope:
-            return status.sensors.gyroscope.z
-        return 0.0
-
-    def start_gyro_integration(self):
-        """
-        ジャイロ積分の開始（基準値・時刻を記録）
-        """
-        status = self.get_spike_status()
-        self._gyro_integrated_z = 0.0
-        self._gyro_integration_start_time = time.time()
-        self._gyro_integration_last_time = self._gyro_integration_start_time  # 追加
-        self._gyro_integration_start_z = status.sensors.gyroscope.z if status.sensors.gyroscope else 0.0
-        self._gyro_integration_active = True
-
-    def update_gyro_integration(self):
-        """
-        ジャイロ積分値を最新値で加算（ループ内で呼ぶ）
-        dt（ms）と_gyro_integrated_zをprintデバッグ出力
-        """
-        if not getattr(self, '_gyro_integration_active', False):
-            return
-        status = self.get_spike_status()
-        now = time.time()
-        dt = now - getattr(self, '_gyro_integration_start_time', now)
-        dt_ms = int(dt * 1000)
-        if status.sensors.gyroscope:
-            # 角速度（deg/s）× dt（s）で積分（スタートからの累積）
-            self._gyro_integrated_z = status.sensors.gyroscope.z * dt
-            self._gyro_integration_last_time = now
-            # print(f"[GyroIntegration] dt={dt_ms}ms, gyro_z={status.sensors.gyroscope.z:.2f}, integrated_z={self._gyro_integrated_z:.2f}")
-
-    def get_gyro_integrated_z(self) -> float:
-        """
-        積分したgyro_z角度（度）を返す
-        """
-        return getattr(self, '_gyro_integrated_z', 0.0)
-
-
-    def reset_gyro_integration(self):
-        """
-        ジャイロ積分値をリセット
-        """
-        self._gyro_integrated_z = 0.0
-        self._gyro_integration_active = False
-        self._gyro_integration_last_time = None  # 追加
-
-
-    def is_gyro_integrated_rotation_exceeded_z(self, threshold: float, direction: str) -> bool:
-        """
-        積分加算したジャイロz回転角度が指定した方向・閾値を超えたか判定する。
-        Args:
-            threshold (float): 閾値（度）
-            direction (str): 'left' or 'right'
-        Returns:
-            bool: 条件を満たせばTrue
-        """
-        integrated = self.get_gyro_integrated_z()
-        # print(f"[GyroZThreshold] integrated={integrated:.2f}, threshold={threshold}, direction={direction}")
-        if direction == 'right':
-            return integrated <= -threshold
-        elif direction == 'left':
-            return integrated >= threshold
-        raise ValueError("direction must be 'left' or 'right'")
-
     def get_yaw(self) -> float:
         """
         ヨー角（x軸）を一発取得。Noneは許さず必ずfloat型で返す（未取得時は0.0）。
@@ -512,21 +392,6 @@ class ETRobot(object):
         # print(f"[is_yaw_turn_finished] yaw={yaw_val:.2f}, start_yaw={yaw_start_val:.2f}, diff={diff:.2f}, side={side}, threshold={threshold_deg}")
         return abs(diff) >= abs(threshold_deg)
 
-    def is_yaw_error_within(self, target_yaw: float, tolerance_deg: float) -> bool:
-        """
-        現在のyawが目標yaw（target_yaw）から±tolerance_deg以内か判定する。
-        角度ラップアラウンド補正あり。
-        Args:
-            target_yaw (float): 目標yaw角度
-            tolerance_deg (float): 許容誤差（度）
-        Returns:
-            bool: 許容範囲内ならTrue
-        """
-        yaw_val = self.get_yaw()
-        error = self.wrap_angle(yaw_val - target_yaw)
-        # print(f"[is_yaw_error_within] yaw={yaw_val:.2f}, target_yaw={target_yaw:.2f}, error={error:.2f}, tolerance={tolerance_deg}")
-        return abs(error) <= abs(tolerance_deg)
-
     def yaw_straight_control(self, base_speed: int = HIGH_SPEED_BASE, kp: float = 1.0, deadband: float = 3.0, adjust_speed: int = 1) -> tuple[int, int]:
         """
         ヨー角による直線安定化制御（P制御、内部start_yaw基準）。
@@ -561,3 +426,20 @@ class ETRobot(object):
         """
         return (angle + 180.0) % 360.0 - 180.0
 
+    def set_start_yaw_nearest_vertical_pole(self):
+        """
+        get_yawで取得した値を0, -180, +180（縦方向の基準）にラップしてself._start_yawに設定する。
+        """
+        yaw = self.get_yaw()
+        vertical_poles = [0.0, -180.0, 180.0]
+        nearest = min(vertical_poles, key=lambda p: abs(self.wrap_angle(yaw - p)))
+        self._start_yaw = nearest
+
+    def set_start_yaw_nearest_horizontal_pole(self):
+        """
+        get_yawで取得した値を+90, -90, +270, -270（横方向の基準）にラップしてself._start_yawに設定する。
+        """
+        yaw = self.get_yaw()
+        horizontal_poles = [90.0, -90.0, 270.0, -270.0]
+        nearest = min(horizontal_poles, key=lambda p: abs(self.wrap_angle(yaw - p)))
+        self._start_yaw = nearest
