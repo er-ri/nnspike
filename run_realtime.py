@@ -125,42 +125,20 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     def unpack_action_result(result, default_mode=Mode.PAUSE):
         # Noneや不正な戻り値も吸収して安全にアンパック
         if result is None:
-            return None, (0, 0, 0), default_mode
-        if len(result) == 3:
-            target_x, speeds, mode = result
-            # speedsが2要素なら3要素化（currentはBASE_SPEED）
+            return (0, 0), default_mode
+        if len(result) == 2:
+            speeds, mode = result
             if speeds is None:
-                speeds = (0, 0, 0)
+                speeds = (0, 0)
             elif len(speeds) == 2:
                 left, right = speeds
                 left = 0 if left is None else left
                 right = 0 if right is None else right
-                speeds = (left, right, BASE_SPEED)
-            elif len(speeds) == 3:
-                left, right, current = speeds
-                left = 0 if left is None else left
-                right = 0 if right is None else right
-                current = BASE_SPEED if current is None else current
-                speeds = (left, right, current)
+                speeds = (left, right)
             if mode is None:
                 mode = default_mode
-            return target_x, speeds, mode
-        return None, (0, 0, 0), default_mode
-
-    def calc_motor_speed(target_x, left_speed=0, right_speed=0, current_base_speed=BASE_SPEED):
-        # current_base_speedがNoneまたは0ならBASE_SPEEDを使う
-        if current_base_speed is None or current_base_speed == 0:
-            current_base_speed = BASE_SPEED
-        if target_x is not None:
-            offset_pixels = get_offset_pixels(target_x, ROI_CNN)
-            theta = math.atan2(offset_pixels, CAMERA_WIDTH)
-            steering_correction = pid.update(theta)
-            left_speed = current_base_speed - steering_correction
-            right_speed = current_base_speed + steering_correction
-        # else: left_speed, right_speedは必ず0以上の値
-        left_speed = int(max(0, min(255, left_speed)))
-        right_speed = int(max(0, min(255, right_speed)))
-        return left_speed, right_speed
+            return speeds, mode
+        return (0, 0), default_mode
 
     def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.017):
         debug_state['counter'] += 1
@@ -312,41 +290,37 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     right_speed = BASE_SPEED
                     et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.TURN_LEFT_YAW:
-                    _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.turn_left_yaw(frame))
+                    (left_speed, right_speed), mode = unpack_action_result(fast_lap_chain.turn_left_yaw(frame))
                     et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.TURN_RIGHT_YAW:
-                    _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.turn_right_yaw(frame))
+                    (left_speed, right_speed), mode = unpack_action_result(fast_lap_chain.turn_right_yaw(frame))
                     et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.SHORTCUT_LAP2:
-                    _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.shortcut_lap2(frame))
+                    (left_speed, right_speed), mode = unpack_action_result(fast_lap_chain.shortcut_lap2(frame))
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.DOUBLE_LOOP:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.execute_double_loop(frame))
-                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, BASE_SPEED)
+                    (left_speed, right_speed), mode = unpack_action_result(action_chain.execute_double_loop(frame))
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.CARRY_BOTTLE1:
-                    target_x, (left_speed, right_speed, current_base_speed), mode = unpack_action_result(action_chain.carry_bottle1_relative(frame))
-                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, current_base_speed)
+                    (left_speed, right_speed), mode = unpack_action_result(action_chain.carry_bottle1_relative(frame))
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.BACK_AND_TURN1:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.back_and_turn1_relative(frame))
+                    (left_speed, right_speed), mode = unpack_action_result(action_chain.back_and_turn1_relative(frame))
                     if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
                         et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
                     else:
                         et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.CARRY_BOTTLE2:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.carry_bottle2_relative(frame))
-                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, BASE_SPEED)
+                    (left_speed, right_speed), mode = unpack_action_result(action_chain.carry_bottle2_relative(frame))
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.BACK_AND_TURN2:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.back_and_turn2_relative(frame))
+                    (left_speed, right_speed), mode = unpack_action_result(action_chain.back_and_turn2_relative(frame))
                     if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
                         et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
                     else:
                         et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.HEAD_GOAL:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.heading_goal_relative(frame))
-                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, BASE_SPEED)
+                    (left_speed, right_speed), mode = unpack_action_result(action_chain.heading_goal_relative(frame))
                 case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
