@@ -6,10 +6,15 @@ import unittest
 from nnspike.unit.action_chain import ActionChain
 from nnspike.unit.etrobot import ETRobot
 
+class DummyPID:
+    def update(self, theta):
+        return 0
+
 class TestGetColorSensorValues(unittest.TestCase):
     def setUp(self):
         self.et = ETRobot()
-        self.chain = ActionChain(self.et, course="right", course_type="upper")
+        self.pid = DummyPID()
+        self.chain = ActionChain(self.et, course="right", course_type="upper", pid=self.pid)
 
     def test_get_color_sensor_values(self):
         # カラーセンサー値を取得
