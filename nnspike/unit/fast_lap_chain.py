@@ -209,7 +209,7 @@ class FastLapChain(object):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
 
-        # フェーズ1: 右旋回30度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新（右旋回区間）
+        # フェーズ1: 左旋回20度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新（左旋回区間）
         if phase.get_phase() == 1:
             stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=20.0)
             if stop_turn:
