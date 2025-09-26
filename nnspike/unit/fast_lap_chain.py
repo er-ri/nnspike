@@ -569,7 +569,7 @@ class FastLapChain(object):
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
             # if position_diff < 1750:
-            if position_diff < 1600:
+            if position_diff < 1500:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return None, (left_speed, right_speed, 0), Mode.SHORTCUT_LAP2
             else:
