@@ -328,8 +328,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, BASE_SPEED)
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.CARRY_BOTTLE1:
-                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.carry_bottle1_relative(frame))
-                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, BASE_SPEED)
+                    target_x, (left_speed, right_speed, current_speed), mode = unpack_action_result(action_chain.carry_bottle1_relative(frame))
+                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, current_speed)
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.BACK_AND_TURN1:
                     target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.back_and_turn1_relative(frame))
