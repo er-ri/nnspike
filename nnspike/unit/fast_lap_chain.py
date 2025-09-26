@@ -491,6 +491,7 @@ class FastLapChain(object):
 
         # フェーズ9: reset_action()してPAUSE復帰（ラップ終了）
         if phase.get_phase() == 9:
+            self.fast_lap_finished = True  # FAST_LAPのみでフラグを立てる
             self.reset_action()
             return None, None, Mode.PAUSE
         
@@ -631,6 +632,7 @@ class FastLapChain(object):
 
         # フェーズ9: reset_action()してPAUSE復帰（ラップ終了）
         if phase.get_phase() == 9:
+            self.fast_lap_finished = True  # FAST_LAPのみでフラグを立てる
             self.reset_action()
             return None, None, Mode.PAUSE
         
