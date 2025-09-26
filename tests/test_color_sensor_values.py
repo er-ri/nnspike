@@ -19,17 +19,17 @@ class TestGetColorSensorValues(unittest.TestCase):
     def test_get_color_sensor_values(self):
         # run_realtime.pyのように複数回受信・待機しながらカラー値を取得
         import time
-        color_value, color_type = 0, "unknown"
-        for i in range(10):
+        results = []
+        for i in range(20):
             color_value, color_type = self.et.get_color_sensor()
             print(f"[{i+1}] color_value={color_value}, color_type={color_type}")
-            if color_value != 0:
-                break
+            results.append((color_value, color_type))
             time.sleep(0.1)
-        # 値の妥当性チェック
-        self.assertIsInstance(color_value, int)
-        self.assertIsInstance(color_type, str)
-        self.assertIn(color_type, ["black", "white", "other", "unknown"])
+        # すべての取得値を検証
+        for color_value, color_type in results:
+            self.assertIsInstance(color_value, int)
+            self.assertIsInstance(color_type, str)
+            self.assertIn(color_type, ["black", "white", "other", "unknown"])
 
 if __name__ == "__main__":
     unittest.main()
