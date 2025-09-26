@@ -486,7 +486,7 @@ class ActionChain(object):
             color_type = color_info["color_type"]
             position_diff = abs(current_pos - position_start)
             # if position_diff >= threshold or color_type == "other":
-            if color_type == "other":
+            if color_type == "blue":
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} or color_type={color_type} (color_value={color_info['color']})")
                 phase.next_phase()
             else:
@@ -495,7 +495,7 @@ class ActionChain(object):
                     target_x = center[0]
                 else:
                     target_x = (self.x1 + self.x2) // 2
-                return target_x, None, Mode.CARRY_BOTTLE1
+                return target_x, (0, 0, 30), Mode.CARRY_BOTTLE1
             
         # 11. 状態リセットしBACK_AND_TURN1へ遷移
         if phase.get_phase() == 11:
