@@ -315,7 +315,7 @@ class ActionChain(object):
         # 0. 右エッジトレース（赤ピクセル数が一定値を超えたらphase1へ、右モーター初期位置記録）
         if phase.get_phase() == 0:
             target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-            _, _, red_pixel_count = find_bottle_center(image=image, color="red", roi=ROI_COLOR2)
+            _, _, red_pixel_count = find_bottle_center(image=image, color="red", roi=ROI_COLOR)
             if red_pixel_count > 3000:
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | red_pixel_count={red_pixel_count} > 3000")
                 phase.next_phase()
@@ -326,7 +326,7 @@ class ActionChain(object):
 
         # 1. 赤ボトル中心追従（右モーター相対位置差分が一定値未満の間、赤ピクセルが条件を満たせばcenter、満たさなければ中央。一定値を超えたらphase2へ、右モーター位置記録）
         if phase.get_phase() == 1:
-            center, _, red_px = find_bottle_center(image=image, color="red", roi=ROI_COLOR2)
+            center, _, red_px = find_bottle_center(image=image, color="red", roi=ROI_COLOR)
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
