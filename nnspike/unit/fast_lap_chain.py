@@ -380,12 +380,12 @@ class FastLapChain(object):
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
             color_info = self.get_color_sensor_values()
-            if color_info["color_type"] == "white":
+            if color_info["color_type"] == "blue":
                 self._phase2_white_count += 1
             else:
                 self._phase2_white_count = 0
-            print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=2 | position_diff={position_diff} | color={color_info['color']} | color_type={color_info['color_type']} | white_count={self._phase2_white_count}")
-            # 連続ホワイト3回以上で次フェーズ
+            print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=2 | position_diff={position_diff} | color={color_info['color']} | color_type={color_info['color_type']} | blue_count={self._phase2_white_count}")
+            # 連続ブルー3回以上で次フェーズ
             if self._phase2_white_count >= 3:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
