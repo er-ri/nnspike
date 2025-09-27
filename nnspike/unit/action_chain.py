@@ -846,7 +846,7 @@ class ActionChain(object):
                 # phase12用 右モーター相対位置記録（get_motor_positionで統一）
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
             else:
-                left_speed, right_speed = self.calc_motor_speed(target_x)
+                left_speed, right_speed = self.calc_motor_speed(target_x, current_base_speed=20)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
         # 12. コース側モーターが所定値移動までcenter追従。所定値超えたらphase13へ
@@ -856,7 +856,7 @@ class ActionChain(object):
             position_diff = abs(current_pos - position_start)
             color_info = self.get_color_sensor_values()
             color_type = color_info["color_type"]
-            if position_diff >= 300 or color_type == "other":
+            if position_diff >= 300 or color_type == "blue":
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 300 or color_type={color_type} (color_value={color_info['color']})")
                 phase.next_phase()
             else:
@@ -865,7 +865,7 @@ class ActionChain(object):
                     target_x = center[0]
                 else:
                     target_x = (self.x1 + self.x2) // 2
-                left_speed, right_speed = self.calc_motor_speed(target_x)
+                left_speed, right_speed = self.calc_motor_speed(target_x, current_base_speed=10)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
         # 13. 状態リセットしBACK_AND_TURN2へ遷移
