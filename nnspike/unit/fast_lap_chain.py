@@ -495,13 +495,16 @@ class FastLapChain(object):
 
         # フェーズ7: 黒を2回連続で検知するまで直進
         if phase.get_phase() == 7:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course)
+            position_diff = abs(current_pos - position_start)
             color_info = self.get_color_sensor_values()
             if color_info["color_type"] == "black":
                 self._phase2_color_count += 1
             else:
                 self._phase2_color_count = 0
-            print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=7 | color={color_info['color']} | color_type={color_info['color_type']} | black_count={self._phase2_color_count}")
-            if self._phase2_color_count >= 2:
+            print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=7 | position_diff={position_diff} | color={color_info['color']} | color_type={color_info['color_type']} | black_count={self._phase2_color_count}")
+            if self._phase2_color_count >= 2 or position_diff >= 300:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
                 self._phase2_color_count = 0
