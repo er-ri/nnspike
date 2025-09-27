@@ -217,7 +217,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
 
     # wait_for_start()の後にmodeの初期値を決定
     if state_flags.force_sensor_mode_switch_enabled:
-        mode = Mode.SHORTCUT_LAP2
+        mode = Mode.FAST_LAP
     else:
         mode = Mode.PAUSE
 
@@ -359,7 +359,8 @@ if __name__ == "__main__":
     parser.add_argument("--course", choices=["left", "right"], default="right", help="Initial course to follow: 'left' for left edge, 'right' for right edge (default: right)")
     parser.add_argument("--course-type", choices=["upper", "lower"], default="upper", help="Course type: 'upper' or 'lower' (default: upper)")
     parser.add_argument("--manual", action="store_true", help="Enable manual key input control mode")
-    parser.add_argument("--use-video", action="store_true", help="Enable camera at startup")
+    parser.add_argument("--use-video", dest="use_video", action="store_true", default=True, help="Enable camera at startup (default: True)")
+    parser.add_argument("--no-use-video", dest="use_video", action="store_false", help="Disable camera at startup")
     args = parser.parse_args()
     print("Starting OpenCV-based line following robot...")
     print(f"Using ROI: {ROI_CNN}")
