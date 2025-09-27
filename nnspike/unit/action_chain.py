@@ -332,7 +332,7 @@ class ActionChain(object):
 
         # phase0: 赤ピクセル数 > 3000 で phase1へ。右モーター位置記録。
         if phase.get_phase() == 0:
-            _, _, red_pixel_count = find_bottle_center(image=image, color="red", roi=ROI_COLOR2)
+            _, _, red_pixel_count = find_bottle_center(image=image, color="red", roi=ROI_COLOR)
             if red_pixel_count > 3000:
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | red_pixel_count={red_pixel_count} > 3000")
                 phase.next_phase()
@@ -344,7 +344,7 @@ class ActionChain(object):
 
         # phase1: 赤ピクセル数 < 500 かつ距離 < 15 で phase2へ。yaw基準セット。
         if phase.get_phase() == 1:
-            center, _, red_px = find_bottle_center(image=image, color="red", roi=ROI_COLOR2)
+            center, _, red_px = find_bottle_center(image=image, color="red", roi=ROI_COLOR)
             distance = et.get_distance_sensor()
             if (red_px is not None and red_px < 500) and (distance < 15):
                 et.set_start_yaw_nearest_vertical_pole()
