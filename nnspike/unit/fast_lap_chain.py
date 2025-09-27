@@ -28,7 +28,7 @@ class FastLapChain(object):
             self.opposite_course = "right"
         self._init = False
         self.fast_lap_finished = False  # FAST_LAP完了フラグ
-        self._phase2_white_count = 0  # フェーズ2ホワイト検出カウンタ
+        self._phase2_color_count = 0  # フェーズ2色検出カウンタ
 
     def initialize_action(self, motor_side: str = "right"):
         """
@@ -350,8 +350,7 @@ class FastLapChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
-            # if position_diff < 3000:
-            if position_diff < 500:
+            if position_diff < 3000:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
@@ -380,23 +379,23 @@ class FastLapChain(object):
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
             color_info = self.get_color_sensor_values()
-            if color_info["color_type"] == "white":
-                self._phase2_white_count += 1
+            if color_info["color_type"] == "white" or color_info["color_type"] == "black":
+                self._phase2_color_count += 1
             else:
-                self._phase2_white_count = 0
-            print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=2 | position_diff={position_diff} | color={color_info['color']} | color_type={color_info['color_type']} | white_count={self._phase2_white_count}")
-            # 連続ブルー4回以上で次フェーズ
-            if self._phase2_white_count >= 4:
+                self._phase2_color_count = 0
+            print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=2 | position_diff={position_diff} | color={color_info['color']} | color_type={color_info['color_type']} | color_count={self._phase2_color_count}")
+            # 連続色4回以上で次フェーズ
+            if self._phase2_color_count >= 4:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
-                self._phase2_white_count = 0
+                self._phase2_color_count = 0
             elif position_diff < 1500:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP
             elif position_diff >= 3000:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
-                self._phase2_white_count = 0
+                self._phase2_color_count = 0
             else:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP
@@ -422,8 +421,7 @@ class FastLapChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
-            # threshold = 2400 if self.course == "left" else 2000
-            threshold = 1000
+            threshold = 2400 if self.course == "left" else 2000
             if position_diff < threshold:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP
