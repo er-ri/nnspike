@@ -335,7 +335,7 @@ class ActionChain(object):
         if phase.get_phase() == 0:
             _, _, red_pixel_count = find_bottle_center(image=image, color="red", roi=ROI_COLOR)
             if red_pixel_count > 3000:
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | red_pixel_count={red_pixel_count} > 3000 | self._start_yaw set to {et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | red_pixel_count={red_pixel_count} > 3000 | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase()
             else:
                 # target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
@@ -349,7 +349,7 @@ class ActionChain(object):
             distance = et.get_distance_sensor()
             if (red_px is not None and red_px < 500) and (distance < 15):
                 et.set_start_yaw_nearest_vertical_pole()
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | red_px={red_px} < 500 and distance={distance} < 15 | self._start_yaw set to {et.get_start_yaw()} | current_yaw={et.get_yaw():.2f}")
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | red_px={red_px} < 500 and distance={distance} < 15 | set_start_yaw={et.get_start_yaw()} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase()
                 return (0, 0), Mode.CARRY_BOTTLE1
 
@@ -402,7 +402,7 @@ class ActionChain(object):
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
             # 閾値を超えたら次フェーズへ
             et.set_start_yaw_nearest_vertical_pole()
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} | self._start_yaw set to {et.get_start_yaw()} | current_yaw={et.get_yaw():.2f}")
+            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} | set_start_yaw={et.get_start_yaw()} | current_yaw={et.get_yaw():.2f}")
             phase.next_phase()
             phase.set_position_start("position_start", self.get_motor_position(self.course))
 
@@ -411,7 +411,7 @@ class ActionChain(object):
             stop_turn = self.et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=90.0)
             if stop_turn:
                 et.set_start_yaw_nearest_horizontal_pole()
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | self._start_yaw set to {et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
                 phase.next_phase()
                 return (0, 0), Mode.CARRY_BOTTLE1
@@ -690,7 +690,7 @@ class ActionChain(object):
                 else:
                     return (30, 0), Mode.CARRY_BOTTLE2
             et.set_start_yaw_nearest_vertical_pole()
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | line_detected={line_detected} | position_diff={position_diff} >= {max_limit} | self._start_yaw set to {et.get_start_yaw()}")
+            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | line_detected={line_detected} | position_diff={position_diff} >= {max_limit} | set_start_yaw={et.get_start_yaw()} | current_yaw={et.get_yaw():.2f}")
             phase.next_phase()
             # phase4用 右モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position(self.course))
@@ -706,7 +706,7 @@ class ActionChain(object):
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
                 # return (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
             et.set_start_yaw_nearest_vertical_pole()
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} | self._start_yaw set to {et.get_start_yaw()}")
+            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} | set_start_yaw={et.get_start_yaw()}")
             phase.next_phase()
             # phase5用 右モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position(self.course))

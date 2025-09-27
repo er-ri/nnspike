@@ -216,10 +216,10 @@ class FastLapChain(object):
             stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=15.0)
             if stop_turn:
                 if self.course == "right":
-                    self.et.set_start_yaw(start_yaw - 15.0)
+                    et.set_start_yaw(start_yaw - 15.0)
                 else:
-                    self.et.set_start_yaw(start_yaw + 15.0)
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+                    et.set_start_yaw(start_yaw + 15.0)
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
             else:
@@ -259,10 +259,10 @@ class FastLapChain(object):
             stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=75.0)
             if stop_turn:
                 if self.course == "right":
-                    self.et.set_start_yaw(start_yaw - 90.0)
+                    et.set_start_yaw(start_yaw - 90.0)
                 else:
-                    self.et.set_start_yaw(start_yaw + 90.0)
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+                    et.set_start_yaw(start_yaw + 90.0)
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
             else:
@@ -294,10 +294,10 @@ class FastLapChain(object):
             stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=45.0)
             if stop_turn:
                 if self.course == "right":
-                    self.et.set_start_yaw(start_yaw - 135.0)
+                    et.set_start_yaw(start_yaw - 135.0)
                 else:
-                    self.et.set_start_yaw(start_yaw + 135.0)
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+                    et.set_start_yaw(start_yaw + 135.0)
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
             else:
@@ -359,7 +359,7 @@ class FastLapChain(object):
         if phase.get_phase() == 8:
             stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=45.0)
             if stop_turn:
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | current_yaw={self.et.get_yaw():.2f}")
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
             else:
