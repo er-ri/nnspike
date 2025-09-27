@@ -1,3 +1,4 @@
+import re
 import time  # 時間計測用
 from typing import Optional, Tuple  # 型ヒント用
 
@@ -451,7 +452,7 @@ class ActionChain(object):
                 else:
                     target_x = (self.x1 + self.x2) // 2
                     self.pre_target_x = target_x
-                left_speed, right_speed = self.calc_motor_speed(target_x)
+                left_speed, right_speed = self.calc_motor_speed(target_x, current_base_speed=30)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
             # 一定値超えたら次フェーズへ
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1500")
@@ -731,6 +732,7 @@ class ActionChain(object):
             stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=90.0)
             if stop_turn:
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | yaw={et.get_yaw():.2f} | yaw_start={et.get_start_yaw():.2f} | diff={et.get_yaw() - et.get_start_yaw():.2f}")
+                et.set_start_yaw_nearest_horizontal_pole()
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
                 return (0, 0), Mode.CARRY_BOTTLE2
@@ -746,8 +748,10 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
             if position_diff < 100:
-                return (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 100")
+                left_speed, right_speed = et.yaw_straight_control(base_speed=BASE_SPEED, adjust_speed=2)
+                return (left_speed, right_speed), Mode.CARRY_BOTTLE2
+                # return (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
+            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 100 | yaw={et.get_yaw():.2f} | start_yaw={et.get_start_yaw():.2f}")
             phase.next_phase()
             # phase7用 右モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position(self.course))
@@ -767,7 +771,7 @@ class ActionChain(object):
                 else:
                     target_x = (self.x1 + self.x2) // 2
                     self.pre_target_x = target_x
-                left_speed, right_speed = self.calc_motor_speed(target_x)
+                left_speed, right_speed = self.calc_motor_speed(target_x, current_base_speed=30)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1400")
             phase.next_phase()
@@ -780,7 +784,9 @@ class ActionChain(object):
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
             if position_diff < 400:
-                return (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
+                left_speed, right_speed = et.yaw_straight_control(base_speed=BASE_SPEED, adjust_speed=2)
+                return (left_speed, right_speed), Mode.CARRY_BOTTLE2
+                # return (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 400")
             phase.next_phase()
             # phase9用 右モーター相対位置記録（get_motor_positionで統一）
