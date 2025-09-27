@@ -281,6 +281,9 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
 
             # モード分岐（match-case構文）
             match mode:
+                case Mode.FAST_LAP:
+                    (left_speed, right_speed), mode = unpack_action_result(fast_lap_chain.fast_lap(frame))
+                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.FORWARD:
                     left_speed = BASE_SPEED
                     right_speed = BASE_SPEED

@@ -58,8 +58,7 @@ class KeyboardController:
             "6": (Mode.BACK_AND_TURN2, "Switched to back and turn 2 mode"),
             "7": (Mode.HEAD_GOAL, "Switched to heading goal mode"),
             "8": (Mode.PAUSE, "Pausing robot"),
-            # "t": (Mode.FAST_LAP, "Switched to FAST_LAP mode"),
-            # "y": (Mode.SHORTCUT_LAP, "Switched to SHORTCUT_LAP mode (shortcut y)"),
+            "y": (Mode.FAST_LAP, "Switched to FAST_LAP mode"),
             "l": (Mode.SHORTCUT_LAP2, "Switched to SHORTCUT_LAP2 mode (shortcut l)"),
             "p": (Mode.PAUSE, "Pausing robot"),
         }
