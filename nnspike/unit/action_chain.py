@@ -808,6 +808,7 @@ class ActionChain(object):
             phase.next_phase()
             # phase10用 右モーター相対位置記録（get_motor_positionで統一）
             phase.set_position_start("position_start", self.get_motor_position(self.course))
+            return (0, 0), Mode.CARRY_BOTTLE2
 
         # 10. 青検出（青ピクセル数が一定値を超えたらphase11へ、最大回転量。条件満たせば右モーター位置記録）
         if phase.get_phase() == 10:
