@@ -384,7 +384,7 @@ class FastLapChain(object):
                 self._phase2_white_count += 1
             else:
                 self._phase2_white_count = 0
-            print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=2 | position_diff={position_diff} | color_type={color_info['color_type']} | white_count={self._phase2_white_count}")
+            print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=2 | position_diff={position_diff} | color={color_info['color']} | color_type={color_info['color_type']} | white_count={self._phase2_white_count}")
             # 連続ホワイト3回以上で次フェーズ
             if self._phase2_white_count >= 3:
                 phase.next_phase()
