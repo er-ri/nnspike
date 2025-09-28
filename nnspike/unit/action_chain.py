@@ -389,6 +389,7 @@ class ActionChain(object):
                         return (0, 0), Mode.EYE_BLUE
                     return (0, 0), Mode.EYE_BLUE
                 else:
+                    adjust_elapsed = 0.0  # どの分岐でも必ず定義されるよう初期化
                     if self._phase2_timer is not None:
                         print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_target_centered LOST | timer reset | target_x={center[0]} | center_x={center_x}")
                     # centeredを外れた瞬間に必ずタイマーリセット
