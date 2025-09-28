@@ -413,17 +413,14 @@ class ActionChain(object):
                             return (-15, 15), Mode.EYE_BLUE  # 左回転
                         else:
                             return (15, -15), Mode.EYE_BLUE  # 右回転
-                # 20px外なら中央に近づける方向に回転
-                # ただし、_phase2_init_centerがある場合はそこから大きく離れないようにする
+                # 20px外なら中央に近づける方向にしか絶対回転しない（異常逸脱時も同じ）
                 if self._phase2_init_center is not None and center is not None:
-                    # もし現在のcenterが初期centerから±100px以上離れていたら逆回転
                     if abs(center[0] - self._phase2_init_center[0]) > 100:
-                        print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | abnormal deviation from initial center: {center[0]} vs {self._phase2_init_center[0]} | reverse spin")
-                        # 逆回転（通常と逆方向に回す）
-                        if target_x < center_x:
-                            return (-15, 15), Mode.EYE_BLUE  # 左回転
-                        elif target_x > center_x:
-                            return (15, -15), Mode.EYE_BLUE  # 右回転
+                        print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | abnormal deviation from initial center: {center[0]} vs {self._phase2_init_center[0]} | force center direction only")
+                        if center[0] < center_x:
+                            return (15, -15), Mode.EYE_BLUE  # 右回転（中央へ）
+                        elif center[0] > center_x:
+                            return (-15, 15), Mode.EYE_BLUE  # 左回転（中央へ）
                         return (0, 0), Mode.EYE_BLUE
                 if target_x < center_x:
                     return (15, -15), Mode.EYE_BLUE  # 右回転
