@@ -355,7 +355,7 @@ class ActionChain(object):
             position_limit_reached = position_diff >= max_limit
             if ((position_diff >= 300 and blue_target_detected) or position_limit_reached):
                 # 現在のヨー角でスタートヨーを設定
-                self.et.set_start_yaw(self.et.get_yaw())
+                self.et.set_start_yaw()
                 center, _, blue_pixel_count = find_blue_target_center(image)
                 print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_limit} or (position_diff={position_diff} >= 300 and blue_target_detected={blue_target_detected}) | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f} | blue_pixel_count={blue_pixel_count} | blue_center={center}")
                 self._phase2_init_center = center
@@ -373,7 +373,8 @@ class ActionChain(object):
             center_x = (self.x1 + self.x2) // 2
             print(f"[DEBUG] phase=2 | center={center} | center_x={center_x} | blue_pixel_count={blue_pixel_count}")
             if center is not None and abs(center[0] - center_x) <= 20:
-                print(f"[DEBUG] phase=2 | centered | target_x={center[0]} | center_x={center_x} | STOP & NEXT PHASE")
+                self.et.set_start_yaw()
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase=2 | centered | target_x={center[0]} | center_x={center_x} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase()
                 return (0, 0), Mode.EYE_BLUE
             elif center is not None:
@@ -396,9 +397,16 @@ class ActionChain(object):
                 target_x = (self.x1 + self.x2) // 2
             if blue_pixel_count > 1000:
                 print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} > 1000")
+                # centerに向かって進む
+                if center is not None:
+                    left_speed, right_speed = self.calc_motor_speed(center[0])
+                else:
+                    left_speed, right_speed = self.et.yaw_straight_control(base_speed=BASE_SPEED, adjust_speed=2)
                 phase.next_phase()
+                return (left_speed, right_speed), Mode.EYE_BLUE
             else:
-                left_speed, right_speed = self.calc_motor_speed(target_x)
+                # 直前のヨーを維持して直進
+                left_speed, right_speed = self.et.yaw_straight_control(base_speed=BASE_SPEED, adjust_speed=2)
                 return (left_speed, right_speed), Mode.EYE_BLUE
 
         # phase4: 青ピクセル数 <= 300 で phase5へ、右モーター位置記録。超えていればcenter追従（低速）。
@@ -409,14 +417,15 @@ class ActionChain(object):
             else:
                 target_x = (self.x1 + self.x2) // 2
             if blue_pixel_count <= 300:
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} <= 300")
+                self.et.set_start_yaw()
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} <= 300 | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
             else:
-                left_speed, right_speed = self.calc_motor_speed(target_x, current_base_speed=20)
+                left_speed, right_speed = self.et.yaw_straight_control(base_speed=20, adjust_speed=2)
                 return (left_speed, right_speed), Mode.EYE_BLUE
 
-        # phase5: 色センサーが青検出で phase6へ（停止）。それ以外はcenter追従（超低速）。
+        # phase5: 色センサーが青検出で phase6へ（停止）。それ以外はヨー維持で直進（超低速）。
         if phase.get_phase() == 5:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
@@ -424,17 +433,13 @@ class ActionChain(object):
             color_info = self.get_color_sensor_values()
             color_type = color_info["color_type"]
             position_diff = abs(current_pos - position_start)
-            if color_type == "blue":
+            if color_type == "blue" or position_diff >= threshold:
                 print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} or color_type={color_type} (color_value={color_info['color']})")
                 phase.next_phase()
                 return (0, 0), Mode.EYE_BLUE
             else:
-                center, _, _ = find_blue_target_center(image)
-                if center is not None:
-                    target_x = center[0]
-                else:
-                    target_x = (self.x1 + self.x2) // 2
-                left_speed, right_speed = self.calc_motor_speed(target_x, current_base_speed=10)
+                # ここでfind_blue_target_centerは不要。ヨー維持で直進（超低速）
+                left_speed, right_speed = self.et.yaw_straight_control(base_speed=10, adjust_speed=2)
                 return (left_speed, right_speed), Mode.EYE_BLUE
 
         # phase6: 状態リセットしPAUSEへ遷移。
