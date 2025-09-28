@@ -362,7 +362,6 @@ class ActionChain(object):
                 else:
                     return (30, 0), Mode.EYE_BLUE
 
-
         # phase2: 青ターゲット中心検出。中央付近2秒 or 最大3秒で次フェーズ（bottle1と同じく1タイマーで管理）
         if phase.get_phase() == 2:
             center, _, blue_pixel_count = find_blue_target_center(image)
@@ -387,23 +386,20 @@ class ActionChain(object):
                     phase.next_phase()
                     self._phase2_timer = None
                     return (0, 0), Mode.EYE_BLUE
+                if self.course == "right":
+                    return (15, -15), Mode.EYE_BLUE
                 else:
-                    if self.course == "right":
-                        return (15, -15), Mode.EYE_BLUE
-                    else:
-                        return (-15, 15), Mode.EYE_BLUE
+                    return (-15, 15), Mode.EYE_BLUE
             else:
-                # bottle1と同じロジック: 3秒経過で強制遷移
                 if adjust_elapsed >= 3.0:
                     phase.set_position_start("position_start", self.get_motor_position(self.course))
                     phase.next_phase()
                     self._phase2_timer = None
                     return (0, 0), Mode.EYE_BLUE
+                if self.course == "right":
+                    return (15, -15), Mode.EYE_BLUE
                 else:
-                    if self.course == "right":
-                        return (15, -15), Mode.EYE_BLUE
-                    else:
-                        return (-15, 15), Mode.EYE_BLUE
+                    return (-15, 15), Mode.EYE_BLUE
                 
         # phase3: 青ターゲット中心検出、青ピクセル数 > 1000 で phase4へ。未満ならcenter追従。
         if phase.get_phase() == 3:
@@ -438,7 +434,7 @@ class ActionChain(object):
         if phase.get_phase() == 5:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
-            threshold = 300
+            threshold = 1000
             color_info = self.get_color_sensor_values()
             color_type = color_info["color_type"]
             position_diff = abs(current_pos - position_start)
