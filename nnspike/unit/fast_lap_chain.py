@@ -74,7 +74,7 @@ class FastLapChain(object):
         if phase.get_phase() == 0:
             stop_turn = et.is_yaw_turn_finished(side="left", threshold_deg=90.0)
             if stop_turn:
-                phase.next_phase(2)
+                phase.next_phase()
                 print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
                 return (0, 0), Mode.TURN_LEFT_YAW
             else:
@@ -83,39 +83,19 @@ class FastLapChain(object):
 
         # phase1: 左旋回後の微調整（±4度以内2秒静止でPAUSE）
         if phase.get_phase() == 1:
-            if not hasattr(self, 'turn_left_reference_yaw') or self.turn_left_reference_yaw is None:
-                # 左旋回後の微調整はget_start_yaw()-90.0をwrap_angleでラップ
-                self.turn_left_reference_yaw = et.wrap_angle(et.get_start_yaw() - 90.0)
-                self.turn_left_adjust_timer = time.time()
-                self.turn_left_in_tolerance_time = None
-            error = et.wrap_angle(et.get_yaw() - self.turn_left_reference_yaw)
-            elapsed = time.time() - self.turn_left_adjust_timer if self.turn_left_adjust_timer is not None else 0
-            if et.is_yaw_error_within(self.turn_left_reference_yaw, 4.0):
-                if self.turn_left_in_tolerance_time is None:
-                    self.turn_left_in_tolerance_time = time.time()
-                tolerance_elapsed = time.time() - self.turn_left_in_tolerance_time
-                print(f"[TURN_LEFT][ADJUST][TOLERANCE] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_left_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
-                if tolerance_elapsed >= 2.0:
-                    print(f"[TURN_LEFT][ADJUST][STOP] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_left_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
-                    self._phase.next_phase()
-                    self.turn_left_reference_yaw = None
-                    self.turn_left_adjust_timer = None
-                    self.turn_left_in_tolerance_time = None
+            # carry_bottle1_relativeのphase2と完全同一ロジック
+            in_tolerance, yaw_error = et.is_start_yaw_error_within(4.0)
+            start_yaw = et.get_start_yaw()
+            current_yaw = et.get_yaw()
+            if in_tolerance:
+                print(f"[TURN_LEFT][ADJUST][TOLERANCE] in_tolerance={in_tolerance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
+                self._phase.next_phase()
             else:
-                self.turn_left_in_tolerance_time = None
-                if elapsed < 2.0:
-                    if error < 0:
-                        print(f"[TURN_LEFT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_left_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                        return (0, -15), Mode.TURN_LEFT_YAW
-                    else:
-                        print(f"[TURN_LEFT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_left_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                        return (0, 15), Mode.TURN_LEFT_YAW
+                print(f"[TURN_LEFT][ADJUST][CORRECT] start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
+                if yaw_error < 0:
+                    return (5, 0), Mode.TURN_LEFT_YAW
                 else:
-                    print(f"[TURN_LEFT][ADJUST][TIMEOUT] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_left_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                    self._phase.next_phase()
-                    self.turn_left_reference_yaw = None
-                    self.turn_left_adjust_timer = None
-                    self.turn_left_in_tolerance_time = None
+                    return (0, 5), Mode.TURN_LEFT_YAW
 
         # phase2のみポーズ復帰＋リセット
         if phase.get_phase() == 2:
@@ -146,39 +126,19 @@ class FastLapChain(object):
 
         # phase1: 右旋回後の微調整（±4度以内2秒静止でPAUSE）
         if phase.get_phase() == 1:
-            if not hasattr(self, 'turn_right_reference_yaw') or self.turn_right_reference_yaw is None:
-                # 右旋回後の微調整はget_start_yaw()+90.0をwrap_angleでラップ
-                self.turn_right_reference_yaw = et.wrap_angle(et.get_start_yaw() + 90.0)
-                self.turn_right_adjust_timer = time.time()
-                self.turn_right_in_tolerance_time = None
-            error = et.wrap_angle(et.get_yaw() - self.turn_right_reference_yaw)
-            elapsed = time.time() - self.turn_right_adjust_timer if self.turn_right_adjust_timer is not None else 0
-            if et.is_yaw_error_within(self.turn_right_reference_yaw, 4.0):
-                if self.turn_right_in_tolerance_time is None:
-                    self.turn_right_in_tolerance_time = time.time()
-                tolerance_elapsed = time.time() - self.turn_right_in_tolerance_time
-                print(f"[TURN_RIGHT][ADJUST][TOLERANCE] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
-                if tolerance_elapsed >= 2.0:
-                    print(f"[TURN_RIGHT][ADJUST][STOP] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, tolerance_elapsed={tolerance_elapsed:.2f}s")
-                    self._phase.next_phase()
-                    self.turn_right_reference_yaw = None
-                    self.turn_right_adjust_timer = None
-                    self.turn_right_in_tolerance_time = None
+            # carry_bottle1_relativeのphase2と完全同一ロジック
+            in_tolerance, yaw_error = et.is_start_yaw_error_within(4.0)
+            start_yaw = et.get_start_yaw()
+            current_yaw = et.get_yaw()
+            if in_tolerance:
+                print(f"[TURN_RIGHT][ADJUST][TOLERANCE] in_tolerance={in_tolerance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
+                self._phase.next_phase()
             else:
-                self.turn_right_in_tolerance_time = None
-                if elapsed < 2.0:
-                    if error < 0:
-                        print(f"[TURN_RIGHT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                        return (15, 0), Mode.TURN_RIGHT_YAW
-                    else:
-                        print(f"[TURN_RIGHT][ADJUST] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                        return (-15, 0), Mode.TURN_RIGHT_YAW
+                print(f"[TURN_RIGHT][ADJUST][CORRECT] start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
+                if yaw_error < 0:
+                    return (5, 0), Mode.TURN_RIGHT_YAW
                 else:
-                    print(f"[TURN_RIGHT][ADJUST][TIMEOUT] yaw={et.get_yaw():.2f}, ref_yaw={self.turn_right_reference_yaw:.2f}, error={error:.2f}, elapsed={elapsed:.2f}s")
-                    self._phase.next_phase()
-                    self.turn_right_reference_yaw = None
-                    self.turn_right_adjust_timer = None
-                    self.turn_right_in_tolerance_time = None
+                    return (0, 5), Mode.TURN_RIGHT_YAW
 
         # phase2のみポーズ復帰＋リセット
         if phase.get_phase() == 2:
