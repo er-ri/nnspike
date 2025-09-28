@@ -397,7 +397,7 @@ class ActionChain(object):
                     self.et.set_start_yaw()
                     left_speed, right_speed = self.calc_motor_speed(center[0], current_base_speed=20)
                 else:
-                    left_speed, right_speed = self.et.yaw_straight_control(base_speed=20, adjust_speed=2)
+                    left_speed, right_speed = self.et.yaw_straight_control(base_speed=20, adjust_speed=2, deadband=2)
                 return (left_speed, right_speed), Mode.EYE_BLUE
             elif blue_pixel_count <= 300:
                 self.et.set_start_yaw()
@@ -406,7 +406,7 @@ class ActionChain(object):
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
             else:
                 print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} | center={center} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
-                left_speed, right_speed = self.et.yaw_straight_control(base_speed=20, adjust_speed=2)
+                left_speed, right_speed = self.et.yaw_straight_control(base_speed=20, adjust_speed=2, deadband=2)
                 return (left_speed, right_speed), Mode.EYE_BLUE
 
         # phase4: 色センサーが青検出で phase5へ（停止）。それ以外はヨー維持で直進（超低速）。
@@ -423,7 +423,7 @@ class ActionChain(object):
                 return (0, 0), Mode.EYE_BLUE
             else:
                 # ここでfind_blue_target_centerは不要。ヨー維持で直進（超低速）
-                left_speed, right_speed = self.et.yaw_straight_control(base_speed=10, adjust_speed=2)
+                left_speed, right_speed = self.et.yaw_straight_control(base_speed=10, adjust_speed=1, deadband=2)
                 return (left_speed, right_speed), Mode.EYE_BLUE
 
         # phase5: 状態リセットしPAUSEへ遷移。
