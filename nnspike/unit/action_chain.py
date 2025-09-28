@@ -395,7 +395,9 @@ class ActionChain(object):
                 if self._phase2_timer is None:
                     self._phase2_timer = time.time()
                 adjust_elapsed = time.time() - self._phase2_timer
-            else:
+
+            # centeredでなければ以降のロジックを実行
+            if not (center is not None and abs(center[0] - center_x) <= 20):
                 if adjust_elapsed >= 7.0:
                     # 7秒以上見つからなかったら、スタートヨーとカレントヨーが一致するまで最短回転で±15の調整を行う
                     # is_start_yaw_error_withinで誤差判定と値取得を統一
