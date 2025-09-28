@@ -254,6 +254,8 @@ class ETRobot(object):
             color_value = int(color_value_raw)
             if color_value < 150:
                 color_type = "black"
+            elif color_value < 300:
+                color_type = "other"
             elif color_value < 600:
                 color_type = "blue"
             elif color_value > 900:
