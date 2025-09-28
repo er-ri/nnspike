@@ -370,78 +370,29 @@ class ActionChain(object):
         # phase2: 青ターゲット中心検出。中央付近2秒 or 最大3秒で次フェーズ（bottle1と同じく1タイマーで管理）
         if phase.get_phase() == 2:
             center, _, blue_pixel_count = find_blue_target_center(image)
-            print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | phase2_find_blue_target_center | center={center} | blue_pixel_count={blue_pixel_count}")
             center_x = (self.x1 + self.x2) // 2
-            if center is not None:
-                # center[0]とcenter_xの差で厳密に判定
-                centered = abs(center[0] - center_x) <= 20
-                if centered:
-                    if self._phase2_timer is None:
-                        print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_target_centered | timer start | target_x={center[0]} | center_x={center_x}")
-                        self._phase2_timer = time.time()
-                    adjust_elapsed = time.time() - self._phase2_timer
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_target_centered | target_x={center[0]} | center_x={center_x} | blue_pixel_count={blue_pixel_count} | adjust_elapsed={adjust_elapsed:.2f}s")
-                    if adjust_elapsed >= 2.0:
-                        print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_target_centered | 2sec achieved | next phase")
-                        phase.set_position_start("position_start", self.get_motor_position(self.course))
-                        phase.next_phase()
-                        self._phase2_timer = None
-                        return (0, 0), Mode.EYE_BLUE
-                    return (0, 0), Mode.EYE_BLUE
-                else:
-                    adjust_elapsed = 0.0  # どの分岐でも必ず定義されるよう初期化
-                    if self._phase2_timer is not None:
-                        print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_target_centered LOST | timer reset | target_x={center[0]} | center_x={center_x}")
-                    # centeredを外れた瞬間に必ずタイマーリセット
-                    self._phase2_timer = None
-                target_x = center[0]
-            else:
-                if self.course == "right":
-                    target_x = max(self.x1, min(center_x - 200, self.x2))
-                else:
-                    target_x = max(self.x1, min(center_x + 200, self.x2))
+            if center is not None and abs(center[0] - center_x) <= 20:
                 if self._phase2_timer is None:
                     self._phase2_timer = time.time()
-                # centerがNoneの場合はadjust_elapsedを0.0で初期化
-                adjust_elapsed = 0.0
-
-            # centeredでなければ以降のロジックを実行（centerがNoneの場合はadjust_elapsedを参照しない）
-            if center is not None and not (abs(center[0] - center_x) <= 20):
-                if adjust_elapsed >= 7.0:
-                    # 7秒以上見つからなかったら、スタートヨーとカレントヨーが一致するまで最短回転で±15の調整を行う
-                    # is_start_yaw_error_withinで誤差判定と値取得を統一
-                    in_tolerance, yaw_error = self.et.is_start_yaw_error_within(3.0)
-                    if in_tolerance:
-                        phase.set_position_start("position_start", self.get_motor_position(self.course))
-                        phase.next_phase()
-                        self._phase2_timer = None
-                        return (0, 0), Mode.EYE_BLUE
-                    else:
-                        # 最短回転方向で±15調整
-                        if yaw_error > 0:
-                            return (-15, 15), Mode.EYE_BLUE  # 左回転
-                        else:
-                            return (15, -15), Mode.EYE_BLUE  # 右回転
-                # 逸脱時（±100px超）はreturn (0, 0)を絶対に返さず、必ず中央方向へ大きく回転
-                if self._phase2_init_center is not None:
-                    if abs(center[0] - self._phase2_init_center[0]) > 100:
-                        print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | abnormal deviation from initial center: {center[0]} vs {self._phase2_init_center[0]} | force center direction only (speed=15)")
-                        if center[0] < center_x:
-                            return (15, -15), Mode.EYE_BLUE  # 右回転（中央へ）
-                        elif center[0] > center_x:
-                            return (-15, 15), Mode.EYE_BLUE  # 左回転（中央へ）
-                        # return (0, 0), Mode.EYE_BLUE は絶対に返さない
-                if target_x < center_x:
-                    return (15, -15), Mode.EYE_BLUE  # 右回転
-                elif target_x > center_x:
-                    return (-15, 15), Mode.EYE_BLUE  # 左回転
+                adjust_elapsed = time.time() - self._phase2_timer
+                if adjust_elapsed >= 2.0:
+                    phase.set_position_start("position_start", self.get_motor_position(self.course))
+                    phase.next_phase()
+                    self._phase2_timer = None
+                    return (0, 0), Mode.EYE_BLUE
                 return (0, 0), Mode.EYE_BLUE
-            elif center is None:
-                # centerがNoneの場合は従来通りtarget_xで回転制御
-                if target_x < center_x:
-                    return (15, -15), Mode.EYE_BLUE  # 右回転
-                elif target_x > center_x:
-                    return (-15, 15), Mode.EYE_BLUE  # 左回転
+            else:
+                self._phase2_timer = None
+                if center is not None:
+                    if center[0] < center_x:
+                        return (15, -15), Mode.EYE_BLUE
+                    elif center[0] > center_x:
+                        return (-15, 15), Mode.EYE_BLUE
+                else:
+                    if self.course == "right":
+                        return (15, -15), Mode.EYE_BLUE
+                    else:
+                        return (-15, 15), Mode.EYE_BLUE
                 return (0, 0), Mode.EYE_BLUE
                 
         # phase3: 青ターゲット中心検出、青ピクセル数 > 1000 で phase4へ。未満ならcenter追従。
