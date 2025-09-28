@@ -328,6 +328,7 @@ class ActionChain(object):
             self.initialize_action(motor_side=self.course)
             self.et.set_start_yaw_nearest_vertical_pole()
             self._phase2_timer = None
+            self._phase2_init_center = None
         et = self.et
         phase = self._phase
 
@@ -357,6 +358,7 @@ class ActionChain(object):
                 self.et.set_start_yaw(self.et.get_yaw())
                 center, _, blue_pixel_count = find_blue_target_center(image)
                 print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_limit} or (position_diff={position_diff} >= 300 and blue_target_detected={blue_target_detected}) | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f} | blue_pixel_count={blue_pixel_count} | blue_center={center}")
+                self._phase2_init_center = center
                 phase.next_phase()
                 return (0, 0), Mode.EYE_BLUE
             else:
@@ -368,7 +370,7 @@ class ActionChain(object):
         # phase2: 青ターゲット中心検出。中央付近2秒 or 最大3秒で次フェーズ（bottle1と同じく1タイマーで管理）
         if phase.get_phase() == 2:
             center, _, blue_pixel_count = find_blue_target_center(image)
-            print(f"[DEBUG] phase2 find_blue_target_center: center={center}, blue_pixel_count={blue_pixel_count}")
+            print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | phase2_find_blue_target_center | center={center} | blue_pixel_count={blue_pixel_count}")
             center_x = (self.x1 + self.x2) // 2
             if center is not None:
                 target_x = center[0]
@@ -413,6 +415,17 @@ class ActionChain(object):
                         else:
                             return (-15, 15), Mode.EYE_BLUE
                 # 20px外なら中央に近づける方向に回転
+                # ただし、_phase2_init_centerがある場合はそこから大きく離れないようにする
+                if self._phase2_init_center is not None and center is not None:
+                    # もし現在のcenterが初期centerから±100px以上離れていたら逆回転
+                    if abs(center[0] - self._phase2_init_center[0]) > 100:
+                        print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | abnormal deviation from initial center: {center[0]} vs {self._phase2_init_center[0]} | reverse spin")
+                        # 逆回転（通常と逆方向に回す）
+                        if target_x < center_x:
+                            return (-15, 15), Mode.EYE_BLUE  # 左回転
+                        elif target_x > center_x:
+                            return (15, -15), Mode.EYE_BLUE  # 右回転
+                        return (0, 0), Mode.EYE_BLUE
                 if target_x < center_x:
                     return (15, -15), Mode.EYE_BLUE  # 右回転
                 elif target_x > center_x:
