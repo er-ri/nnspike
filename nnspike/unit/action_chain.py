@@ -395,9 +395,9 @@ class ActionChain(object):
                 print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} > 1000 | center={center} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 if center is not None:
                     self.et.set_start_yaw()
-                    left_speed, right_speed = self.calc_motor_speed(center[0])
+                    left_speed, right_speed = self.calc_motor_speed(center[0], current_base_speed=20)
                 else:
-                    left_speed, right_speed = self.et.yaw_straight_control(base_speed=BASE_SPEED, adjust_speed=2)
+                    left_speed, right_speed = self.et.yaw_straight_control(base_speed=20, adjust_speed=2)
                 return (left_speed, right_speed), Mode.EYE_BLUE
             elif blue_pixel_count <= 300:
                 self.et.set_start_yaw()
