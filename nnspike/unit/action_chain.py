@@ -367,57 +367,23 @@ class ActionChain(object):
                 else:
                     return (30, 0), Mode.EYE_BLUE
 
-        # phase2: 青ターゲット中心検出。中央付近2秒 or 最大3秒で次フェーズ（bottle1と同じく1タイマーで管理）
+        # phase2: 青ターゲット中心検出。中央付近なら即停止、そうでなければ回転のみの超シンプルロジック
         if phase.get_phase() == 2:
             center, _, blue_pixel_count = find_blue_target_center(image)
             center_x = (self.x1 + self.x2) // 2
-            # center[0]の前回値を保存して差分を出す
-            if not hasattr(self, '_prev_center0'):
-                self._prev_center0 = None
-            center0_diff = None
-            if center is not None and self._prev_center0 is not None:
-                center0_diff = center[0] - self._prev_center0
-            print(f"[DEBUG] phase=2 | center={center} | center_x={center_x} | blue_pixel_count={blue_pixel_count}"
-                  + (f" | center0_diff={center0_diff:+}" if center0_diff is not None else ""))
-            if center is not None:
-                self._prev_center0 = center[0]
-            else:
-                self._prev_center0 = None
+            print(f"[DEBUG] phase=2 | center={center} | center_x={center_x} | blue_pixel_count={blue_pixel_count}")
             if center is not None and abs(center[0] - center_x) <= 20:
-                if self._phase2_timer is None:
-                    print(f"[DEBUG] phase=2 | timer start | target_x={center[0]} | center_x={center_x}")
-                    self._phase2_timer = time.time()
-                adjust_elapsed = time.time() - self._phase2_timer
-                print(f"[DEBUG] phase=2 | centered | target_x={center[0]} | center_x={center_x} | elapsed={adjust_elapsed:.2f}s")
-                if adjust_elapsed >= 2.0:
-                    print(f"[DEBUG] phase=2 | 2sec achieved | next phase")
-                    phase.set_position_start("position_start", self.get_motor_position(self.course))
-                    phase.next_phase()
-                    self._phase2_timer = None
-                    return (0, 0), Mode.EYE_BLUE
+                print(f"[DEBUG] phase=2 | centered | target_x={center[0]} | center_x={center_x} | STOP")
                 return (0, 0), Mode.EYE_BLUE
-            else:
-                print(f"[DEBUG] phase=2 | not centered or center is None | center={center} | center_x={center_x}")
-                self._phase2_timer = None
-                if center is not None:
-                    if center[0] < center_x:
-                        print(f"[DEBUG] phase=2 | rotate left | center[0]={center[0]} < center_x={center_x}")
-                        return (-10, 10), Mode.EYE_BLUE
-                    elif center[0] > center_x:
-                        print(f"[DEBUG] phase=2 | rotate right | center[0]={center[0]} > center_x={center_x}")
-                        return (10, -10), Mode.EYE_BLUE
+            elif center is not None:
+                if center[0] < center_x:
+                    print(f"[DEBUG] phase=2 | rotate left | center[0]={center[0]} < center_x={center_x}")
+                    return (-10, 10), Mode.EYE_BLUE
                 else:
-                    print(f"[DEBUG] phase=2 | center is None | center_x={center_x} | prev_center0={self._prev_center0 if hasattr(self, '_prev_center0') else None}")
-                    prev_center0 = self._prev_center0 if hasattr(self, '_prev_center0') else None
-                    if prev_center0 is not None:
-                        if prev_center0 < center_x:
-                            print(f"[DEBUG] phase=2 | rotate right (to center) | prev_center0={prev_center0} < center_x={center_x}")
-                            return (10, -10), Mode.EYE_BLUE
-                        elif prev_center0 > center_x:
-                            print(f"[DEBUG] phase=2 | rotate left (to center) | prev_center0={prev_center0} > center_x={center_x}")
-                            return (-10, 10), Mode.EYE_BLUE
-                    print(f"[DEBUG] phase=2 | prev_center0 unknown, stop")
-                    return (0, 0), Mode.EYE_BLUE
+                    print(f"[DEBUG] phase=2 | rotate right | center[0]={center[0]} > center_x={center_x}")
+                    return (10, -10), Mode.EYE_BLUE
+            else:
+                print(f"[DEBUG] phase=2 | center is None | stop")
                 return (0, 0), Mode.EYE_BLUE
                 
         # phase3: 青ターゲット中心検出、青ピクセル数 > 1000 で phase4へ。未満ならcenter追従。
