@@ -355,7 +355,8 @@ class ActionChain(object):
             if ((position_diff >= 300 and blue_target_detected) or position_limit_reached):
                 # 現在のヨー角でスタートヨーを設定
                 self.et.set_start_yaw(self.et.get_yaw())
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_limit} or (position_diff={position_diff} >= 300 and blue_target_detected={blue_target_detected}) | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+                center, _, blue_pixel_count = find_blue_target_center(image)
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_limit} or (position_diff={position_diff} >= 300 and blue_target_detected={blue_target_detected}) | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f} | blue_pixel_count={blue_pixel_count} | blue_center={center}")
                 phase.next_phase()
                 return (0, 0), Mode.EYE_BLUE
             else:
@@ -382,16 +383,18 @@ class ActionChain(object):
             centered = abs(target_x - center_x) <= 20
 
             if centered:
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_target_centered | target_x={target_x} | center_x={center_x} | adjust_elapsed={adjust_elapsed:.2f}s")
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_target_centered | target_x={target_x} | center_x={center_x} | blue_pixel_count={blue_pixel_count} | adjust_elapsed={adjust_elapsed:.2f}s")
                 if adjust_elapsed >= 2.0:
                     phase.set_position_start("position_start", self.get_motor_position(self.course))
                     phase.next_phase()
                     self._phase2_timer = None
                     return (0, 0), Mode.EYE_BLUE
-                if self.course == "right":
-                    return (15, -15), Mode.EYE_BLUE
-                else:
-                    return (-15, 15), Mode.EYE_BLUE
+                # 20px外なら中央に近づける方向に回転
+                if target_x < center_x:
+                    return (15, -15), Mode.EYE_BLUE  # 右回転
+                elif target_x > center_x:
+                    return (-15, 15), Mode.EYE_BLUE  # 左回転
+                return (0, 0), Mode.EYE_BLUE
             else:
                 if adjust_elapsed >= 7.0:
                     # 7秒以上見つからなかったら、スタートヨーとカレントヨーが一致するまで±15の調整を行う
@@ -408,10 +411,12 @@ class ActionChain(object):
                             return (15, -15), Mode.EYE_BLUE
                         else:
                             return (-15, 15), Mode.EYE_BLUE
-                if self.course == "right":
-                    return (15, -15), Mode.EYE_BLUE
-                else:
-                    return (-15, 15), Mode.EYE_BLUE
+                # 20px外なら中央に近づける方向に回転
+                if target_x < center_x:
+                    return (15, -15), Mode.EYE_BLUE  # 右回転
+                elif target_x > center_x:
+                    return (-15, 15), Mode.EYE_BLUE  # 左回転
+                return (0, 0), Mode.EYE_BLUE
                 
         # phase3: 青ターゲット中心検出、青ピクセル数 > 1000 で phase4へ。未満ならcenter追従。
         if phase.get_phase() == 3:
