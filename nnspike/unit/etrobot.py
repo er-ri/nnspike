@@ -484,8 +484,8 @@ class ETRobot(object):
         vertical_poles = [0.0, -180.0, 180.0]
         nearest = min(vertical_poles, key=lambda p: abs(self.wrap_angle(yaw - p)))
         self._start_yaw = nearest
-        print(f"[DEBUG][set_start_yaw_nearest_vertical_pole] set={self._start_yaw}")
-        
+        print(f"[DEBUG][set_start_yaw_nearest_vertical_pole] set={self._start_yaw}, get_yaw={yaw}")  
+
     def set_start_yaw_nearest_horizontal_pole(self):
         """
         get_yawで取得した値を+90, -90, +270, -270（横方向の基準）にラップしてself._start_yawに設定する。
@@ -494,4 +494,4 @@ class ETRobot(object):
         horizontal_poles = [90.0, -90.0, 270.0, -270.0]
         nearest = min(horizontal_poles, key=lambda p: abs(self.wrap_angle(yaw - p)))
         self._start_yaw = nearest
-        print(f"[DEBUG][set_start_yaw_nearest_horizontal_pole] set={self._start_yaw}")
+        print(f"[DEBUG][set_start_yaw_nearest_horizontal_pole] set={self._start_yaw}, get_yaw={yaw}")
