@@ -373,26 +373,28 @@ class ActionChain(object):
             print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | phase2_find_blue_target_center | center={center} | blue_pixel_count={blue_pixel_count}")
             center_x = (self.x1 + self.x2) // 2
             if center is not None:
+                # center[0]とcenter_xの差で厳密に判定
+                if self._phase2_timer is None:
+                    self._phase2_timer = time.time()
+                adjust_elapsed = time.time() - self._phase2_timer
+                centered = abs(center[0] - center_x) <= 20
+                if centered:
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_target_centered | target_x={center[0]} | center_x={center_x} | blue_pixel_count={blue_pixel_count} | adjust_elapsed={adjust_elapsed:.2f}s")
+                    if adjust_elapsed >= 2.0:
+                        phase.set_position_start("position_start", self.get_motor_position(self.course))
+                        phase.next_phase()
+                        self._phase2_timer = None
+                        return (0, 0), Mode.EYE_BLUE
+                    return (0, 0), Mode.EYE_BLUE
                 target_x = center[0]
             else:
                 if self.course == "right":
                     target_x = max(self.x1, min(center_x - 200, self.x2))
                 else:
                     target_x = max(self.x1, min(center_x + 200, self.x2))
-
-            if self._phase2_timer is None:
-                self._phase2_timer = time.time()
-            adjust_elapsed = time.time() - self._phase2_timer
-            centered = abs(target_x - center_x) <= 20
-
-            if centered:
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_target_centered | target_x={target_x} | center_x={center_x} | blue_pixel_count={blue_pixel_count} | adjust_elapsed={adjust_elapsed:.2f}s")
-                if adjust_elapsed >= 2.0:
-                    phase.set_position_start("position_start", self.get_motor_position(self.course))
-                    phase.next_phase()
-                    self._phase2_timer = None
-                    return (0, 0), Mode.EYE_BLUE
-                return (0, 0), Mode.EYE_BLUE
+                if self._phase2_timer is None:
+                    self._phase2_timer = time.time()
+                adjust_elapsed = time.time() - self._phase2_timer
             else:
                 if adjust_elapsed >= 7.0:
                     # 7秒以上見つからなかったら、スタートヨーとカレントヨーが一致するまで最短回転で±15の調整を行う
