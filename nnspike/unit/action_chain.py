@@ -732,16 +732,16 @@ class ActionChain(object):
                 self.et.set_start_yaw()
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | centered | target_x={red_center_x} | center_x={center_x} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase()
-                return (0, 0), Mode.CARRY_BOTTLE1
+                return (0, 0), Mode.CARRY_BOTTLE2
             elif red_center_x is not None:
                 if red_center_x < center_x:
-                    return (0, 5), Mode.CARRY_BOTTLE1
+                    return (0, 5), Mode.CARRY_BOTTLE2
                 else:
-                    return (5, 0), Mode.CARRY_BOTTLE1
+                    return (5, 0), Mode.CARRY_BOTTLE2
             else:
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | red_center_x is None | stop")
                 phase.next_phase()
-                return (0, 0), Mode.CARRY_BOTTLE1
+                return (0, 0), Mode.CARRY_BOTTLE2
 
         if phase.get_phase() == 1:
             blue_center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
