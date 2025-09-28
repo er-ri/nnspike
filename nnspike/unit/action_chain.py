@@ -374,18 +374,25 @@ class ActionChain(object):
             center_x = (self.x1 + self.x2) // 2
             if center is not None:
                 # center[0]とcenter_xの差で厳密に判定
-                if self._phase2_timer is None:
-                    self._phase2_timer = time.time()
-                adjust_elapsed = time.time() - self._phase2_timer
                 centered = abs(center[0] - center_x) <= 20
                 if centered:
+                    if self._phase2_timer is None:
+                        print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_target_centered | timer start | target_x={center[0]} | center_x={center_x}")
+                        self._phase2_timer = time.time()
+                    adjust_elapsed = time.time() - self._phase2_timer
                     print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_target_centered | target_x={center[0]} | center_x={center_x} | blue_pixel_count={blue_pixel_count} | adjust_elapsed={adjust_elapsed:.2f}s")
                     if adjust_elapsed >= 2.0:
+                        print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_target_centered | 2sec achieved | next phase")
                         phase.set_position_start("position_start", self.get_motor_position(self.course))
                         phase.next_phase()
                         self._phase2_timer = None
                         return (0, 0), Mode.EYE_BLUE
                     return (0, 0), Mode.EYE_BLUE
+                else:
+                    if self._phase2_timer is not None:
+                        print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_target_centered LOST | timer reset | target_x={center[0]} | center_x={center_x}")
+                    # centeredを外れた瞬間に必ずタイマーリセット
+                    self._phase2_timer = None
                 target_x = center[0]
             else:
                 if self.course == "right":
@@ -413,15 +420,15 @@ class ActionChain(object):
                             return (-15, 15), Mode.EYE_BLUE  # 左回転
                         else:
                             return (15, -15), Mode.EYE_BLUE  # 右回転
-                # 20px外なら中央に近づける方向にしか絶対回転しない（異常逸脱時も同じ）
+                # 逸脱時（±100px超）はreturn (0, 0)を絶対に返さず、必ず中央方向へ大きく回転
                 if self._phase2_init_center is not None and center is not None:
                     if abs(center[0] - self._phase2_init_center[0]) > 100:
-                        print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | abnormal deviation from initial center: {center[0]} vs {self._phase2_init_center[0]} | force center direction only")
+                        print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | abnormal deviation from initial center: {center[0]} vs {self._phase2_init_center[0]} | force center direction only (speed=15)")
                         if center[0] < center_x:
                             return (15, -15), Mode.EYE_BLUE  # 右回転（中央へ）
                         elif center[0] > center_x:
                             return (-15, 15), Mode.EYE_BLUE  # 左回転（中央へ）
-                        return (0, 0), Mode.EYE_BLUE
+                        # return (0, 0), Mode.EYE_BLUE は絶対に返さない
                 if target_x < center_x:
                     return (15, -15), Mode.EYE_BLUE  # 右回転
                 elif target_x > center_x:
