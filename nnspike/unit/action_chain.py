@@ -392,28 +392,23 @@ class ActionChain(object):
                     phase.next_phase()
                     self._phase2_timer = None
                     return (0, 0), Mode.EYE_BLUE
-                # 20px外なら中央に近づける方向に回転
-                if target_x < center_x:
-                    return (15, -15), Mode.EYE_BLUE  # 右回転
-                elif target_x > center_x:
-                    return (-15, 15), Mode.EYE_BLUE  # 左回転
                 return (0, 0), Mode.EYE_BLUE
             else:
                 if adjust_elapsed >= 7.0:
-                    # 7秒以上見つからなかったら、スタートヨーとカレントヨーが一致するまで±15の調整を行う
-                    yaw_error = self.et.get_yaw() - self.et.get_start_yaw()
-                    if abs(yaw_error) <= 1.0:
-                        # 誤差1.0以内なら次フェーズへ
+                    # 7秒以上見つからなかったら、スタートヨーとカレントヨーが一致するまで最短回転で±15の調整を行う
+                    # is_start_yaw_error_withinで誤差判定と値取得を統一
+                    in_tolerance, yaw_error = self.et.is_start_yaw_error_within(3.0)
+                    if in_tolerance:
                         phase.set_position_start("position_start", self.get_motor_position(self.course))
                         phase.next_phase()
                         self._phase2_timer = None
                         return (0, 0), Mode.EYE_BLUE
                     else:
-                        # 誤差がある場合は±15で調整
-                        if yaw_error < 0:
-                            return (15, -15), Mode.EYE_BLUE
+                        # 最短回転方向で±15調整
+                        if yaw_error > 0:
+                            return (-15, 15), Mode.EYE_BLUE  # 左回転
                         else:
-                            return (-15, 15), Mode.EYE_BLUE
+                            return (15, -15), Mode.EYE_BLUE  # 右回転
                 # 20px外なら中央に近づける方向に回転
                 # ただし、_phase2_init_centerがある場合はそこから大きく離れないようにする
                 if self._phase2_init_center is not None and center is not None:
