@@ -371,21 +371,21 @@ class ActionChain(object):
         if phase.get_phase() == 2:
             center, _, blue_pixel_count = find_blue_target_center(image)
             center_x = (self.x1 + self.x2) // 2
-            print(f"[DEBUG] phase=2 | center={center} | center_x={center_x} | blue_pixel_count={blue_pixel_count}")
+            print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | center={center} | center_x={center_x} | blue_pixel_count={blue_pixel_count}")
             if center is not None and abs(center[0] - center_x) <= 20:
                 self.et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase=2 | centered | target_x={center[0]} | center_x={center_x} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | target_x={center[0]} | center_x={center_x} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase()
                 return (0, 0), Mode.EYE_BLUE
             elif center is not None:
                 if center[0] < center_x:
-                    print(f"[DEBUG] phase=2 | rotate left | center[0]={center[0]} < center_x={center_x}")
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | rotate left | center[0]={center[0]} < center_x={center_x} | blue_pixel_count={blue_pixel_count}")
                     return (0, 5), Mode.EYE_BLUE
                 else:
-                    print(f"[DEBUG] phase=2 | rotate right | center[0]={center[0]} > center_x={center_x}")
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | rotate right | center[0]={center[0]} > center_x={center_x} | blue_pixel_count={blue_pixel_count}")
                     return (5, 0), Mode.EYE_BLUE
             else:
-                print(f"[DEBUG] phase=2 | center is None | stop")
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | center is None | center_x={center_x} | blue_pixel_count={blue_pixel_count}")
                 phase.next_phase()
                 return (0, 0), Mode.EYE_BLUE
                 
@@ -610,7 +610,7 @@ class ActionChain(object):
             center_x = (self.x1 + self.x2) // 2
             if center is not None and abs(center[0] - center_x) <= 20:
                 self.et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase=9 | centered | target_x={center[0]} | center_x={center_x} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | centered | target_x={center[0]} | center_x={center_x} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase()
                 return (0, 0), Mode.CARRY_BOTTLE1
             elif center is not None:
@@ -619,6 +619,8 @@ class ActionChain(object):
                 else:
                     return (5, 0), Mode.CARRY_BOTTLE1
             else:
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | center is None | stop")
+                phase.next_phase()
                 return (0, 0), Mode.CARRY_BOTTLE1
 
         # phase10: 青ピクセル数>1000でcenter追従、<=300で次フェーズ、それ以外はyaw維持直進
@@ -728,7 +730,7 @@ class ActionChain(object):
             center_x = (self.x1 + self.x2) // 2
             if red_center_x is not None and abs(red_center_x - center_x) <= 20:
                 self.et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase=9 | centered | target_x={red_center_x} | center_x={center_x} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | centered | target_x={red_center_x} | center_x={center_x} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase()
                 return (0, 0), Mode.CARRY_BOTTLE1
             elif red_center_x is not None:
@@ -737,6 +739,8 @@ class ActionChain(object):
                 else:
                     return (5, 0), Mode.CARRY_BOTTLE1
             else:
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | red_center_x is None | stop")
+                phase.next_phase()
                 return (0, 0), Mode.CARRY_BOTTLE1
 
         if phase.get_phase() == 1:
@@ -958,7 +962,7 @@ class ActionChain(object):
             center_x = (self.x1 + self.x2) // 2
             if center is not None and abs(center[0] - center_x) <= 20:
                 self.et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase=9 | centered | target_x={center[0]} | center_x={center_x} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | centered | target_x={center[0]} | center_x={center_x} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase()
                 return (0, 0), Mode.CARRY_BOTTLE2
             elif center is not None:
@@ -967,6 +971,8 @@ class ActionChain(object):
                 else:
                     return (5, 0), Mode.CARRY_BOTTLE2
             else:
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | center is None | stop")
+                phase.next_phase()
                 return (0, 0), Mode.CARRY_BOTTLE2
 
         # phase13: 青ピクセル数>1000でcenter追従、<=300で次フェーズ、それ以外はyaw維持直進
