@@ -322,6 +322,147 @@ class ActionChain(object):
         print("[execute_double_loop] Unexpected state reached.")
         return (0, 0), Mode.DOUBLE_LOOP
 
+    def eye_blue(self, image: np.ndarray) -> Tuple[SpeedTuple, Mode]:
+        # 初回呼び出し時のみ初期化
+        if not self._init:
+            self.initialize_action(motor_side=self.course)
+            self.et.set_start_yaw_nearest_vertical_pole()
+            self._phase2_timer = None
+        et = self.et
+        phase = self._phase
+
+        # phase0: 右モーター位置差500未満なら直進。超えたら phase1へ。右モーター位置記録。
+        if phase.get_phase() == 0:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course)
+            position_diff = abs(current_pos - position_start)
+            if position_diff < 500:
+                left_speed, right_speed = et.yaw_straight_control(base_speed=BASE_SPEED, adjust_speed=2)
+                return (left_speed, right_speed), Mode.EYE_BLUE
+            else:
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 500 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course))
+
+        # phase1: 青ターゲット検出 or 最低回転量後に検出 or 最大回転量到達で次フェーズ（下段コースは2フェーズスキップ）。
+        if phase.get_phase() == 1:
+            blue_target_detected = is_x320_on_blue_target(image, x_tolerance=200)
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course)
+            position_diff = abs(current_pos - position_start)
+            max_limit = 500
+            position_limit_reached = position_diff >= max_limit
+            if ((position_diff >= 300 and blue_target_detected) or position_limit_reached):
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_limit} or (position_diff={position_diff} >= 300 and blue_target_detected={blue_target_detected})")
+                phase.next_phase()
+                return (0, 0), Mode.EYE_BLUE
+            else:
+                if self.course == "right":
+                    return (0, 30), Mode.EYE_BLUE
+                else:
+                    return (30, 0), Mode.EYE_BLUE
+
+
+        # phase2: 青ターゲット中心検出。中央付近2秒 or 最大3秒で次フェーズ（bottle1と同じく1タイマーで管理）
+        if phase.get_phase() == 2:
+            center, _, blue_pixel_count = find_blue_target_center(image)
+            center_x = (self.x1 + self.x2) // 2
+            if center is not None:
+                target_x = center[0]
+            else:
+                if self.course == "right":
+                    target_x = max(self.x1, min(center_x - 200, self.x2))
+                else:
+                    target_x = max(self.x1, min(center_x + 200, self.x2))
+
+            if self._phase2_timer is None:
+                self._phase2_timer = time.time()
+            adjust_elapsed = time.time() - self._phase2_timer
+            centered = abs(target_x - center_x) <= 20
+
+            if centered:
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_target_centered | target_x={target_x} | center_x={center_x} | adjust_elapsed={adjust_elapsed:.2f}s")
+                if adjust_elapsed >= 2.0:
+                    phase.set_position_start("position_start", self.get_motor_position(self.course))
+                    phase.next_phase()
+                    self._phase2_timer = None
+                    return (0, 0), Mode.EYE_BLUE
+                else:
+                    if self.course == "right":
+                        return (15, -15), Mode.EYE_BLUE
+                    else:
+                        return (-15, 15), Mode.EYE_BLUE
+            else:
+                # bottle1と同じロジック: 3秒経過で強制遷移
+                if adjust_elapsed >= 3.0:
+                    phase.set_position_start("position_start", self.get_motor_position(self.course))
+                    phase.next_phase()
+                    self._phase2_timer = None
+                    return (0, 0), Mode.EYE_BLUE
+                else:
+                    if self.course == "right":
+                        return (15, -15), Mode.EYE_BLUE
+                    else:
+                        return (-15, 15), Mode.EYE_BLUE
+                
+        # phase3: 青ターゲット中心検出、青ピクセル数 > 1000 で phase4へ。未満ならcenter追従。
+        if phase.get_phase() == 3:
+            center, _, blue_pixel_count = find_blue_target_center(image)
+            if center is not None:
+                target_x = center[0]
+            else:
+                target_x = (self.x1 + self.x2) // 2
+            if blue_pixel_count > 1000:
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} > 1000")
+                phase.next_phase()
+            else:
+                left_speed, right_speed = self.calc_motor_speed(target_x)
+                return (left_speed, right_speed), Mode.EYE_BLUE
+
+        # phase4: 青ピクセル数 <= 300 で phase5へ、右モーター位置記録。超えていればcenter追従（低速）。
+        if phase.get_phase() == 4:
+            center, _, blue_pixel_count = find_blue_target_center(image)
+            if center is not None:
+                target_x = center[0]
+            else:
+                target_x = (self.x1 + self.x2) // 2
+            if blue_pixel_count <= 300:
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} <= 300")
+                phase.next_phase()
+                phase.set_position_start("position_start", self.get_motor_position(self.course))
+            else:
+                left_speed, right_speed = self.calc_motor_speed(target_x, current_base_speed=20)
+                return (left_speed, right_speed), Mode.EYE_BLUE
+
+        # phase5: 色センサーが青検出で phase6へ（停止）。それ以外はcenter追従（超低速）。
+        if phase.get_phase() == 5:
+            position_start = phase.get_position_start("position_start")
+            current_pos = self.get_motor_position(self.course)
+            threshold = 300
+            color_info = self.get_color_sensor_values()
+            color_type = color_info["color_type"]
+            position_diff = abs(current_pos - position_start)
+            if color_type == "blue":
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} or color_type={color_type} (color_value={color_info['color']})")
+                phase.next_phase()
+                return (0, 0), Mode.EYE_BLUE
+            else:
+                center, _, _ = find_blue_target_center(image)
+                if center is not None:
+                    target_x = center[0]
+                else:
+                    target_x = (self.x1 + self.x2) // 2
+                left_speed, right_speed = self.calc_motor_speed(target_x, current_base_speed=10)
+                return (left_speed, right_speed), Mode.EYE_BLUE
+
+        # phase6: 状態リセットしPAUSEへ遷移。
+        if phase.get_phase() == 6:
+            self.reset_action()
+            return (0, 0), Mode.PAUSE
+
+        print("[eye_blue] Unexpected state reached.")
+        return (0, 0), Mode.EYE_BLUE
+
     def carry_bottle1_relative(self, image: np.ndarray) -> Tuple[SpeedTuple, Mode]:
         # 初回呼び出し時のみ初期化
         if not self._init:
