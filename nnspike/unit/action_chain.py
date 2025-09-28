@@ -401,17 +401,23 @@ class ActionChain(object):
                 self._phase2_timer = None
                 if center is not None:
                     if center[0] < center_x:
-                        print(f"[DEBUG] phase=2 | rotate right | center[0]={center[0]} < center_x={center_x}")
-                        return (10, -10), Mode.EYE_BLUE
+                        print(f"[DEBUG] phase=2 | rotate left | center[0]={center[0]} < center_x={center_x}")
+                        return (-10, 10), Mode.EYE_BLUE
                     elif center[0] > center_x:
-                        print(f"[DEBUG] phase=2 | rotate left | center[0]={center[0]} > center_x={center_x}")
-                        return (-10, 10), Mode.EYE_BLUE
-                else:
-                    print(f"[DEBUG] phase=2 | center is None | course={self.course}")
-                    if self.course == "right":
+                        print(f"[DEBUG] phase=2 | rotate right | center[0]={center[0]} > center_x={center_x}")
                         return (10, -10), Mode.EYE_BLUE
-                    else:
-                        return (-10, 10), Mode.EYE_BLUE
+                else:
+                    print(f"[DEBUG] phase=2 | center is None | center_x={center_x} | prev_center0={self._prev_center0 if hasattr(self, '_prev_center0') else None}")
+                    prev_center0 = self._prev_center0 if hasattr(self, '_prev_center0') else None
+                    if prev_center0 is not None:
+                        if prev_center0 < center_x:
+                            print(f"[DEBUG] phase=2 | rotate right (to center) | prev_center0={prev_center0} < center_x={center_x}")
+                            return (10, -10), Mode.EYE_BLUE
+                        elif prev_center0 > center_x:
+                            print(f"[DEBUG] phase=2 | rotate left (to center) | prev_center0={prev_center0} > center_x={center_x}")
+                            return (-10, 10), Mode.EYE_BLUE
+                    print(f"[DEBUG] phase=2 | prev_center0 unknown, stop")
+                    return (0, 0), Mode.EYE_BLUE
                 return (0, 0), Mode.EYE_BLUE
                 
         # phase3: 青ターゲット中心検出、青ピクセル数 > 1000 で phase4へ。未満ならcenter追従。
