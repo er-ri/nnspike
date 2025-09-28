@@ -446,7 +446,7 @@ class ActionChain(object):
         if phase.get_phase() == 5:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
-            threshold = 1000
+            threshold = 3000
             color_info = self.get_color_sensor_values()
             color_type = color_info["color_type"]
             position_diff = abs(current_pos - position_start)
