@@ -363,9 +363,9 @@ class ActionChain(object):
                 return (0, 0), Mode.EYE_BLUE
             else:
                 if self.course == "right":
-                    return (0, 30), Mode.EYE_BLUE
+                    return (0, 20), Mode.EYE_BLUE
                 else:
-                    return (30, 0), Mode.EYE_BLUE
+                    return (20, 0), Mode.EYE_BLUE
 
         # phase2: 青ターゲット中心検出。中央付近なら即停止、そうでなければ回転のみの超シンプルロジック
         if phase.get_phase() == 2:
