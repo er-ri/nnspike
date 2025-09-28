@@ -353,7 +353,9 @@ class ActionChain(object):
             max_limit = 500
             position_limit_reached = position_diff >= max_limit
             if ((position_diff >= 300 and blue_target_detected) or position_limit_reached):
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_limit} or (position_diff={position_diff} >= 300 and blue_target_detected={blue_target_detected})")
+                # 現在のヨー角でスタートヨーを設定
+                self.et.set_start_yaw(self.et.get_yaw())
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_limit} or (position_diff={position_diff} >= 300 and blue_target_detected={blue_target_detected}) | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase()
                 return (0, 0), Mode.EYE_BLUE
             else:
@@ -391,11 +393,21 @@ class ActionChain(object):
                 else:
                     return (-15, 15), Mode.EYE_BLUE
             else:
-                if adjust_elapsed >= 3.0:
-                    phase.set_position_start("position_start", self.get_motor_position(self.course))
-                    phase.next_phase()
-                    self._phase2_timer = None
-                    return (0, 0), Mode.EYE_BLUE
+                if adjust_elapsed >= 7.0:
+                    # 7秒以上見つからなかったら、スタートヨーとカレントヨーが一致するまで±15の調整を行う
+                    yaw_error = self.et.get_yaw() - self.et.get_start_yaw()
+                    if abs(yaw_error) <= 1.0:
+                        # 誤差1.0以内なら次フェーズへ
+                        phase.set_position_start("position_start", self.get_motor_position(self.course))
+                        phase.next_phase()
+                        self._phase2_timer = None
+                        return (0, 0), Mode.EYE_BLUE
+                    else:
+                        # 誤差がある場合は±15で調整
+                        if yaw_error < 0:
+                            return (15, -15), Mode.EYE_BLUE
+                        else:
+                            return (-15, 15), Mode.EYE_BLUE
                 if self.course == "right":
                     return (15, -15), Mode.EYE_BLUE
                 else:
