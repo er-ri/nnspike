@@ -404,8 +404,8 @@ class ActionChain(object):
                 # centerがNoneの場合はadjust_elapsedを0.0で初期化
                 adjust_elapsed = 0.0
 
-            # centeredでなければ以降のロジックを実行
-            if not (center is not None and abs(center[0] - center_x) <= 20):
+            # centeredでなければ以降のロジックを実行（centerがNoneの場合はadjust_elapsedを参照しない）
+            if center is not None and not (abs(center[0] - center_x) <= 20):
                 if adjust_elapsed >= 7.0:
                     # 7秒以上見つからなかったら、スタートヨーとカレントヨーが一致するまで最短回転で±15の調整を行う
                     # is_start_yaw_error_withinで誤差判定と値取得を統一
@@ -422,7 +422,7 @@ class ActionChain(object):
                         else:
                             return (15, -15), Mode.EYE_BLUE  # 右回転
                 # 逸脱時（±100px超）はreturn (0, 0)を絶対に返さず、必ず中央方向へ大きく回転
-                if self._phase2_init_center is not None and center is not None:
+                if self._phase2_init_center is not None:
                     if abs(center[0] - self._phase2_init_center[0]) > 100:
                         print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | abnormal deviation from initial center: {center[0]} vs {self._phase2_init_center[0]} | force center direction only (speed=15)")
                         if center[0] < center_x:
@@ -430,6 +430,13 @@ class ActionChain(object):
                         elif center[0] > center_x:
                             return (-15, 15), Mode.EYE_BLUE  # 左回転（中央へ）
                         # return (0, 0), Mode.EYE_BLUE は絶対に返さない
+                if target_x < center_x:
+                    return (15, -15), Mode.EYE_BLUE  # 右回転
+                elif target_x > center_x:
+                    return (-15, 15), Mode.EYE_BLUE  # 左回転
+                return (0, 0), Mode.EYE_BLUE
+            elif center is None:
+                # centerがNoneの場合は従来通りtarget_xで回転制御
                 if target_x < center_x:
                     return (15, -15), Mode.EYE_BLUE  # 右回転
                 elif target_x > center_x:
