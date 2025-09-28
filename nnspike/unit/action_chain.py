@@ -380,10 +380,10 @@ class ActionChain(object):
             elif center is not None:
                 if center[0] < center_x:
                     print(f"[DEBUG] phase=2 | rotate left | center[0]={center[0]} < center_x={center_x}")
-                    return (-5, 5), Mode.EYE_BLUE
+                    return (0, 5), Mode.EYE_BLUE
                 else:
                     print(f"[DEBUG] phase=2 | rotate right | center[0]={center[0]} > center_x={center_x}")
-                    return (5, -5), Mode.EYE_BLUE
+                    return (5, 0), Mode.EYE_BLUE
             else:
                 print(f"[DEBUG] phase=2 | center is None | stop")
                 return (0, 0), Mode.EYE_BLUE
