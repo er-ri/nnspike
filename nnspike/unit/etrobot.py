@@ -432,7 +432,12 @@ class ETRobot(object):
         yaw_val = self.get_yaw()
         start_yaw = self.get_start_yaw()
         error = self.wrap_angle(yaw_val - start_yaw)
-        return abs(error) <= abs(tolerance_deg), error
+        # tolerance_degの符号を考慮した範囲判定（-tolerance_deg <= error <= tolerance_deg）
+        if tolerance_deg >= 0:
+            within = (-tolerance_deg <= error <= tolerance_deg)
+        else:
+            within = (tolerance_deg <= error <= -tolerance_deg)
+        return within, error
 
     def yaw_straight_control(self, base_speed: int = HIGH_SPEED_BASE, kp: float = 1.0, deadband: float = 3.0, adjust_speed: int = 1) -> tuple[int, int]:
         """
