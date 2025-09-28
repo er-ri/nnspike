@@ -371,13 +371,13 @@ class ActionChain(object):
         if phase.get_phase() == 2:
             center, _, blue_pixel_count = find_blue_target_center(image)
             center_x = (self.x1 + self.x2) // 2
-            print(f"[DEBUG] phase=2 | center={center} | center_x={center_x} | blue_pixel_count={blue_pixel_count} | _phase2_timer={self._phase2_timer}")
+                print(f"[DEBUG] phase=2 | center={center} | center_x={center_x} | blue_pixel_count={blue_pixel_count}")
             if center is not None and abs(center[0] - center_x) <= 20:
                 if self._phase2_timer is None:
                     print(f"[DEBUG] phase=2 | timer start | target_x={center[0]} | center_x={center_x}")
                     self._phase2_timer = time.time()
                 adjust_elapsed = time.time() - self._phase2_timer
-                print(f"[DEBUG] phase=2 | centered | target_x={center[0]} | center_x={center_x} | adjust_elapsed={adjust_elapsed:.2f}s")
+                print(f"[DEBUG] phase=2 | centered | target_x={center[0]} | center_x={center_x} | elapsed={adjust_elapsed:.2f}s")
                 if adjust_elapsed >= 2.0:
                     print(f"[DEBUG] phase=2 | 2sec achieved | next phase")
                     phase.set_position_start("position_start", self.get_motor_position(self.course))
