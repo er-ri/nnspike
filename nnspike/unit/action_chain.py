@@ -368,6 +368,7 @@ class ActionChain(object):
         # phase2: 青ターゲット中心検出。中央付近2秒 or 最大3秒で次フェーズ（bottle1と同じく1タイマーで管理）
         if phase.get_phase() == 2:
             center, _, blue_pixel_count = find_blue_target_center(image)
+            print(f"[DEBUG] phase2 find_blue_target_center: center={center}, blue_pixel_count={blue_pixel_count}")
             center_x = (self.x1 + self.x2) // 2
             if center is not None:
                 target_x = center[0]
