@@ -76,8 +76,8 @@ class FastLapChain(object):
             if stop_turn:
                 phase.next_phase()
                 print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
-                # et.set_start_yaw(et.get_start_yaw() - 90.0)
-                et.set_start_yaw_nearest_horizontal_pole()  
+                et.set_start_yaw(et.get_start_yaw() - 90.0)
+                # et.set_start_yaw_nearest_horizontal_pole()  
                 return (0, 0), Mode.TURN_LEFT_YAW
             else:
                 print(f"[TURN_LEFT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
@@ -121,8 +121,8 @@ class FastLapChain(object):
             if stop_turn:
                 phase.next_phase()
                 print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
-                # et.set_start_yaw(et.get_start_yaw() + 90.0)
-                et.set_start_yaw_nearest_horizontal_pole()  
+                et.set_start_yaw(et.get_start_yaw() + 90.0)
+                # et.set_start_yaw_nearest_horizontal_pole()  
                 return (0, 0), Mode.TURN_RIGHT_YAW
             else:
                 print(f"[TURN_RIGHT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
