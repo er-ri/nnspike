@@ -386,6 +386,7 @@ class ActionChain(object):
                     return (5, 0), Mode.EYE_BLUE
             else:
                 print(f"[DEBUG] phase=2 | center is None | stop")
+                phase.next_phase()
                 return (0, 0), Mode.EYE_BLUE
                 
         # phase3: 青ピクセル数>1000でcenter追従、<=300で次フェーズ、それ以外はyaw維持直進
@@ -413,7 +414,7 @@ class ActionChain(object):
         if phase.get_phase() == 4:
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
-            threshold = 3000
+            threshold = 1000
             color_info = self.get_color_sensor_values()
             color_type = color_info["color_type"]
             position_diff = abs(current_pos - position_start)
