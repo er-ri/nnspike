@@ -395,6 +395,8 @@ class ActionChain(object):
                     self._phase2_timer = None
                 target_x = center[0]
             else:
+                adjust_elapsed = 0.0
+            else:
                 if self.course == "right":
                     target_x = max(self.x1, min(center_x - 200, self.x2))
                 else:
