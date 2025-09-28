@@ -392,7 +392,7 @@ class ActionChain(object):
         if phase.get_phase() == 3:
             center, _, blue_pixel_count = find_blue_target_center(image)
             if blue_pixel_count > 1000:
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} > 1000 | center={center}")
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} > 1000 | center={center} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 if center is not None:
                     self.et.set_start_yaw()
                     left_speed, right_speed = self.calc_motor_speed(center[0])
@@ -400,10 +400,12 @@ class ActionChain(object):
                     left_speed, right_speed = self.et.yaw_straight_control(base_speed=BASE_SPEED, adjust_speed=2)
                 return (left_speed, right_speed), Mode.EYE_BLUE
             elif blue_pixel_count <= 300:
+                self.et.set_start_yaw()
                 print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} <= 300 | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
             else:
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} | center={center} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 left_speed, right_speed = self.et.yaw_straight_control(base_speed=20, adjust_speed=2)
                 return (left_speed, right_speed), Mode.EYE_BLUE
 
@@ -416,7 +418,7 @@ class ActionChain(object):
             color_type = color_info["color_type"]
             position_diff = abs(current_pos - position_start)
             if color_type == "blue" or position_diff >= threshold:
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} or color_type={color_type} (color_value={color_info['color']})")
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} or color_type={color_type} (color_value={color_info['color']}) | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase()
                 return (0, 0), Mode.EYE_BLUE
             else:
