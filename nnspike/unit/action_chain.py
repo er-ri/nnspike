@@ -373,7 +373,8 @@ class ActionChain(object):
             center_x = (self.x1 + self.x2) // 2
             print(f"[DEBUG] phase=2 | center={center} | center_x={center_x} | blue_pixel_count={blue_pixel_count}")
             if center is not None and abs(center[0] - center_x) <= 20:
-                print(f"[DEBUG] phase=2 | centered | target_x={center[0]} | center_x={center_x} | STOP")
+                print(f"[DEBUG] phase=2 | centered | target_x={center[0]} | center_x={center_x} | STOP & NEXT PHASE")
+                phase.next_phase()
                 return (0, 0), Mode.EYE_BLUE
             elif center is not None:
                 if center[0] < center_x:
