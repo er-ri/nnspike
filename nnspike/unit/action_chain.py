@@ -401,7 +401,8 @@ class ActionChain(object):
                     target_x = max(self.x1, min(center_x + 200, self.x2))
                 if self._phase2_timer is None:
                     self._phase2_timer = time.time()
-                adjust_elapsed = time.time() - self._phase2_timer
+                # centerがNoneの場合はadjust_elapsedを0.0で初期化
+                adjust_elapsed = 0.0
 
             # centeredでなければ以降のロジックを実行
             if not (center is not None and abs(center[0] - center_x) <= 20):
