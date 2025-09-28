@@ -380,10 +380,10 @@ class ActionChain(object):
             elif center is not None:
                 if center[0] < center_x:
                     print(f"[DEBUG] phase=2 | rotate left | center[0]={center[0]} < center_x={center_x}")
-                    return (-10, 10), Mode.EYE_BLUE
+                    return (-5, 5), Mode.EYE_BLUE
                 else:
                     print(f"[DEBUG] phase=2 | rotate right | center[0]={center[0]} > center_x={center_x}")
-                    return (10, -10), Mode.EYE_BLUE
+                    return (5, -5), Mode.EYE_BLUE
             else:
                 print(f"[DEBUG] phase=2 | center is None | stop")
                 return (0, 0), Mode.EYE_BLUE
@@ -391,12 +391,8 @@ class ActionChain(object):
         # phase3: 青ターゲット中心検出、青ピクセル数 > 1000 で phase4へ。未満ならcenter追従。
         if phase.get_phase() == 3:
             center, _, blue_pixel_count = find_blue_target_center(image)
-            if center is not None:
-                target_x = center[0]
-            else:
-                target_x = (self.x1 + self.x2) // 2
             if blue_pixel_count > 1000:
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} > 1000")
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} > 1000 | center={center}")
                 # centerに向かって進む
                 if center is not None:
                     left_speed, right_speed = self.calc_motor_speed(center[0])
