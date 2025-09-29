@@ -30,8 +30,6 @@ class FastLapChain(object):
             self.opposite_course = "right"
         self._init = False
 
-
-
     def initialize_action(self, motor_side: str = "right"):
         """
         アクション開始時の状態初期化処理。
@@ -45,7 +43,6 @@ class FastLapChain(object):
     def reset_action(self):
         """アクション終了時の状態リセット処理."""
         self._init = False
-        self._phase = None
 
     def get_motor_position(self, motor_side: str = "right") -> int:
         """
@@ -92,7 +89,7 @@ class FastLapChain(object):
             current_yaw = et.get_yaw()
             if in_tolerance:
                 print(f"[TURN_LEFT][ADJUST][TOLERANCE] in_tolerance={in_tolerance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
-                self._phase.next_phase()
+                phase.next_phase()
             else:
                 print(f"[TURN_LEFT][ADJUST][CORRECT] start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
                 if yaw_error < 0:
@@ -137,7 +134,7 @@ class FastLapChain(object):
             current_yaw = et.get_yaw()
             if in_tolerance:
                 print(f"[TURN_RIGHT][ADJUST][TOLERANCE] in_tolerance={in_tolerance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
-                self._phase.next_phase()
+                phase.next_phase()
             else:
                 print(f"[TURN_RIGHT][ADJUST][CORRECT] start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
                 if yaw_error < 0:
@@ -314,7 +311,6 @@ class FastLapChain(object):
             if stop_turn:
                 print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
             else:
                 # 旋回方向に応じて速度を調整
                 if self.course == "right":
@@ -324,7 +320,6 @@ class FastLapChain(object):
 
         # フェーズ9: reset_action()してPAUSE復帰（ラップ終了）
         if phase.get_phase() == 9:
-
             self.reset_action()
             return (0, 0), Mode.PAUSE
             # return (0, 0), Mode.DOUBLE_LOOP

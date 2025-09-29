@@ -70,7 +70,7 @@ class PhaseManager:
         except (KeyError, TypeError, ValueError):
             return 0
 
-    def get_position_diff(self, current_pos):
+    def get_position_diff(self, current_pos) -> int:
         position_start = self.get_position_start(self._motor_side)
         position_diff = abs(current_pos - position_start)
         return position_diff
@@ -100,7 +100,6 @@ class ActionChain(object):
 
     def reset_action(self):
         self._init = False
-        self._phase = None
 
     def get_motor_position(self, motor_side: str = "right") -> int:
         return self.et.get_motor_relative_position(motor_side)
