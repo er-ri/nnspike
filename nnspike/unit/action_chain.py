@@ -791,20 +791,20 @@ class ActionChain(object):
 
         # phase11: 青ターゲット中心検出。中央付近なら即停止、そうでなければ回転のみのシンプルロジック
         if phase.get_phase() == 11:
-            center, _, blue_pixel_count = find_blue_target_center(image)
+            blue_center, _, blue_pixel_count = find_blue_target_center(image)
             center_x = (self.x1 + self.x2) // 2
-            if center is not None and abs(center[0] - center_x) <= 20:
+            if blue_center is not None and abs(blue_center[0] - center_x) <= 20:
                 self.et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | centered | target_x={center[0]} | center_x={center_x} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | centered | target_x={blue_center[0]} | center_x={center_x} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase()
                 return (0, 0), Mode.CARRY_BOTTLE2
-            elif center is not None:
-                if center[0] < center_x:
+            elif blue_center is not None:
+                if blue_center[0] < center_x:
                     return (0, 5), Mode.CARRY_BOTTLE2
                 else:
                     return (5, 0), Mode.CARRY_BOTTLE2
             else:
-                # centerがNoneの場合もphase2と同じyaw制御ロジックで統一
+                # blue_centerがNoneの場合もphase2と同じyaw制御ロジックで統一
                 in_tolerance, yaw_error = et.is_start_yaw_error_within(4.0)
                 start_yaw = et.get_start_yaw()
                 current_yaw = et.get_yaw()
@@ -821,12 +821,12 @@ class ActionChain(object):
 
         # phase12: 青ピクセル数>1000でcenter追従、<=300で次フェーズ、それ以外はyaw維持直進
         if phase.get_phase() == 12:
-            center, _, blue_pixel_count = find_blue_target_center(image)
+            blue_center, _, blue_pixel_count = find_blue_target_center(image)
             if blue_pixel_count > 1000:
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} > 1000 | center={center} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
-                if center is not None:
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} > 1000 | blue_center={blue_center} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+                if blue_center is not None:
                     self.et.set_start_yaw()
-                    left_speed, right_speed = self.calc_motor_speed(center[0], base_speed=20)
+                    left_speed, right_speed = self.calc_motor_speed(blue_center[0], base_speed=20)
                 else:
                     left_speed, right_speed = et.yaw_straight_control(base_speed=20, adjust_speed=2, deadband=2)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
@@ -842,10 +842,10 @@ class ActionChain(object):
         # phase13: 色センサーが青検出で phase14へ（停止）。それ以外はヨー維持で直進（超低速）。
         if phase.get_phase() == 13:
             current_pos = self.get_motor_position(self.course)
+            position_diff = phase.get_position_diff(current_pos)
             threshold = 1000
             color_info = self.get_color_sensor_values()
             color_type = color_info["color_type"]
-            position_diff = phase.get_position_diff(current_pos)
             if color_type == "blue" or position_diff >= threshold:
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} or color_type={color_type} (color_value={color_info['color']}) | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase()
