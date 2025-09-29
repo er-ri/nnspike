@@ -29,8 +29,8 @@ class FastLapChain(object):
         else:
             self.opposite_course = "right"
         self._init = False
-        self.fast_lap_finished = False  # FAST_LAP完了フラグ
-        self._phase2_color_count = 0  # フェーズ2色検出カウンタ
+
+
 
     def initialize_action(self, motor_side: str = "right"):
         """
@@ -38,13 +38,14 @@ class FastLapChain(object):
         motor_side: "right"または"left"で初期位置記録対象を指定する。
         直進・旋回開始時に呼び出される。
         """
-        self._phase = PhaseManager()
+        self._phase = PhaseManager(motor_side)
         self._phase.set_position_start("position_start", self.get_motor_position(motor_side))
         self._init = True
 
     def reset_action(self):
         """アクション終了時の状態リセット処理."""
         self._init = False
+        self._phase = None
 
     def get_motor_position(self, motor_side: str = "right") -> int:
         """
@@ -158,22 +159,21 @@ class FastLapChain(object):
             self.et.set_start_yaw()
             self.start_yaw = self.et.get_start_yaw()
             self.lap_start_time = time.time()
+            self._phase2_color_count = 0  # フェーズ2色検出カウンタ
         phase = self._phase
         et = self.et
         start_yaw = self.start_yaw
 
         # フェーズ0: course側モータ距離3000未満ならyaw_straight_controlで直進。3000以上で次フェーズ
         if phase.get_phase() == 0:
-            position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
-            position_diff = abs(current_pos - position_start)
+            position_diff = phase.get_position_diff(current_pos)
             if position_diff < 3000:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
                 print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 3000")
                 phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
 
         # フェーズ1: 左旋回20度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新
         if phase.get_phase() == 1:
@@ -185,7 +185,6 @@ class FastLapChain(object):
                     et.set_start_yaw(start_yaw + 15.0)
                 print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
             else:
                 if self.course == "right":
                     return (80, 100), Mode.FAST_LAP
@@ -194,9 +193,8 @@ class FastLapChain(object):
 
         # フェーズ2: position_diffが1500未満なら直進、2000以上なら強制で次フェーズ、それ以外は従来通り
         if phase.get_phase() == 2:
-            position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
-            position_diff = abs(current_pos - position_start)
+            position_diff = phase.get_position_diff(current_pos)
             # 1500未満は無条件で直進
             if position_diff < 1500:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
@@ -212,7 +210,6 @@ class FastLapChain(object):
             if self._phase2_color_count >= 4 or position_diff >= 3000:
                 print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | color_count={self._phase2_color_count} >= 4 or position_diff={position_diff} >= 3000")
                 phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
                 self._phase2_color_count = 0
             else:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
@@ -228,7 +225,6 @@ class FastLapChain(object):
                     et.set_start_yaw(start_yaw + 90.0)
                 print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
             else:
                 if self.course == "right":
                     return (70, 100), Mode.FAST_LAP
@@ -237,9 +233,8 @@ class FastLapChain(object):
 
         # フェーズ4: 1000未満は何も判定せず直進。1000以上でcorner判定・閾値判定。
         if phase.get_phase() == 4:
-            position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
-            position_diff = abs(current_pos - position_start)
+            position_diff = phase.get_position_diff(current_pos)
             if position_diff < 1000:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP
@@ -248,7 +243,6 @@ class FastLapChain(object):
             if fast_corner or position_diff >= 2000:
                 print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | fast_corner_detected={fast_corner} | position_diff={position_diff}")
                 phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
             else:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP
@@ -263,7 +257,6 @@ class FastLapChain(object):
                     et.set_start_yaw(start_yaw + 135.0)
                 print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
             else:
                 if self.course == "right":
                     return (70, 100), Mode.FAST_LAP
@@ -273,9 +266,8 @@ class FastLapChain(object):
         # フェーズ6: 300未満は何も判定せず直進。300以上で色判定・閾値判定。
         # フェーズ6終了時（フェーズ7遷移時）にラップタイムを記録
         if phase.get_phase() == 6:
-            position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
-            position_diff = abs(current_pos - position_start)
+            position_diff = phase.get_position_diff(current_pos)
             if position_diff < 300:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP
@@ -293,7 +285,6 @@ class FastLapChain(object):
                 lap_elapsed = self.lap_end_time - self.lap_start_time
                 print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | color_count={self._phase2_color_count} >= 4 or position_diff={position_diff} >= 700 | time: {lap_elapsed:.3f}秒")
                 phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
                 return (0, 0), Mode.FAST_LAP
             else:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
@@ -301,9 +292,8 @@ class FastLapChain(object):
 
         # フェーズ7: 黒を2回連続で検知するまで直進
         if phase.get_phase() == 7:
-            position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
-            position_diff = abs(current_pos - position_start)
+            position_diff = phase.get_position_diff(current_pos)
             color_info = self.get_color_sensor_values()
             if color_info["color_type"] == "black":
                 self._phase2_color_count += 1
@@ -313,7 +303,6 @@ class FastLapChain(object):
             if self._phase2_color_count >= 2 or position_diff >= 300:
                 print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | black_count={self._phase2_color_count} >= 2 or position_diff={position_diff} >= 300")
                 phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
                 self._phase2_color_count = 0
             else:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=30)
@@ -335,9 +324,10 @@ class FastLapChain(object):
 
         # フェーズ9: reset_action()してPAUSE復帰（ラップ終了）
         if phase.get_phase() == 9:
-            self.fast_lap_finished = True
+
             self.reset_action()
             return (0, 0), Mode.PAUSE
+            # return (0, 0), Mode.DOUBLE_LOOP
 
         print("[FAST_LAP] Unexpected state reached.")
         return (0, 0), Mode.FAST_LAP

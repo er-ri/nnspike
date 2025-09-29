@@ -32,14 +32,6 @@ class StateFlags:
     def __init__(self):
         self._first_key_used = False
         self._force_sensor_mode_switch_enabled = False
-        self._fast_lap_finished = False
-    @property
-    def fast_lap_finished(self):
-        return self._fast_lap_finished
-
-    @fast_lap_finished.setter
-    def fast_lap_finished(self, value: bool):
-        self._fast_lap_finished = value
 
     @property
     def first_key_used(self):
@@ -266,18 +258,6 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             elif manual_mode and mode_result is not None:
                 mode = mode_result
                 print(msg)
-
-            # FAST_LAPが終了したら1回だけVideoを有効化
-            if fast_lap_chain.fast_lap_finished and not state_flags.fast_lap_finished:
-                state_flags.fast_lap_finished = True
-                et.set_motor_forward_speed(left_speed=0, right_speed=0)
-                print("[INFO] FAST_LAP finished. Switching to DOUBLE_LOOP after camera warmup.")
-                if video is None:
-                    video = Video()
-                    video.warmup()
-                time.sleep(2)
-                mode = Mode.DOUBLE_LOOP
-                continue
 
             # モード分岐（match-case構文）
             match mode:
