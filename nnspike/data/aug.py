@@ -99,10 +99,13 @@ def random_shift_scale_rotate(
         >>> image = np.random.rand(100, 100, 3)
         >>> transformed_image, params = random_shift_scale_rotate(image)
     """
-    transform = A.ShiftScaleRotate(
-        shift_limit=shift_limit,
-        scale_limit=scale_limit,
-        rotate_limit=rotate_limit,
+    transform = A.Affine(
+        translate_percent={
+            "x": (-shift_limit, shift_limit),
+            "y": (-shift_limit, shift_limit),
+        },
+        scale=(1 - scale_limit, 1 + scale_limit),
+        rotate=(-rotate_limit, rotate_limit),
         border_mode=cv2.BORDER_REFLECT,
         p=1.0,
     )
