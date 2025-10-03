@@ -377,7 +377,7 @@ class ActionChain(object):
 
         # phase4: ジャイロ90度旋回。旋回終了判定で phase5へ。
         if phase.get_phase() == 4:
-            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=90.0)
+            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=85.0)
             if stop_turn:
                 et.set_start_yaw_nearest_horizontal_pole()
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
