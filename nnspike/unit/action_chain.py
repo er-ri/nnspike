@@ -60,6 +60,7 @@ class PhaseManager:
         self._state["phase"] = self._state.get("phase", 0) + skip
         # 必ずposition_startをget_position_start(self._motor_side)で更新
         self.set_position_start("position_start", self.get_position_start(self._motor_side))
+        print(f"[DEBUG][PhaseManager.next_phase] phase={self._state['phase']}, position_start={self._state['position_start']}")
 
     def set_position_start(self, key: str, value: int) -> None:
         self._state[key] = value
