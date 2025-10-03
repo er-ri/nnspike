@@ -845,7 +845,7 @@ class ActionChain(object):
         # phase13: 色センサーが青検�Eで phase14へ�E�E�E�停止�E�E�E�。それ以外�Eヨー維持で直進�E�E�E�趁E�E��E�速）、E
         if phase.get_phase() == 13:
             position_diff = phase.get_position_diff(current_pos)
-            threshold = 1000
+            threshold = 500
             color_info = self.get_color_sensor_values()
             color_type = color_info["color_type"]
             if color_type == "blue" or position_diff >= threshold:
