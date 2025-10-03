@@ -372,6 +372,7 @@ class ActionChain(object):
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
             if in_tolerance:
+                et.set_start_yaw_nearest_vertical_pole()  # 垂直のスタートヨーを設定
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | in_tolerance={in_tolerance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
                 phase.next_phase(current_pos)
             else:
@@ -411,6 +412,7 @@ class ActionChain(object):
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
             if in_tolerance:
+                et.set_start_yaw_nearest_horizontal_pole()
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | in_tolerance={in_tolerance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE1
