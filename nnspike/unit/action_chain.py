@@ -70,7 +70,7 @@ class PhaseManager:
             return 0
 
     def get_position_diff(self, current_pos) -> int:
-        position_start = self.get_position_start(self._motor_side)
+        position_start = self.get_position_start("position_start")
         position_diff = abs(current_pos - position_start)
         return position_diff
 
