@@ -2,13 +2,13 @@ import re
 import time  # 時間計測用
 from typing import Optional, Tuple  # 型ヒント用
 
-import numpy as np  # 画像�E琁E�E��E�
+import numpy as np  # 画像処理用
 import math  # 角度計算用
 
-# 定数・モード�EROI設宁E
+# 定数・モード・ROI設定
 from nnspike.constants import OFFSET_Y, ROI_CNN, ROI_LINE_TRACING, Mode, BASE_SPEED, HIGH_SPEED_BASE, ROI_LINE_HORIZON3, ROI_LOOP, ROI_LINE_CORNER, ROI_COLOR, ROI_LINE_STRAIGHT, ROI_COLOR2, CAMERA_WIDTH
 
-# --- 閾値定数�E�E�E��E�E体で統一管琁E�E��E�E---
+# --- 閾値定数（全体で統一管理）---
 BLUE_AREA_MAX_THRESHOLD = 18000
 BLUE_AREA_MIN_THRESHOLD = 3000
 FIRST_INTERSECTION_LIMIT = 2000
@@ -16,29 +16,29 @@ SECOND_INTERSECTION_LIMIT = 6000
 THIRD_INTERSECTION_LIMIT = 8000
 FOURTH_INTERSECTION_LIMIT = 10500
 
-YAW_GAIN = 10.0  # ジャイロ補正ゲイン�E�E�E�固定値�E�E�E�E
+YAW_GAIN = 10.0  # ジャイロ補正ゲイン（固定値）
 
 # ロボット本体クラス
 from nnspike.unit.etrobot import ETRobot
-# 画像�E琁E�E�Eライン/ターゲチE�E��E�検�E関数群
+# 画像処理・ライン/ターゲット検出関数群
 from nnspike.utils.control import (
-    find_bottle_center,  # ボトル中忁E�E��E�出
+    find_bottle_center,  # ボトル中心検出
     get_line_edges_at_y,  # ライン端抽出
-    get_virtual_line_target_x,  # 仮想ライン中忁E�E��E�出
-    find_blue_target_center,  # 青ターゲチE�E��E�中忁E�E��E�出
-    get_is_blue_line_at_y,  # 青ライン有無判宁E
-    is_x320_on_blue_target,  # 画像中央付近で青ターゲチE�E��E�抽出
-    is_x320_on_red_target,  # 画像中央付近で赤ターゲチE�E��E�抽出
-    get_red_target_center_x,  # 赤ターゲチE�E��E�中忁E�E��E�出
+    get_virtual_line_target_x,  # 仮想ライン中心検出
+    find_blue_target_center,  # 青ターゲット中心検出
+    get_is_blue_line_at_y,  # 青ライン有無判定
+    is_x320_on_blue_target,  # 画像中央付近で青ターゲット抽出
+    is_x320_on_red_target,  # 画像中央付近で赤ターゲット抽出
+    get_red_target_center_x,  # 赤ターゲット中心検出
     is_left_black_line_detected,  # 左黒ライン抽出
     is_lower_horizontal_line_detected,  # 下部水平黒ライン抽出
     is_vertical_black_line_detected,  # 垂直黒ライン抽出
     is_upper_horizontal_line_detected,  # 上部水平黒ライン抽出
     get_blue_line_pixel,  # 青オブジェクト面積抽出
-    is_fast_corner_detected,  # コーナ�E抽出
-    fill_green_with_white,    # 緑を白で塗りつぶぁE
-    is_center_line_detected,  # 中央ライン検�E関数
-    get_offset_pixels,        # 目標位置オフセチE�E��E�計箁E
+    is_fast_corner_detected,  # コーナー抽出
+    fill_green_with_white,    # 緑を白で塗りつぶし
+    is_center_line_detected,  # 中央ライン検出関数
+    get_offset_pixels,        # 目標位置オフセット計算
 )
 
 # 型ヒント用: 要素タプル明示
@@ -79,18 +79,18 @@ class ActionChain(object):
     def __init__(self, et: ETRobot, course: str, course_type: str, pid) -> None:
         self.et = et  # ロボット本佁E
         self.course = course  # コース種別
-        # コース種別の送E�E��E�ースを定義
+        # コース種別の逆コースを定義
         if course == "right":
             self.opposite_course = "left"
         else:
             self.opposite_course = "right"
-        self.course_type = course_type  # 上段/下段コース�E�E�E�チE��ォルチEpper�E�E�E�E
+        self.course_type = course_type  # 上段/下段コースタイプ（upper/lower）
         self.start_time = 0.0  # アクション開始時刻
         self.current_time = 0.0  # 現在時刻
         self.x1, self.y1, self.x2, self.y2 = ROI_CNN  # 領域定義
         self._init = False
         self.pre_target_x = (self.x1 + self.x2) // 2
-        self.pid = pid  # 忁E�E��E�外部から渡されたPIDインスタンスのみを使用
+        self.pid = pid  # 基本的に外部から渡されたPIDインスタンスのみを使用
 
     def initialize_action(self, motor_side: str = "right"):
         self._phase = PhaseManager(motor_side)
@@ -146,14 +146,14 @@ class ActionChain(object):
             self.pid.Ki = 0
             self.pid.Kd = 5
             self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
-            # 開始直後�E絶対位置を取得し保持
+            # 開始直後の絶対位置を取得し保持
             self._start_position = self.get_motor_position(self.course)
 
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
         dist_start = abs(current_pos - self._start_position)
 
-        # phase0: 青領域が条件を趁E�E��E�たら即次フェーズへ
+        # phase0: 青領域が条件を満たしたら即次フェーズへ
         if phase.get_phase() == 0:    
             blue_area = get_blue_line_pixel(image)
             if blue_area > BLUE_AREA_MAX_THRESHOLD:
@@ -181,7 +181,7 @@ class ActionChain(object):
                 print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase1->phase3: dist_start={dist_start} >= {FIRST_INTERSECTION_LIMIT}")
                 phase.next_phase(current_pos)
 
-        # phase2: get_blue_line_pixelでBLUE_AREA_THRESHOLD趁E�E��E�たら即phase3へ�E�E�E�Eeft_pos閾値15000, 左→右エチE�E��E�、right_x使用�E�E�E�E
+        # phase2: get_blue_line_pixelでBLUE_AREA_THRESHOLD満たしたら即phase3へ
         if phase.get_phase() == 2:
             if dist_start < FIRST_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
@@ -200,7 +200,7 @@ class ActionChain(object):
                 print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase2->phase4: dist_start={dist_start} >= {SECOND_INTERSECTION_LIMIT}")
                 phase.next_phase(current_pos, 2)
 
-        # phase3: 青領域が条件未満になったら次フェーズへ�E�E�E�抽象化！E
+        # phase3: 青領域が条件未満になったら次フェーズへ
         if phase.get_phase() == 3:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
@@ -214,7 +214,7 @@ class ActionChain(object):
                 print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase3->phase5: dist_start={dist_start} >= {SECOND_INTERSECTION_LIMIT}")
                 phase.next_phase(current_pos)
 
-        # phase4: 青領域が条件を趁E�E��E�たら即次フェーズへ�E�E�E�抽象化！E
+        # phase4: 青領域が条件を満たしたら即次フェーズへ
         if phase.get_phase() == 4:
             if dist_start < SECOND_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
@@ -233,7 +233,7 @@ class ActionChain(object):
                 print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase4->phase6: dist_start={dist_start} >= {THIRD_INTERSECTION_LIMIT}")
                 phase.next_phase(current_pos, 2)
 
-        # phase5: 青領域が条件未満になったら直進フェーズへ�E�E�E�抽象化！E
+        # phase5: 青領域が条件未満になったら直進フェーズへ
         if phase.get_phase() == 5:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
@@ -247,7 +247,7 @@ class ActionChain(object):
                 print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase5->phase7: dist_start={dist_start} >= {THIRD_INTERSECTION_LIMIT}")
                 phase.next_phase(current_pos, 2)  # phase7へ
 
-        # phase6: 所定距離だけ直進するフェーズ。条件成立で次のフェーズへ�E�E�E�抽象化！E
+        # phase6: 所定距離だけ直進するフェーズ。条件成立で次のフェーズへ
         if phase.get_phase() == 6:
             diff_position = phase.get_position_diff(current_pos)
 
@@ -259,7 +259,7 @@ class ActionChain(object):
             left_speed, right_speed = self.calc_motor_speed(target_x)
             return (left_speed, right_speed), Mode.DOUBLE_LOOP
 
-        # phase7: 青領域が条件を趁E�E��E�たら即次フェーズへ�E�E�E�抽象化！E
+        # phase7: 青領域が条件を満たしたら即次フェーズへ
         if phase.get_phase() == 7:
             if dist_start < THIRD_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.opposite_course)
@@ -278,7 +278,7 @@ class ActionChain(object):
                 print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase7->phase9: dist_start={dist_start} >= {FOURTH_INTERSECTION_LIMIT}")
                 phase.next_phase(current_pos, 2)
 
-        # phase8: 青領域が条件未満になったら次フェーズへ�E�E�E�抽象化！E
+        # phase8: 青領域が条件未満になったら次フェーズへ
         if phase.get_phase() == 8:
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
@@ -290,7 +290,7 @@ class ActionChain(object):
             elif dist_start >= FOURTH_INTERSECTION_LIMIT:
                 phase.next_phase(current_pos)
 
-        # phase9: 条件未満ならDOUBLE_LOOP継続、条件到達で次モードへ�E�E�E�抽象化！E
+        # phase9: 条件未満ならDOUBLE_LOOP継続、条件到達で次モードへ
         if phase.get_phase() == 9:
             if dist_start < FOURTH_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
@@ -331,7 +331,7 @@ class ActionChain(object):
                 left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # phase1: 赤ピクセル数 < 500 かつ距離 < 15 で phase2へ。yaw基準セチE�E��E�、E
+        # phase1: 赤ピクセル数 < 500 かつ距離 < 15 で phase2へ。yaw基準セット
         if phase.get_phase() == 1:
             red_center, _, red_pixel_count = find_bottle_center(image=image, color="red", roi=ROI_COLOR2)
             distance = et.get_distance_sensor()
@@ -341,7 +341,7 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE1
 
-            # それ以外�E赤ボトル中忁E�E��E�従。見つからなければヨー維持で直進
+            # それ以外は赤ボトル中心に追従。見つからなければヨー維持で直進
             if red_center is not None:
                 target_x = red_center[0]
                 left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
@@ -349,7 +349,7 @@ class ActionChain(object):
                 left_speed, right_speed = et.yaw_straight_control(base_speed=30, adjust_speed=2)
             return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # phase2: ジャイロ補正。yaw誤差4.0以冁E�E��E� phase3へ。誤差大きい場合�E単純に速度5で調整�E�E�E�Eye_blueと同様、時間調整なし）、E
+        # phase2: ジャイロ補正。yaw誤差4.0以内でphase3へ。誤差大きい場合は単純に速度5で調整（get_eye_blueと同様、時間調整なし）
         if phase.get_phase() == 2:
             in_tolerance, yaw_error = et.is_start_yaw_error_within(4.0)
             start_yaw = et.get_start_yaw()
@@ -364,7 +364,7 @@ class ActionChain(object):
                 else:
                     return (0, 5), Mode.CARRY_BOTTLE1
 
-        # phase3: 右モーター位置差が閾値�E�E�E�上段1220/下段700�E�E�E�未満なら直進。閾値趁E�E��E�たら phase4へ。yaw基準セチE�E��E�、E
+        # phase3: 右モーター位置差が閾値（上段1220/下段700）未満なら直進。閾値到達したらphase4へ。yaw基準設定。
         if phase.get_phase() == 3:
             position_diff = phase.get_position_diff(current_pos)
             threshold = 1220 if self.course_type == "upper" else 700
@@ -375,7 +375,7 @@ class ActionChain(object):
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} | set_start_yaw={et.get_start_yaw()} | current_yaw={et.get_yaw():.2f}")
             phase.next_phase(current_pos)
 
-        # phase4: ジャイロ90度旋回。旋回終亁E�E��E�定で phase5へ。右モーター位置記録、E
+        # phase4: ジャイロ90度旋回。旋回終了判定で phase5へ。
         if phase.get_phase() == 4:
             stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=90.0)
             if stop_turn:
@@ -389,7 +389,7 @@ class ActionChain(object):
                 else:
                     return (30, 0), Mode.CARRY_BOTTLE1
 
-        # phase5: 右モーター位置差200未満なら直進。趁E�E��E�たら phase6へ。右モーター位置記録、pre_target_x初期化、E
+        # phase5: 右モーター位置差200未満なら直進。200以上なら phase6へ。pre_target_x初期化
         if phase.get_phase() == 5:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 200:
@@ -399,11 +399,11 @@ class ActionChain(object):
             phase.next_phase(current_pos)
             self.pre_target_x = (self.x1 + self.x2) // 2
 
-        # phase6: 右モーター位置差1500未満なら仮想ライン中忁E�E��E�従。趁E�E��E�たら phase7へ。右モーター位置記録、E
+        # phase6: 右モーター位置差1500未満なら仮想ライン中央に追従。到達したらphase7へ。右モーター位置記録。
         if phase.get_phase() == 6:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 1500:
-                # 仮想ライン中忁E�E��E�標取得�E琁E
+                # 仮想ライン中央の目標取得処理
                 temp_x = get_virtual_line_target_x(image, previous_center_x=self.pre_target_x)
                 if temp_x is not None:
                     target_x = temp_x
@@ -416,7 +416,7 @@ class ActionChain(object):
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1500")
             phase.next_phase(current_pos)
 
-        # phase7: 右モーター位置差1300未満なら直進。趁E�E��E�たら phase8へ。右モーター位置記録、E
+        # phase7: 右モーター位置差1300未満なら直進。到達したらphase8へ。右モーター位置記録。
         if phase.get_phase() == 7:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 1300:
@@ -425,12 +425,12 @@ class ActionChain(object):
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1300 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
             phase.next_phase(current_pos)
 
-        # phase8: 青ターゲチE�E��E�検�Eまた�E最大回転量到達で次フェーズ�E�E�E�最低回転量�E忁E�E��E�旋回�E�E�E�E
+        # phase8: 青ターゲット検出または最大回転量到達で次フェーズ。最低回転量以上の旋回処理。
         if phase.get_phase() == 8:
             blue_target_detected = is_x320_on_blue_target(image, x_tolerance=200)
             position_diff = phase.get_position_diff(current_pos)
 
-            # 最低回転量未満は忁E�E��E�旋回
+            # 最低回転量未満は強制旋回
             if position_diff < 300:
                 if self.course == "right":
                     return (0, 30), Mode.CARRY_BOTTLE1
@@ -450,7 +450,7 @@ class ActionChain(object):
             phase.next_phase(current_pos)
             return (0, 0), Mode.CARRY_BOTTLE1
 
-        # phase9: 青ターゲチE�E��E�中忁E�E��E��E�E。中央付近なら即停止、そぁE�E��E�なければ回転のみのシンプルロジチE�E��E�
+        # phase9: 青ターゲットを中央に合わせる。中央付近なら即停止、そうでなければ回転のみのシンプルロジック。
         if phase.get_phase() == 9:
             blue_center, _, blue_pixel_count = find_blue_target_center(image)
             center_x = (self.x1 + self.x2) // 2
@@ -465,7 +465,7 @@ class ActionChain(object):
                 else:
                     return (5, 0), Mode.CARRY_BOTTLE1
             else:
-                # blue_centerがNoneの場合もphase2と同じyaw制御ロジチE�E��E�で統一
+                # blue_centerがNoneの場合もphase2と同じyaw制御ロジックで統一
                 in_tolerance, yaw_error = et.is_start_yaw_error_within(4.0)
                 start_yaw = et.get_start_yaw()
                 current_yaw = et.get_yaw()
@@ -480,7 +480,7 @@ class ActionChain(object):
                     else:
                         return (0, 5), Mode.CARRY_BOTTLE1
 
-        # phase10: 青ピクセル数>1000でcenter追従、E=300で次フェーズ、それ以外�Eyaw維持直進
+        # phase10: 青ピクセル数>1000でcenter追従、<=300で次フェーズ、それ以外はyaw維持直進
         if phase.get_phase() == 10:
             blue_center, _, blue_pixel_count = find_blue_target_center(image)
             if blue_pixel_count > 1000:
@@ -500,7 +500,7 @@ class ActionChain(object):
                 left_speed, right_speed = et.yaw_straight_control(base_speed=20, adjust_speed=2, deadband=2)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # phase11: 色センサーが青検�Eで phase12へ�E�E�E�停止�E�E�E�。それ以外�Eヨー維持で直進�E�E�E�趁E�E��E�速）、E
+        # phase11: 色センサーが青検出でphase12へ移行（停止）。それ以外はヨー維持で直進（低速）。
         if phase.get_phase() == 11:
             position_diff = phase.get_position_diff(current_pos)
             threshold = 1000
@@ -514,7 +514,7 @@ class ActionChain(object):
                 left_speed, right_speed = et.yaw_straight_control(base_speed=10, adjust_speed=1, deadband=2)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # phase12: 状態リセチE�E��E�しPAUSEへ遷移、E
+        # phase12: 状態リセットしPAUSEへ遷移。
         if phase.get_phase() == 12:
             self.reset_action()
             return (0, 0), Mode.PAUSE
@@ -529,7 +529,7 @@ class ActionChain(object):
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
 
-        # 0. 後退�E�E�E�コース側モーターが所定値移動まで。所定値趁E�E��E�たらphase1へ、モーター位置記録�E�E�E�E
+        # 0. 後退中、コース側モーターが所定値移動まで。所定値到達したらphase1へ、モーター位置記録。
         if phase.get_phase() == 0:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 600:
@@ -537,11 +537,11 @@ class ActionChain(object):
             print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 600")
             phase.next_phase(current_pos)
 
-        # 1. 左旋回�E�E�E�最低回転量�E忁E�E��E�旋回。最低回転量趁E�E��E�てからターゲチE�E��E�検�Eまた�E最大回転量到達まで旋回。条件満たせばphase2へ�E�E�E�E
+        # 1. 左旋回中、最低回転量は強制旋回。最低回転量到達してからターゲット検出または最大回転量到達まで旋回。条件満たせばphase2へ。
         if phase.get_phase() == 1:
             red_target_detected = is_x320_on_red_target(image, x_tolerance=80)
             position_diff = phase.get_position_diff(current_pos)
-            # 最低回転量�E忁E�E��E�旋回
+            # 最低回転量は強制旋回
             if position_diff < 450:
                 if self.course == "right":
                     return (0, 30), Mode.BACK_AND_TURN1
@@ -591,7 +591,7 @@ class ActionChain(object):
                 else:
                     return (5, 0), Mode.CARRY_BOTTLE2
             else:
-                # red_centerがNoneの場合もphase2のyaw制御ロジチE�E��E�で統一
+                # red_centerがNoneの場合もphase2のyaw制御ロジックで統一
                 in_tolerance, yaw_error = et.is_start_yaw_error_within(4.0)
                 start_yaw = et.get_start_yaw()
                 current_yaw = et.get_yaw()
