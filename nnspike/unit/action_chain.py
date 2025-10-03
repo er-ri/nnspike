@@ -335,9 +335,9 @@ class ActionChain(object):
         if phase.get_phase() == 1:
             red_center, _, red_pixel_count = find_bottle_center(image=image, color="red", roi=ROI_COLOR2)
             distance = et.get_distance_sensor()
-            if (red_pixel_count is not None and red_pixel_count < 500) and (distance < 15):
+            if (red_pixel_count is not None and red_pixel_count < 500) and (distance > 0 and distance < 15):
                 et.set_start_yaw_nearest_vertical_pole()  # 垂直のスタートヨーを設宁E
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | red_pixel_count={red_pixel_count} < 500 and distance={distance} < 15 | set_start_yaw={et.get_start_yaw()} | current_yaw={et.get_yaw():.2f}")
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | red_pixel_count={red_pixel_count} < 500 and distance={distance} > 0 and < 15 | set_start_yaw={et.get_start_yaw()} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE1
 
