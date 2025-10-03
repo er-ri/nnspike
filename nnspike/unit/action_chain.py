@@ -363,15 +363,15 @@ class ActionChain(object):
                 target_x = red_center[0]
                 left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
             else:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=30, adjust_speed=2)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=30)
             return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
         # phase4: 右モーター位置差が閾値（上段1220/下段700）未満なら直進。閾値到達したらphase5へ。yaw基準設定。
         if phase.get_phase() == 4:
             position_diff = phase.get_position_diff(current_pos)
-            threshold = 1220 if self.course_type == "upper" else 700
+            threshold = 1250 if self.course_type == "upper" else 700
             if position_diff < threshold:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=30, adjust_speed=2)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=30)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
             et.set_start_yaw_nearest_vertical_pole()
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
@@ -503,7 +503,7 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE1
             else:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=10, adjust_speed=1, deadband=2)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=10, deadband=2)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
         # phase12: 状態リセットしBACK_AND_TURN1へ遷移。
@@ -848,7 +848,7 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE2
             else:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=10, adjust_speed=1, deadband=2)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=10, deadband=2)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
         # phase16: 状態リセットしBACK_AND_TURN2（ターン②）へ遷移
@@ -1076,7 +1076,7 @@ class ActionChain(object):
                 return (0, 0), Mode.EYE_BLUE
             else:
                 # ここでfind_blue_target_centerは不要。ヨー維持で直進�E�E�E�趁E�E��E�速！E
-                left_speed, right_speed = et.yaw_straight_control(base_speed=10, adjust_speed=1, deadband=2)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=10, deadband=2)
                 return (left_speed, right_speed), Mode.EYE_BLUE
 
         # phase5: 状態リセチE�E��E�しPAUSEへ遷移、E
