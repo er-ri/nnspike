@@ -104,7 +104,7 @@ class FastLapChain(object):
         Returns:
             適切なベース速度
         """
-        # 0.6秒経過後は確実に最高速度
+        # 0.6秒経過後は確実に最高速度（無駄な計算を回避）
         if elapsed_time >= 0.6:
             return max_speed  # 確実に100%到達
         
@@ -112,19 +112,27 @@ class FastLapChain(object):
         left_actual, right_actual = self.et.get_motor_speed()
         avg_actual_speed = (left_actual + right_actual) / 2
         
-        # 目標速度（時間ベースの基本カーブ）
-        target_speed = self.get_accelerated_base_speed(elapsed_time, max_speed)
+        # 目標速度を直接計算（指数関数的加速カーブ）
+        # 指数関数的加速（0-0.6秒）
+        k = 4.0
+        ratio = 1.0 - (2.71828 ** (-k * elapsed_time))
+        min_speed = max(5, int(max_speed * 0.15))  # 最低5以上
+        max_speed_95 = int(max_speed * 0.95)  # 95%到達
+        target_speed = int(min_speed + (max_speed_95 - min_speed) * ratio)
+        target_speed = max(5, target_speed)  # 絶対最低値5を保証
         
         # フィードバック補正
         if avg_actual_speed > 0:
             # 実測値が目標の何%に到達しているか
             achievement_ratio = avg_actual_speed / target_speed
             
-            # 到達率が低い場合は指令値を上げる（最大30%まで）
+            # 到達率が低い場合のみ指令値を上げる（最大30%まで）
+            # 実測値が目標を上回っている場合は補正しない
             if achievement_ratio < 0.8:
                 correction_factor = min(1.3, 1.0 / achievement_ratio)
                 corrected_speed = int(target_speed * correction_factor)
             else:
+                # 80%以上到達または目標超過の場合は基本値を使用
                 corrected_speed = target_speed
         else:
             # 実測値がゼロの場合は基本値を使用
