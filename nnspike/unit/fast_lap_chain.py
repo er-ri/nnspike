@@ -91,54 +91,6 @@ class FastLapChain(object):
         
         return max(5, calculated_speed)  # 絶対最低値5を保証
 
-    def get_accelerated_base_speed_with_feedback(self, elapsed_time: float, max_speed: int = HIGH_SPEED_BASE) -> int:
-        """
-        実測値フィードバック型の加速制御（0.8秒完全安定版）
-        モーター実速度を監視して最適な指令値を決定
-        0.8秒かけて確実に最高速度100%到達を保証
-        
-        Args:
-            elapsed_time: 経過時間（秒）
-            max_speed: 最高速度（デフォルト: HIGH_SPEED_BASE）
-        
-        Returns:
-            適切なベース速度
-        """
-        # 0.8秒経過後は確実に最高速度を維持（絶対安定保証）
-        if elapsed_time >= 0.8:
-            return max_speed  # 100%安定到達後の維持
-        
-        # 現在のモーター実速度を取得
-        left_actual, right_actual = self.et.get_motor_speed()
-        avg_actual_speed = (left_actual + right_actual) / 2
-        
-        # 目標速度を直接計算（0.8秒まで緩やかな指数関数的加速カーブ）
-        # より緩やかな指数関数的加速（0-0.8秒）
-        k = 3.0  # より緩やか（4.0→3.0）で安定性重視
-        # 0.8秒時点で95%到達するように正規化
-        ratio = 1.0 - (2.71828 ** (-k * elapsed_time / 0.8))
-        min_speed = max(5, int(max_speed * 0.15))  # 最低5以上
-        max_speed_95 = int(max_speed * 0.95)  # 95%到達
-        target_speed = int(min_speed + (max_speed_95 - min_speed) * ratio)
-        target_speed = max(5, target_speed)  # 絶対最低値5を保証
-        
-        # フィードバック補正（0.8秒未満、より保守的）
-        if avg_actual_speed > 0:
-            achievement_ratio = avg_actual_speed / target_speed
-            
-            # より保守的なフィードバック補正（速度低下防止）
-            if achievement_ratio < 0.85:  # 閾値を0.7→0.85に引き上げ
-                correction_factor = min(1.08, 0.85 / achievement_ratio)  # 最大8%補正（15%→8%）
-                corrected_speed = int(target_speed * correction_factor)
-            else:
-                corrected_speed = target_speed
-        else:
-            corrected_speed = target_speed
-        
-        # 範囲制限（安全保証）
-        final_speed = max(5, min(corrected_speed, max_speed))
-        
-        return final_speed
 
     def turn_left_yaw(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
         # ActionChain設計に厳密に合わせる: self._init判定→initialize_action→phase管理
@@ -248,9 +200,9 @@ class FastLapChain(object):
         if phase.get_phase() == 0:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 3000:
-                # 実測値フィードバック型の段階的加速制御メソッドを使用
+                # 時間ベース段階的加速制御メソッドを使用
                 elapsed_time = time.time() - self.lap_start_time
-                base_speed = self.get_accelerated_base_speed_with_feedback(elapsed_time, HIGH_SPEED_BASE)
+                base_speed = self.get_accelerated_base_speed(elapsed_time, HIGH_SPEED_BASE)
                 left_speed, right_speed = et.yaw_straight_control(base_speed=base_speed)
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
