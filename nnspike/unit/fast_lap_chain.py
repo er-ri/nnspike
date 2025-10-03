@@ -207,7 +207,7 @@ class FastLapChain(object):
             # 連続色3回以上で次フェーズ
             print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} | color={color_info['color']} | color_type={color_info['color_type']} | color_count={self._phase2_color_count}")
             if self._phase2_color_count >= 3 or position_diff >= 2800:
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | color_count={self._phase2_color_count} >= 3 or position_diff={position_diff} >= 3000 | current_pos={current_pos}")
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | color_count={self._phase2_color_count} >= 3 or position_diff={position_diff} >= 2800 | current_pos={current_pos}")
                 phase.next_phase(current_pos)
                 self._phase2_color_count = 0
             else:
@@ -275,12 +275,12 @@ class FastLapChain(object):
             else:
                 self._phase2_color_count = 0
             print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} | color={color_info['color']} | color_type={color_info['color_type']} | color_count={self._phase2_color_count}")
-            # 連続色4回以上で次フェーズ
-            if self._phase2_color_count >= 4 or position_diff >= 700:
+            # 連続色3回以上で次フェーズ
+            if self._phase2_color_count >= 3 or position_diff >= 700:
                 # ラップ終了タイム記録（フェーズ7遷移時）
                 self.lap_end_time = time.time()
                 lap_elapsed = self.lap_end_time - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | color_count={self._phase2_color_count} >= 4 or position_diff={position_diff} >= 700 | time: {lap_elapsed:.3f}秒")
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | color_count={self._phase2_color_count} >= 3 or position_diff={position_diff} >= 700 | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.FAST_LAP
             else:
