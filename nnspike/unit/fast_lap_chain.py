@@ -63,23 +63,27 @@ class FastLapChain(object):
 
     def get_accelerated_base_speed(self, elapsed_time: float, max_speed: int = HIGH_SPEED_BASE) -> int:
         """
-        改良された指数関数的滑らかな加速制御
-        確実に最高速度100%に到達する設計
+        100到達後にパルス制御で実測値100超えを狙う加速制御
         
         Args:
             elapsed_time: 経過時間（秒）
-            max_speed: 最高速度（デフォルト: HIGH_SPEED_BASE）
+            max_speed: 最高速度（上限100）
         
         Returns:
             適切なベース速度
         """
             
-        # 0.8秒で確実に100%到達する設計
+        # 0.8秒で100%到達
         if elapsed_time >= 0.8:
-            return max_speed  # 確実に100%
+            # 100到達後: 100と98を交互に出力してモーター慣性を活用
+            # 0.1秒間隔で切り替え（実測値100超えを狙う）
+            cycle_time = (elapsed_time - 0.8) % 0.2
+            if cycle_time < 0.1:
+                return max_speed  # 100
+            else:
+                return max_speed - 2  # 98（モーター慣性で実測値100超え維持）
             
         # 指数関数的加速（0-0.8秒）
-        # k=4.0: より急峻な立ち上がり
         k = 4.0
         ratio = 1.0 - (2.71828 ** (-k * elapsed_time))
         
