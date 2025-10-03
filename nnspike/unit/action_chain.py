@@ -355,7 +355,7 @@ class ActionChain(object):
             if (red_pixel_count is not None and red_pixel_count < 500) and (distance > 0 and distance < 15):
                 et.set_start_yaw_nearest_vertical_pole()  # 垂直のスタートヨーを設定
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | red_pixel_count={red_pixel_count} < 500 and distance={distance} > 0 and < 15 | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
-                phase.next_phase(current_pos)
+                phase.next_phase(current_pos, 2)
                 return (0, 0), Mode.CARRY_BOTTLE1
 
             # それ以外は赤ボトル中心に追従。見つからなければヨー維持で直進
@@ -366,21 +366,6 @@ class ActionChain(object):
                 left_speed, right_speed = et.yaw_straight_control(base_speed=30, adjust_speed=2)
             return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # phase3: ジャイロ補正。yaw誤差4.0以内でphase4へ。誤差大きい場合は単純に速度5で調整（get_eye_blueと同様、時間調整なし）
-        if phase.get_phase() == 3:
-            in_tolerance, yaw_error = et.is_start_yaw_error_within(4.0)
-            start_yaw = et.get_start_yaw()
-            current_yaw = et.get_yaw()
-            if in_tolerance:
-                et.set_start_yaw_nearest_vertical_pole()  # 垂直のスタートヨーを設定
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | in_tolerance={in_tolerance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
-                phase.next_phase(current_pos)
-            else:
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | adjusting | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
-                if yaw_error < 0:
-                    return (5, 0), Mode.CARRY_BOTTLE1
-                else:
-                    return (0, 5), Mode.CARRY_BOTTLE1
         # phase4: 右モーター位置差が閾値（上段1220/下段700）未満なら直進。閾値到達したらphase5へ。yaw基準設定。
         if phase.get_phase() == 4:
             position_diff = phase.get_position_diff(current_pos)
