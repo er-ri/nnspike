@@ -238,14 +238,14 @@ class ActionChain(object):
             blue_area = get_blue_line_pixel(image)
             if blue_area < BLUE_AREA_MIN_THRESHOLD:
                 print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase5->phase6: blue_area={blue_area} < {BLUE_AREA_MIN_THRESHOLD} | dist_start={dist_start}")
-                phase.next_phase(current_pos)  # phase6(直進)へ
+                phase.next_phase(current_pos, 2)  # phase6(直進)へ
             elif dist_start < THIRD_INTERSECTION_LIMIT:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
                 left_speed, right_speed = self.calc_motor_speed(target_x)
                 return (left_speed, right_speed), Mode.DOUBLE_LOOP
             elif dist_start >= THIRD_INTERSECTION_LIMIT:
                 print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase5->phase7: dist_start={dist_start} >= {THIRD_INTERSECTION_LIMIT}")
-                phase.next_phase(current_pos)
+                phase.next_phase(current_pos, 2)  # phase7へ
 
         # phase6: 所定距離だけ直進するフェーズ。条件成立で次のフェーズへ�E�E�E�抽象化！E
         if phase.get_phase() == 6:
