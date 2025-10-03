@@ -515,14 +515,21 @@ class ActionChain(object):
                 left_speed, right_speed = et.yaw_straight_control(base_speed=20, adjust_speed=2, deadband=2)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # phase12: 色センサーが青検出でphase13へ移行（停止）。それ以外はヨー維持で直進（低速）。
+        # phase12: 色センサーが青検出を2回連続でphase13へ移行（停止）。それ以外はヨー維持で直進（低速）。
         if phase.get_phase() == 12:
             position_diff = phase.get_position_diff(current_pos)
             threshold = 1000
             color_info = self.get_color_sensor_values()
             color_type = color_info["color_type"]
-            if color_type == "blue" or position_diff >= threshold:
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} or color_type={color_type} (color_value={color_info['color']}) | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+            
+            # 青色の連続検出カウンター
+            if color_type == "blue":
+                self.consecutive_blue_count += 1
+            else:
+                self.consecutive_blue_count = 0
+                
+            if self.consecutive_blue_count >= 2 or position_diff >= threshold:
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} or consecutive_blue_count={self.consecutive_blue_count} >= 2 (color_type={color_type}, color_value={color_info['color']}) | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE1
             else:
