@@ -210,8 +210,8 @@ class FastLapChain(object):
             if position_diff < 3000:
                 # 時間ベース段階的加速制御メソッドを使用
                 elapsed_time = time.time() - self.lap_start_time
-                base_speed = self.get_accelerated_base_speed(elapsed_time, HIGH_SPEED_BASE)
-                left_speed, right_speed = et.yaw_straight_control(base_speed=base_speed)
+                # base_speed = self.get_accelerated_base_speed(elapsed_time, HIGH_SPEED_BASE)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
                 lap_elapsed = time.time() - self.lap_start_time
