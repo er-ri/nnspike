@@ -723,7 +723,7 @@ class ActionChain(object):
             current_yaw = et.get_yaw()
             if in_tolerance:
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | in_tolerance={in_tolerance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
-                phase.next_phase(current_pos)
+                phase.next_phase(current_pos, 3)
                 return (0, 0), Mode.CARRY_BOTTLE2
             else:
                 if yaw_error < 0:
@@ -731,36 +731,10 @@ class ActionChain(object):
                 else:
                     return (0, 5), Mode.CARRY_BOTTLE2
 
-        # 9. 直進。コース側モーターが所定値移動まで、両輪BASE_SPEED。所定値到達したらphase10へ、モーター位置記録、pre_target_x初期化
-        if phase.get_phase() == 9:
-            position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 100:
-                return (10, 10), Mode.CARRY_BOTTLE2
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 100 | yaw={et.get_yaw():.2f} | start_yaw={et.get_start_yaw():.2f}")
-            phase.next_phase(current_pos)
-            self.pre_target_x = (self.x1 + self.x2) // 2
-
-        # 10. 仮想ライン直進。コース側モーターが所定値移動まで仮想ライン中心目標取得し、pre_target_x更新。所定値到達したらphase11へ、モーター位置記録
-        if phase.get_phase() == 10:
-            position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 1400:
-                # 仮想ライン中心の目標取得処理
-                temp_x = get_virtual_line_target_x(image, previous_center_x=self.pre_target_x)
-                if temp_x is not None:
-                    target_x = temp_x
-                    self.pre_target_x = temp_x
-                else:
-                    target_x = (self.x1 + self.x2) // 2
-                    self.pre_target_x = target_x
-                left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=20)
-                return (left_speed, right_speed), Mode.CARRY_BOTTLE2
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1400")
-            phase.next_phase(current_pos)
-
         # 11. 直進。コース側モーターが所定値移動まで、両輪BASE_SPEED。所定値到達したらphase12へ、モーター位置記録
         if phase.get_phase() == 11:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 400:
+            if position_diff < 1900:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=20, adjust_speed=2)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 400")
