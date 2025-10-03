@@ -608,23 +608,25 @@ class ActionChain(object):
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
 
-        # phase0: 赤ターゲット中心合わせ。中央付近なら即停止、そうでなければ回転のみのシンプルロジック
+        # phase0: 青ボトル中心合わせ。中央付近なら即停止、そうでなければ回転のみのシンプルロジック
         if phase.get_phase() == 0:
-            # 赤ターゲットの中心x座標を取得
-            red_center = get_red_target_center_x(image)
+            # 青ボトルの中心x座標を取得
+            blue_center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
             center_x = (self.x1 + self.x2) // 2
-            if red_center is not None and abs(red_center - center_x) <= 20:
-                self.et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | centered | target_x={red_center} | center_x={center_x} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
-                phase.next_phase(current_pos)
-                return (0, 0), Mode.CARRY_BOTTLE2
-            elif red_center is not None:
-                if red_center < center_x:
-                    return (0, 5), Mode.CARRY_BOTTLE2
+            if blue_center is not None:
+                blue_center_x = blue_center[0]  # x座標のみ取得
+                if abs(blue_center_x - center_x) <= 20:
+                    self.et.set_start_yaw()
+                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | centered | target_x={blue_center_x} | center_x={center_x} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+                    phase.next_phase(current_pos)
+                    return (0, 0), Mode.CARRY_BOTTLE2
                 else:
-                    return (5, 0), Mode.CARRY_BOTTLE2
+                    if blue_center_x < center_x:
+                        return (0, 5), Mode.CARRY_BOTTLE2
+                    else:
+                        return (5, 0), Mode.CARRY_BOTTLE2
             else:
-                # red_centerがNoneの場合もphase2のyaw制御ロジックで統一
+                # blue_centerがNoneの場合もphase2のyaw制御ロジックで統一
                 in_tolerance, yaw_error = et.is_start_yaw_error_within(4.0)
                 start_yaw = et.get_start_yaw()
                 current_yaw = et.get_yaw()
@@ -642,15 +644,8 @@ class ActionChain(object):
         if phase.get_phase() == 1:
             blue_center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
             if blue_pixel_count < 18000:
-                # 赤ターゲット中心取得
-                red_center = get_red_target_center_x(image)
-                # 赤センター最優先
-                if red_center is not None:
-                    target_x = red_center
-                    self.et.set_start_yaw()
-                    left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
-                    return (left_speed, right_speed), Mode.CARRY_BOTTLE2
-                elif blue_pixel_count >= 5000 and blue_center is not None:
+                # 青ボトルのみを対象とする
+                if blue_pixel_count >= 5000 and blue_center is not None:
                     target_x = blue_center[0]
                     self.et.set_start_yaw()
                     left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
@@ -658,7 +653,7 @@ class ActionChain(object):
                 else:
                     position_diff = phase.get_position_diff(current_pos)
                     if position_diff >= 1500:
-                        print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1000 (not found red/blue)")
+                        print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1500 (not found blue)")
                         phase.next_phase(current_pos)
                     else:
                         left_speed, right_speed = et.yaw_straight_control(base_speed=30, adjust_speed=2)
