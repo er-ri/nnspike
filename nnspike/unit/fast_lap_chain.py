@@ -63,12 +63,8 @@ class FastLapChain(object):
 
     def get_accelerated_base_speed(self, elapsed_time: float, max_speed: Optional[int] = None) -> int:
         """
-        指数関数的な滑らかな加速制御（連続的カーブ）
-        段階的制御から連続的制御に改善
-        
-        加速特性:
-        - 指数関数: y = max_speed * (1 - e^(-k*t))
-        - 最初はゆっくり、徐々に加速、最後は漸近的に最高速度
+        改良された指数関数的滑らかな加速制御
+        確実に最高速度100%に到達する設計
         
         Args:
             elapsed_time: 経過時間（秒）
@@ -80,14 +76,19 @@ class FastLapChain(object):
         if max_speed is None:
             max_speed = HIGH_SPEED_BASE
             
-        # 指数関数的加速制御
-        # k=3.0: 1秒で約95%、1.5秒で約99%到達
-        k = 3.0
+        # 0.8秒で確実に100%到達する設計
+        if elapsed_time >= 0.8:
+            return max_speed  # 確実に100%
+            
+        # 指数関数的加速（0-0.8秒）
+        # k=4.0: より急峻な立ち上がり
+        k = 4.0
         ratio = 1.0 - (2.71828 ** (-k * elapsed_time))
         
-        # 最低速度を15%に設定（完全停止を避ける）
+        # 最低速度15%、最大95%の範囲で制御
         min_ratio = 0.15
-        final_ratio = min_ratio + (1.0 - min_ratio) * ratio
+        max_ratio = 0.95  # 0.8秒で95%到達
+        final_ratio = min_ratio + (max_ratio - min_ratio) * ratio
         
         return int(max_speed * final_ratio)
 
