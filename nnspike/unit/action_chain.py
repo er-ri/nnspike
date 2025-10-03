@@ -674,7 +674,8 @@ class ActionChain(object):
             position_diff = phase.get_position_diff(current_pos)
             threshold = 200
             if position_diff < threshold:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=30, adjust_speed=2)return (left_speed, right_speed), Mode.CARRY_BOTTLE2
+                left_speed, right_speed = et.yaw_straight_control(base_speed=30, adjust_speed=2)
+                return (left_speed, right_speed), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} | current_pos={current_pos}")
             phase.next_phase(current_pos)
             return (0, 0), Mode.CARRY_BOTTLE2
