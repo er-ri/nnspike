@@ -230,7 +230,7 @@ class FastLapChain(object):
                 else:
                     return (100, 70), Mode.FAST_LAP
 
-        # フェーズ4: 1000未満は何も判定せず直進。1000以上でcorner判定・閾値判定。
+        # フェーズ4: 最小距離未満は何も判定せず直進。最小距離以上でcorner判定・閾値判定。
         if phase.get_phase() == 4:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 500:
@@ -238,7 +238,7 @@ class FastLapChain(object):
                 return (left_speed, right_speed), Mode.FAST_LAP
 
             fast_corner = is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course=self.course)
-            if fast_corner or position_diff >= 1500:
+            if fast_corner or position_diff >= 2000:
                 print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | fast_corner_detected={fast_corner} | position_diff={position_diff}")
                 phase.next_phase(current_pos)
             else:
