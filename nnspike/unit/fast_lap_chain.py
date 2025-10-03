@@ -61,7 +61,7 @@ class FastLapChain(object):
             "color_type": color_type
         }
 
-    def get_accelerated_base_speed(self, elapsed_time: float, max_speed: Optional[int] = None) -> int:
+    def get_accelerated_base_speed(self, elapsed_time: float, max_speed: int = HIGH_SPEED_BASE) -> int:
         """
         改良された指数関数的滑らかな加速制御
         確実に最高速度100%に到達する設計
@@ -73,8 +73,6 @@ class FastLapChain(object):
         Returns:
             適切なベース速度
         """
-        if max_speed is None:
-            max_speed = HIGH_SPEED_BASE
             
         # 0.8秒で確実に100%到達する設計
         if elapsed_time >= 0.8:
