@@ -195,7 +195,7 @@ class FastLapChain(object):
         if phase.get_phase() == 2:
             position_diff = phase.get_position_diff(current_pos)
             # 1500未満は無条件で直進
-            if position_diff < 1500:
+            if position_diff < 2000:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP
 
@@ -206,7 +206,7 @@ class FastLapChain(object):
                 self._phase2_color_count = 0
             # 連続色3回以上で次フェーズ
             print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} | color={color_info['color']} | color_type={color_info['color_type']} | color_count={self._phase2_color_count}")
-            if self._phase2_color_count >= 3 or position_diff >= 4000:
+            if self._phase2_color_count >= 3 or position_diff >= 2800:
                 print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | color_count={self._phase2_color_count} >= 3 or position_diff={position_diff} >= 3000 | current_pos={current_pos}")
                 phase.next_phase(current_pos)
                 self._phase2_color_count = 0
