@@ -532,13 +532,13 @@ class ActionChain(object):
         # phase13: 状態リセットしPAUSEへ遷移。
         if phase.get_phase() == 13:
             self.reset_action()
-            return (0, 0), Mode.PAUSE
+            return (0, 0), Mode.BACK_AND_TURN1
 
         print("[carry_bottle1_relative] Unexpected state reached.")
         return (0, 0), Mode.CARRY_BOTTLE1
 
     def back_and_turn1_relative(self, image: np.ndarray) -> Tuple[SpeedTuple, Mode]:
-        # 初回呼び出し時のみ初期匁E
+        # 初回呼び出し時のみ初期化
         if not self._init:
             self.initialize_action(motor_side=self.course)
         phase = self._phase
@@ -562,7 +562,7 @@ class ActionChain(object):
                     return (0, 30), Mode.BACK_AND_TURN1
                 else:
                     return (30, 0), Mode.BACK_AND_TURN1
-            # 最低回転量趁E�E��E�てから、ターゲチE�E��E�検�Eまた�E最大回転量到達まで継綁E
+            # 最低回転量到達してから、ターゲット検出または最大回転量到達まで継続
             if (not red_target_detected) and (position_diff < 940):
                 if self.course == "right":
                     return (0, 20), Mode.BACK_AND_TURN1
@@ -573,7 +573,7 @@ class ActionChain(object):
             phase.next_phase(current_pos)
             return (0, 0), Mode.BACK_AND_TURN1
 
-        # 2. 終亁E 状態リセチE�E��E�しCARRY_BOTTLE2へ遷移
+        # 2. 終了。状態リセットしCARRY_BOTTLE2へ遷移
         if phase.get_phase() == 2:
             self.reset_action()
             return (0, 0), Mode.CARRY_BOTTLE2
