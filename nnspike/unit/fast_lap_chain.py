@@ -284,8 +284,8 @@ class FastLapChain(object):
         # フェーズ7: reset_action()してPAUSE復帰（ラップ終了）
         if phase.get_phase() == 7:
             self.reset_action()
-            return (0, 0), Mode.PAUSE
-            # return (0, 0), Mode.DOUBLE_LOOP
+            # return (0, 0), Mode.PAUSE
+            return (0, 0), Mode.DOUBLE_LOOP
 
         print("[FAST_LAP] Unexpected state reached.")
         return (0, 0), Mode.FAST_LAP
