@@ -655,22 +655,29 @@ class ActionChain(object):
             blue_center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
             distance = et.get_distance_sensor()
 
-            if (blue_pixel_count is not None and blue_pixel_count < 5000) and (distance < 15):
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase=2 | blue_pixel_count={blue_pixel_count} < 500 and distance={distance} < 15 | set_start_yaw={et.get_start_yaw()} | current_yaw={et.get_yaw():.2f}")
+            if (blue_pixel_count is not None and blue_pixel_count < 5000) and (distance > 0 and distance < 15):
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} < 5000 and distance={distance} > 0 and < 15 | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE2
 
-            # 青�Eトル中忁E�E��E�従。見つからなければ次フェーズへ
+            # 青ボトル中心に追従。見つからなければヨー維持直進で200進んでから次フェーズへ
             if blue_center is not None:
                 target_x = blue_center[0]
                 self.et.set_start_yaw()
                 left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
             else:
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase=2 | blue_center not found, next phase")
-                phase.next_phase(current_pos)
+                position_diff = phase.get_position_diff(current_pos)
+                threshold = 200
+                if position_diff >= threshold:
+                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | blue_center not found, position_diff={position_diff} >= {threshold}, next phase | current_pos={current_pos}")
+                    phase.next_phase(current_pos)
+                    return (0, 0), Mode.CARRY_BOTTLE2
+                else:
+                    left_speed, right_speed = et.yaw_straight_control(base_speed=30, adjust_speed=2)
+                    return (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
-        # 3. 左黒ライン検�Eまで左旋回。最大回転量まで。検�Eまた�E最大回転量到達で次フェーズへ、右モーター位置記録
+        # 3. 左黒ライン検出まで左旋回。最大回転量まで。検出または最大回転量到達で次フェーズへ、右モーター位置記録
         if phase.get_phase() == 3:
             min_limit = 700
             max_limit = 1200
