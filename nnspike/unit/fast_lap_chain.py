@@ -84,13 +84,13 @@ class FastLapChain(object):
             else:
                 return 99  # 慣性で実測値100+維持狙い
         
-        # 0.8秒で101到達、2秒まで101維持
-        if elapsed_time >= 0.8:
-            return 101  # 1.2秒間101を維持
+        # 0.5秒で101到達、2秒まで101維持
+        if elapsed_time >= 0.5:
+            return 101  # 1.5秒間101を維持
             
-        # 指数関数的加速（0-0.8秒）
+        # 指数関数的加速（0-0.5秒）
         k = 5.0  # より急峻で早期到達
-        ratio = 1.0 - (2.71828 ** (-k * elapsed_time / 0.8))
+        ratio = 1.0 - (2.71828 ** (-k * elapsed_time / 0.5))
         
         # 最低速度5から100まで
         min_speed = 5
