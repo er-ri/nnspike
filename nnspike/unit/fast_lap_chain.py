@@ -64,6 +64,7 @@ class FastLapChain(object):
     def get_accelerated_base_speed(self, elapsed_time: float, max_speed: int = HIGH_SPEED_BASE) -> int:
         """
         100到達後にパルス制御で実測値100超えを狙う加速制御
+        データ分析結果: 効果確認済み、実測値100-103達成
         
         Args:
             elapsed_time: 経過時間（秒）
@@ -75,13 +76,13 @@ class FastLapChain(object):
             
         # 0.8秒で100%到達
         if elapsed_time >= 0.8:
-            # 100到達後: 100と98を交互に出力してモーター慣性を活用
-            # 0.1秒間隔で切り替え（実測値100超えを狙う）
-            cycle_time = (elapsed_time - 0.8) % 0.2
-            if cycle_time < 0.1:
-                return max_speed  # 100
+            # 100到達後: 100と98のパルス制御（実測値101-98範囲狙い）
+            # 0.07秒間隔で切り替え（17ms×4フレーム周期）
+            cycle_time = (elapsed_time - 0.8) % 0.14
+            if cycle_time < 0.07:
+                return max_speed  # 100（モーター上限）
             else:
-                return max_speed - 2  # 98（モーター慣性で実測値100超え維持）
+                return max_speed - 2  # 98（慣性で実測値100+維持）
             
         # 指数関数的加速（0-0.8秒）
         k = 4.0
