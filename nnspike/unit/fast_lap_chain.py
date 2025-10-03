@@ -85,12 +85,13 @@ class FastLapChain(object):
         k = 4.0
         ratio = 1.0 - (2.71828 ** (-k * elapsed_time))
         
-        # 最低速度15%、最大95%の範囲で制御
-        min_ratio = 0.15
-        max_ratio = 0.95  # 0.8秒で95%到達
-        final_ratio = min_ratio + (max_ratio - min_ratio) * ratio
+        # 最低速度5以上を保証、最大95%の範囲で制御
+        min_speed = max(5, int(max_speed * 0.15))  # 最低5以上
+        max_speed_95 = int(max_speed * 0.95)  # 0.8秒で95%到達
         
-        return int(max_speed * final_ratio)
+        calculated_speed = int(min_speed + (max_speed_95 - min_speed) * ratio)
+        
+        return max(5, calculated_speed)  # 絶対最低値5を保証
 
     def turn_left_yaw(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
         # ActionChain設計に厳密に合わせる: self._init判定→initialize_action→phase管理
