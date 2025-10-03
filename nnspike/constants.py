@@ -22,7 +22,7 @@ OFFSET_Y = 470  # 0.20 meters to the ground
 
 # Base speed for robot movement (used throughout action logic)
 BASE_SPEED = 45
-HIGH_SPEED_BASE = 100
+HIGH_SPEED_BASE = 105  # 実測値100を維持するため指令値105に設定
 
 # Behavior Mode
 class Mode(Enum):
