@@ -264,12 +264,16 @@ class FastLapChain(object):
         # フェーズ6: position_startとの差分2000未満ならyaw_straight_control直進。2000以上で次フェーズ
         if phase.get_phase() == 6:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 100:
+            if position_diff < 300:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 100 | current_pos={current_pos}")
+                # ラップ終了タイム記録
+                self.lap_end_time = time.time()
+                lap_elapsed = self.lap_end_time - self.lap_start_time
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 300 | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
+                return (0, 0), Mode.FAST_LAP
 
         # フェーズ7: reset_action()してPAUSE復帰（ラップ終了）
         if phase.get_phase() == 7:
