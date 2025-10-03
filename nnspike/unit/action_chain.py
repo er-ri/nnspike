@@ -802,8 +802,8 @@ class ActionChain(object):
             phase.next_phase(current_pos)
             return (0, 0), Mode.CARRY_BOTTLE2
 
-        # phase11: 青ターゲチE�E��E�中忁E�E��E��E�E。中央付近なら即停止、そぁE�E��E�なければ回転のみのシンプルロジチE�E��E�
-        if phase.get_phase() == 11:
+        # phase12: 青ターゲット中心合わせ。中央付近なら即停止、それ以外は回転のみのシンプルロジック
+        if phase.get_phase() == 12:
             blue_center, _, blue_pixel_count = find_blue_target_center(image)
             center_x = (self.x1 + self.x2) // 2
             if blue_center is not None and abs(blue_center[0] - center_x) <= 20:
@@ -866,10 +866,10 @@ class ActionChain(object):
                 left_speed, right_speed = et.yaw_straight_control(base_speed=10, adjust_speed=1, deadband=2)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
-        # phase15: 状態リセチE�E��E�しPAUSEへ遷移、E
+        # phase15: 状態リセットしBACK_AND_TURN2（ターン②）へ遷移
         if phase.get_phase() == 15:
             self.reset_action()
-            return (0, 0), Mode.PAUSE
+            return (0, 0), Mode.BACK_AND_TURN2
 
         print("[carry_bottle2_relative] Unexpected state reached.")
         return (0, 0), Mode.CARRY_BOTTLE2
