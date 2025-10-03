@@ -202,15 +202,16 @@ class FastLapChain(object):
                 return (left_speed, right_speed), Mode.FAST_LAP
 
             color_info = self.get_color_sensor_values()
-            if color_info["color_type"] == "white" or color_info["color_type"] == "black":
+            if color_info["color_type"] == "white":
                 self._phase2_color_count += 1
             else:
                 self._phase2_color_count = 0
             # 連続色2回以上で次フェーズ
+            threshold = 2700
             print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} | color={color_info['color']} | color_type={color_info['color_type']} | color_count={self._phase2_color_count} | current_pos={current_pos}")
-            if self._phase2_color_count >= 2 or position_diff >= 2700:
+            if self._phase2_color_count >= 2 or position_diff >= threshold:
                 lap_elapsed = time.time() - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | color_count={self._phase2_color_count} >= 2 or position_diff={position_diff} >= 2800 | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | color_count={self._phase2_color_count} >= 2 or position_diff={position_diff} >= {threshold} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
                 self._phase2_color_count = 0
             else:
