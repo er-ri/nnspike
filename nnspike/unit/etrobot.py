@@ -374,8 +374,6 @@ class ETRobot(object):
         return float(val) if val is not None else 0.0
 
     def set_start_yaw(self, yaw: Optional[float] = None):
-        before = getattr(self, '_start_yaw', None)
-        print(f"[DEBUG][set_start_yaw] before={before} arg={yaw}")
         """
         現在のヨー角または指定値をstart_yawとして記録する（直線安定化・旋回開始時などで使用）
         Args:
@@ -385,7 +383,6 @@ class ETRobot(object):
             self._start_yaw = float(yaw)
         else:
             self._start_yaw = self.get_yaw()
-        print(f"[DEBUG][set_start_yaw] after={self._start_yaw}")
 
     def get_start_yaw(self) -> float:
         """
