@@ -61,40 +61,6 @@ class FastLapChain(object):
             "color_type": color_type
         }
 
-    def get_accelerated_base_speed(self, elapsed_time: float, max_speed: Optional[int] = None) -> int:
-        """
-        実測データに基づいた1秒間のスムーズな段階的加速制御
-        低速域を細かく段階化して安定性を向上
-        
-        実測結果分析:
-        - 急激な立ち上がりでパワー飽和とヨー角ブレが発生
-        - 低速域の細かい制御で安定性向上が期待される
-        
-        Args:
-            elapsed_time: 経過時間（秒）
-            max_speed: 最高速度（デフォルト: HIGH_SPEED_BASE）
-        
-        Returns:
-            適切なベース速度
-        """
-        if max_speed is None:
-            max_speed = HIGH_SPEED_BASE
-            
-        if elapsed_time < 0.1:  # 最初の0.1秒は15%（超スムーズスタート）
-            return int(max_speed * 0.15)
-        elif elapsed_time < 0.2:  # 次の0.1秒で25%（段階的上昇）
-            return int(max_speed * 0.25)
-        elif elapsed_time < 0.4:  # 0.2秒で45%（低速域を細かく）
-            return int(max_speed * 0.45)
-        elif elapsed_time < 0.6:  # 0.2秒で70%（中速域）
-            return int(max_speed * 0.7)
-        elif elapsed_time < 0.8:  # 0.2秒で85%（高速域準備）
-            return int(max_speed * 0.85)
-        elif elapsed_time < 1.0:  # 0.2秒で95%（ほぼ最高速）
-            return int(max_speed * 0.95)
-        else:  # 1.0秒後に100%（完全な最高速）
-            return max_speed
-
     def turn_left_yaw(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
         # ActionChain設計に厳密に合わせる: self._init判定→initialize_action→phase管理
         if not self._init:
@@ -203,10 +169,7 @@ class FastLapChain(object):
         if phase.get_phase() == 0:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 3000:
-                # 汎用的な段階的加速制御メソッドを使用
-                elapsed_time = time.time() - self.lap_start_time
-                base_speed = self.get_accelerated_base_speed(elapsed_time, HIGH_SPEED_BASE)
-                left_speed, right_speed = et.yaw_straight_control(base_speed=base_speed)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
                 lap_elapsed = time.time() - self.lap_start_time
