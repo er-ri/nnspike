@@ -74,30 +74,30 @@ class FastLapChain(object):
             適切なベース速度
         """
             
-        # 3.0秒以降でパルス制御開始（距離3000間近で効果的に）
-        if elapsed_time >= 3.0:
-            # 3秒後: 101と99のパルス制御（実測値100+確実維持）
+        # 2.0秒以降でパルス制御開始（距離3000走行の中盤で効果的に）
+        if elapsed_time >= 2.0:
+            # 2秒後: 101と99のパルス制御（実測値100+確実維持）
             # 0.05秒間隔で切り替え（17ms×3フレーム周期）
-            cycle_time = (elapsed_time - 3.0) % 0.1
+            cycle_time = (elapsed_time - 2.0) % 0.1
             if cycle_time < 0.05:
                 return 101  # モーター制限突破（実証済み）
             else:
                 return 99  # 慣性で実測値100+維持狙い
         
-        # 0.5秒で101到達、3秒まで101維持
-        if elapsed_time >= 0.5:
-            return 101  # 3秒間101を維持
+        # 0.8秒で101到達、2秒まで101維持
+        if elapsed_time >= 0.8:
+            return 101  # 1.2秒間101を維持
             
-        # 指数関数的加速（0-0.5秒）
+        # 指数関数的加速（0-0.8秒）
         k = 5.0  # より急峻で早期到達
-        ratio = 1.0 - (2.71828 ** (-k * elapsed_time / 0.5))
+        ratio = 1.0 - (2.71828 ** (-k * elapsed_time / 0.8))
         
-        # 最低速度10から100まで
-        min_speed = 10
+        # 最低速度5から100まで
+        min_speed = 5
         
         calculated_speed = int(min_speed + (max_speed - min_speed) * ratio)
         
-        return max(10, calculated_speed)
+        return max(5, calculated_speed)
 
 
     def turn_left_yaw(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
