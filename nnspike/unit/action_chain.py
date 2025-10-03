@@ -369,7 +369,7 @@ class ActionChain(object):
         # phase4: 右モーター位置差が閾値（上段1220/下段700）未満なら直進。閾値到達したらphase5へ。yaw基準設定。
         if phase.get_phase() == 4:
             position_diff = phase.get_position_diff(current_pos)
-            threshold = 1250 if self.course_type == "upper" else 700
+            threshold = 1200 if self.course_type == "upper" else 700
             if position_diff < threshold:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=30)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
