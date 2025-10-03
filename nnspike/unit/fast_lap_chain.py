@@ -204,10 +204,10 @@ class FastLapChain(object):
                 self._phase2_color_count += 1
             else:
                 self._phase2_color_count = 0
-            # 連続色4回以上で次フェーズ
+            # 連続色3回以上で次フェーズ
             print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} | color={color_info['color']} | color_type={color_info['color_type']} | color_count={self._phase2_color_count}")
-            if self._phase2_color_count >= 4 or position_diff >= 3000:
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | color_count={self._phase2_color_count} >= 4 or position_diff={position_diff} >= 3000 | current_pos={current_pos}")
+            if self._phase2_color_count >= 3 or position_diff >= 4000:
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | color_count={self._phase2_color_count} >= 3 or position_diff={position_diff} >= 3000 | current_pos={current_pos}")
                 phase.next_phase(current_pos)
                 self._phase2_color_count = 0
             else:
