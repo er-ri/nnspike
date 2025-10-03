@@ -385,9 +385,9 @@ class ActionChain(object):
                 return (0, 0), Mode.CARRY_BOTTLE1
             else:
                 if self.course == "right":
-                    return (0, 30), Mode.CARRY_BOTTLE1
+                    return (0, 20), Mode.CARRY_BOTTLE1
                 else:
-                    return (30, 0), Mode.CARRY_BOTTLE1
+                    return (20, 0), Mode.CARRY_BOTTLE1
 
         # phase5: yaw補正。yaw誤坆4.0以内でphase6へ。誤差大きい場合は単純に速度5で調整。
         if phase.get_phase() == 5:
@@ -408,7 +408,7 @@ class ActionChain(object):
         if phase.get_phase() == 6:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 200:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=30, adjust_speed=2)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=30, adjust_speed=1)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 200 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
             phase.next_phase(current_pos)
@@ -747,16 +747,31 @@ class ActionChain(object):
 
         # 8. 直進。コース側モーターが所定値移動まで、両輪BASE_SPEED。所定値到達したらphase9へ、モーター位置記録、pre_target_x初期化
         if phase.get_phase() == 8:
+            in_tolerance, yaw_error = et.is_start_yaw_error_within(4.0)
+            start_yaw = et.get_start_yaw()
+            current_yaw = et.get_yaw()
+            if in_tolerance:
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | in_tolerance={in_tolerance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
+                phase.next_phase(current_pos)
+                return (0, 0), Mode.CARRY_BOTTLE2
+            else:
+                if yaw_error < 0:
+                    return (5, 0), Mode.CARRY_BOTTLE2
+                else:
+                    return (0, 5), Mode.CARRY_BOTTLE2
+
+        # 9. 直進。コース側モーターが所定値移動まで、両輪BASE_SPEED。所定値到達したらphase10へ、モーター位置記録、pre_target_x初期化
+        if phase.get_phase() == 9:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 100:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=30, adjust_speed=2)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=30, adjust_speed=1)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 100 | yaw={et.get_yaw():.2f} | start_yaw={et.get_start_yaw():.2f}")
             phase.next_phase(current_pos)
             self.pre_target_x = (self.x1 + self.x2) // 2
 
-        # 9. 仮想ライン直進。コース側モーターが所定値移動まで仮想ライン中心目標取得し、pre_target_x更新。所定値到達したらphase10へ、モーター位置記録
-        if phase.get_phase() == 9:
+        # 10. 仮想ライン直進。コース側モーターが所定値移動まで仮想ライン中心目標取得し、pre_target_x更新。所定値到達したらphase11へ、モーター位置記録
+        if phase.get_phase() == 10:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 1400:
                 # 仮想ライン中忁E�E��E�標取得�E琁E
@@ -772,8 +787,8 @@ class ActionChain(object):
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1400")
             phase.next_phase(current_pos)
 
-        # 10. 直進。コース側モーターが所定値移動まで、両輪BASE_SPEED。所定値到達したらphase11へ、モーター位置記録
-        if phase.get_phase() == 10:
+        # 11. 直進。コース側モーターが所定値移動まで、両輪BASE_SPEED。所定値到達したらphase12へ、モーター位置記録
+        if phase.get_phase() == 11:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 400:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=30, adjust_speed=2)
@@ -781,8 +796,8 @@ class ActionChain(object):
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 400")
             phase.next_phase(current_pos)
 
-        # 11. 左旋回。青ターゲット検出まで、最低回転量～最大回転量。条件満たせばphase12へ、右モーター位置記録
-        if phase.get_phase() == 11:
+        # 12. 左旋回。青ターゲット検出まで、最低回転量～最大回転量。条件満たせばphase13へ、右モーター位置記録
+        if phase.get_phase() == 12:
             blue_target_detected = is_x320_on_blue_target(image, x_tolerance=60)
             position_diff = phase.get_position_diff(current_pos)
             # 最低回転量�E忁E�E��E�旋回
@@ -802,8 +817,8 @@ class ActionChain(object):
             phase.next_phase(current_pos)
             return (0, 0), Mode.CARRY_BOTTLE2
 
-        # phase12: 青ターゲット中心合わせ。中央付近なら即停止、それ以外は回転のみのシンプルロジック
-        if phase.get_phase() == 12:
+        # phase13: 青ターゲット中心合わせ。中央付近なら即停止、それ以外は回転のみのシンプルロジック
+        if phase.get_phase() == 13:
             blue_center, _, blue_pixel_count = find_blue_target_center(image)
             center_x = (self.x1 + self.x2) // 2
             if blue_center is not None and abs(blue_center[0] - center_x) <= 20:
@@ -832,8 +847,8 @@ class ActionChain(object):
                     else:
                         return (0, 5), Mode.CARRY_BOTTLE2
 
-        # phase13: 青ピクセル数>1000でcenter追従、300で次フェーズ、それ以外はyaw維持直進
-        if phase.get_phase() == 13:
+        # phase14: 青ピクセル数>1000でcenter追従、300で次フェーズ、それ以外はyaw維持直進
+        if phase.get_phase() == 14:
             blue_center, _, blue_pixel_count = find_blue_target_center(image)
             if blue_pixel_count > 1000:
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} > 1000 | blue_center={blue_center} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
@@ -852,8 +867,8 @@ class ActionChain(object):
                 left_speed, right_speed = et.yaw_straight_control(base_speed=20, adjust_speed=2, deadband=2)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
-        # phase14: 色センサーが青検出でPAUSEへ遷移（停止）。それ以外はヨー維持で直進（低速）。
-        if phase.get_phase() == 14:
+        # phase15: 色センサーが青検出でPAUSEへ遷移（停止）。それ以外はヨー維持で直進（低速）。
+        if phase.get_phase() == 15:
             position_diff = phase.get_position_diff(current_pos)
             threshold = 500
             color_info = self.get_color_sensor_values()
@@ -866,8 +881,8 @@ class ActionChain(object):
                 left_speed, right_speed = et.yaw_straight_control(base_speed=10, adjust_speed=1, deadband=2)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
-        # phase15: 状態リセットしBACK_AND_TURN2（ターン②）へ遷移
-        if phase.get_phase() == 15:
+        # phase16: 状態リセットしBACK_AND_TURN2（ターン②）へ遷移
+        if phase.get_phase() == 16:
             self.reset_action()
             return (0, 0), Mode.BACK_AND_TURN2
 
