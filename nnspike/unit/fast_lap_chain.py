@@ -63,12 +63,12 @@ class FastLapChain(object):
 
     def get_accelerated_base_speed(self, elapsed_time: float, max_speed: Optional[int] = None) -> int:
         """
-        実測データに基づいた1秒間のスムーズな段階的加速制御
-        低速域を細かく段階化して安定性を向上
+        指数関数的な滑らかな加速制御（連続的カーブ）
+        段階的制御から連続的制御に改善
         
-        実測結果分析:
-        - 急激な立ち上がりでパワー飽和とヨー角ブレが発生
-        - 低速域の細かい制御で安定性向上が期待される
+        加速特性:
+        - 指数関数: y = max_speed * (1 - e^(-k*t))
+        - 最初はゆっくり、徐々に加速、最後は漸近的に最高速度
         
         Args:
             elapsed_time: 経過時間（秒）
@@ -80,20 +80,16 @@ class FastLapChain(object):
         if max_speed is None:
             max_speed = HIGH_SPEED_BASE
             
-        if elapsed_time < 0.1:  # 最初の0.1秒は15%（超スムーズスタート）
-            return int(max_speed * 0.15)
-        elif elapsed_time < 0.2:  # 次の0.1秒で25%（段階的上昇）
-            return int(max_speed * 0.25)
-        elif elapsed_time < 0.4:  # 0.2秒で45%（低速域を細かく）
-            return int(max_speed * 0.45)
-        elif elapsed_time < 0.6:  # 0.2秒で70%（中速域）
-            return int(max_speed * 0.7)
-        elif elapsed_time < 0.8:  # 0.2秒で85%（高速域準備）
-            return int(max_speed * 0.85)
-        elif elapsed_time < 1.0:  # 0.2秒で95%（ほぼ最高速）
-            return int(max_speed * 0.95)
-        else:  # 1.0秒後に100%（完全な最高速）
-            return max_speed
+        # 指数関数的加速制御
+        # k=3.0: 1秒で約95%、1.5秒で約99%到達
+        k = 3.0
+        ratio = 1.0 - (2.71828 ** (-k * elapsed_time))
+        
+        # 最低速度を15%に設定（完全停止を避ける）
+        min_ratio = 0.15
+        final_ratio = min_ratio + (1.0 - min_ratio) * ratio
+        
+        return int(max_speed * final_ratio)
 
     def turn_left_yaw(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
         # ActionChain設計に厳密に合わせる: self._init判定→initialize_action→phase管理
