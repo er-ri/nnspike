@@ -424,8 +424,7 @@ class ActionChain(object):
         if phase.get_phase() == 7:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 200:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=30, adjust_speed=1)
-                return (left_speed, right_speed), Mode.CARRY_BOTTLE1
+                return (30, 30), Mode.CARRY_BOTTLE1
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 200 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
             phase.next_phase(current_pos)
             self.pre_target_x = (self.x1 + self.x2) // 2
@@ -780,8 +779,7 @@ class ActionChain(object):
         if phase.get_phase() == 9:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 100:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=30, adjust_speed=1)
-                return (left_speed, right_speed), Mode.CARRY_BOTTLE2
+                return (30, 30), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 100 | yaw={et.get_yaw():.2f} | start_yaw={et.get_start_yaw():.2f}")
             phase.next_phase(current_pos)
             self.pre_target_x = (self.x1 + self.x2) // 2
