@@ -207,7 +207,7 @@ class FastLapChain(object):
             else:
                 self._phase2_color_count = 0
             # 連続色2回以上で次フェーズ
-            threshold = 2700
+            threshold = 2600
             print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} | color={color_info['color']} | color_type={color_info['color_type']} | color_count={self._phase2_color_count} | current_pos={current_pos}")
             if self._phase2_color_count >= 2 or position_diff >= threshold:
                 lap_elapsed = time.time() - self.lap_start_time
