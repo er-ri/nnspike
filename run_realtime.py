@@ -301,6 +301,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                         et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.HEAD_GOAL:
                     (left_speed, right_speed), mode = unpack_action_result(action_chain.heading_goal_relative(frame))
+                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.EYE_BLUE:
                     (left_speed, right_speed), mode = unpack_action_result(action_chain.eye_blue(frame))
                     et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
