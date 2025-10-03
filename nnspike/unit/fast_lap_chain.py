@@ -63,8 +63,7 @@ class FastLapChain(object):
 
     def get_accelerated_base_speed(self, elapsed_time: float, max_speed: int = HIGH_SPEED_BASE) -> int:
         """
-        100到達後にパルス制御で実測値100超えを狙う加速制御
-        データ分析結果: パルス制御は効果あり、早期到達が問題
+        シンプルな指数関数的加速制御
         
         Args:
             elapsed_time: 経過時間（秒）
@@ -73,31 +72,19 @@ class FastLapChain(object):
         Returns:
             適切なベース速度
         """
-            
-        # 2.0秒以降でパルス制御開始（距離3000走行の中盤で効果的に）
-        if elapsed_time >= 2.0:
-            # 2秒後: 101と99のパルス制御（実測値100+確実維持）
-            # 0.05秒間隔で切り替え（17ms×3フレーム周期）
-            cycle_time = (elapsed_time - 2.0) % 0.1
-            if cycle_time < 0.05:
-                return 101  # モーター制限突破（実証済み）
-            else:
-                return 99  # 慣性で実測値100+維持狙い
-        
-        # 0.5秒で101到達、2秒まで101維持
+        # 0.5秒以降は最高速度を確実に返す（無駄な計算回避）
         if elapsed_time >= 0.5:
-            return 101  # 1.5秒間101を維持
+            return max_speed
             
-        # 指数関数的加速（0-0.5秒）
-        k = 5.0  # より急峻で早期到達
-        ratio = 1.0 - (2.71828 ** (-k * elapsed_time / 0.5))
+        # 0.5秒未満のみ計算実行
+        # より軽量な線形補間で近似（計算負荷軽減）
+        ratio = elapsed_time / 0.5
         
-        # 最低速度5から100まで
+        # 最低速度5から最高速度まで
         min_speed = 5
-        
         calculated_speed = int(min_speed + (max_speed - min_speed) * ratio)
         
-        return max(5, calculated_speed)
+        return max(min_speed, min(calculated_speed, max_speed))
 
 
     def turn_left_yaw(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
