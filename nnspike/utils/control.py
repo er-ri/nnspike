@@ -331,7 +331,12 @@ def calc_blue_target_distance(blue_center) -> Optional[int]:
         practical_distance = abs(distance) // 2
     
     # 最小距離を保証（負の値を避ける）
-    return max(practical_distance, 0)
+    result = max(practical_distance, 0)
+    
+    # 1行デバッグ出力：入力座標と計算結果
+    print(f"[calc_blue_target_distance] Y={top_y} → distance={result}")
+    
+    return result
 
 def get_is_blue_line_at_y(image, target_y=470, min_run=30) -> bool:
     """
