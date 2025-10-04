@@ -12,7 +12,9 @@ from nnspike.constants import (
     ROI_LINE_HORIZON3,
     ROI_LINE_VERTICAL1,
     ROI_LINE_CORNER,
-    ROI_LINE_STRAIGHT_FAST
+    ROI_LINE_STRAIGHT_FAST,
+    CAMERA_WIDTH,
+    CAMERA_HEIGHT
 )
 
 # HSV色範囲定数（メモリ最適化：毎回のnp.array作成を回避）
@@ -231,7 +233,7 @@ def find_blue_target_center(image) -> Tuple[Optional[Tuple[int, int]], Optional[
     for cnt in contours_blue:
         if len(cnt) >= 5:
             area = cv2.contourArea(cnt)
-            if area < 300:
+            if area < 200:
                 continue
             ellipse = None
             try:
@@ -248,38 +250,88 @@ def find_blue_target_center(image) -> Tuple[Optional[Tuple[int, int]], Optional[
             if area > max_blue_area:
                 best_blue_ellipse = ellipse
                 max_blue_area = area
-                # y座標を楕円の上端座標に設定
-                top_y = int(cy - minor / 2)
+                # 輪郭から直接最上端Y座標を取得（最も直接的な方法）
+                contour_points = cnt.reshape(-1, 2)  # 輪郭点を(N,2)形状に変換
+                y_coordinates = contour_points[:, 1]  # Y座標を抽出
+                min_y = np.min(y_coordinates)  # Y座標の最小値
+                top_y = int(min_y.item())  # NumPy scalar を Python int に変換
                 best_center = (int(cx), top_y)
     blue_pixel_count = cv2.countNonZero(mask_blue)
     if best_blue_ellipse is not None:
         return best_center, max_blue_area, blue_pixel_count  # 中心x座標・上端y座標・面積・青ピクセル数
     return None, None, 0
 
-def calc_blue_target_distance(blue_center, target_bottom_y=480) -> Optional[int]:
+def calc_blue_target_distance(blue_center) -> Optional[int]:
     """
-    青ターゲットの位置から進むべき距離を計算する。
+    青ターゲットの位置から走行体が進むべき実際の距離を計算する（非線形計算）。
     
     パラメータ:
         blue_center (tuple or None): find_blue_target_centerから返される(center_x, top_y)
-        target_bottom_y (int): 目標とする画像下端からのy座標（デフォルト480）
     
     戻り値:
-        distance (int or None): 進むべき距離（ピクセル単位）、blue_centerがNoneの場合はNone
+        distance (int or None): 進むべき距離（ピクセル単位での概算距離）、blue_centerがNoneの場合はNone
     
     計算ロジック:
-        - blue_centerのtop_yが目標位置より上にある場合、その差分を距離として返す
-        - 距離が負の場合（すでに通り過ぎている）は0を返す
+        - カメラサイズ640×480を使用
+        - 画像下端90%位置（y=432）を目標位置として設定
+        - 非線形補正でY=182→500、Y=330→300程度を実現
+        - 実験用パラメータは関数内部で調整可能
     """
     if blue_center is None:
         return None
     
     center_x, top_y = blue_center
-    # 目標位置との差分を計算（正の値 = まだ進む必要がある）
-    distance = target_bottom_y - top_y
     
-    # 負の距離（通り過ぎている場合）は0にクリップ
-    return max(0, distance)
+    # 実験用パラメータ（関数内部で調整）
+    # 基準ポイント設定
+    reference_y = 182             # 基準Y座標（この位置で基準距離を返す）
+    reference_distance = 500      # 基準距離（reference_yで返したい距離）
+    
+    # 追加目標ポイント設定（調整しやすさ重視）
+    target_y_330 = 330            # 追加テスト用Y座標
+    target_distance_330 = 300     # Y=330で返したい距離
+    
+    # 上部エリア（Y < reference_y）の距離倍率
+    upper_multiplier = 2.0        # 基準点より上部の距離倍率
+    
+    # 内部定数：目標位置の割合（90%位置）
+    _target_y_ratio = 0.9
+    
+    # カメラサイズ定数を使用して目標位置を設定（480×0.9=432）
+    target_y = int(CAMERA_HEIGHT * _target_y_ratio)
+    
+    # 青ターゲットの上端から目標位置までの距離
+    distance = target_y - top_y
+    
+    # 非線形距離計算：画像下部ほど距離変化が少なくなる
+    if distance > 0:
+        # 基準点からの相対距離を計算
+        reference_distance_raw = target_y - reference_y  # 432 - 182 = 250
+        
+        if distance <= reference_distance_raw:
+            # 基準点より下部（Y座標が大きい）：2点間補間計算
+            # Y=182→500, Y=330→300 の曲線を計算
+            target_y_330_raw = target_y - target_y_330  # 432 - 330 = 102
+            
+            if distance <= target_y_330_raw:
+                # Y=330より下部：target_distance_330以下の補間
+                ratio = distance / target_y_330_raw  # 0.0～1.0
+                practical_distance = int(target_distance_330 * ratio)
+            else:
+                # Y=182とY=330の間：曲線補間
+                ratio_330_to_182 = (distance - target_y_330_raw) / (reference_distance_raw - target_y_330_raw)
+                distance_diff = reference_distance - target_distance_330  # 500 - 300 = 200
+                practical_distance = target_distance_330 + int(distance_diff * ratio_330_to_182)
+        else:
+            # 基準点より上部（Y座標が小さい）：線形拡張
+            extra_distance = distance - reference_distance_raw
+            practical_distance = reference_distance + int(extra_distance * upper_multiplier)
+    else:
+        # 既に目標位置を通過している場合は短距離
+        practical_distance = abs(distance) // 2
+    
+    # 最小距離を保証（負の値を避ける）
+    return max(practical_distance, 0)
 
 def get_is_blue_line_at_y(image, target_y=470, min_run=30) -> bool:
     """
