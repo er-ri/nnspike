@@ -27,7 +27,6 @@ from nnspike.utils.control import (
     get_virtual_line_target_x,  # 仮想ライン中心検出
     find_blue_target_center,  # 青ターゲット中心検出
     get_is_blue_line_at_y,  # 青ライン有無判定
-    is_x320_on_blue_target,  # 画像中央付近で青ターゲット抽出
     is_x320_on_red_target,  # 画像中央付近で赤ターゲット抽出
     get_red_target_center_x,  # 赤ターゲット中心検出
     is_left_black_line_detected,  # 左黒ライン抽出
@@ -88,17 +87,61 @@ class ActionChain(object):
         self.start_time = 0.0  # アクション開始時刻
         self.current_time = 0.0  # 現在時刻
         self.x1, self.y1, self.x2, self.y2 = ROI_CNN  # 領域定義
+        self.center_x = (self.x1 + self.x2) // 2  # 中央X座標
+        self.pre_target_x = self.center_x
         self._init = False
-        self.pre_target_x = (self.x1 + self.x2) // 2
         self.pid = pid  # 基本的に外部から渡されたPIDインスタンスのみを使用
+        # 加速制御用プライベート変数
+        self._acceleration_start_time = None
 
     def initialize_action(self, motor_side: str = "right"):
         self._phase = PhaseManager(motor_side)
         self._phase.set_position_start("position_start", self.get_motor_position(motor_side))
         self._init = True
+        # アクション開始時に加速タイマーをリセット
+        self._reset_acceleration_timer()
 
     def reset_action(self):
         self._init = False
+        self._reset_acceleration_timer()
+
+    def _reset_acceleration_timer(self):
+        """加速タイマーをリセットする（プライベートメソッド）"""
+        self._acceleration_start_time = None
+
+    def _start_acceleration_timer(self):
+        """加速タイマーを開始する（プライベートメソッド）"""
+        self._acceleration_start_time = time.time()
+
+    def _get_acceleration_elapsed_time(self) -> float:
+        """加速開始からの経過時間を取得する（プライベートメソッド）"""
+        if self._acceleration_start_time is None:
+            return 0.0
+        return time.time() - self._acceleration_start_time
+
+    def get_accelerated_base_speed(self, target_speed: int = 30, acceleration_time: float = 1.5) -> int:
+        # タイマーが未初期化の場合は自動開始
+        if self._acceleration_start_time is None:
+            self._start_acceleration_timer()
+            
+        # 経過時間を計算
+        elapsed_time = self._get_acceleration_elapsed_time()
+        
+        # acceleration_time秒以降は到達速度を確実に返す（無駄な計算回避）
+        if elapsed_time >= acceleration_time:
+            return target_speed
+            
+        # acceleration_time秒未満のみ計算実行
+        # 2次関数による初期緩やか加速（quadratic ease-in）
+        ratio = elapsed_time / acceleration_time
+        # 初期は非常に緩やか、その後は一定の加速度で上昇（急激な変化なし）
+        quadratic_ratio = ratio * ratio
+        
+        # 最低速度5から到達速度まで
+        min_speed = 5
+        calculated_speed = int(min_speed + (target_speed - min_speed) * quadratic_ratio)
+        
+        return max(min_speed, min(calculated_speed, target_speed))
 
     def get_motor_position(self, motor_side: str = "right") -> int:
         return self.et.get_motor_relative_position(motor_side)
@@ -111,7 +154,7 @@ class ActionChain(object):
         }
 
     # --- action_chain用 motor speed計算関数 ---
-    def calc_motor_speed(self, target_x, base_speed=BASE_SPEED):
+    def calc_motor_speed(self, target_x: Optional[int], base_speed: int = BASE_SPEED) -> SpeedTuple:
         if base_speed is None or base_speed == 0:
             base_speed = BASE_SPEED
         if target_x is not None:
@@ -130,12 +173,12 @@ class ActionChain(object):
     def get_target_x_by_course(self, image, offset_y, course="right") -> int:
         if course == "right":
             _, right_x, _ = get_line_edges_at_y(image, ROI_LINE_TRACING, offset_y, 80)
-            target_x = right_x if right_x is not None else (self.x1 + self.x2) // 2
+            target_x = right_x if right_x is not None else self.center_x
         elif course == "left":
             left_x, _, _ = get_line_edges_at_y(image, ROI_LINE_TRACING, offset_y, 80)
-            target_x = left_x if left_x is not None else (self.x1 + self.x2) // 2
+            target_x = left_x if left_x is not None else self.center_x
         else:
-            target_x = (self.x1 + self.x2) // 2
+            target_x = self.center_x
         return int(target_x)
   
     def execute_double_loop(self, image: np.ndarray) -> Tuple[SpeedTuple, Mode]:
@@ -303,8 +346,10 @@ class ActionChain(object):
     def carry_bottle1_relative(self, image: np.ndarray) -> Tuple[SpeedTuple, Mode]:
         if not self._init:
             self.initialize_action(motor_side=self.course)
+            self.et.set_start_yaw_nearest_vertical_pole()
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
+        et = self.et
 
         # 0. 右エッジトレース（赤ピクセル数が一定値を超えたらphase1へ、右モーター初期位置記録）
         if phase.get_phase() == 0:
@@ -313,62 +358,96 @@ class ActionChain(object):
             if red_pixel_count > 3000:
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | red_pixel_count={red_pixel_count} > 3000")
                 phase.next_phase(current_pos)
+                return (0, 0), Mode.CARRY_BOTTLE1
             else:
-                left_speed, right_speed = self.calc_motor_speed(target_x)
+                left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 1. 赤ボトル中心追従（右モーター相対位置差分が一定値未満の間、赤ピクセルが条件を満たせばcenter、満たさなければ中央。一定値を超えたらphase2へ、右モーター位置記録）
         if phase.get_phase() == 1:
-            center, _, red_px = find_bottle_center(image=image, color="red", roi=ROI_COLOR2)
-            position_diff = phase.get_position_diff(current_pos)
-            # 右モーター相対位置差分で継続判定（一定値未満の間、赤ピクセルが条件を満たせばcenter、満たさなければ中央）
-            if position_diff < 1000:
-                if center is not None and red_px is not None and red_px >= 500:
-                    target_x = center[0]
+            red_center, _, red_pixel_count = find_bottle_center(image=image, color="red", roi=ROI_COLOR2)
+            if red_center is not None and abs(red_center[0] - self.center_x) <= 20:
+                self.et.set_start_yaw()
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | centered | target_x={red_center[0]} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+                phase.next_phase(current_pos)
+                return (0, 0), Mode.CARRY_BOTTLE1
+            elif red_center is not None:
+                if red_center[0] < self.center_x:
+                    return (0, 5), Mode.CARRY_BOTTLE1
                 else:
-                    target_x = (self.x1 + self.x2) // 2
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.CARRY_BOTTLE1
-            # 一定値を超えたら次フェーズへ
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1000")
-            phase.next_phase(current_pos)
+                    return (5, 0), Mode.CARRY_BOTTLE1
+            else:
+                in_tolerance, yaw_error = et.is_start_yaw_error_within(3.0)
+                start_yaw = et.get_start_yaw()
+                current_yaw = et.get_yaw()
+                if in_tolerance:
+                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | in_tolerance={in_tolerance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
+                    phase.next_phase(current_pos)
+                    return (0, 0), Mode.CARRY_BOTTLE1
+                else:
+                    if yaw_error < 0:
+                        return (5, 0), Mode.CARRY_BOTTLE1
+                    else:
+                        return (0, 5), Mode.CARRY_BOTTLE1
 
-        # 2. 左エッジトレース（コース種別に応じた閾値未満の間、閾値を超えたらphase3へ、右モーター位置記録）
+        # phase2: 赤ピクセル数 < 500 かつ距離 < 15 で phase3へ。yaw基準セット
         if phase.get_phase() == 2:
-            position_diff = phase.get_position_diff(current_pos)
-            threshold = 1220 if self.course_type == "upper" else 700
-            if position_diff < threshold:
-                target_x = self.get_target_x_by_course(image, offset_y=300, course=self.opposite_course)
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.CARRY_BOTTLE1
-            # 閾値を超えたら次フェーズへ
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold}")
-            phase.next_phase(current_pos)
+            red_center, _, red_pixel_count = find_bottle_center(image=image, color="red", roi=ROI_COLOR2)
+            distance = et.get_distance_sensor()
+            if (red_pixel_count is not None and red_pixel_count < 500) and (distance > 0 and distance <= 10):
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | red_pixel_count={red_pixel_count} < 500 and distance={distance} > 0 and <= 10 | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                phase.next_phase(current_pos)
+                # フェーズ3は停止状態から開始されるため加速タイマーをリセット
+                self._reset_acceleration_timer()
+                return (0, 0), Mode.CARRY_BOTTLE1
+            if red_center is not None:
+                target_x = red_center[0]
+                accelerated_speed = self.get_accelerated_base_speed()
+                left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=accelerated_speed)
+            else:
+                accelerated_speed = self.get_accelerated_base_speed()
+                left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed)
+            return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 3. 左旋回（右モーター相対位置差分が一定値未満の間旋回。一定値超えたらphase4へ、右モーター位置記録）
+        # phase3: 右モーター位置差が閾値（上段1220/下段700）未満なら直進。閾値到達したらphase4へ。yaw基準設定。
         if phase.get_phase() == 3:
+            position_diff = phase.get_position_diff(current_pos)
+            threshold = 1200 if self.course_type == "upper" else 700
+            if position_diff < threshold:
+                accelerated_speed = self.get_accelerated_base_speed()
+                left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed)
+                return (left_speed, right_speed), Mode.CARRY_BOTTLE1
+            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+            phase.next_phase(current_pos)
+            return (0, 0), Mode.CARRY_BOTTLE1
+
+        # 4. 左旋回（右モーター相対位置差分が一定値未満の間旋回。一定値超えたらphase5へ、右モーター位置記録）
+        if phase.get_phase() == 4:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 390:
                 if self.course == "right":
-                    return (0, 30), Mode.CARRY_BOTTLE1
+                    return (0, 20), Mode.CARRY_BOTTLE1
                 else:
-                    return (30, 0), Mode.CARRY_BOTTLE1
+                    return (20, 0), Mode.CARRY_BOTTLE1
             # 一定値超えたら次フェーズへ
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 390")
             phase.next_phase(current_pos)
+            # フェーズ5は停止状態から開始されるため加速タイマーをリセット
+            self._reset_acceleration_timer()
+            return (0, 0), Mode.CARRY_BOTTLE1
 
-        # 4. 直進（右モーターが一定値移動まで。一定値超えたらphase5へ、右モーター位置記録、pre_target_x初期化）
-        if phase.get_phase() == 4:
+        # 5. 直進（右モーターが一定値移動まで。一定値超えたらphase6へ、右モーター位置記録、pre_target_x初期化）
+        if phase.get_phase() == 5:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 200:
-                return (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE1
+                accelerated_speed = self.get_accelerated_base_speed()
+                return (accelerated_speed, accelerated_speed), Mode.CARRY_BOTTLE1
             # 一定値超えたら次フェーズへ
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 200")
             phase.next_phase(current_pos)
-            self.pre_target_x = (self.x1 + self.x2) // 2
+            self.pre_target_x = self.center_x
 
-        # 5. 仮想ライン直進（右モーターが一定値移動まで仮想ライン中心座標取得処理、pre_target_x更新。一定値超えたらphase6へ、右モーター位置記録）
-        if phase.get_phase() == 5:
+        # 6. 仮想ライン直進（右モーターが一定値移動まで仮想ライン中心座標取得処理、pre_target_x更新。一定値超えたらphase7へ、右モーター位置記録）
+        if phase.get_phase() == 6:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 1500:
                 # 仮想ライン中心座標取得処理
@@ -377,90 +456,120 @@ class ActionChain(object):
                     target_x = temp_x
                     self.pre_target_x = temp_x
                 else:
-                    target_x = (self.x1 + self.x2) // 2
+                    target_x = self.center_x
                     self.pre_target_x = target_x
-                left_speed, right_speed = self.calc_motor_speed(target_x)
+                left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
             # 一定値超えたら次フェーズへ
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1500")
             phase.next_phase(current_pos)
 
-        # 6. 直進（右モーターが一定値移動まで。一定値超えたらphase7へ、右モーター位置記録）
-        if phase.get_phase() == 6:
+        # 7. 直進（右モーターが一定値移動まで。一定値超えたらphase8へ、右モーター位置記録）
+        if phase.get_phase() == 7:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 1300:
-                return (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE1
+                return (30, 30), Mode.CARRY_BOTTLE1
             # 一定値超えたら次フェーズへ
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1300")
             phase.next_phase(current_pos)
+            return (0, 0), Mode.CARRY_BOTTLE1
 
-        # 7. 左旋回（is_x320_on_blue_targetがTrueになるまで旋回、最低回転量・最大回転量はコース種別で異なる。条件満たせばphase8へ、右モーター位置記録）
-        if phase.get_phase() == 7:
-            blue_target_detected = is_x320_on_blue_target(image, x_tolerance=60)
+        # phase8: 青ターゲット検出または最大回転量到達で次フェーズ。最低回転量以上の旋回処理。
+        if phase.get_phase() == 8:
+            blue_center, _, blue_pixel_count = find_blue_target_center(image)
+            blue_target_detected = (blue_center is not None and 
+                                  abs(blue_center[0] - 320) <= 200)
             position_diff = phase.get_position_diff(current_pos)
-            max_limit = 400 if self.course_type == "lower" else 500
-            position_limit_reached = position_diff >= max_limit
-            # 最低回転量後にblue_target検出、または最大回転量到達で次へ
-            if ((position_diff >= 300 and blue_target_detected) or position_limit_reached):
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_limit} or (position_diff={position_diff} >= 300 and blue_target_detected={blue_target_detected})")
-                if self.course_type == "lower":
-                    phase.next_phase(current_pos, 2)  # スキップ
-                else:
-                    phase.next_phase(current_pos)
-            else:
+
+            # 最低回転量未満は強制旋回
+            if position_diff < 300:
                 if self.course == "right":
                     return (0, 30), Mode.CARRY_BOTTLE1
                 else:
                     return (30, 0), Mode.CARRY_BOTTLE1
 
-        # 8. 青検出（青ピクセル数が一定値を超えたらphase9へ）
-        if phase.get_phase() == 8:
-            center, _, blue_pixel_count = find_blue_target_center(image)
-            if center is not None:
-                target_x = center[0]
-            else:
-                target_x = (self.x1 + self.x2) // 2
-            if blue_pixel_count > 1000:
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} > 1000")
-                phase.next_phase(current_pos)
-            else:
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.CARRY_BOTTLE1
+            # 最低回転量以上になったら判定開始
+            if (not blue_target_detected) and (position_diff < 500):
+                if self.course == "right":
+                    return (0, 20), Mode.CARRY_BOTTLE1
+                else:
+                    return (20, 0), Mode.CARRY_BOTTLE1
 
-        # 9. 青ピクセル数が一定値以上の間center追従、一定値以下でphase10へ、右モーター位置記録
+            et.set_start_yaw()
+            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_target_detected={blue_target_detected} or position_diff={position_diff} >= 500 | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | blue_pixel_count={blue_pixel_count} | blue_center={blue_center}")
+            phase.next_phase(current_pos)
+            return (0, 0), Mode.CARRY_BOTTLE1
+
+        # phase9: 青ターゲットを中央に合わせる。中央付近なら即停止、そうでなければ回転のみのシンプルロジック。
         if phase.get_phase() == 9:
-            center, _, blue_pixel_count = find_blue_target_center(image)
-            if center is not None:
-                target_x = center[0]
+            blue_center, _, blue_pixel_count = find_blue_target_center(image)
+            # blue_centerは(center_x, top_y)のタプル、top_yは必ず保持
+            if blue_center is not None:
+                blue_center_x, blue_top_y = blue_center[0], blue_center[1]
             else:
-                target_x = (self.x1 + self.x2) // 2
-            if blue_pixel_count <= 300:
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} <= 300")
+                blue_center_x, blue_top_y = None, None
+            
+            if blue_center is not None and abs(blue_center[0] - self.center_x) <= 20:
+                et.set_start_yaw()
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | centered | target_x={blue_center[0]} | center_x={self.center_x} | blue_top_y={blue_top_y} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                phase.next_phase(current_pos)
+                return (0, 0), Mode.CARRY_BOTTLE1
+            elif blue_center is not None:
+                if blue_center[0] < self.center_x:
+                    return (0, 5), Mode.CARRY_BOTTLE1
+                else:
+                    return (5, 0), Mode.CARRY_BOTTLE1
+            else:
+                in_tolerance, yaw_error = et.is_start_yaw_error_within(3.0)
+                start_yaw = et.get_start_yaw()
+                current_yaw = et.get_yaw()
+                if in_tolerance:
+                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | in_tolerance={in_tolerance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
+                    phase.next_phase(current_pos)
+                    return (0, 0), Mode.CARRY_BOTTLE1
+                else:
+                    if yaw_error < 0:
+                        return (5, 0), Mode.CARRY_BOTTLE1
+                    else:
+                        return (0, 5), Mode.CARRY_BOTTLE1
+
+        # phase10: 青ピクセル数>1000でcenter追従、<=300で次フェーズ、それ以外はyaw維持直進
+        if phase.get_phase() == 10:
+            blue_center, _, blue_pixel_count = find_blue_target_center(image)
+            if blue_pixel_count > 1000:
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} > 1000 | blue_center={blue_center} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                if blue_center is not None:
+                    et.set_start_yaw()
+                    left_speed, right_speed = self.calc_motor_speed(blue_center[0], base_speed=20)
+                else:
+                    left_speed, right_speed = et.yaw_straight_control(base_speed=20, adjust_speed=2, deadband=2)
+                return (left_speed, right_speed), Mode.CARRY_BOTTLE1
+            elif blue_pixel_count <= 300:
+                et.set_start_yaw()
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} <= 300 | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
             else:
-                left_speed, right_speed = self.calc_motor_speed(target_x)
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} | blue_center={blue_center} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                left_speed, right_speed = et.yaw_straight_control(base_speed=20, adjust_speed=2, deadband=2)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # 10. 青が一定値以下になってから右モーターが一定値移動までcenter追従。条件を満たしたら次のphaseへ
-        if phase.get_phase() == 10:
-            threshold = 300
+        # phase11: 色センサーが青検出でphase14へ移行（停止）。それ以外はヨー維持で直進（低速）。
+        if phase.get_phase() == 11:
+            position_diff = phase.get_position_diff(current_pos)
+            threshold = 500
             color_info = self.get_color_sensor_values()
             color_type = color_info["color_type"]
-            position_diff = phase.get_position_diff(current_pos)
-            if position_diff >= threshold or color_type == "other":
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} or color_type={color_type} (color_value={color_info['color']})")
-                phase.next_phase(current_pos)
-            else:
-                center, _, _ = find_blue_target_center(image)
-                if center is not None:
-                    target_x = center[0]
-                else:
-                    target_x = (self.x1 + self.x2) // 2
-                left_speed, right_speed = self.calc_motor_speed(target_x)
-                return (left_speed, right_speed), Mode.CARRY_BOTTLE1
             
-        # 11. 状態リセットしBACK_AND_TURN1へ遷移
-        if phase.get_phase() == 11:
+            if color_type == "blue" or position_diff >= threshold:
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} or color_type={color_type} (color_value={color_info['color']}) | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+                phase.next_phase(current_pos)
+                return (0, 0), Mode.CARRY_BOTTLE1
+            else:
+                left_speed, right_speed = et.yaw_straight_control(base_speed=10, deadband=2)
+                return (left_speed, right_speed), Mode.CARRY_BOTTLE1
+
+        # phase12: 状態リセットしBACK_AND_TURN1へ遷移。
+        if phase.get_phase() == 12:
             self.reset_action()
             return (0, 0), Mode.BACK_AND_TURN1
 
@@ -517,17 +626,17 @@ class ActionChain(object):
 
         # 0. 赤ターゲット中心追従（青ピクセル数が閾値未満の間は赤中心追従、閾値以上で次フェーズへ）
         if phase.get_phase() == 0:
-            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
+            blue_center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
             if blue_pixel_count < 18000:
                 # 赤ターゲット中心追従
                 red_center_x = get_red_target_center_x(image)
                 # 赤センター最優先
                 if red_center_x is not None:
                     target_x = red_center_x
-                elif blue_pixel_count >= 5000 and center is not None:
-                    target_x = center[0]
+                elif blue_pixel_count >= 5000 and blue_center is not None:
+                    target_x = blue_center[0]
                 else:
-                    target_x = (self.x1 + self.x2) // 2
+                    target_x = self.center_x
                 left_speed, right_speed = self.calc_motor_speed(target_x)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
             else:
@@ -536,8 +645,8 @@ class ActionChain(object):
 
         # 1. 青ボトル中心追従（青ピクセル数が十分な間はcenter追従、少なくなったらphase2へ移行し右モーター位置記録）
         if phase.get_phase() == 1:
-            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
-            target_x = center[0] if center is not None else (self.x1 + self.x2) // 2
+            blue_center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
+            target_x = blue_center[0] if blue_center is not None else self.center_x
             # 上限距離チェック
             position_diff = phase.get_position_diff(current_pos)
             if position_diff >= 1000 or blue_pixel_count < 5000:
@@ -550,13 +659,13 @@ class ActionChain(object):
 
         # 2. 右モーターが所定値移動までcenter追従。所定値超えたら次フェーズへ、右モーター位置記録
         if phase.get_phase() == 2:
-            center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
+            blue_center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 200:
-                if center is not None:
-                    target_x = center[0]
+                if blue_center is not None:
+                    target_x = blue_center[0]
                 else:
-                    target_x = (self.x1 + self.x2) // 2
+                    target_x = self.center_x
                 left_speed, right_speed = self.calc_motor_speed(target_x)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 200")
@@ -612,7 +721,7 @@ class ActionChain(object):
                 return (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 100")
             phase.next_phase(current_pos)
-            self.pre_target_x = (self.x1 + self.x2) // 2
+            self.pre_target_x = self.center_x
 
         # 7. 仮想ライン直進（コース側モーターが所定値移動まで仮想ライン中心座標取得処理、pre_target_x更新。所定値超えたらphase8へ、モーター位置記録）
         if phase.get_phase() == 7:
@@ -624,7 +733,7 @@ class ActionChain(object):
                     target_x = temp_x
                     self.pre_target_x = temp_x
                 else:
-                    target_x = (self.x1 + self.x2) // 2
+                    target_x = self.center_x
                     self.pre_target_x = target_x
                 left_speed, right_speed = self.calc_motor_speed(target_x)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
@@ -641,7 +750,9 @@ class ActionChain(object):
 
         # 9. 左旋回（青ターゲット検出まで、最低回転量・最大回転量。条件満たせばphase10へ、右モーター位置記録）
         if phase.get_phase() == 9:
-            blue_target_detected = is_x320_on_blue_target(image, x_tolerance=60)
+            blue_center, _, _ = find_blue_target_center(image)
+            blue_target_detected = (blue_center is not None and 
+                                  abs(blue_center[0] - 320) <= 60)
             position_diff = phase.get_position_diff(current_pos)
             # 最低回転量は必ず旋回
             if position_diff < 300:
@@ -660,11 +771,11 @@ class ActionChain(object):
 
         # 10. 青検出（青ピクセル数が一定値を超えたらphase11へ、最大回転量。条件満たせば右モーター位置記録）
         if phase.get_phase() == 10:
-            center, _, blue_pixel_count = find_blue_target_center(image)
-            if center is not None:
-                target_x = center[0]
+            blue_center, _, blue_pixel_count = find_blue_target_center(image)
+            if blue_center is not None:
+                target_x = blue_center[0]
             else:
-                target_x = (self.x1 + self.x2) // 2
+                target_x = self.center_x
             position_diff = phase.get_position_diff(current_pos)
             if blue_pixel_count > 1000 or position_diff >= 400:
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} > 1000 or position_diff={position_diff} >= 400")
@@ -675,11 +786,11 @@ class ActionChain(object):
 
         # 11. 青ピクセルが一定値以下まで減るまでcenter追従（一定値以下でphase12へ、最大回転量。条件満たせば右モーター位置記録）
         if phase.get_phase() == 11:
-            center, _, blue_pixel_count = find_blue_target_center(image)
-            if center is not None:
-                target_x = center[0]
+            blue_center, _, blue_pixel_count = find_blue_target_center(image)
+            if blue_center is not None:
+                target_x = blue_center[0]
             else:
-                target_x = (self.x1 + self.x2) // 2
+                target_x = self.center_x
             threshold = 400 if self.course_type == "upper" else 1000
             position_diff = phase.get_position_diff(current_pos)
             if blue_pixel_count <= 300 or position_diff >= threshold:
@@ -698,11 +809,11 @@ class ActionChain(object):
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 300 or color_type={color_type} (color_value={color_info['color']})")
                 phase.next_phase(current_pos)
             else:
-                center, _, _ = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
-                if center is not None:
-                    target_x = center[0]
+                blue_center, _, _ = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
+                if blue_center is not None:
+                    target_x = blue_center[0]
                 else:
-                    target_x = (self.x1 + self.x2) // 2
+                    target_x = self.center_x
                 left_speed, right_speed = self.calc_motor_speed(target_x)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
@@ -768,7 +879,7 @@ class ActionChain(object):
                 print(f"[DEBUG] mode={Mode.HEAD_GOAL.value} | phase={phase.get_phase()} | horizontal_line_detected")
                 phase.next_phase(current_pos)
             else:
-                target_x = (self.x1 + self.x2) // 2
+                target_x = self.center_x
                 left_speed, right_speed = self.calc_motor_speed(target_x)
                 return (left_speed, right_speed), Mode.HEAD_GOAL
 
@@ -858,7 +969,9 @@ class ActionChain(object):
 
         # phase1: 青ターゲット検出 or 最低回転量後に検出 or 最大回転量到達で次フェーズへ。下段コースは2フェーズスキップ
         if phase.get_phase() == 1:
-            blue_target_detected = is_x320_on_blue_target(image, x_tolerance=200)
+            blue_center, _, _ = find_blue_target_center(image)
+            blue_target_detected = (blue_center is not None and 
+                                  abs(blue_center[0] - 320) <= 200)
             position_diff = phase.get_position_diff(current_pos)
             max_limit = 500
             position_limit_reached = position_diff >= max_limit
@@ -878,22 +991,21 @@ class ActionChain(object):
         # phase2: 青ターゲット中心合わせ。中央付近なら即停止、そうでなければ回転のみのシンプルロジック
         if phase.get_phase() == 2:
             blue_center, _, blue_pixel_count = find_blue_target_center(image)
-            center_x = (self.x1 + self.x2) // 2
-            print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_center={blue_center} | center_x={center_x} | blue_pixel_count={blue_pixel_count}")
-            if blue_center is not None and abs(blue_center[0] - center_x) <= 20:
+            print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_center={blue_center} | blue_pixel_count={blue_pixel_count}")
+            if blue_center is not None and abs(blue_center[0] - self.center_x) <= 20:
                 self.et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | target_x={blue_center[0]} | center_x={center_x} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | target_x={blue_center[0]} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.EYE_BLUE
             elif blue_center is not None:
-                if blue_center[0] < center_x:
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | rotate left | blue_center[0]={blue_center[0]} < center_x={center_x} | blue_pixel_count={blue_pixel_count}")
+                if blue_center[0] < self.center_x:
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | rotate left | blue_center[0]={blue_center[0]} | blue_pixel_count={blue_pixel_count}")
                     return (0, 5), Mode.EYE_BLUE
                 else:
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | rotate right | blue_center[0]={blue_center[0]} > center_x={center_x} | blue_pixel_count={blue_pixel_count}")
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | rotate right | blue_center[0]={blue_center[0]} | blue_pixel_count={blue_pixel_count}")
                     return (5, 0), Mode.EYE_BLUE
             else:
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_center is None | center_x={center_x} | blue_pixel_count={blue_pixel_count}")
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_center is None | blue_pixel_count={blue_pixel_count}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.EYE_BLUE
                 

@@ -30,6 +30,8 @@ class FastLapChain(object):
         else:
             self.opposite_course = "right"
         self._init = False
+        # 加速制御用プライベート変数
+        self._acceleration_start_time = None
 
     def initialize_action(self, motor_side: str = "right"):
         """
@@ -40,10 +42,51 @@ class FastLapChain(object):
         self._phase = PhaseManager(motor_side)
         self._phase.set_position_start("position_start", self.get_motor_position(motor_side))
         self._init = True
+        # アクション開始時に加速タイマーをリセット
+        self._reset_acceleration_timer()
 
     def reset_action(self):
         """アクション終了時の状態リセット処理."""
         self._init = False
+        self._reset_acceleration_timer()
+
+    def _reset_acceleration_timer(self):
+        """加速タイマーをリセットする（プライベートメソッド）"""
+        self._acceleration_start_time = None
+
+    def _start_acceleration_timer(self):
+        """加速タイマーを開始する（プライベートメソッド）"""
+        self._acceleration_start_time = time.time()
+
+    def _get_acceleration_elapsed_time(self) -> float:
+        """加速開始からの経過時間を取得する（プライベートメソッド）"""
+        if self._acceleration_start_time is None:
+            return 0.0
+        return time.time() - self._acceleration_start_time
+
+    def get_accelerated_base_speed(self, target_speed: int = HIGH_SPEED_BASE, acceleration_time: float = 0.5) -> int:
+        # タイマーが未初期化の場合は自動開始
+        if self._acceleration_start_time is None:
+            self._start_acceleration_timer()
+            
+        # 経過時間を計算
+        elapsed_time = self._get_acceleration_elapsed_time()
+        
+        # acceleration_time秒以降は到達速度を確実に返す（無駄な計算回避）
+        if elapsed_time >= acceleration_time:
+            return target_speed
+            
+        # acceleration_time秒未満のみ計算実行
+        # 2次関数による初期緩やか加速（quadratic ease-in）
+        ratio = elapsed_time / acceleration_time
+        # 初期は非常に緩やか、その後は一定の加速度で上昇（急激な変化なし）
+        quadratic_ratio = ratio * ratio
+        
+        # 最低速度5から到達速度まで
+        min_speed = 5
+        calculated_speed = int(min_speed + (target_speed - min_speed) * quadratic_ratio)
+        
+        return max(min_speed, min(calculated_speed, target_speed))
 
     def get_motor_position(self, motor_side: str = "right") -> int:
         """
@@ -60,32 +103,6 @@ class FastLapChain(object):
             "color": color_value,
             "color_type": color_type
         }
-
-    def get_accelerated_base_speed(self, elapsed_time: float, max_speed: int = HIGH_SPEED_BASE) -> int:
-        """
-        シンプルな指数関数的加速制御
-        
-        Args:
-            elapsed_time: 経過時間（秒）
-            max_speed: 最高速度（上限100）
-        
-        Returns:
-            適切なベース速度
-        """
-        # 0.5秒以降は最高速度を確実に返す（無駄な計算回避）
-        if elapsed_time >= 0.5:
-            return max_speed
-            
-        # 0.5秒未満のみ計算実行
-        # より軽量な線形補間で近似（計算負荷軽減）
-        ratio = elapsed_time / 0.5
-        
-        # 最低速度5から最高速度まで
-        min_speed = 5
-        calculated_speed = int(min_speed + (max_speed - min_speed) * ratio)
-        
-        return max(min_speed, min(calculated_speed, max_speed))
-
 
     def turn_left_yaw(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
         # ActionChain設計に厳密に合わせる: self._init判定→initialize_action→phase管理
@@ -196,8 +213,7 @@ class FastLapChain(object):
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 3000:
                 # 時間ベース段階的加速制御メソッドを使用
-                elapsed_time = time.time() - self.lap_start_time
-                base_speed = self.get_accelerated_base_speed(elapsed_time, HIGH_SPEED_BASE)
+                base_speed = self.get_accelerated_base_speed(HIGH_SPEED_BASE, 0.5)
                 left_speed, right_speed = et.yaw_straight_control(base_speed=base_speed)
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:

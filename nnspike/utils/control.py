@@ -118,7 +118,7 @@ def get_line_edges_at_y(image, roi, target_y, threshold_value=80) -> Tuple[Optio
             return left_x, right_x, line_width
     return None, None, None  # ラインが検出できない場合
 
-def find_bottle_center(image, color, roi=ROI_CNN) -> Tuple[Optional[Tuple[float, float]], Optional[float], int]:
+def find_bottle_center(image, color, roi=ROI_CNN) -> Tuple[Optional[Tuple[int, int]], Optional[float], int]:
     """
     指定色（yellow, blue, red）の物体中心座標・面積・色ピクセル数を返す。
     roi指定時はROI内で検出し、中心座標は元画像座標で返す。
@@ -195,18 +195,18 @@ def find_bottle_center(image, color, roi=ROI_CNN) -> Tuple[Optional[Tuple[float,
         # 検知対象外の場合はすべてNone/0で返す
         return None, None, 0
     # 外接矩形の中心座標
-    cx = best_rect[0] + best_rect[2] / 2
-    cy = best_rect[1] + best_rect[3] / 2
+    cx = int(best_rect[0] + best_rect[2] / 2)
+    cy = int(best_rect[1] + best_rect[3] / 2)
     return (cx, cy), max_area, color_pixel_count
 
 # --- backup/20250724/control.pyより ---
 def find_blue_target_center(image) -> Tuple[Optional[Tuple[int, int]], Optional[float], int]:
     """
-    青い的（楕円）の中心座標・面積・青ピクセル数を返す。
+    青い的（楕円）の中心x座標と上端y座標・面積・青ピクセル数を返す。
     パラメータ:
-        img (np.ndarray): BGR画像
+        image (np.ndarray): BGR画像
     戻り値:
-        center (tuple or None): (x, y)またはNone
+        center (tuple or None): (x, top_y)またはNone ※yは楕円の上端座標
         area (float or None): 面積
         blue_pixel_count (int): 青ピクセル数
     """
@@ -248,11 +248,38 @@ def find_blue_target_center(image) -> Tuple[Optional[Tuple[int, int]], Optional[
             if area > max_blue_area:
                 best_blue_ellipse = ellipse
                 max_blue_area = area
-                best_center = (int(cx), int(cy))
+                # y座標を楕円の上端座標に設定
+                top_y = int(cy - minor / 2)
+                best_center = (int(cx), top_y)
     blue_pixel_count = cv2.countNonZero(mask_blue)
     if best_blue_ellipse is not None:
-        return best_center, max_blue_area, blue_pixel_count  # 中心座標・面積・青ピクセル数
+        return best_center, max_blue_area, blue_pixel_count  # 中心x座標・上端y座標・面積・青ピクセル数
     return None, None, 0
+
+def calc_blue_target_distance(blue_center, target_bottom_y=480) -> Optional[int]:
+    """
+    青ターゲットの位置から進むべき距離を計算する。
+    
+    パラメータ:
+        blue_center (tuple or None): find_blue_target_centerから返される(center_x, top_y)
+        target_bottom_y (int): 目標とする画像下端からのy座標（デフォルト480）
+    
+    戻り値:
+        distance (int or None): 進むべき距離（ピクセル単位）、blue_centerがNoneの場合はNone
+    
+    計算ロジック:
+        - blue_centerのtop_yが目標位置より上にある場合、その差分を距離として返す
+        - 距離が負の場合（すでに通り過ぎている）は0を返す
+    """
+    if blue_center is None:
+        return None
+    
+    center_x, top_y = blue_center
+    # 目標位置との差分を計算（正の値 = まだ進む必要がある）
+    distance = target_bottom_y - top_y
+    
+    # 負の距離（通り過ぎている場合）は0にクリップ
+    return max(0, distance)
 
 def get_is_blue_line_at_y(image, target_y=470, min_run=30) -> bool:
     """
@@ -327,63 +354,6 @@ def get_blue_line_pixel(image) -> int:
         if area > 300 and area > max_area:
             max_area = area
     return int(max_area)
-
-# x=320の中心ラインが青的（青い楕円）にヒットしたらTrueを返す関数
-def is_x320_on_blue_target(image, x_tolerance=60) -> bool:
-    """
-    画像内の青的（楕円）の中心がx=320±x_toleranceの範囲にあればTrueを返す。
-    青的が見つからなければFalse。
-    パラメータ:
-        img (np.ndarray): BGR画像
-        x_tolerance (int): 許容するx方向の誤差幅（ピクセル）
-    戻り値:
-        bool: x=320付近に青的があればTrue、なければFalse
-    """
-    # 画像がNoneまたは空の場合はFalse返却
-    if image is None or image.size == 0:
-        return False
-    # 色抽出はget_color_maskで統一
-    mask_blue = get_color_mask(image, "blue", pattern="target")
-    # クロージング（5x5楕円カーネル）＋メディアンブラー
-    mask_blue = control_preprocess_image(
-        mask_blue,
-        use_hsv=False,
-        grayscale=False,
-        clahe=False,
-        blur_type="median",
-        blur_ksize=5,
-        binarize_mode=None,
-        noise_removal=["close5x5_ellipse"]
-    )
-    contours_blue, _ = cv2.findContours(mask_blue, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    best_center = None
-    max_blue_area = 0
-    for cnt in contours_blue:
-        if len(cnt) >= 5:
-            area = cv2.contourArea(cnt)
-            if area < 300:
-                continue
-            ellipse = None
-            try:
-                ellipse = cv2.fitEllipse(cnt)
-            except:
-                continue
-            (cx, cy), (major, minor), angle = ellipse
-            rect = cv2.boundingRect(cnt)
-            x, y, w, h = rect
-            rect_area = w * h
-            rect_ratio = area / rect_area if rect_area > 0 else 0
-            if rect_ratio < 0.4:
-                continue
-            if area > max_blue_area:
-                max_blue_area = area
-                best_center = (int(cx), int(cy))
-    if best_center is None:
-        return False
-    cx, cy = best_center
-    if abs(cx - 320) <= x_tolerance:
-        return True
-    return False
 
 # x=320の中心ラインが赤的（赤い楕円）にヒットしたらTrueを返す関数
 def is_x320_on_red_target(image, x_tolerance=60) -> bool:

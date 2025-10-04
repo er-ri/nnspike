@@ -17,7 +17,7 @@ from nnspike.utils import (
     get_virtual_line_target_x,  # 仮想ライン左右端検出
     find_blue_target_center,  # 青ターゲット中心座標・ピクセル数検出
     get_is_blue_line_at_y,  # 指定Y座標での青ライン有無判定
-    is_x320_on_blue_target,  # 画像中央x=320付近で青ターゲット検出
+    find_blue_target_center,  # 画像中央x=320付近で青ターゲット検出
     is_x320_on_red_target,  # 画像中央x=320付近で赤ターゲット検出
     get_red_target_center_x,  # 赤ターゲット中心x座標取得
     is_left_black_line_detected,  # 左黒ライン検出
@@ -134,7 +134,7 @@ def main():
         right_info = []
         right_info.append(f"get_virtual_line_target_x: {get_virtual_line_target_x(image.copy())}")
         right_info.append(f"find_blue_target_center: {find_blue_target_center(image.copy())}")
-        right_info.append(f"is_x320_on_blue_target: {is_x320_on_blue_target(image.copy())}")
+        right_info.append(f"find_blue_target_center: {find_blue_target_center(image.copy())}")
         right_info.append(f"is_x320_on_red_target: {is_x320_on_red_target(image.copy())}")
         right_info.append(f"get_red_target_center_x: {get_red_target_center_x(image.copy())}")
         course_value = row["course"] if "course" in row else "left"
