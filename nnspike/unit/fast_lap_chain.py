@@ -203,6 +203,7 @@ class FastLapChain(object):
             self.start_yaw = self.et.get_start_yaw()
             self.lap_start_time = time.time()
             self._phase2_color_count = 0  # フェーズ2色検出カウンタ
+            self._prev_color = None  # 前回の色値を初期化
         phase = self._phase
         et = self.et
         current_pos = self.get_motor_position(self.course)
@@ -246,14 +247,27 @@ class FastLapChain(object):
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP
 
+            # 2400を超えたら色差計測開始
             color_info = self.get_color_sensor_values()
-            if color_info["color_type"] == "white":
-                self._phase2_color_count += 1
-            else:
+            current_color = color_info["color"]
+            
+            # 前回の色値が記録されていない場合は初期化
+            if self._prev_color is None:
+                self._prev_color = current_color
                 self._phase2_color_count = 0
-            # 連続色2回以上で次フェーズ
+                color_diff = 0
+            else:
+                # 色差を計算
+                color_diff = abs(current_color - self._prev_color)
+                
+                # 色差が150を超える場合にカウント
+                if color_diff > 150:
+                    self._phase2_color_count += 1
+                    self._prev_color = current_color  # 色値更新
+                
+            # 連続色差2回以上で次フェーズ
             threshold = 2600
-            print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} | color={color_info['color']} | color_type={color_info['color_type']} | color_count={self._phase2_color_count} | current_pos={current_pos}")
+            print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} | color={current_color} | color_diff={color_diff} | color_count={self._phase2_color_count} | current_pos={current_pos}")
             if self._phase2_color_count >= 2 or position_diff >= threshold:
                 lap_elapsed = time.time() - self.lap_start_time
                 print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | color_count={self._phase2_color_count} >= 2 or position_diff={position_diff} >= {threshold} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
