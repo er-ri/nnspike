@@ -330,7 +330,7 @@ class FastLapChain(object):
         # フェーズ6: position_startとの差分2000未満ならyaw_straight_control直進。2000以上で次フェーズ
         if phase.get_phase() == 6:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 300:
+            if position_diff < 200:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
