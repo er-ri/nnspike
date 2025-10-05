@@ -293,8 +293,8 @@ def calc_blue_target_distance(blue_center) -> Optional[int]:
     
     # 上部エリア（Y < reference_y）の距離計算式を変更
     # Y=31のような画面上部では大幅に距離を増加させる
-    upper_base_distance = 800     # 上部エリアの基本距離
-    upper_multiplier = 3.0        # 基準点より上部の距離倍率（2.0→3.0に増加）
+    upper_base_distance = 1000    # 上部エリアの基本距離（800→1000に増加）
+    upper_multiplier = 3.5        # 基準点より上部の距離倍率（3.0→3.5に増加）
     
     # 内部定数：目標位置の割合（90%位置）
     _target_y_ratio = 0.9
