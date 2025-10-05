@@ -282,53 +282,20 @@ def calc_blue_target_distance(blue_center) -> Optional[int]:
     
     center_x, top_y = blue_center
     
-    # 実験用パラメータ（関数内部で調整）
-    # 基準ポイント設定
-    reference_y = 182             # 基準Y座標（この位置で基準距離を返す）
-    reference_distance = 500      # 基準距離（reference_yで返したい距離）
-    
-    # 追加目標ポイント設定（調整しやすさ重視）
-    target_y_330 = 330            # 追加テスト用Y座標
-    target_distance_330 = 300     # Y=330で返したい距離
-    
-    # 上部エリア（Y < reference_y）の距離計算式を変更
-    # Y=31のような画面上部では大幅に距離を増加させる
-    upper_base_distance = 1000    # 上部エリアの基本距離（800→1000に増加）
-    upper_multiplier = 3.5        # 基準点より上部の距離倍率（3.0→3.5に増加）
-    
-    # 内部定数：目標位置の割合（90%位置）
-    _target_y_ratio = 0.9
-    
+    # シンプルな線形計算（統一的な制御）
     # カメラサイズ定数を使用して目標位置を設定（480×0.9=432）
-    target_y = int(CAMERA_HEIGHT * _target_y_ratio)
+    target_y = int(CAMERA_HEIGHT * 0.9)  # 432
     
     # 青ターゲットの上端から目標位置までの距離
     distance = target_y - top_y
     
-    # 非線形距離計算：画像下部ほど距離変化が少なくなる
+    # 2点指定線形計算：Y=30で1200、Y=300で500になるよう調整
     if distance > 0:
-        # 基準点からの相対距離を計算
-        reference_distance_raw = target_y - reference_y  # 432 - 182 = 250
-        
-        if distance <= reference_distance_raw:
-            # 基準点より下部（Y座標が大きい）：2点間補間計算
-            # Y=182→500, Y=330→300 の曲線を計算
-            target_y_330_raw = target_y - target_y_330  # 432 - 330 = 102
-            
-            if distance <= target_y_330_raw:
-                # Y=330より下部：target_distance_330以下の補間
-                ratio = distance / target_y_330_raw  # 0.0～1.0
-                practical_distance = int(target_distance_330 * ratio)
-            else:
-                # Y=182とY=330の間：曲線補間
-                ratio_330_to_182 = (distance - target_y_330_raw) / (reference_distance_raw - target_y_330_raw)
-                distance_diff = reference_distance - target_distance_330  # 500 - 300 = 200
-                practical_distance = target_distance_330 + int(distance_diff * ratio_330_to_182)
-        else:
-            # 基準点より上部（Y座標が小さい）：非線形計算で大幅に距離を増加
-            extra_distance = distance - reference_distance_raw
-            # 画面上部ほど指数的に距離を増加（Y=31で約1200になるよう調整）
-            practical_distance = upper_base_distance + int(extra_distance * upper_multiplier)
+        # 線形計算：傾き=2.593、切片=157.778
+        # Y=30(distance=402)→1200、Y=300(distance=132)→500
+        slope = 2.593
+        intercept = 157.778
+        practical_distance = int(slope * distance + intercept)
     else:
         # 既に目標位置を通過している場合は短距離
         practical_distance = abs(distance) // 2
