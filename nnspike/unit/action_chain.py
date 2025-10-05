@@ -577,7 +577,6 @@ class ActionChain(object):
 
         # phase11: 色センサーが青検出でphase12へ移行（停止）。それ以外はヨー維持で直進（低速）。
         if phase.get_phase() == 11:
-            position_diff = phase.get_position_diff(current_pos)
             # 青いターゲット追跡開始からの合計距離で判定
             distance_from_blue_start = abs(current_pos - self._blue_phase_start_pos)
             color_info = self.get_color_sensor_values()
@@ -872,7 +871,6 @@ class ActionChain(object):
         # phase12: 色センサーが青検出でphase13へ移行（停止）。それ以外はヨー維持で直進（低速）。
         # carry_bottle1のphase11に相当
         if phase.get_phase() == 12:
-            position_diff = phase.get_position_diff(current_pos)
             # 青いターゲット追跡開始からの合計距離で判定
             distance_from_blue_start = abs(current_pos - self._blue_phase_start_pos)
             color_info = self.get_color_sensor_values()
@@ -1074,7 +1072,6 @@ class ActionChain(object):
         if phase.get_phase() == 1:
             blue_center, _, blue_pixel_count = find_blue_target_center(image)
             if blue_pixel_count > 1000:
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} > 1000 | blue_center={blue_center} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 if blue_center is not None:
                     et.set_start_yaw()
                     accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
@@ -1097,7 +1094,6 @@ class ActionChain(object):
         # phase2: 色センサーが青検出でphase3へ移行（停止）。それ以外はヨー維持で直進（低速）。
         # carry_bottle1のphase11に相当
         if phase.get_phase() == 2:
-            position_diff = phase.get_position_diff(current_pos)
             # 青いターゲット追跡開始からの合計距離で判定
             distance_from_blue_start = abs(current_pos - self._blue_phase_start_pos)
             color_info = self.get_color_sensor_values()
