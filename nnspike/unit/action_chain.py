@@ -1017,7 +1017,8 @@ class ActionChain(object):
     def eye_blue(self, image: np.ndarray) -> Tuple[SpeedTuple, Mode]:
         if not self._init:
             self.initialize_action(motor_side=self.course)
-            self.et.set_start_yaw()
+            # 初期はヨーゼロを設定
+            self.et.set_start_yaw(0)
             # プライベート変数の初期化
             self._calculated_distance = 300  # デフォルト値
             self._distance_candidates = []  # 距離候補リスト
