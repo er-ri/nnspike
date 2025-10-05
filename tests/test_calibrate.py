@@ -52,11 +52,42 @@ BASE_SPEED = 45  # Base speed for straight lines (adjust this first)
 # Socket connection settings
 HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
 
+def select_camera_resolution():
+    """カメラ解像度を選択する"""
+    print("カメラ解像度を選択してください:")
+    print("1. 640x480 (VGA) - 標準解像度")
+    print("2. 800x600 (SVGA) - 中解像度")
+    print("3. 1280x720 (HD 720p) - 高解像度")
+    print("4. 1920x1080 (Full HD) - 最高解像度")
+    
+    while True:
+        try:
+            choice = input("選択 (1-4): ").strip()
+            if choice == "1":
+                return 640, 480
+            elif choice == "2":
+                return 800, 600
+            elif choice == "3":
+                return 1280, 720
+            elif choice == "4":
+                return 1920, 1080
+            else:
+                print("1から4の数字を入力してください。")
+        except KeyboardInterrupt:
+            print("\nプログラムを終了します。")
+            sys.exit(0)
+        except:
+            print("正しい数字を入力してください。")
+
+# Camera resolution settings
+CAMERA_WIDTH, CAMERA_HEIGHT = select_camera_resolution()
+print(f"選択された解像度: {CAMERA_WIDTH}x{CAMERA_HEIGHT}")
+
 # Camera setup
 cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FPS, 25)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
 
 
 def main():
@@ -97,10 +128,10 @@ def main():
 
             # Draw reference lines
             # Yellow horizontal lines at y=300 and y=330
-            cv2.line(gray, (0, 300), (640, 300), (255, 255, 0), 2)
-            cv2.line(gray, (0, 330), (640, 330), (255, 255, 0), 2)
-            # Vertical line at x=320
-            cv2.line(gray, (320, 0), (320, 480), (255, 255, 255), 2)
+            cv2.line(gray, (0, 300), (CAMERA_WIDTH, 300), (255, 255, 0), 2)
+            cv2.line(gray, (0, 330), (CAMERA_WIDTH, 330), (255, 255, 0), 2)
+            # Vertical line at center
+            cv2.line(gray, (CAMERA_WIDTH // 2, 0), (CAMERA_WIDTH // 2, CAMERA_HEIGHT), (255, 255, 255), 2)
 
             # Draw centroid point
             cv2.circle(gray, (int(x1 + mx), int(y1 + my)), 5, (255, 255, 255), -1)
