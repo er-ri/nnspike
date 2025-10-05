@@ -1034,6 +1034,7 @@ class ActionChain(object):
             if blue_center is not None:
                 # 距離候補を収集
                 calculated_distance = calc_blue_target_distance(blue_center)
+                print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance}")
                 self._distance_candidates.append((blue_center, calculated_distance))
             
             if blue_center is not None and abs(blue_center[0] - self.center_x) <= 20:
