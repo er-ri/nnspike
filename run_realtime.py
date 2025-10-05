@@ -175,13 +175,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     # Initialize edge following preference based on the course parameter
     et = ETRobot()
 
-    pid = PIDController(
-        Kp=50,
-        Ki=0,
-        Kd=5,
-        setpoint=0,
-        output_limits=(-BASE_SPEED, BASE_SPEED),
-    )
+    pid = PIDController()  # デフォルト値を使用（内部的に適切な値が設定される）
 
     # Initialize robot, keyboard controller
     keyboard = KeyboardController()

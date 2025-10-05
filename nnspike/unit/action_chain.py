@@ -168,7 +168,7 @@ class ActionChain(object):
         if target_x is not None:
             offset_pixels = get_offset_pixels(target_x, ROI_CNN)
             theta = math.atan2(offset_pixels, CAMERA_WIDTH)
-            steering_correction = self.pid.update(theta)
+            steering_correction = self.pid.update(theta, base_speed)
             left_speed = base_speed - steering_correction
             right_speed = base_speed + steering_correction
         else:
@@ -193,11 +193,6 @@ class ActionChain(object):
 
         if not self._init:
             self.initialize_action(motor_side=self.course)
-            self.pid.Kp = 50
-            self.pid.Ki = 0
-            self.pid.Kd = 5
-            self.pid.output_limits = (-BASE_SPEED, BASE_SPEED)
-            # 開始直後の絶対位置を取得し保持
             self._start_position = self.get_motor_position(self.course)
 
         phase = self._phase

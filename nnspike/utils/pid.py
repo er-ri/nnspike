@@ -18,11 +18,11 @@ class PIDController:
 
     def __init__(
         self,
-        Kp: float,
-        Ki: float,
-        Kd: float,
-        setpoint: float,
-        output_limits: tuple[float | None, float | None] = (None, None),
+        Kp: float = 45,  # デフォルトはBASE_SPEED相当
+        Ki: float = 0,
+        Kd: float = 5,   # デフォルトはBASE_SPEED * 0.11相当
+        setpoint: float = 0,
+        output_limits: tuple[float | None, float | None] = (-45, 45),  # デフォルトはBASE_SPEED相当
     ):
         """
         Initializes the PIDController with the specified gains, setpoint, and output limits.
@@ -47,12 +47,13 @@ class PIDController:
     def set_output_limits(self, new_output_limits: tuple[float, float]):
         self.output_limits = new_output_limits
 
-    def update(self, measured_value: float) -> float:
+    def update(self, measured_value: float, base_speed: float) -> float:
         """
         Calculate the control variable based on the measured value.
 
         Args:
             measured_value (float): The current value of the process variable.
+            base_speed (float): Base speed value to dynamically adjust Kp, Kd, and output_limits.
 
         Returns:
             float: Control output, typically used for wheel steering or other control mechanisms.
@@ -66,14 +67,17 @@ class PIDController:
         self._integral += error * delta_time
         derivative = delta_error / delta_time if delta_time > 0 else 0
 
-        # Calculate PID output
-        output = self.Kp * error + self.Ki * self._integral + self.Kd * derivative
+        # Calculate PID output using base_speed for dynamic parameters
+        kp = base_speed  # Proportional gain based on base_speed
+        kd = base_speed * 0.1  # Derivative gain: 元の比率 5/50 = 0.1
+        
+        output = kp * error + self.Ki * self._integral + kd * derivative
 
-        # Apply output limits
-        if self.output_limits[0] is not None:
-            output = max(self.output_limits[0], output)
-        if self.output_limits[1] is not None:
-            output = min(self.output_limits[1], output)
+        # Apply output limits based on base_speed
+        if output > base_speed:
+            output = base_speed
+        elif output < -base_speed:
+            output = -base_speed
 
         # Update state
         self._last_time = current_time
