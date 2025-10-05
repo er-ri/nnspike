@@ -1099,7 +1099,8 @@ class ActionChain(object):
             color_info = self.get_color_sensor_values()
             color_type = color_info["color_type"]
             
-            if color_type == "blue" or distance_from_blue_start >= self._calculated_distance:
+            # if color_type == "blue" or distance_from_blue_start >= self._calculated_distance:
+            if distance_from_blue_start >= self._calculated_distance:
                 print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | distance_from_blue_start={distance_from_blue_start} >= {self._calculated_distance} or color_type={color_type} (color_value={color_info['color']}) | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.EYE_BLUE
