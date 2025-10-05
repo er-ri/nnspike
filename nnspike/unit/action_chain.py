@@ -1017,7 +1017,6 @@ class ActionChain(object):
             # プライベート変数の初期化
             self._calculated_distance = 300  # デフォルト値
             self._distance_candidates = []  # 距離候補リスト
-            self._blue_phase_start_pos = 0  # 青ターゲット追従開始位置（eye_blueでは1）
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
         et = self.et
@@ -1036,8 +1035,14 @@ class ActionChain(object):
                 # 最適な距離を選択して保存
                 self._calculated_distance = self._get_best_distance_from_candidates()
                 et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | target_x={blue_center[0]} | blue_top_y={blue_center[1]} | candidates_count={len(self._distance_candidates)} | best_distance={self._calculated_distance} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
-                phase.next_phase(current_pos)
+                
+                # y座標が300以上なら直接フェーズ2（追跡フェーズ）に移行
+                if blue_center[1] >= 300:
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_y={blue_center[1]} >= 300 | pixel_count={blue_pixel_count} | skip to phase2 | candidates_count={len(self._distance_candidates)} | best_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                    phase.next_phase(current_pos, skip=2)
+                else:
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_y={blue_center[1]} < 300 | pixel_count={blue_pixel_count} | proceed to phase1 | candidates_count={len(self._distance_candidates)} | best_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                    phase.next_phase(current_pos)
                 return (0, 0), Mode.EYE_BLUE
             elif blue_center is not None:
                 if blue_center[0] < self.center_x:
@@ -1051,8 +1056,8 @@ class ActionChain(object):
                 if in_tolerance:
                     # 最適な距離を選択して保存
                     self._calculated_distance = self._get_best_distance_from_candidates()
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | in_tolerance={in_tolerance} | candidates_count={len(self._distance_candidates)} | best_distance={self._calculated_distance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
-                    phase.next_phase(current_pos)
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | yaw_ok | no_blue_target | skip to phase2 | candidates_count={len(self._distance_candidates)} | best_distance={self._calculated_distance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
+                    phase.next_phase(current_pos, skip=2)
                     return (0, 0), Mode.EYE_BLUE
                 else:
                     if yaw_error < 0:
@@ -1060,40 +1065,78 @@ class ActionChain(object):
                     else:
                         return (0, 5), Mode.EYE_BLUE
 
-        # phase1: 青ターゲット追跡または計算距離まで直進。距離到達または青検出で次フェーズへ。
-        # carry_bottle1のphase10+11を統合
+        # phase1: 青ターゲットのy座標が300になるまでゆっくり直進
         if phase.get_phase() == 1:
+            # 標準的な距離計算を使用
+            distance_from_start = phase.get_position_diff(current_pos)
+            
+            # 距離制限チェック - 計算距離に到達した場合は次フェーズへ
+            if distance_from_start >= self._calculated_distance:
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= {self._calculated_distance} | proceed to tracking phase")
+                phase.next_phase(current_pos)
+                return (0, 0), Mode.EYE_BLUE
+            
+            blue_center, _, blue_pixel_count = find_blue_target_center(image)
+            
+            # 青ターゲットが検出された場合、距離候補を収集
+            if blue_center is not None:
+                calculated_distance = calc_blue_target_distance(blue_center)
+                print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance}")
+                self._distance_candidates.append((blue_center, calculated_distance))
+                
+                # y座標が300以上になったら次フェーズへ（距離を更新）
+                if blue_center[1] >= 300:
+                    # 最適な距離を選択して保存
+                    self._calculated_distance = self._get_best_distance_from_candidates()
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_y={blue_center[1]} >= 300 | pixel_count={blue_pixel_count} | proceed to tracking phase | candidates_count={len(self._distance_candidates)} | updated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                    phase.next_phase(current_pos)
+                    return (0, 0), Mode.EYE_BLUE
+            else:
+                # 青ターゲットが検出されない場合、追跡フェーズに移行して探索
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | no_blue_target | proceed to tracking phase | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                phase.next_phase(current_pos)
+                return (0, 0), Mode.EYE_BLUE
+            
+            # get_accelerated_base_speedを使用（目標速度10、加速時間1.5秒）
+            accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
+            left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=2)
+            return (left_speed, right_speed), Mode.EYE_BLUE
+
+        # phase2: 青ターゲット追跡または計算距離まで直進。距離到達または青検出で次フェーズへ。
+        # carry_bottle1のphase10+11を統合
+        if phase.get_phase() == 2:
             # 標準的な距離計算を使用
             distance_from_start = phase.get_position_diff(current_pos)
             
             # 計算距離到達で停止
             if distance_from_start >= self._calculated_distance:
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= {self._calculated_distance} | STOP | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= {self._calculated_distance} | STOP | start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.EYE_BLUE
             
             # 青ターゲット検出処理
             blue_center, _, blue_pixel_count = find_blue_target_center(image)
             
-            # 青ターゲットが多く見える場合：追跡モード（高速）
+            # 青ターゲットが多く見える場合：追跡モード
             if blue_pixel_count > 1000:
                 if blue_center is not None:
                     et.set_start_yaw()
-                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
+                    accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
                     left_speed, right_speed = self.calc_motor_speed(blue_center[0], base_speed=accelerated_speed)
                 else:
-                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
+                    accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
                     left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, adjust_speed=2, deadband=2)
                 return (left_speed, right_speed), Mode.EYE_BLUE
             
-            # 青ターゲットが少ない場合：直進モード（低速）
+            # 青ターゲットが少ない場合：直進モード
             else:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=10, deadband=2)
+                accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=2)
                 return (left_speed, right_speed), Mode.EYE_BLUE
 
-        # phase2: 状態リセットしPAUSEへ遷移（eye_blue専用）
+        # phase3: 状態リセットしPAUSEへ遷移（eye_blue専用）
         # carry_bottle1のphase12に相当
-        if phase.get_phase() == 2:
+        if phase.get_phase() == 3:
             self.reset_action()
             return (0, 0), Mode.PAUSE
 
