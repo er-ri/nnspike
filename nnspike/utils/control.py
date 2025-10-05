@@ -291,8 +291,10 @@ def calc_blue_target_distance(blue_center) -> Optional[int]:
     target_y_330 = 330            # 追加テスト用Y座標
     target_distance_330 = 300     # Y=330で返したい距離
     
-    # 上部エリア（Y < reference_y）の距離倍率
-    upper_multiplier = 2.0        # 基準点より上部の距離倍率
+    # 上部エリア（Y < reference_y）の距離計算式を変更
+    # Y=31のような画面上部では大幅に距離を増加させる
+    upper_base_distance = 800     # 上部エリアの基本距離
+    upper_multiplier = 3.0        # 基準点より上部の距離倍率（2.0→3.0に増加）
     
     # 内部定数：目標位置の割合（90%位置）
     _target_y_ratio = 0.9
@@ -323,9 +325,10 @@ def calc_blue_target_distance(blue_center) -> Optional[int]:
                 distance_diff = reference_distance - target_distance_330  # 500 - 300 = 200
                 practical_distance = target_distance_330 + int(distance_diff * ratio_330_to_182)
         else:
-            # 基準点より上部（Y座標が小さい）：線形拡張
+            # 基準点より上部（Y座標が小さい）：非線形計算で大幅に距離を増加
             extra_distance = distance - reference_distance_raw
-            practical_distance = reference_distance + int(extra_distance * upper_multiplier)
+            # 画面上部ほど指数的に距離を増加（Y=31で約1200になるよう調整）
+            practical_distance = upper_base_distance + int(extra_distance * upper_multiplier)
     else:
         # 既に目標位置を通過している場合は短距離
         practical_distance = abs(distance) // 2
