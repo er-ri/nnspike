@@ -4,7 +4,6 @@ import argparse
 from email.mime import base
 import sys
 import time
-import math
 
 from nnspike.unit import Video, ETRobot, KeyboardController
 from nnspike.unit.fast_lap_chain import FastLapChain
@@ -14,18 +13,7 @@ import cv2
 import numpy as np
 from nnspike.constants import BASE_SPEED, HIGH_SPEED_BASE, CAMERA_WIDTH, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode, ROI_COLOR
 from nnspike.utils import PIDController, SensorRecorder, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x, get_offset_pixels
-import threading
 
-def handle_status_and_video(frame, status, mode, left_speed, right_speed,
-                           record_sensor_data, sensor_recorder, save_camera_video, video_writer):
-    """status取得・センサー記録・動画送信処理"""
-    if record_sensor_data and sensor_recorder is not None:
-        sensor_recorder.log_frame_data(status, mode, left_speed, right_speed)
-    if save_camera_video and video_writer is not None:
-        video_writer.write(frame)
-    
-    return True
-    
 # StateFlagsクラス（バックアップより）
 class StateFlags:
 
@@ -113,7 +101,7 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
 
     return first_key
 
-def main(record_sensor_data=False, save_camera_video=False, course="right", course_type="upper", manual_mode=False, use_video=False):
+def main(record_sensor_data=False, save_camera_video=False, course="right", course_type="upper", manual_mode=False):
     def unpack_action_result(result, default_mode=Mode.PAUSE):
         # Noneや不正な戻り値も吸収して安全にアンパック
         if result is None:
@@ -188,23 +176,20 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     # --- 変数初期化 ---
     left_speed = None
     right_speed = None
-    dummy_frame = np.zeros((CAMERA_HEIGHT, CAMERA_WIDTH, 3), dtype=np.uint8)
 
     # 毎回判定する必要のないフラグを事前計算
     need_status = (record_sensor_data and sensor_recorder is not None)
 
-    # カメラ起動条件をuse_cameraまたはuse_videoどちらかTrueで判定
-    video = None
-    if use_video:
-        video = Video()
-        video.warmup()
-        actual_fps = video.cap.get(cv2.CAP_PROP_FPS)
-        print(f"[INFO] Camera actual FPS: {actual_fps}")
+    # カメラを常に使用
+    video = Video()
+    video.warmup()
+    actual_fps = video.cap.get(cv2.CAP_PROP_FPS)
+    print(f"[INFO] Camera actual FPS: {actual_fps}")
+    
     # --- スタート待ち ---
     first_key = wait_for_start(et, keyboard, state_flags, manual_mode=manual_mode)
     if first_key is None:
-        if video is not None:
-            video.release()
+        video.release()
         return
 
     # wait_for_start()の後にmodeの初期値を決定
@@ -222,12 +207,9 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     try:
         while et.is_running:
             loop_start = time.time()
-            if video is not None:
-                frame = video.get_frame()
-                if save_camera_video and video_writer is not None and frame is not None and isinstance(frame, np.ndarray):
-                    video_writer.write(frame)
-            else:
-                frame = dummy_frame
+            frame = video.get_frame()
+            if save_camera_video and video_writer is not None and frame is not None and isinstance(frame, np.ndarray):
+                video_writer.write(frame)
 
             # status取得・センサー記録（メインスレッドで直接処理）
             if need_status:
@@ -317,8 +299,7 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         print(f"Error: {e}")
     finally:
         et.stop()
-        if video is not None:
-            video.release()
+        video.release()
 
         # 録画クリーンアップ
         if save_camera_video and video_writer is not None:
@@ -340,8 +321,6 @@ if __name__ == "__main__":
     parser.add_argument("--course", choices=["left", "right"], default="right", help="Initial course to follow: 'left' for left edge, 'right' for right edge (default: right)")
     parser.add_argument("--course-type", choices=["upper", "lower"], default="upper", help="Course type: 'upper' or 'lower' (default: upper)")
     parser.add_argument("--manual", action="store_true", help="Enable manual key input control mode")
-    parser.add_argument("--use-video", dest="use_video", action="store_true", default=True, help="Enable camera at startup (default: True)")
-    parser.add_argument("--no-use-video", dest="use_video", action="store_false", help="Disable camera at startup")
     args = parser.parse_args()
     print("Starting OpenCV-based line following robot...")
     print(f"Using ROI: {ROI_CNN}")
@@ -360,5 +339,4 @@ if __name__ == "__main__":
         course=args.course,
         course_type=args.course_type,
         manual_mode=args.manual,
-        use_video=args.use_video,
     )
