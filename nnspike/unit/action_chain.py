@@ -46,7 +46,7 @@ SpeedTuple = Tuple[int, int]
 
 class PhaseManager:
 
-    def __init__(self, motor_side):
+    def __init__(self, motor_side: str) -> None:
         self._state = {}
         self._state["phase"] = 0
         self._state["position_start"] = None
@@ -69,7 +69,7 @@ class PhaseManager:
         except (KeyError, TypeError, ValueError):
             return 0
 
-    def get_position_diff(self, current_pos) -> int:
+    def get_position_diff(self, current_pos: int) -> int:
         position_start = self.get_position_start("position_start")
         position_diff = abs(current_pos - position_start)
         return position_diff
@@ -95,22 +95,22 @@ class ActionChain(object):
         # 加速制御用プライベート変数
         self._acceleration_start_time = None
 
-    def initialize_action(self, motor_side: str = "right"):
+    def initialize_action(self, motor_side: str = "right") -> None:
         self._phase = PhaseManager(motor_side)
         self._phase.set_position_start("position_start", self.get_motor_position(motor_side))
         self._init = True
         # アクション開始時に加速タイマーをリセット
         self._reset_acceleration_timer()
 
-    def reset_action(self):
+    def reset_action(self) -> None:
         self._init = False
         self._reset_acceleration_timer()
 
-    def _reset_acceleration_timer(self):
+    def _reset_acceleration_timer(self) -> None:
         """加速タイマーをリセットする（プライベートメソッド）"""
         self._acceleration_start_time = None
 
-    def _start_acceleration_timer(self):
+    def _start_acceleration_timer(self) -> None:
         """加速タイマーを開始する（プライベートメソッド）"""
         self._acceleration_start_time = time.time()
 
@@ -154,7 +154,7 @@ class ActionChain(object):
             "color_type": color_type
         }
 
-    def _get_best_distance_from_candidates(self):
+    def _get_best_distance_from_candidates(self) -> int:
         """候補から320に最も近いblue_center_xの距離を返す（デフォルト300）"""
         if not self._distance_candidates:
             return 300
@@ -178,7 +178,7 @@ class ActionChain(object):
         right_speed = int(max(0, min(255, right_speed)))
         return left_speed, right_speed
 
-    def get_target_x_by_course(self, image, offset_y, course="right") -> int:
+    def get_target_x_by_course(self, image: np.ndarray, offset_y: int, course: str = "right") -> int:
         if course == "right":
             _, right_x, _ = get_line_edges_at_y(image, ROI_LINE_TRACING, offset_y, 80)
             target_x = right_x if right_x is not None else self.center_x
@@ -1019,7 +1019,7 @@ class ActionChain(object):
     def eye_blue(self, image: np.ndarray) -> Tuple[SpeedTuple, Mode]:
         if not self._init:
             self.initialize_action(motor_side=self.course)
-            self.et.set_start_yaw_nearest_vertical_pole()
+            self.et.set_start_yaw()
             # プライベート変数の初期化
             self._calculated_distance = 300  # デフォルト値
             self._distance_candidates = []  # 距離候補リスト

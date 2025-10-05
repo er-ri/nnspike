@@ -33,7 +33,7 @@ class FastLapChain(object):
         # 加速制御用プライベート変数
         self._acceleration_start_time = None
 
-    def initialize_action(self, motor_side: str = "right"):
+    def initialize_action(self, motor_side: str = "right") -> None:
         """
         アクション開始時の状態初期化処理。
         motor_side: "right"または"left"で初期位置記録対象を指定する。
@@ -45,16 +45,16 @@ class FastLapChain(object):
         # アクション開始時に加速タイマーをリセット
         self._reset_acceleration_timer()
 
-    def reset_action(self):
+    def reset_action(self) -> None:
         """アクション終了時の状態リセット処理."""
         self._init = False
         self._reset_acceleration_timer()
 
-    def _reset_acceleration_timer(self):
+    def _reset_acceleration_timer(self) -> None:
         """加速タイマーをリセットする（プライベートメソッド）"""
         self._acceleration_start_time = None
 
-    def _start_acceleration_timer(self):
+    def _start_acceleration_timer(self) -> None:
         """加速タイマーを開始する（プライベートメソッド）"""
         self._acceleration_start_time = time.time()
 
