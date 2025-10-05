@@ -1086,17 +1086,14 @@ class ActionChain(object):
                     et.set_start_yaw()
                     accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
                     left_speed, right_speed = self.calc_motor_speed(blue_center[0], base_speed=accelerated_speed)
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | TRACKING | blue_pixel_count={blue_pixel_count} | target_x={blue_center[0]} | distance={distance_from_start}")
                 else:
                     accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
                     left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, adjust_speed=2, deadband=2)
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | TRACKING_STRAIGHT | blue_pixel_count={blue_pixel_count} | distance={distance_from_start}")
                 return (left_speed, right_speed), Mode.EYE_BLUE
             
             # 青ターゲットが少ない場合：直進モード（低速）
             else:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=10, deadband=2)
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | STRAIGHT | blue_pixel_count={blue_pixel_count} | distance={distance_from_start}")
                 return (left_speed, right_speed), Mode.EYE_BLUE
 
         # phase2: 状態リセットしPAUSEへ遷移（eye_blue専用）
