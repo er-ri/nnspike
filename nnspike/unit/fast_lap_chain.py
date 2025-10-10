@@ -6,6 +6,7 @@ from nnspike.constants import HIGH_SPEED_BASE
 from nnspike.unit.action_chain import PhaseManager
 from nnspike.constants import ROI_CNN
 from nnspike.constants import Mode
+import sys
 
 SpeedTuple = Tuple[int, int, int]
 from nnspike.constants import Mode
@@ -220,7 +221,7 @@ class FastLapChain(object):
                 if self.course == "right":
                     return None, (100, 90, 0), Mode.FAST_LAP
                 else:
-                    return None, (70, 90, 0), Mode.FAST_LAP
+                    return None, (90, 100, 0), Mode.FAST_LAP
 
         # フェーズ2: position_startとの差分500未満ならyaw_straight_control直進。500以上で次フェーズ、基準yaw更新（直進区間）
         if phase.get_phase() == 2:
@@ -231,7 +232,6 @@ class FastLapChain(object):
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return None, (left_speed, right_speed, 0), Mode.FAST_LAP
             else:
-                import sys
                 sys.exit("強制終了")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
