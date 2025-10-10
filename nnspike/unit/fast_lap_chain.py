@@ -208,17 +208,19 @@ class FastLapChain(object):
         if phase.get_phase() == 1:
             stop_turn = et.is_yaw_turn_finished(side=self.course, threshold_deg=30.0)
             if stop_turn:
+                import sys
+                sys.exit("強制終了")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
                 if self.course == "right":
-                    self.et.set_start_yaw(start_yaw - 30.0)  # 右コースは+30度
+                    self.et.set_start_yaw(start_yaw + 30.0)  # 右コースは+30度
                 else:
-                    self.et.set_start_yaw(start_yaw + 30.0)  # 左コースは-30度
+                    self.et.set_start_yaw(start_yaw - 30.0)  # 左コースは-30度
             else:
                 if self.course == "right":
-                    return None, (70, 100, 0), Mode.FAST_LAP
+                    return None, (100, 90, 0), Mode.FAST_LAP
                 else:
-                    return None, (100, 70, 0), Mode.FAST_LAP
+                    return None, (70, 90, 0), Mode.FAST_LAP
 
         # フェーズ2: position_startとの差分500未満ならyaw_straight_control直進。500以上で次フェーズ、基準yaw更新（直進区間）
         if phase.get_phase() == 2:
