@@ -209,8 +209,6 @@ class FastLapChain(object):
         if phase.get_phase() == 1:
             stop_turn = et.is_yaw_turn_finished(side=self.course, threshold_deg=30.0)
             if stop_turn:
-                import sys
-                sys.exit("強制終了")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
                 if self.course == "right":
