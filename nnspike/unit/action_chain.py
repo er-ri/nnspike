@@ -442,7 +442,7 @@ class ActionChain(object):
                 accelerated_speed = self.get_accelerated_base_speed()
                 return (accelerated_speed, accelerated_speed), Mode.CARRY_BOTTLE1
             # 一定値超えたら次フェーズへ
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 200")
+            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 400")
             phase.next_phase(current_pos)
             self._reset_acceleration_timer()
             self.pre_target_x = self.center_x
@@ -464,7 +464,7 @@ class ActionChain(object):
                 left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
             # 一定値超えたら次フェーズへ
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1500")
+            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1300")
             phase.next_phase(current_pos)
 
         # 7. 直進（右モーターが一定値移動まで。一定値超えたらphase8へ、右モーター位置記録）
