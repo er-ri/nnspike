@@ -94,6 +94,8 @@ class ActionChain(object):
         self.pid = pid  # 基本的に外部から渡されたPIDインスタンスのみを使用
         # 加速制御用プライベート変数
         self._acceleration_start_time = None
+        # 距離計算変数 - 絶対にNoneにならない
+        self._calculated_distance: int = 300  # デフォルト値で必ず初期化
 
     def initialize_action(self, motor_side: str = "right") -> None:
         self._phase = PhaseManager(motor_side)
@@ -155,11 +157,13 @@ class ActionChain(object):
         }
 
     def _get_best_distance_from_candidates(self) -> int:
-        """候補から320に最も近いblue_center_xの距離を返す（デフォルト300）"""
+        """候補から320に最も近いblue_center_xの距離を返す（絶対にNoneにならない）"""
         if not self._distance_candidates:
-            return 300
+            return 300  # 絶対にintを返す
         best_candidate = min(self._distance_candidates, key=lambda x: abs(x[0][0] - 320))
-        return best_candidate[1]
+        # candidateの距離がNoneの場合のフォールバック
+        distance = best_candidate[1]
+        return distance if distance is not None else 300
 
     # --- action_chain用 motor speed計算関数 ---
     def calc_motor_speed(self, target_x: Optional[int], base_speed: int = BASE_SPEED) -> SpeedTuple:
@@ -1028,10 +1032,17 @@ class ActionChain(object):
             # 信頼性チェック: Y>10（上端誤検出除外）、面積は関数内で200以上が保証済み
             # blue_pixel_countは実際の楕円外接矩形内のピクセル数なので、面積と相関がある
             if blue_center is not None and blue_center[1] > 10:
-                # 距離候補を収集
+                # 距離候補を収集 - 絶対にNoneを候補に入れない
                 calculated_distance = calc_blue_target_distance(blue_center)
-                print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | area={blue_area} | pixels={blue_pixel_count}")
-                self._distance_candidates.append((blue_center, calculated_distance))
+                # Noneチェックしてから候補に追加
+                if calculated_distance is not None:
+                    print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | area={blue_area} | pixels={blue_pixel_count}")
+                    self._distance_candidates.append((blue_center, calculated_distance))
+                else:
+                    # Noneの場合はデフォルト値で候補に追加
+                    default_distance = 400 if blue_center[1] >= 300 else 300
+                    print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance=None→{default_distance} | area={blue_area} | pixels={blue_pixel_count}")
+                    self._distance_candidates.append((blue_center, default_distance))
             
             if blue_center is not None and blue_center[1] > 10 and abs(blue_center[0] - self.center_x) <= 20:
                 # 最適な距離を選択して保存
@@ -1094,10 +1105,13 @@ class ActionChain(object):
                 
                 # y座標が300以上になったら次フェーズへ（フェーズ1独立の距離計算）
                 if blue_center[1] >= 300:
-                    # フェーズ1の最新検出に基づく距離計算
-                    phase1_calculated_distance = calc_blue_target_distance(blue_center)
-                    self._calculated_distance = phase1_calculated_distance
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_y={blue_center[1]} >= 300 | area={blue_area} | pixels={blue_pixel_count} | proceed to tracking phase | phase1_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                    # フェーズ1の最新検出に基づく距離計算 - 直接self._calculated_distanceに代入
+                    calculated_result = calc_blue_target_distance(blue_center)
+                    # _calculated_distanceは絶対にNoneにならない（デフォルト300保証済み）
+                    if calculated_result is not None:
+                        self._calculated_distance = calculated_result
+                    # Noneの場合も既存の_calculated_distanceをそのまま使用（300または前回計算値）
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_y={blue_center[1]} >= 300 | area={blue_area} | pixels={blue_pixel_count} | proceed to tracking phase | distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                     # フェーズ遷移時に候補リストをクリア
                     self._distance_candidates = []
                     phase.next_phase(current_pos)
