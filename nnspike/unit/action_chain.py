@@ -1027,58 +1027,34 @@ class ActionChain(object):
 
         # phase0: 青ターゲットを中央に合わせる。検出時は距離候補を収集。中央付近なら次フェーズへ。
         # carry_bottle1のphase9に相当
+        # phase0: 青ターゲットを中心に合わせるだけ
         if phase.get_phase() == 0:
             blue_center, _, blue_pixel_count = find_blue_target_center(image)
-            # 信頼性チェック: Y>10（上端誤検出除外）、面積は関数内で200以上が保証済み
-            # blue_pixel_countは実際の楕円外接矩形内のピクセル数なので、面積と相関がある
-            if blue_center is not None and blue_center[1] > 10:
-                # 距離候補を収集 - 絶対にNoneを候補に入れない
-                calculated_distance = calc_blue_target_distance(blue_center)
-                # Noneチェックしてから候補に追加
-                if calculated_distance is not None:
-                    print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | pixels={blue_pixel_count}")
-                    self._distance_candidates.append((blue_center, calculated_distance))
-                else:
-                    # Noneの場合はデフォルト値で候補に追加
-                    default_distance = 400 if blue_center[1] >= 300 else 300
-                    print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance=None→{default_distance} | pixels={blue_pixel_count}")
-                    self._distance_candidates.append((blue_center, default_distance))
             
-            if blue_center is not None and blue_center[1] > 10 and abs(blue_center[0] - self.center_x) <= 20:
-                # 最適な距離を選択して保存
-                self._calculated_distance = self._get_best_distance_from_candidates()
-                et.set_start_yaw()
-                
-                # y座標が300以上なら直接フェーズ2（追跡フェーズ）に移行
-                if blue_center[1] >= 300:
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_y={blue_center[1]} >= 300 | pixels={blue_pixel_count} | skip to phase2 | candidates_count={len(self._distance_candidates)} | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
-                    # フェーズ遷移時に候補リストをクリア
-                    self._distance_candidates = []
-                    phase.next_phase(current_pos, skip=2)
-                else:
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_y={blue_center[1]} < 300 | pixels={blue_pixel_count} | proceed to phase1 | candidates_count={len(self._distance_candidates)} | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
-                    # フェーズ遷移時に候補リストをクリア
-                    self._distance_candidates = []
+            if blue_center is not None and blue_center[1] > 10:
+                # 中心に合わせる判定（±20ピクセル以内）
+                if abs(blue_center[0] - self.center_x) <= 20:
+                    # 中心に合った→次フェーズへ
+                    et.set_start_yaw()
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | proceed to phase1")
                     phase.next_phase(current_pos)
-                return (0, 0), Mode.EYE_BLUE
-            elif blue_center is not None and blue_center[1] > 10:
-                if blue_center[0] < self.center_x:
-                    return (0, 5), Mode.EYE_BLUE
-                else:
-                    return (5, 0), Mode.EYE_BLUE
-            else:
-                in_tolerance, yaw_error = et.is_start_yaw_error_within(3.0)
-                start_yaw = et.get_start_yaw()
-                current_yaw = et.get_yaw()
-                if in_tolerance:
-                    # 最適な距離を選択して保存
-                    self._calculated_distance = self._get_best_distance_from_candidates()
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | yaw_ok | no_blue_target | skip to phase2 | candidates_count={len(self._distance_candidates)} | _calculated_distance={self._calculated_distance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
-                    # フェーズ遷移時に候補リストをクリア
-                    self._distance_candidates = []
-                    phase.next_phase(current_pos, skip=2)
                     return (0, 0), Mode.EYE_BLUE
                 else:
+                    # 中心に向けて旋回
+                    if blue_center[0] < self.center_x:
+                        return (0, 5), Mode.EYE_BLUE  # 左旋回
+                    else:
+                        return (5, 0), Mode.EYE_BLUE  # 右旋回
+            else:
+                # 青ターゲットが見つからない→ヨー角調整
+                in_tolerance, yaw_error = et.is_start_yaw_error_within(3.0)
+                if in_tolerance:
+                    # ヨー角OK→フェーズ1へ
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | no_blue_target | yaw_ok | proceed to phase1")
+                    phase.next_phase(current_pos)
+                    return (0, 0), Mode.EYE_BLUE
+                else:
+                    # ヨー角調整
                     if yaw_error < 0:
                         return (5, 0), Mode.EYE_BLUE
                     else:
@@ -1123,8 +1099,9 @@ class ActionChain(object):
                     left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=accelerated_speed)
                     return (left_speed, right_speed), Mode.EYE_BLUE
             else:
-                # 青ターゲットが検出されない場合、追跡フェーズに移行して探索
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | no_blue_target | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                # 青ターゲットが検出されない場合、基準ヨー設定して追跡フェーズに移行
+                et.set_start_yaw()
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | no_blue_target | set_start_yaw | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 # フェーズ遷移時に候補リストをクリア
                 self._distance_candidates = []
                 phase.next_phase(current_pos)
