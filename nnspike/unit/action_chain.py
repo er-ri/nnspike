@@ -1101,22 +1101,27 @@ class ActionChain(object):
             
             # 青ターゲットが検出された場合の独立判定
             if blue_center is not None and blue_center[1] > 10:
-                print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → pixels={blue_pixel_count}")
+                # 常に距離を計算して表示（統一フォーマット）
+                calculated_distance = calc_blue_target_distance(blue_center)
+                print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | pixels={blue_pixel_count}")
                 
                 # y座標が300以上になったら次フェーズへ（フェーズ1独立の距離計算）
                 if blue_center[1] >= 300:
-                    # フェーズ1の最新検出に基づく距離計算 - 直接self._calculated_distanceに代入
-                    calculated_result = calc_blue_target_distance(blue_center)
-                    print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_result} | pixels={blue_pixel_count}")
                     # _calculated_distanceは絶対にNoneにならない（デフォルト300保証済み）
-                    if calculated_result is not None:
-                        self._calculated_distance = calculated_result
+                    if calculated_distance is not None:
+                        self._calculated_distance = calculated_distance
                     # Noneの場合も既存の_calculated_distanceをそのまま使用（300または前回計算値）
                     print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_y={blue_center[1]} >= 300 | pixels={blue_pixel_count} | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                     # フェーズ遷移時に候補リストをクリア
                     self._distance_candidates = []
                     phase.next_phase(current_pos)
                     return (0, 0), Mode.EYE_BLUE
+                else:
+                    # Y<300の場合は青ターゲットの中心に向けてcalc_motor_speedで進む（確立されたパターン）
+                    target_x = blue_center[0]
+                    accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
+                    left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=accelerated_speed)
+                    return (left_speed, right_speed), Mode.EYE_BLUE
             else:
                 # 青ターゲットが検出されない場合、追跡フェーズに移行して探索
                 print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | no_blue_target | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
@@ -1124,11 +1129,6 @@ class ActionChain(object):
                 self._distance_candidates = []
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.EYE_BLUE
-            
-            # get_accelerated_base_speedを使用（目標速度10、加速時間1.5秒）
-            accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
-            left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=2)
-            return (left_speed, right_speed), Mode.EYE_BLUE
 
         # phase2: 青ターゲット追跡または計算距離まで直進。距離到達または青検出で次フェーズへ。
         # carry_bottle1のphase10+11を統合
