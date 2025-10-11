@@ -805,7 +805,7 @@ class ActionChain(object):
         # 5. 左旋回（コース側モーターが所定値移動まで、courseに応じて旋回方向決定。所定値超えたらphase6へ、モーター位置記録）
         if phase.get_phase() == 5:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 350:
+            if position_diff < 330:
                 if self.course == "right":
                     return (0, 20), Mode.CARRY_BOTTLE2
                 else:
