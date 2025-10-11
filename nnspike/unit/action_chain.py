@@ -1,4 +1,3 @@
-import re
 import time  # 時間計測用
 from typing import Optional, Tuple  # 型ヒント用
 
@@ -1336,4 +1335,102 @@ class ActionChain(object):
 
         print("[eye_blue] Unexpected state reached.")
         return (0, 0), Mode.EYE_BLUE
+
+
+# === テスト用メソッドはクラスの最後尾に追加 ===
+    def test_mode_action(self, image=None) -> Tuple[Tuple[int, int], Mode]:
+        if not self._init:
+            self.initialize_action(motor_side=self.course)
+            self.et.set_start_yaw(0)
+        phase = self._phase
+        current_pos = self.get_motor_position(self.course)
+        et = self.et
+
+
+        # phase0: 直進（500進むまで）
+        if phase.get_phase() == 0:
+            position_diff = phase.get_position_diff(current_pos)
+            if position_diff < 500:
+                accelerated_speed = self.get_accelerated_base_speed(target_speed=30, acceleration_time=1.5)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=2)
+                return (left_speed, right_speed), Mode.TEST
+            else:
+                self._reset_acceleration_timer()
+                et.set_start_yaw()
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 500 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase1")
+                phase.next_phase(current_pos)
+                return (0, 0), Mode.TEST
+
+        # phase1: 90度旋回（course依存で左右、距離390進むまで）
+        if phase.get_phase() == 1:
+            position_diff = phase.get_position_diff(current_pos)
+            if position_diff < 390:
+                if self.course == "right":
+                    return (0, 20), Mode.TEST
+                else:
+                    return (20, 0), Mode.TEST
+            else:
+                et.set_start_yaw()
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase2")
+                phase.next_phase(current_pos)
+                return (0, 0), Mode.TEST
+
+        # phase2: 旋回後ヨー角調整（垂直ポール基準）
+        if phase.get_phase() == 2:
+            in_tolerance, yaw_error = et.is_vertical_yaw_error_within(3.0)
+            if in_tolerance:
+                et.set_start_yaw()
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | vertical_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase3")
+                phase.next_phase(current_pos)
+                return (0, 0), Mode.TEST
+            else:
+                if yaw_error < 0:
+                    return (5, 0), Mode.TEST
+                else:
+                    return (0, 5), Mode.TEST
+
+        # phase3: 直進（再び500進むまで）
+        if phase.get_phase() == 3:
+            position_diff = phase.get_position_diff(current_pos)
+            if position_diff < 500:
+                accelerated_speed = self.get_accelerated_base_speed(target_speed=30, acceleration_time=1.5)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=2)
+                return (left_speed, right_speed), Mode.TEST
+            else:
+                self._reset_acceleration_timer()
+                et.set_start_yaw()
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 500 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase4")
+                phase.next_phase(current_pos)
+                return (0, 0), Mode.TEST
+
+        # phase4: 90度旋回（course依存で左右、距離390進むまで）
+        if phase.get_phase() == 4:
+            position_diff = phase.get_position_diff(current_pos)
+            if position_diff < 390:
+                if self.course == "right":
+                    return (0, 20), Mode.TEST
+                else:
+                    return (20, 0), Mode.TEST
+            else:
+                et.set_start_yaw()
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase5")
+                phase.next_phase(current_pos)
+                return (0, 0), Mode.TEST
+
+        # phase5: 旋回後ヨー角調整（水平方向基準）
+        if phase.get_phase() == 5:
+            in_tolerance, yaw_error = et.is_horizontal_yaw_error_within(3.0)
+            if in_tolerance:
+                et.set_start_yaw()
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | horizontal_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase0")
+                phase.next_phase(current_pos, skip=-5)  # 0に戻す
+                return (0, 0), Mode.TEST
+            else:
+                if yaw_error < 0:
+                    return (5, 0), Mode.TEST
+                else:
+                    return (0, 5), Mode.TEST
+
+        print("[test_mode] Unexpected state reached.")
+        return (0, 0), Mode.TEST
 

@@ -60,5 +60,6 @@ class KeyboardController:
             "8": (Mode.PAUSE, "Pausing robot"),
             "y": (Mode.FAST_LAP, "Switched to FAST_LAP mode"),
             "p": (Mode.PAUSE, "Pausing robot"),
+            "t": (Mode.TEST, "Switched to TEST mode"),
         }
         return keymap.get(key, (None, None))
