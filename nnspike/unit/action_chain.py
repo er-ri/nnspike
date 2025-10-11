@@ -1020,7 +1020,6 @@ class ActionChain(object):
             self.et.set_start_yaw(0)
             # プライベート変数の初期化
             self._calculated_distance = 300  # デフォルト値
-            self._distance_candidates = []  # 距離候補リスト
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
         et = self.et
@@ -1068,8 +1067,6 @@ class ActionChain(object):
             # 距離制限チェック - 計算距離に到達した場合は次フェーズへ
             if distance_from_start >= self._calculated_distance:
                 print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= _calculated_distance={self._calculated_distance} | proceed to tracking phase")
-                # フェーズ遷移時に候補リストをクリア
-                self._distance_candidates = []
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.EYE_BLUE
             
@@ -1088,8 +1085,6 @@ class ActionChain(object):
                         self._calculated_distance = calculated_distance
                     # Noneの場合も既存の_calculated_distanceをそのまま使用（300または前回計算値）
                     print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_y={blue_center[1]} >= 300 | pixels={blue_pixel_count} | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
-                    # フェーズ遷移時に候補リストをクリア
-                    self._distance_candidates = []
                     phase.next_phase(current_pos)
                     return (0, 0), Mode.EYE_BLUE
                 else:
@@ -1102,8 +1097,6 @@ class ActionChain(object):
                 # 青ターゲットが検出されない場合、基準ヨー設定して追跡フェーズに移行
                 et.set_start_yaw()
                 print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | no_blue_target | set_start_yaw | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
-                # フェーズ遷移時に候補リストをクリア
-                self._distance_candidates = []
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.EYE_BLUE
 
@@ -1126,7 +1119,7 @@ class ActionChain(object):
             print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} < {self._calculated_distance} | blue_center={blue_center} | pixels={blue_pixel_count}")
             
             # 青ターゲットが多く見える場合：追跡モード（実際の楕円ピクセル数に基づく閾値調整）
-            if blue_pixel_count > 500:  # 1000→500に調整
+            if blue_pixel_count > 1000:
                 if blue_center is not None:
                     et.set_start_yaw()
                     accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
