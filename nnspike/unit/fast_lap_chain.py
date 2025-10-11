@@ -208,6 +208,9 @@ class FastLapChain(object):
             self.lap_start_time = time.time()
             self._phase2_color_count = 0  # フェーズ2色検出カウンタ
             self._prev_color = None  # 前回の色値を初期化
+            # FAST_LAP開始時の即座スタートダッシュ
+            print("[FAST_LAP] Immediate start dash - setting initial motor speed!")
+            self.et.set_motor_forward_speed(left_speed=80, right_speed=80)
         phase = self._phase
         et = self.et
         current_pos = self.get_motor_position(self.course)
@@ -217,9 +220,8 @@ class FastLapChain(object):
         if phase.get_phase() == 0:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 3000:
-                # ファストラップ専用スタートダッシュ加速制御メソッドを使用
-                base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.8)
-                left_speed, right_speed = et.yaw_straight_control(base_speed=base_speed)
+                # 即座スタート後は通常の高速ベース速度で直進
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
                 lap_elapsed = time.time() - self.lap_start_time
