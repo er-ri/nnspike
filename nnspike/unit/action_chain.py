@@ -644,7 +644,7 @@ class ActionChain(object):
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} < {self._calculated_distance} | blue_center={blue_center} | pixels={blue_pixel_count}")
             
             # 青ターゲットが多く見える場合：追跡モード（実際の楕円ピクセル数に基づく閾値調整）
-            if blue_pixel_count > 1000:
+            if blue_pixel_count > 2000:
                 if blue_center is not None:
                     et.set_start_yaw()
                     accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
@@ -1015,7 +1015,7 @@ class ActionChain(object):
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} < {self._calculated_distance} | blue_center={blue_center} | pixels={blue_pixel_count}")
             
             # 青ターゲットが多く見える場合：追跡モード（実際の楕円ピクセル数に基づく閾値調整）
-            if blue_pixel_count > 1000:
+            if blue_pixel_count > 2000:
                 if blue_center is not None:
                     self.et.set_start_yaw()
                     accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
