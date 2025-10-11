@@ -490,14 +490,14 @@ class ActionChain(object):
                     return (30, 0), Mode.CARRY_BOTTLE1
 
             # 最低回転量以上になったら判定開始
-            if (not blue_target_detected) and (position_diff < 700):
+            if (not blue_target_detected) and (position_diff < 500):
                 if self.course == "right":
                     return (0, 20), Mode.CARRY_BOTTLE1
                 else:
                     return (20, 0), Mode.CARRY_BOTTLE1
 
             et.set_start_yaw()
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_target_detected={blue_target_detected} or position_diff={position_diff} >= 700 | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | blue_pixel_count={blue_pixel_count} | blue_center={blue_center}")
+            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_target_detected={blue_target_detected} or position_diff={position_diff} >= 500 | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | blue_pixel_count={blue_pixel_count} | blue_center={blue_center}")
             phase.next_phase(current_pos)
             return (0, 0), Mode.CARRY_BOTTLE1
 
