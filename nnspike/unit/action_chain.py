@@ -1371,9 +1371,9 @@ class ActionChain(object):
                 return (0, 0), Mode.TEST
             else:
                 if self.course == "right":
-                    return (0, 20), Mode.TEST
+                    return (0, 30), Mode.TEST
                 else:
-                    return (20, 0), Mode.TEST
+                    return (30, 0), Mode.TEST
 
         # phase2: 旋回後ヨー角調整（水平方向基準）
         if phase.get_phase() == 2:
@@ -1413,9 +1413,9 @@ class ActionChain(object):
                 return (0, 0), Mode.TEST
             else:
                 if self.course == "right":
-                    return (0, 20), Mode.TEST
+                    return (0, 30), Mode.TEST
                 else:
-                    return (20, 0), Mode.TEST
+                    return (30, 0), Mode.TEST
 
         # phase5: 旋回後ヨー角調整（垂直方向基準）
         if phase.get_phase() == 5:
