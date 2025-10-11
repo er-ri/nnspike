@@ -367,7 +367,7 @@ class ActionChain(object):
 
         if phase.get_phase() == 1:
             red_center, _, red_pixel_count = find_bottle_center(image=image, color="red", roi=ROI_COLOR2)
-            if red_center is not None and abs(red_center[0] - self.center_x) <= 20:
+            if red_center is not None and abs(red_center[0] - self.center_x) <= 10:
                 self.et.set_start_yaw()
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | centered | target_x={red_center[0]} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
@@ -514,8 +514,8 @@ class ActionChain(object):
                     self._calculated_distance = calculated_distance
                     print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | pixels={blue_pixel_count}")
                 
-                # 中心に合わせる判定（±20ピクセル以内）
-                if abs(blue_center[0] - self.center_x) <= 20:
+                # 中心に合わせる判定（±10ピクセル以内）
+                if abs(blue_center[0] - self.center_x) <= 10:
                     # 中心に合った→次フェーズへ
                     et.set_start_yaw()
                     # フェーズ10開始位置を設定
@@ -598,8 +598,8 @@ class ActionChain(object):
                     self._calculated_distance = calculated_distance
                     print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | pixels={blue_pixel_count}")
                 
-                # 中心に合わせる判定（±20ピクセル以内）
-                if abs(blue_center[0] - self.center_x) <= 20:
+                # 中心に合わせる判定（±10ピクセル以内）
+                if abs(blue_center[0] - self.center_x) <= 10:
                     # 中心に合った→次フェーズへ
                     et.set_start_yaw()
                     print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance} | proceed to phase12")
@@ -885,8 +885,8 @@ class ActionChain(object):
                     self._calculated_distance = calculated_distance
                     print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | pixels={blue_pixel_count}")
                 
-                # 中心に合わせる判定（±20ピクセル以内）
-                if abs(blue_center[0] - self.center_x) <= 20:
+                # 中心に合わせる判定（±10ピクセル以内）
+                if abs(blue_center[0] - self.center_x) <= 10:
                     # 中心に合った→次フェーズへ
                     self.et.set_start_yaw()
                     # フェーズ11開始位置を設定
@@ -969,8 +969,8 @@ class ActionChain(object):
                     self._calculated_distance = calculated_distance
                     print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | pixels={blue_pixel_count}")
                 
-                # 中心に合わせる判定（±20ピクセル以内）
-                if abs(blue_center[0] - self.center_x) <= 20:
+                # 中心に合わせる判定（±10ピクセル以内）
+                if abs(blue_center[0] - self.center_x) <= 10:
                     # 中心に合った→次フェーズへ
                     self.et.set_start_yaw()
                     print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance} | proceed to phase13")
@@ -1185,8 +1185,8 @@ class ActionChain(object):
                     self._calculated_distance = calculated_distance
                     print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | pixels={blue_pixel_count}")
                 
-                # 中心に合わせる判定（±20ピクセル以内）
-                if abs(blue_center[0] - self.center_x) <= 20:
+                # 中心に合わせる判定（±10ピクセル以内）
+                if abs(blue_center[0] - self.center_x) <= 10:
                     # 中心に合った→次フェーズへ
                     et.set_start_yaw()
                     print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance} | proceed to phase1")
@@ -1265,8 +1265,8 @@ class ActionChain(object):
                     self._calculated_distance = calculated_distance
                     print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | pixels={blue_pixel_count}")
                 
-                # 中心に合わせる判定（±20ピクセル以内）
-                if abs(blue_center[0] - self.center_x) <= 20:
+                # 中心に合わせる判定（±10ピクセル以内）
+                if abs(blue_center[0] - self.center_x) <= 10:
                     # 中心に合った→次フェーズへ
                     et.set_start_yaw()
                     print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance} | proceed to phase3")
