@@ -453,6 +453,8 @@ class ActionChain(object):
             if position_diff < 1300:
                 # 仮想ライン中心座標取得処理
                 temp_x = get_virtual_line_target_x(image, previous_center_x=self.pre_target_x)
+                # get_virtual_line_target_x 出力値監視
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | get_virtual_line_target_x={temp_x} | previous_center_x={self.pre_target_x} | position_diff={position_diff}")
                 if temp_x is not None:
                     target_x = temp_x
                     self.pre_target_x = temp_x
@@ -823,6 +825,8 @@ class ActionChain(object):
             if position_diff < 1400:
                 # 仮想ライン中心座標取得処理
                 temp_x = get_virtual_line_target_x(image, previous_center_x=self.pre_target_x)
+                # get_virtual_line_target_x 出力値監視
+                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | get_virtual_line_target_x={temp_x} | previous_center_x={self.pre_target_x} | position_diff={position_diff}")
                 if temp_x is not None:
                     target_x = temp_x
                     self.pre_target_x = temp_x
