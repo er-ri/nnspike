@@ -210,7 +210,7 @@ def find_blue_target_center(image) -> Tuple[Optional[Tuple[int, int]], Optional[
     戻り値:
         center (tuple or None): (x, top_y)またはNone ※yは楕円の上端座標
         area (float or None): 面積
-        blue_pixel_count (int): 青ピクセル数
+        blue_pixel_count (int): 実際に検出された楕円の青ピクセル数（外接矩形内）
     """
     # 画像がNoneまたは空の場合はNone返却
     if image is None or image.size == 0:
@@ -230,6 +230,7 @@ def find_blue_target_center(image) -> Tuple[Optional[Tuple[int, int]], Optional[
     best_blue_ellipse = None
     max_blue_area = 0
     best_center = None
+    best_contour = None
     for cnt in contours_blue:
         if len(cnt) >= 5:
             area = cv2.contourArea(cnt)
@@ -250,15 +251,21 @@ def find_blue_target_center(image) -> Tuple[Optional[Tuple[int, int]], Optional[
             if area > max_blue_area:
                 best_blue_ellipse = ellipse
                 max_blue_area = area
+                best_contour = cnt
                 # 輪郭から直接最上端Y座標を取得（最も直接的な方法）
                 contour_points = cnt.reshape(-1, 2)  # 輪郭点を(N,2)形状に変換
                 y_coordinates = contour_points[:, 1]  # Y座標を抽出
                 min_y = np.min(y_coordinates)  # Y座標の最小値
                 top_y = int(min_y.item())  # NumPy scalar を Python int に変換
                 best_center = (int(cx), top_y)
-    blue_pixel_count = cv2.countNonZero(mask_blue)
-    if best_blue_ellipse is not None:
-        return best_center, max_blue_area, blue_pixel_count  # 中心x座標・上端y座標・面積・青ピクセル数
+    
+    # 実際に検出された楕円のピクセル数を計算
+    if best_blue_ellipse is not None and best_contour is not None:
+        # 検出された楕円の外接矩形内の青ピクセル数を計算
+        x, y, w, h = cv2.boundingRect(best_contour)
+        ellipse_mask_roi = mask_blue[y:y+h, x:x+w]
+        ellipse_blue_pixel_count = cv2.countNonZero(ellipse_mask_roi)
+        return best_center, max_blue_area, ellipse_blue_pixel_count  # 中心x座標・上端y座標・面積・実際の楕円ピクセル数
     return None, None, 0
 
 def calc_blue_target_distance(blue_center) -> Optional[int]:
