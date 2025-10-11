@@ -296,12 +296,12 @@ def calc_blue_target_distance(blue_center) -> Optional[int]:
     # 青ターゲットの上端から目標位置までの距離
     distance = target_y - top_y
     
-    # 2点指定線形計算：Y=30で1200、Y=300で400になるよう調整
+    # 2点指定線形計算：Y=30で1200、Y=300で430になるよう調整
     if distance > 0:
-        # 線形計算：傾き=2.963、切片=13.037
-        # Y=30(distance=402)→1200、Y=300(distance=132)→400
+        # 線形計算：傾き=2.963、切片=38.884
+        # Y=30(distance=402)→1200、Y=300(distance=132)→430
         slope = 2.963
-        intercept = 13.037
+        intercept = 38.884
         practical_distance = int(slope * distance + intercept)
     else:
         # 既に目標位置を通過している場合は短距離
