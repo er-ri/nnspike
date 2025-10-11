@@ -439,6 +439,28 @@ class ETRobot(object):
             within = (tolerance_deg <= error <= -tolerance_deg)
         return within, error
 
+    def is_vertical_yaw_error_within(self, tolerance_deg: float) -> tuple[bool, float]:
+        """
+        現在のyawが最も近い垂直方向（0, ±180度）から±tolerance_deg以内か判定し、誤差値も返す。
+        """
+        yaw = self.get_yaw()
+        candidates = [0, 180, -180]
+        errors = [self.wrap_angle(yaw - c) for c in candidates]
+        min_error = min(errors, key=lambda x: abs(x))
+        within = (-abs(tolerance_deg) <= min_error <= abs(tolerance_deg))
+        return within, min_error
+
+    def is_horizontal_yaw_error_within(self, tolerance_deg: float) -> tuple[bool, float]:
+        """
+        現在のyawが最も近い水平方向（±90度）から±tolerance_deg以内か判定し、誤差値も返す。
+        """
+        yaw = self.get_yaw()
+        candidates = [90, -90]
+        errors = [self.wrap_angle(yaw - c) for c in candidates]
+        min_error = min(errors, key=lambda x: abs(x))
+        within = (-abs(tolerance_deg) <= min_error <= abs(tolerance_deg))
+        return within, min_error
+
     def yaw_straight_control(self, base_speed: int = HIGH_SPEED_BASE, kp: float = 1.0, deadband: float = 3.0, adjust_speed: int = 1) -> tuple[int, int]:
         """
         ヨー角による直線安定化制御（P制御、内部start_yaw基準）。

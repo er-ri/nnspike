@@ -693,9 +693,9 @@ class ActionChain(object):
             # 最低回転量超えてから、ターゲット検出または最大回転量到達まで継続
             if (not red_target_detected) and (position_diff < 940):
                 if self.course == "right":
-                    return (0, 30), Mode.BACK_AND_TURN1
+                    return (0, 20), Mode.BACK_AND_TURN1
                 else:
-                    return (30, 0), Mode.BACK_AND_TURN1
+                    return (20, 0), Mode.BACK_AND_TURN1
             print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 940 or red_target_detected={red_target_detected}")
             phase.next_phase(current_pos)
             return (0, 0), Mode.BACK_AND_TURN1
@@ -782,9 +782,9 @@ class ActionChain(object):
 
             if (not line_detected) and (position_diff < max_limit):
                 if self.course == "right":
-                    return (0, 30), Mode.CARRY_BOTTLE2
+                    return (0, 20), Mode.CARRY_BOTTLE2
                 else:
-                    return (30, 0), Mode.CARRY_BOTTLE2
+                    return (20, 0), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | line_detected={line_detected} | position_diff={position_diff} >= {max_limit}")
             phase.next_phase(current_pos)
 
@@ -793,8 +793,7 @@ class ActionChain(object):
             threshold = 870 if self.course_type == "upper" else 1300
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < threshold:
-                accelerated_speed = self.get_accelerated_base_speed()
-                return (accelerated_speed, accelerated_speed), Mode.CARRY_BOTTLE2
+                return (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold}")
             phase.next_phase(current_pos)
             self._reset_acceleration_timer()
@@ -803,7 +802,7 @@ class ActionChain(object):
         # 5. 左旋回（コース側モーターが所定値移動まで、courseに応じて旋回方向決定。所定値超えたらphase6へ、モーター位置記録）
         if phase.get_phase() == 5:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 330:
+            if position_diff < 350:
                 if self.course == "right":
                     return (0, 20), Mode.CARRY_BOTTLE2
                 else:
@@ -1103,10 +1102,8 @@ class ActionChain(object):
         # 1. コース側モーターの移動距離が所定値未満なら中央追従、所定値以上で次フェーズへ遷移。到達でモーター位置記録。
         if phase.get_phase() == 1:
             position_diff = phase.get_position_diff(current_pos)
-            color_info = self.get_color_sensor_values()
-            color_type = color_info["color_type"]
-            if position_diff >= 350 or color_type != "white":
-                print(f"[DEBUG] mode={Mode.HEAD_GOAL.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 350 or color_type={color_type} (color_value={color_info['color']})")
+            if position_diff >= 350:
+                print(f"[DEBUG] mode={Mode.HEAD_GOAL.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 350")
                 phase.next_phase(current_pos)
             else:
                 return (BASE_SPEED, BASE_SPEED), Mode.HEAD_GOAL
