@@ -106,9 +106,11 @@ class FastLapChain(object):
         calculated_speed = int(min_speed + (target_speed - min_speed) * aggressive_ratio)
         speed = max(min_speed, min(calculated_speed, target_speed))
 
-        # 実データに基づき、65～75の間だけ加速を緩やかにする（上昇幅を半分に）
-        if 65 <= speed < 75:
-            speed = int(65 + (speed - 65) * 0.5)
+        # 実データに基づき、50～55・78～85の間だけ加速を緩やかにする（上昇幅を半分に）
+        if 50 <= speed < 55:
+            speed = int(50 + (speed - 50) * 0.5)
+        elif 78 <= speed < 85:
+            speed = int(78 + (speed - 78) * 0.5)
 
         if self._freeze_speed:
             speed = self._last_speed
