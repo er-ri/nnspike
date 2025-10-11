@@ -1028,7 +1028,7 @@ class ActionChain(object):
         # phase0: 青ターゲットを中央に合わせる。検出時は距離候補を収集。中央付近なら次フェーズへ。
         # carry_bottle1のphase9に相当
         if phase.get_phase() == 0:
-            blue_center, blue_area, blue_pixel_count = find_blue_target_center(image)
+            blue_center, _, blue_pixel_count = find_blue_target_center(image)
             # 信頼性チェック: Y>10（上端誤検出除外）、面積は関数内で200以上が保証済み
             # blue_pixel_countは実際の楕円外接矩形内のピクセル数なので、面積と相関がある
             if blue_center is not None and blue_center[1] > 10:
@@ -1036,12 +1036,12 @@ class ActionChain(object):
                 calculated_distance = calc_blue_target_distance(blue_center)
                 # Noneチェックしてから候補に追加
                 if calculated_distance is not None:
-                    print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | area={blue_area} | pixels={blue_pixel_count}")
+                    print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | pixels={blue_pixel_count}")
                     self._distance_candidates.append((blue_center, calculated_distance))
                 else:
                     # Noneの場合はデフォルト値で候補に追加
                     default_distance = 400 if blue_center[1] >= 300 else 300
-                    print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance=None→{default_distance} | area={blue_area} | pixels={blue_pixel_count}")
+                    print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance=None→{default_distance} | pixels={blue_pixel_count}")
                     self._distance_candidates.append((blue_center, default_distance))
             
             if blue_center is not None and blue_center[1] > 10 and abs(blue_center[0] - self.center_x) <= 20:
@@ -1051,12 +1051,12 @@ class ActionChain(object):
                 
                 # y座標が300以上なら直接フェーズ2（追跡フェーズ）に移行
                 if blue_center[1] >= 300:
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_y={blue_center[1]} >= 300 | area={blue_area} | pixels={blue_pixel_count} | skip to phase2 | candidates_count={len(self._distance_candidates)} | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_y={blue_center[1]} >= 300 | pixels={blue_pixel_count} | skip to phase2 | candidates_count={len(self._distance_candidates)} | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                     # フェーズ遷移時に候補リストをクリア
                     self._distance_candidates = []
                     phase.next_phase(current_pos, skip=2)
                 else:
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_y={blue_center[1]} < 300 | area={blue_area} | pixels={blue_pixel_count} | proceed to phase1 | candidates_count={len(self._distance_candidates)} | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_y={blue_center[1]} < 300 | pixels={blue_pixel_count} | proceed to phase1 | candidates_count={len(self._distance_candidates)} | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                     # フェーズ遷移時に候補リストをクリア
                     self._distance_candidates = []
                     phase.next_phase(current_pos)
@@ -1097,21 +1097,22 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.EYE_BLUE
             
-            blue_center, blue_area, blue_pixel_count = find_blue_target_center(image)
+            blue_center, _, blue_pixel_count = find_blue_target_center(image)
             
             # 青ターゲットが検出された場合の独立判定
             if blue_center is not None and blue_center[1] > 10:
-                print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → area={blue_area} | pixels={blue_pixel_count}")
+                print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → pixels={blue_pixel_count}")
                 
                 # y座標が300以上になったら次フェーズへ（フェーズ1独立の距離計算）
                 if blue_center[1] >= 300:
                     # フェーズ1の最新検出に基づく距離計算 - 直接self._calculated_distanceに代入
                     calculated_result = calc_blue_target_distance(blue_center)
+                    print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_result} | pixels={blue_pixel_count}")
                     # _calculated_distanceは絶対にNoneにならない（デフォルト300保証済み）
                     if calculated_result is not None:
                         self._calculated_distance = calculated_result
                     # Noneの場合も既存の_calculated_distanceをそのまま使用（300または前回計算値）
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_y={blue_center[1]} >= 300 | area={blue_area} | pixels={blue_pixel_count} | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_y={blue_center[1]} >= 300 | pixels={blue_pixel_count} | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                     # フェーズ遷移時に候補リストをクリア
                     self._distance_candidates = []
                     phase.next_phase(current_pos)
@@ -1142,10 +1143,10 @@ class ActionChain(object):
                 return (0, 0), Mode.EYE_BLUE
             
             # 青ターゲット検出処理
-            blue_center, blue_area, blue_pixel_count = find_blue_target_center(image)
+            blue_center, _, blue_pixel_count = find_blue_target_center(image)
             
             # デバッグ情報を追加
-            print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} < {self._calculated_distance} | blue_center={blue_center} | area={blue_area} | pixels={blue_pixel_count}")
+            print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} < {self._calculated_distance} | blue_center={blue_center} | pixels={blue_pixel_count}")
             
             # 青ターゲットが多く見える場合：追跡モード（実際の楕円ピクセル数に基づく閾値調整）
             if blue_pixel_count > 500:  # 1000→500に調整
