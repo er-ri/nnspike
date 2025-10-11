@@ -102,7 +102,7 @@ class FastLapChain(object):
 
         ratio = elapsed_time / acceleration_time
         aggressive_ratio = ratio ** 1.5
-        min_speed = 40
+        min_speed = 50
         calculated_speed = int(min_speed + (target_speed - min_speed) * aggressive_ratio)
         speed = max(min_speed, min(calculated_speed, target_speed))
 
