@@ -87,7 +87,7 @@ class FastLapChain(object):
         if elapsed_time >= acceleration_time:
             return target_speed
 
-        # --- 0.8秒未満のみ従来の加速・freeze判定を行う ---
+        # --- acceleration_time未満のみ従来の加速・freeze判定を行う ---
         left_power, right_power = self.et.get_motor_power()
         motor_a_power = right_power  # A=right
         motor_b_power = left_power   # B=left
@@ -105,6 +105,11 @@ class FastLapChain(object):
         min_speed = 40
         calculated_speed = int(min_speed + (target_speed - min_speed) * aggressive_ratio)
         speed = max(min_speed, min(calculated_speed, target_speed))
+
+        # 実データに基づき、65～75の間だけ加速を緩やかにする（上昇幅を半分に）
+        if 65 <= speed < 75:
+            speed = int(65 + (speed - 65) * 0.5)
+
         if self._freeze_speed:
             speed = self._last_speed
 
@@ -241,7 +246,7 @@ class FastLapChain(object):
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 3000:
                 # ファストラップ専用スタートダッシュ加速制御メソッドを使用
-                base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.5)
+                base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.8)
                 left_speed, right_speed = et.yaw_straight_control(base_speed=base_speed)
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
