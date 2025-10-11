@@ -1361,19 +1361,19 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
-        # phase1: 90度旋回（is_yaw_turn_finishedで判定）
+        # phase1: 90度旋回（course依存で左右、距離390進むまで）
         if phase.get_phase() == 1:
-            finished = et.is_yaw_turn_finished(side=self.course, threshold_deg=90.0)
-            if finished:
-                et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | is_yaw_turn_finished | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase2")
-                phase.next_phase(current_pos)
-                return (0, 0), Mode.TEST
-            else:
+            position_diff = phase.get_position_diff(current_pos)
+            if position_diff < 390:
                 if self.course == "right":
                     return (0, 30), Mode.TEST
                 else:
                     return (30, 0), Mode.TEST
+            else:
+                et.set_start_yaw()
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase2")
+                phase.next_phase(current_pos)
+                return (0, 0), Mode.TEST
 
         # phase2: 旋回後ヨー角調整（水平方向基準）
         if phase.get_phase() == 2:
@@ -1403,19 +1403,19 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
-        # phase4: 90度旋回（is_yaw_turn_finishedで判定）
+        # phase4: 90度旋回（course依存で左右、距離390進むまで）
         if phase.get_phase() == 4:
-            finished = et.is_yaw_turn_finished(side=self.course, threshold_deg=90.0)
-            if finished:
-                et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | is_yaw_turn_finished | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase5")
-                phase.next_phase(current_pos)
-                return (0, 0), Mode.TEST
-            else:
+            position_diff = phase.get_position_diff(current_pos)
+            if position_diff < 390:
                 if self.course == "right":
                     return (0, 30), Mode.TEST
                 else:
                     return (30, 0), Mode.TEST
+            else:
+                et.set_start_yaw()
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase5")
+                phase.next_phase(current_pos)
+                return (0, 0), Mode.TEST
 
         # phase5: 旋回後ヨー角調整（垂直方向基準）
         if phase.get_phase() == 5:
