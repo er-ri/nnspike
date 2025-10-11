@@ -69,7 +69,7 @@ class FastLapChain(object):
             return 0.0
         return time.time() - self._acceleration_start_time
 
-    def get_fast_lap_start_dash_speed(self, target_speed: int = HIGH_SPEED_BASE, acceleration_time: float = 0.8) -> int:
+    def get_fast_lap_start_dash_speed(self, target_speed: int = HIGH_SPEED_BASE, acceleration_time: float = 0.5) -> int:
         """
         ファストラップ専用スタートダッシュ加速制御。
         action_chainの加速とは完全に独立した、より積極的な加速を提供する。
@@ -106,11 +106,6 @@ class FastLapChain(object):
         calculated_speed = int(min_speed + (target_speed - min_speed) * aggressive_ratio)
         speed = max(min_speed, min(calculated_speed, target_speed))
 
-        # 実データに基づき、50～55・78～85の間だけ加速を緩やかにする（上昇幅を半分に）
-        if 50 <= speed < 55:
-            speed = int(50 + (speed - 50) * 0.5)
-        elif 78 <= speed < 85:
-            speed = int(78 + (speed - 78) * 0.5)
 
         if self._freeze_speed:
             speed = self._last_speed
@@ -248,7 +243,7 @@ class FastLapChain(object):
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 3000:
                 # ファストラップ専用スタートダッシュ加速制御メソッドを使用
-                base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.8)
+                base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.5)
                 left_speed, right_speed = et.yaw_straight_control(base_speed=base_speed)
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
