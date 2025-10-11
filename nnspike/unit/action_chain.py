@@ -790,33 +790,40 @@ class ActionChain(object):
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | line_detected={line_detected} | position_diff={position_diff} >= {max_limit}")
             phase.next_phase(current_pos)
 
-        # 4. 直進（コース側モーターが所定値移動まで、両輪BASE_SPEED。所定値超えたらphase5へ、モーター位置記録）
+        # 4. 直進（コース側モーターが所定値移動まで、加速度付き直進。所定値超えたらphase5へ、モーター位置記録）
         if phase.get_phase() == 4:
             threshold = 870 if self.course_type == "upper" else 1300
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < threshold:
-                return (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
+                accelerated_speed = self.get_accelerated_base_speed()
+                return (accelerated_speed, accelerated_speed), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold}")
             phase.next_phase(current_pos)
+            self._reset_acceleration_timer()
+            return (0, 0), Mode.CARRY_BOTTLE2
 
         # 5. 左旋回（コース側モーターが所定値移動まで、courseに応じて旋回方向決定。所定値超えたらphase6へ、モーター位置記録）
         if phase.get_phase() == 5:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 350:
                 if self.course == "right":
-                    return (0, 30), Mode.CARRY_BOTTLE2
+                    return (0, 20), Mode.CARRY_BOTTLE2
                 else:
-                    return (30, 0), Mode.CARRY_BOTTLE2
+                    return (20, 0), Mode.CARRY_BOTTLE2
+            # 一定値超えたら次フェーズへ
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 350")
             phase.next_phase(current_pos)
+            return (0, 0), Mode.CARRY_BOTTLE2
 
-        # 6. 直進（コース側モーターが所定値移動まで、両輪BASE_SPEED。所定値超えたらphase7へ、モーター位置記録、pre_target_x初期化）
+        # 6. 直進（コース側モーターが所定値移動まで、加速度付き直進。所定値超えたらphase7へ、モーター位置記録、pre_target_x初期化）
         if phase.get_phase() == 6:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 100:
-                return (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
+                accelerated_speed = self.get_accelerated_base_speed()
+                return (accelerated_speed, accelerated_speed), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 100")
             phase.next_phase(current_pos)
+            self._reset_acceleration_timer()
             self.pre_target_x = self.center_x
 
         # 7. 仮想ライン直進（コース側モーターが所定値移動まで仮想ライン中心座標取得処理、pre_target_x更新。所定値超えたらphase8へ、モーター位置記録）
@@ -833,7 +840,7 @@ class ActionChain(object):
                 else:
                     target_x = self.center_x
                     self.pre_target_x = target_x
-                left_speed, right_speed = self.calc_motor_speed(target_x)
+                left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1400")
             phase.next_phase(current_pos)
