@@ -1051,12 +1051,12 @@ class ActionChain(object):
                 
                 # y座標が300以上なら直接フェーズ2（追跡フェーズ）に移行
                 if blue_center[1] >= 300:
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_y={blue_center[1]} >= 300 | area={blue_area} | pixels={blue_pixel_count} | skip to phase2 | candidates_count={len(self._distance_candidates)} | best_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_y={blue_center[1]} >= 300 | area={blue_area} | pixels={blue_pixel_count} | skip to phase2 | candidates_count={len(self._distance_candidates)} | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                     # フェーズ遷移時に候補リストをクリア
                     self._distance_candidates = []
                     phase.next_phase(current_pos, skip=2)
                 else:
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_y={blue_center[1]} < 300 | area={blue_area} | pixels={blue_pixel_count} | proceed to phase1 | candidates_count={len(self._distance_candidates)} | best_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_y={blue_center[1]} < 300 | area={blue_area} | pixels={blue_pixel_count} | proceed to phase1 | candidates_count={len(self._distance_candidates)} | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                     # フェーズ遷移時に候補リストをクリア
                     self._distance_candidates = []
                     phase.next_phase(current_pos)
@@ -1073,7 +1073,7 @@ class ActionChain(object):
                 if in_tolerance:
                     # 最適な距離を選択して保存
                     self._calculated_distance = self._get_best_distance_from_candidates()
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | yaw_ok | no_blue_target | skip to phase2 | candidates_count={len(self._distance_candidates)} | best_distance={self._calculated_distance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | yaw_ok | no_blue_target | skip to phase2 | candidates_count={len(self._distance_candidates)} | _calculated_distance={self._calculated_distance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
                     # フェーズ遷移時に候補リストをクリア
                     self._distance_candidates = []
                     phase.next_phase(current_pos, skip=2)
@@ -1091,7 +1091,7 @@ class ActionChain(object):
             
             # 距離制限チェック - 計算距離に到達した場合は次フェーズへ
             if distance_from_start >= self._calculated_distance:
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= {self._calculated_distance} | proceed to tracking phase")
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= _calculated_distance={self._calculated_distance} | proceed to tracking phase")
                 # フェーズ遷移時に候補リストをクリア
                 self._distance_candidates = []
                 phase.next_phase(current_pos)
@@ -1111,14 +1111,14 @@ class ActionChain(object):
                     if calculated_result is not None:
                         self._calculated_distance = calculated_result
                     # Noneの場合も既存の_calculated_distanceをそのまま使用（300または前回計算値）
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_y={blue_center[1]} >= 300 | area={blue_area} | pixels={blue_pixel_count} | proceed to tracking phase | distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_y={blue_center[1]} >= 300 | area={blue_area} | pixels={blue_pixel_count} | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                     # フェーズ遷移時に候補リストをクリア
                     self._distance_candidates = []
                     phase.next_phase(current_pos)
                     return (0, 0), Mode.EYE_BLUE
             else:
                 # 青ターゲットが検出されない場合、追跡フェーズに移行して探索
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | no_blue_target | proceed to tracking phase | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | no_blue_target | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 # フェーズ遷移時に候補リストをクリア
                 self._distance_candidates = []
                 phase.next_phase(current_pos)
@@ -1137,7 +1137,7 @@ class ActionChain(object):
             
             # 計算距離到達で停止
             if distance_from_start >= self._calculated_distance:
-                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= {self._calculated_distance} | STOP | start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
+                print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= _calculated_distance={self._calculated_distance} | STOP | start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.EYE_BLUE
             
