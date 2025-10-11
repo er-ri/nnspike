@@ -585,8 +585,47 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE1
 
-        # phase11: 青ターゲット追跡または計算距離まで直進。距離到達または青検出で次フェーズへ。
+        # phase11: もう一度青ターゲットを中心に合わせる（EYE_BLUEのフェーズ2と同じ処理）
         if phase.get_phase() == 11:
+            blue_center, _, blue_pixel_count = find_blue_target_center(image)
+            
+            if blue_center is not None and blue_center[1] > 10:
+                # 距離計算して保存（フェーズ12で使用）
+                calculated_distance = calc_blue_target_distance(blue_center)
+                if calculated_distance is not None:
+                    self._calculated_distance = calculated_distance
+                    print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | pixels={blue_pixel_count}")
+                
+                # 中心に合わせる判定（±20ピクセル以内）
+                if abs(blue_center[0] - self.center_x) <= 20:
+                    # 中心に合った→次フェーズへ
+                    et.set_start_yaw()
+                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance} | proceed to phase12")
+                    phase.next_phase(current_pos)
+                    return (0, 0), Mode.CARRY_BOTTLE1
+                else:
+                    # 中心に向けて旋回
+                    if blue_center[0] < self.center_x:
+                        return (0, 5), Mode.CARRY_BOTTLE1  # 左旋回
+                    else:
+                        return (5, 0), Mode.CARRY_BOTTLE1  # 右旋回
+            else:
+                # 青ターゲットが見つからない→ヨー角調整
+                in_tolerance, yaw_error = et.is_start_yaw_error_within(3.0)
+                if in_tolerance:
+                    # ヨー角OK→フェーズ12へ
+                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | no_blue_target | yaw_ok | proceed to phase12")
+                    phase.next_phase(current_pos)
+                    return (0, 0), Mode.CARRY_BOTTLE1
+                else:
+                    # ヨー角調整
+                    if yaw_error < 0:
+                        return (5, 0), Mode.CARRY_BOTTLE1
+                    else:
+                        return (0, 5), Mode.CARRY_BOTTLE1
+
+        # phase12: 青ターゲット追跡または計算距離まで直進。距離到達または青検出で次フェーズへ。
+        if phase.get_phase() == 12:
             # 標準的な距離計算を使用
             distance_from_start = phase.get_position_diff(current_pos)
             
@@ -619,8 +658,8 @@ class ActionChain(object):
                 left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=2)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # phase12: 状態リセットしBACK_AND_TURN1へ遷移。
-        if phase.get_phase() == 12:
+        # phase13: 状態リセットしBACK_AND_TURN1へ遷移。
+        if phase.get_phase() == 13:
             self.reset_action()
             return (0, 0), Mode.BACK_AND_TURN1
 
@@ -915,8 +954,47 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE2
 
-        # phase12: 青ターゲット追跡または計算距離まで直進。距離到達または青検出で次フェーズへ。
+        # phase12: もう一度青ターゲットを中心に合わせる（EYE_BLUEのフェーズ2と同じ処理）
         if phase.get_phase() == 12:
+            blue_center, _, blue_pixel_count = find_blue_target_center(image)
+            
+            if blue_center is not None and blue_center[1] > 10:
+                # 距離計算して保存（フェーズ13で使用）
+                calculated_distance = calc_blue_target_distance(blue_center)
+                if calculated_distance is not None:
+                    self._calculated_distance = calculated_distance
+                    print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | pixels={blue_pixel_count}")
+                
+                # 中心に合わせる判定（±20ピクセル以内）
+                if abs(blue_center[0] - self.center_x) <= 20:
+                    # 中心に合った→次フェーズへ
+                    self.et.set_start_yaw()
+                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance} | proceed to phase13")
+                    phase.next_phase(current_pos)
+                    return (0, 0), Mode.CARRY_BOTTLE2
+                else:
+                    # 中心に向けて旋回
+                    if blue_center[0] < self.center_x:
+                        return (0, 5), Mode.CARRY_BOTTLE2  # 左旋回
+                    else:
+                        return (5, 0), Mode.CARRY_BOTTLE2  # 右旋回
+            else:
+                # 青ターゲットが見つからない→ヨー角調整
+                in_tolerance, yaw_error = self.et.is_start_yaw_error_within(3.0)
+                if in_tolerance:
+                    # ヨー角OK→フェーズ13へ
+                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | no_blue_target | yaw_ok | proceed to phase13")
+                    phase.next_phase(current_pos)
+                    return (0, 0), Mode.CARRY_BOTTLE2
+                else:
+                    # ヨー角調整
+                    if yaw_error < 0:
+                        return (5, 0), Mode.CARRY_BOTTLE2
+                    else:
+                        return (0, 5), Mode.CARRY_BOTTLE2
+
+        # phase13: 青ターゲット追跡または計算距離まで直進。距離到達または青検出で次フェーズへ。
+        if phase.get_phase() == 13:
             # 標準的な距離計算を使用
             distance_from_start = phase.get_position_diff(current_pos)
             
@@ -949,8 +1027,8 @@ class ActionChain(object):
                 left_speed, right_speed = self.et.yaw_straight_control(base_speed=accelerated_speed, deadband=2)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
-        # 13. 状態リセットしBACK_AND_TURN2へ遷移
-        if phase.get_phase() == 13:
+        # 14. 状態リセットしBACK_AND_TURN2へ遷移
+        if phase.get_phase() == 14:
             self.reset_action()
             return (0, 0), Mode.BACK_AND_TURN2
 
