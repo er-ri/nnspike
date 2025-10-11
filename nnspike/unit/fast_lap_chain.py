@@ -96,8 +96,8 @@ class FastLapChain(object):
         if (abs(motor_a_power) < abs(self._prev_motor_a_power) or
             abs(motor_b_power) < abs(self._prev_motor_b_power)):
             self._freeze_speed = True
-        elif (abs(motor_a_power) > abs(self._prev_motor_a_power) or
-              abs(motor_b_power) > abs(self._prev_motor_b_power)):
+        elif (abs(motor_a_power) >= abs(self._prev_motor_a_power) or
+              abs(motor_b_power) >= abs(self._prev_motor_b_power)):
             self._freeze_speed = False
 
         ratio = elapsed_time / acceleration_time
