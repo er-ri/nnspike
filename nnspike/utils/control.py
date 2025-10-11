@@ -849,9 +849,9 @@ def get_virtual_line_target_x(image, previous_center_x=None) -> int:
             # 物体中心には絶対向かわない。安全なデフォルト値。
             target_x = 320
 
-    # previous_center_xによるジャンプ制限
+    # previous_center_xによるジャンプ制限（振動抑制）
     if candidates and previous_center_x is not None and 'target_x' in locals():
-        max_delta = 40  # 許容する最大変化量
+        max_delta = 10  # 許容する最大変化量を小さく制限
         if abs(target_x - previous_center_x) > max_delta:
             if target_x > previous_center_x:
                 target_x = previous_center_x + max_delta
