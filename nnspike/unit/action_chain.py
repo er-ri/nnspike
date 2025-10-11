@@ -1031,11 +1031,17 @@ class ActionChain(object):
             blue_center, _, blue_pixel_count = find_blue_target_center(image)
             
             if blue_center is not None and blue_center[1] > 10:
+                # 距離計算して保存（フェーズ1で使用）
+                calculated_distance = calc_blue_target_distance(blue_center)
+                if calculated_distance is not None:
+                    self._calculated_distance = calculated_distance
+                    print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | pixels={blue_pixel_count}")
+                
                 # 中心に合わせる判定（±20ピクセル以内）
                 if abs(blue_center[0] - self.center_x) <= 20:
                     # 中心に合った→次フェーズへ
                     et.set_start_yaw()
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | proceed to phase1")
+                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance} | proceed to phase1")
                     phase.next_phase(current_pos)
                     return (0, 0), Mode.EYE_BLUE
                 else:
