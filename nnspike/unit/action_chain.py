@@ -346,7 +346,6 @@ class ActionChain(object):
             self.et.set_start_yaw_nearest_vertical_pole()
             # プライベート変数の初期化
             self._calculated_distance = 300  # デフォルト値
-            self._distance_candidates = []  # 距離候補リスト
             self._blue_phase_start_pos = 0  # 青ターゲット追従開始位置
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
