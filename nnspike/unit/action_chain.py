@@ -1362,18 +1362,17 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
-        # phase1: 90度旋回（course依存で左右、距離390進むまで、速度20）
+        # phase1: 90度旋回（course依存で左右、距離390進むまで、速度30）
         if phase.get_phase() == 1:
-            # 90度旋回判定（courseをそのままsideに渡す）
-            turn_finished = et.is_yaw_turn_finished(side=self.course, threshold_deg=90.0)
-            if not turn_finished:
+            position_diff = phase.get_position_diff(current_pos)
+            if position_diff < 390:
                 if self.course == "right":
                     return (0, 30), Mode.TEST
                 else:
                     return (30, 0), Mode.TEST
             else:
                 et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | 90deg turn finished | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase2")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase2")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
@@ -1405,18 +1404,17 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
-        # phase4: 90度旋回（course依存で左右、距離390進むまで、速度20）
+        # phase4: 90度旋回（course依存で左右、距離390進むまで、速度30）
         if phase.get_phase() == 4:
-            # 90度旋回判定（courseをそのままsideに渡す）
-            turn_finished = et.is_yaw_turn_finished(side=self.course, threshold_deg=90.0)
-            if not turn_finished:
+            position_diff = phase.get_position_diff(current_pos)
+            if position_diff < 390:
                 if self.course == "right":
                     return (0, 30), Mode.TEST
                 else:
                     return (30, 0), Mode.TEST
             else:
                 et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | 90deg turn finished | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase5")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase5")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
