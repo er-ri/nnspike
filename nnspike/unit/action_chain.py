@@ -1434,10 +1434,15 @@ class ActionChain(object):
             if in_tolerance:
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase0")
                 phase.next_phase(current_pos, skip=-5)  # 0に戻す
+                # ループごとに右左切り替え
+                if self.course == "right":
+                    self.course = "left"
+                else:
+                    self.course = "right"
                 et.reset_yaw()
                 et.set_start_yaw(0)
                 # [DEBUG] mode=TEST | phase=5 | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | phase0リセット
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | phase0リセット")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | phase0リセット | course switched to {self.course}")
                 return (0, 0), Mode.TEST
             else:
                 if yaw_error < 0:
