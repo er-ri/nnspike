@@ -1341,6 +1341,7 @@ class ActionChain(object):
     def test_mode_action(self, image=None) -> Tuple[Tuple[int, int], Mode]:
         if not self._init:
             self.initialize_action(motor_side=self.course)
+            self.et.reset_yaw()
             self.et.set_start_yaw(0)
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
@@ -1361,14 +1362,14 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
-        # phase1: 90度旋回（course依存で左右、距離390進むまで）
+        # phase1: 90度旋回（course依存で左右、距離390進むまで、速度20）
         if phase.get_phase() == 1:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 390:
                 if self.course == "right":
-                    return (0, 30), Mode.TEST
+                    return (0, 20), Mode.TEST
                 else:
-                    return (30, 0), Mode.TEST
+                    return (20, 0), Mode.TEST
             else:
                 et.set_start_yaw()
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase2")
@@ -1403,14 +1404,14 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
-        # phase4: 90度旋回（course依存で左右、距離390進むまで）
+        # phase4: 90度旋回（course依存で左右、距離390進むまで、速度20）
         if phase.get_phase() == 4:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 390:
                 if self.course == "right":
-                    return (0, 30), Mode.TEST
+                    return (0, 20), Mode.TEST
                 else:
-                    return (30, 0), Mode.TEST
+                    return (20, 0), Mode.TEST
             else:
                 et.set_start_yaw()
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase5")
@@ -1421,9 +1422,10 @@ class ActionChain(object):
         if phase.get_phase() == 5:
             in_tolerance, yaw_error = et.is_vertical_yaw_error_within(1.0)
             if in_tolerance:
-                et.set_start_yaw()
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | vertical_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase0")
                 phase.next_phase(current_pos, skip=-5)  # 0に戻す
+                et.reset_yaw()
+                et.set_start_yaw()
                 return (0, 0), Mode.TEST
             else:
                 if yaw_error < 0:

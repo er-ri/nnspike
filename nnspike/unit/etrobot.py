@@ -17,7 +17,9 @@ class ETRobot(object):
     COMMAND_SET_MOTOR_RELATIVE_POSITION_ID = 203
     COMMAND_STOP_MOTOR_ID = 204
     COMMAND_MOVE_ARM_ID = 205
+
     COMMAND_SET_MOTOR_MIXED_SPEED_ID = 206
+    COMMAND_RESET_YAW_ID = 207  # ヨーリセット用コマンドID
 
     CMD_FLAG = b"CF:"
 
@@ -523,4 +525,14 @@ class ETRobot(object):
         else:
             self._start_yaw = -90.0
             
-        print(f"[DEBUG][set_start_yaw_nearest_horizontal_pole] set={self._start_yaw}, get_yaw={yaw}")  
+        print(f"[DEBUG][set_start_yaw_nearest_horizontal_pole] set={self._start_yaw}, get_yaw={yaw}") 
+
+    def reset_yaw(self) -> None:
+        """
+        ヨー角リセットコマンドをSpike Primeに送信する。
+        """
+        id_byte = self.COMMAND_RESET_YAW_ID.to_bytes(1, "big")
+        parameter1_byte = (0).to_bytes(1, "big")
+        parameter2_byte = (0).to_bytes(1, "big")
+        command = id_byte + parameter1_byte + parameter2_byte
+        self.__send_command(command) 
