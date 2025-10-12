@@ -1363,10 +1363,10 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
-        # phase1: 90度旋回（左右切替、380進むまで）
+        # phase1: 90度旋回（左右切替、390進むまで）
         if phase.get_phase() == 1:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 380:
+            if position_diff < 390:
                 if self.course == "right":
                     return (0, 20), Mode.TEST
                 else:
@@ -1376,7 +1376,7 @@ class ActionChain(object):
                     et.set_start_yaw(et.get_start_yaw() - 90.0)
                 else:
                     et.set_start_yaw(et.get_start_yaw() + 90.0)
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 380 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase2 (yaw correction)")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase2 (yaw correction)")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
@@ -1417,10 +1417,10 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
-        # phase4: 90度旋回（左右切替、380進むまで）
+        # phase4: 90度旋回（左右切替、390進むまで）
         if phase.get_phase() == 4:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 380:
+            if position_diff < 390:
                 if self.course == "right":
                     return (0, 20), Mode.TEST
                 else:
@@ -1430,7 +1430,7 @@ class ActionChain(object):
                     et.set_start_yaw(et.get_start_yaw() - 90.0)
                 else:
                     et.set_start_yaw(et.get_start_yaw() + 90.0)
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 380 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase5 (yaw correction)")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase5 (yaw correction)")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
