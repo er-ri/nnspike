@@ -1367,9 +1367,9 @@ class ActionChain(object):
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 390:
                 if self.course == "right":
-                    return (0, 20), Mode.TEST
+                    return (-20, 20), Mode.TEST
                 else:
-                    return (20, 0), Mode.TEST
+                    return (20, -20), Mode.TEST
             else:
                 et.set_start_yaw()
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase2")
