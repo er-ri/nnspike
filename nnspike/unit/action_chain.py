@@ -1379,7 +1379,7 @@ class ActionChain(object):
 
         # phase2: 旋回後ヨー角調整（水平方向基準）
         if phase.get_phase() == 2:
-            in_tolerance, yaw_error = et.is_horizontal_yaw_error_within(1.0)
+            in_tolerance, yaw_error = et.is_horizontal_yaw_error_within(0.0)
             if in_tolerance:
                 et.set_start_yaw()
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | horizontal_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase3")
@@ -1422,7 +1422,7 @@ class ActionChain(object):
 
         # phase5: 旋回後ヨー角調整（垂直方向基準）
         if phase.get_phase() == 5:
-            in_tolerance, yaw_error = et.is_vertical_yaw_error_within(1.0)
+            in_tolerance, yaw_error = et.is_vertical_yaw_error_within(0.0)
             if in_tolerance:
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | vertical_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase0")
                 phase.next_phase(current_pos, skip=-5)  # 0に戻す
