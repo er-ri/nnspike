@@ -1354,11 +1354,11 @@ class ActionChain(object):
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 500:
                 accelerated_speed = self.get_accelerated_base_speed(target_speed=30, acceleration_time=1.5)
-                left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=2)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
                 return (left_speed, right_speed), Mode.TEST
             else:
                 self._reset_acceleration_timer()
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 500 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase1")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 500 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
@@ -1375,16 +1375,16 @@ class ActionChain(object):
                     et.set_start_yaw(et.get_start_yaw() - 90.0)
                 else:
                     et.set_start_yaw(et.get_start_yaw() + 90.0)
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase2 (yaw correction)")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
         # phase2: 旋回後のヨー角誤差調整（3秒間連続で誤差範囲内なら次フェーズ）
         if phase.get_phase() == 2:
             # 許容範囲に入ったら即フェーズ遷移
-            in_tolerance, yaw_error = et.is_start_yaw_error_within(2.0)
+            in_tolerance, yaw_error = et.is_start_yaw_error_within(1.0)
             if in_tolerance:
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase3 (yaw reset after correction, immediate)")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
             else:
@@ -1398,11 +1398,11 @@ class ActionChain(object):
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 500:
                 accelerated_speed = self.get_accelerated_base_speed(target_speed=30, acceleration_time=1.5)
-                left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=2)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
                 return (left_speed, right_speed), Mode.TEST
             else:
                 self._reset_acceleration_timer()
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 500 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase4")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 500 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
@@ -1419,18 +1419,18 @@ class ActionChain(object):
                     et.set_start_yaw(et.get_start_yaw() - 90.0)
                 else:
                     et.set_start_yaw(et.get_start_yaw() + 90.0)
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase5 (yaw correction)")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
         # phase5: 旋回後のヨー角誤差調整（3秒間連続で誤差範囲内なら次フェーズ）
         if phase.get_phase() == 5:
             # 許容範囲に入ったら即フェーズ遷移
-            in_tolerance, yaw_error = et.is_start_yaw_error_within(2.0)
+            in_tolerance, yaw_error = et.is_start_yaw_error_within(1.0)
             if in_tolerance:
                 phase_num = phase.get_phase()
                 phase.next_phase(current_pos, skip=-5)  # 0に戻す
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase_num} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase0 (immediate, phase0リセット, course switched to {self.course})")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase_num} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 return (0, 0), Mode.TEST
             else:
                 if yaw_error < 0:
