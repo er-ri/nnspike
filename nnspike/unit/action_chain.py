@@ -1350,7 +1350,7 @@ class ActionChain(object):
         # phase0: 直進（1000進むまで）
         if phase.get_phase() == 0:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 1000:
+            if position_diff < 500:
                 accelerated_speed = self.get_accelerated_base_speed(target_speed=30, acceleration_time=1.5)
                 left_speed = accelerated_speed
                 right_speed = accelerated_speed
@@ -1398,7 +1398,7 @@ class ActionChain(object):
         # phase3: 直進（再び1000進むまで）
         if phase.get_phase() == 3:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 1000:
+            if position_diff < 500:
                 accelerated_speed = self.get_accelerated_base_speed(target_speed=30, acceleration_time=1.5)
                 left_speed = accelerated_speed
                 right_speed = accelerated_speed
