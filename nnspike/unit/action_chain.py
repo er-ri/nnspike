@@ -1426,6 +1426,8 @@ class ActionChain(object):
                 phase.next_phase(current_pos, skip=-5)  # 0に戻す
                 et.reset_yaw()
                 et.set_start_yaw()
+                # [DEBUG] mode=TEST | phase=5 | vertical_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | phase0リセット
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | vertical_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | phase0リセット")
                 return (0, 0), Mode.TEST
             else:
                 if yaw_error < 0:
