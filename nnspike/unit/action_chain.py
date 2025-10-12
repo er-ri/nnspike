@@ -1367,9 +1367,9 @@ class ActionChain(object):
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 390:
                 if self.course == "right":
-                    return (0, 20), Mode.TEST
+                    return (0, 15), Mode.TEST
                 else:
-                    return (20, 0), Mode.TEST
+                    return (15, 0), Mode.TEST
             else:
                 # あるべきヨー角を基準に±90度
                 if self.course == "right":
@@ -1415,9 +1415,9 @@ class ActionChain(object):
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 390:
                 if self.course == "right":
-                    return (0, 20), Mode.TEST
+                    return (0, 15), Mode.TEST
                 else:
-                    return (20, 0), Mode.TEST
+                    return (15, 0), Mode.TEST
             else:
                 if self.course == "right":
                     self._ideal_yaw -= 90.0
