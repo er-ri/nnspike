@@ -11,7 +11,9 @@ COMMAND_SET_MOTOR_BACKWARD_SPEED_ID = 202
 COMMAND_SET_MOTOR_RELATIVE_POSITION_ID = 203
 COMMAND_STOP_MOTOR_ID = 204
 COMMAND_MOVE_ARM_ID = 205
+
 COMMAND_SET_MOTOR_MIXED_SPEED_ID = 206
+COMMAND_RESET_YAW_ID = 207  # ヨーリセット用コマンドID
 
 CMD_FLAG = b"CF:"
 
@@ -94,6 +96,9 @@ class LegoSpike(object):
         elif command_id == COMMAND_SET_MOTOR_MIXED_SPEED_ID:
             # 正負値をそのまま左右に適用
             self._set_motor_mixed_speed(command_parameter1, command_parameter2)
+        elif command_id == COMMAND_RESET_YAW_ID:
+            # ヨーリセット
+            hub.motion.yaw_pitch_roll(0)
 
     def _set_motor_mixed_speed(self, left_speed: int, right_speed: int) -> None:
         """
