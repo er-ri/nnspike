@@ -1358,7 +1358,6 @@ class ActionChain(object):
                 return (left_speed, right_speed), Mode.TEST
             else:
                 self._reset_acceleration_timer()
-                et.set_start_yaw()
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 500 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase1")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
@@ -1403,7 +1402,6 @@ class ActionChain(object):
                 return (left_speed, right_speed), Mode.TEST
             else:
                 self._reset_acceleration_timer()
-                et.set_start_yaw()
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 500 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase4")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
