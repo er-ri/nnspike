@@ -1345,6 +1345,8 @@ class ActionChain(object):
             self.et.set_start_yaw()
             self._testmode_phase2_time = None
             self._testmode_phase5_time = None
+            # あるべきヨー角（理想yaw）を管理
+            self._ideal_yaw = self.et.get_start_yaw()
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
         et = self.et
@@ -1371,10 +1373,12 @@ class ActionChain(object):
                 else:
                     return (20, 0), Mode.TEST
             else:
+                # あるべきヨー角を基準に±90度
                 if self.course == "right":
-                    et.set_start_yaw(et.get_start_yaw() - 90.0)
+                    self._ideal_yaw -= 90.0
                 else:
-                    et.set_start_yaw(et.get_start_yaw() + 90.0)
+                    self._ideal_yaw += 90.0
+                et.set_start_yaw(self._ideal_yaw)
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
@@ -1416,9 +1420,10 @@ class ActionChain(object):
                     return (20, 0), Mode.TEST
             else:
                 if self.course == "right":
-                    et.set_start_yaw(et.get_start_yaw() - 90.0)
+                    self._ideal_yaw -= 90.0
                 else:
-                    et.set_start_yaw(et.get_start_yaw() + 90.0)
+                    self._ideal_yaw += 90.0
+                et.set_start_yaw(self._ideal_yaw)
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
@@ -1430,6 +1435,8 @@ class ActionChain(object):
             if in_tolerance:
                 phase_num = phase.get_phase()
                 phase.next_phase(current_pos, skip=-5)  # 0に戻す
+                # 0に戻すときは理想yawもリセット
+                self._ideal_yaw = et.get_start_yaw()
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase_num} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 return (0, 0), Mode.TEST
             else:
