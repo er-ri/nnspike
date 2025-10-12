@@ -1368,9 +1368,9 @@ class ActionChain(object):
             turn_finished = et.is_yaw_turn_finished(side=self.course, threshold_deg=90.0)
             if not turn_finished:
                 if self.course == "right":
-                    return (-10, 10), Mode.TEST
+                    return (-20, 20), Mode.TEST
                 else:
-                    return (10, -10), Mode.TEST
+                    return (20, -20), Mode.TEST
             else:
                 et.set_start_yaw()
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | 90deg turn finished | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase2")
@@ -1411,9 +1411,9 @@ class ActionChain(object):
             turn_finished = et.is_yaw_turn_finished(side=self.course, threshold_deg=90.0)
             if not turn_finished:
                 if self.course == "right":
-                    return (-10, 10), Mode.TEST
+                    return (-20, 20), Mode.TEST
                 else:
-                    return (10, -10), Mode.TEST
+                    return (20, -20), Mode.TEST
             else:
                 et.set_start_yaw()
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | 90deg turn finished | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase5")
