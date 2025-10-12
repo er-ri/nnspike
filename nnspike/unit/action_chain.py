@@ -1438,9 +1438,6 @@ class ActionChain(object):
                 phase.next_phase(current_pos, skip=-5)  # 0に戻す
                 # 0に戻すときは理想yawもリセット
                 self._ideal_yaw = et.get_start_yaw()
-                # 理想yawが0になったらreset_yawを実行
-                if abs(self._ideal_yaw) < 1e-6:
-                    self.et.reset_yaw()
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase_num} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 return (0, 0), Mode.TEST
             else:
