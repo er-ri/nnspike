@@ -1387,9 +1387,9 @@ class ActionChain(object):
                 return (0, 0), Mode.TEST
             else:
                 if yaw_error < 0:
-                    return (5, 0), Mode.TEST
+                    return (5, -5), Mode.TEST
                 else:
-                    return (0, 5), Mode.TEST
+                    return (-5, 5), Mode.TEST
 
         # phase3: 直進（再び1000進むまで）
         if phase.get_phase() == 3:
@@ -1433,9 +1433,9 @@ class ActionChain(object):
                 return (0, 0), Mode.TEST
             else:
                 if yaw_error < 0:
-                    return (5, 0), Mode.TEST
+                    return (5, -5), Mode.TEST
                 else:
-                    return (0, 5), Mode.TEST
+                    return (-5, 5), Mode.TEST
 
         print("[test_mode] Unexpected state reached.")
         return (0, 0), Mode.TEST
