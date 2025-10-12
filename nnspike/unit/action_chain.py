@@ -346,7 +346,6 @@ class ActionChain(object):
             self.et.set_start_yaw_nearest_vertical_pole()
             # プライベート変数の初期化
             self._calculated_distance = 300  # デフォルト値
-            self._blue_phase_start_pos = 0  # 青ターゲット追従開始位置
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
         et = self.et
@@ -389,7 +388,7 @@ class ActionChain(object):
                     else:
                         return (0, 5), Mode.CARRY_BOTTLE1
 
-        # phase2: 赤ピクセル数 < 500 かつ距離 < 15 で phase3へ。yaw基準セット
+        # phase2: 赤ピクセル数 < 500 かつ距離 > 0 かつ距離 <= 10 で phase3へ。yaw基準セット
         if phase.get_phase() == 2:
             red_center, _, red_pixel_count = find_bottle_center(image=image, color="red", roi=ROI_COLOR2)
             distance = et.get_distance_sensor()
@@ -407,7 +406,7 @@ class ActionChain(object):
                 left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed)
             return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
-        # phase3: 右モーター位置差が閾値（上段1220/下段700）未満なら直進。閾値到達したらphase4へ。yaw基準設定。
+        # phase3: 右モーター位置差がコース種別ごとの閾値未満なら直進。閾値到達したらphase4へ。yaw基準設定。
         if phase.get_phase() == 3:
             position_diff = phase.get_position_diff(current_pos)
             threshold = 1200 if self.course_type == "upper" else 700
@@ -515,7 +514,6 @@ class ActionChain(object):
                     # 中心に合った→次フェーズへ
                     et.set_start_yaw()
                     # フェーズ10開始位置を設定
-                    self._blue_phase_start_pos = current_pos
                     print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance} | proceed to phase10")
                     phase.next_phase(current_pos)
                     return (0, 0), Mode.CARRY_BOTTLE1
@@ -531,7 +529,6 @@ class ActionChain(object):
                 if in_tolerance:
                     # ヨー角OK→フェーズ10へ
                     # フェーズ10開始位置を設定
-                    self._blue_phase_start_pos = current_pos
                     print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | no_blue_target | yaw_ok | proceed to phase10")
                     phase.next_phase(current_pos)
                     return (0, 0), Mode.CARRY_BOTTLE1
@@ -711,8 +708,6 @@ class ActionChain(object):
             self.initialize_action(motor_side=self.course)
             # プライベート変数の初期化
             self._calculated_distance = 300  # デフォルト値
-            self._distance_candidates = []  # 距離候補リスト
-            self._blue_phase_start_pos = 0  # 青ターゲット追従開始位置
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
 
@@ -893,7 +888,6 @@ class ActionChain(object):
                     # 中心に合った→次フェーズへ
                     self.et.set_start_yaw()
                     # フェーズ11開始位置を設定
-                    self._blue_phase_start_pos = current_pos
                     print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance} | proceed to phase11")
                     phase.next_phase(current_pos)
                     return (0, 0), Mode.CARRY_BOTTLE2
@@ -909,7 +903,6 @@ class ActionChain(object):
                 if in_tolerance:
                     # ヨー角OK→フェーズ11へ
                     # フェーズ11開始位置を設定
-                    self._blue_phase_start_pos = current_pos
                     print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | no_blue_target | yaw_ok | proceed to phase11")
                     phase.next_phase(current_pos)
                     return (0, 0), Mode.CARRY_BOTTLE2
