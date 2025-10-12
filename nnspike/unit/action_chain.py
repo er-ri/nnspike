@@ -1359,14 +1359,14 @@ class ActionChain(object):
             else:
                 self._reset_acceleration_timer()
                 et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1000 | start_yaw={{et.get_start_yaw():.2f}} | current_yaw=PHASE_CHANGE | proceed to phase1")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1000 | proceed to phase1")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
         # phase1: 90度旋回（course依存で左右、距離390進むまで、速度30）
         if phase.get_phase() == 1:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 385:
+            if position_diff < 380:
                 if self.course == "right":
                     return (0, 20), Mode.TEST
                 else:
@@ -1377,7 +1377,7 @@ class ActionChain(object):
                 # else:
                 #     et.set_start_yaw(et.get_start_yaw() + 90.0)
                 et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 385 | start_yaw={{et.get_start_yaw():.2f}} | current_yaw=PHASE_CHANGE | proceed to phase2")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 380 | proceed to phase2")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
@@ -1407,14 +1407,14 @@ class ActionChain(object):
             else:
                 self._reset_acceleration_timer()
                 et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1000 | start_yaw={{et.get_start_yaw():.2f}} | current_yaw=PHASE_CHANGE | proceed to phase3")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1000 | proceed to phase3")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
         # phase3: 90度旋回（course依存で左右、距離390進むまで、速度30）
         if phase.get_phase() == 3:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 385:
+            if position_diff < 380:
                 if self.course == "right":
                     return (0, 20), Mode.TEST
                 else:
@@ -1425,7 +1425,7 @@ class ActionChain(object):
                 # else:
                 #     et.set_start_yaw(et.get_start_yaw() + 90.0)
                 et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 385 | start_yaw={{et.get_start_yaw():.2f}} | current_yaw=LOOP | proceed to phase0")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 380 | proceed to phase0")
                 phase.next_phase(current_pos, skip=-3)  # 0に戻す
                 return (0, 0), Mode.TEST
 
