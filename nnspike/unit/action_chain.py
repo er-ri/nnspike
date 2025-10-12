@@ -784,6 +784,7 @@ class ActionChain(object):
                 else:
                     return (20, 0), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | line_detected={line_detected} | position_diff={position_diff} >= {max_limit}")
+            self.et.set_start_yaw_nearest_vertical_pole()
             phase.next_phase(current_pos)
 
         # 4. 直進（コース側モーターが所定値移動まで、加速度付き直進。所定値超えたらphase5へ、モーター位置記録）
@@ -791,7 +792,9 @@ class ActionChain(object):
             threshold = 870 if self.course_type == "upper" else 1300
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < threshold:
-                return (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
+                accelerated_speed = self.get_accelerated_base_speed()
+                left_speed, right_speed = self.et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
+                return (left_speed, right_speed), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold}")
             phase.next_phase(current_pos)
             self._reset_acceleration_timer()
