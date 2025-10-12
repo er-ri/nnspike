@@ -158,7 +158,7 @@ class FastLapChain(object):
         # phase1: 左旋回後の微調整（±4度以内2秒静止でPAUSE）
         if phase.get_phase() == 1:
             # carry_bottle1_relativeのphase2と完全同一ロジック
-            in_tolerance, yaw_error = et.is_start_yaw_error_within(1.0)
+            in_tolerance, yaw_error = et.is_start_yaw_error_within(2.0)
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
             if in_tolerance:
@@ -204,7 +204,7 @@ class FastLapChain(object):
         # phase1: 右旋回後の微調整（±4度以内2秒静止でPAUSE）
         if phase.get_phase() == 1:
             # carry_bottle1_relativeのphase2と完全同一ロジック
-            in_tolerance, yaw_error = et.is_start_yaw_error_within(1.0)
+            in_tolerance, yaw_error = et.is_start_yaw_error_within(2.0)
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
             if in_tolerance:
