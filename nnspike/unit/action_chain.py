@@ -1353,7 +1353,8 @@ class ActionChain(object):
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 1000:
                 accelerated_speed = self.get_accelerated_base_speed(target_speed=30, acceleration_time=1.5)
-                left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
+                left_speed = accelerated_speed
+                right_speed = accelerated_speed
                 return (left_speed, right_speed), Mode.TEST
             else:
                 self._reset_acceleration_timer()
@@ -1400,7 +1401,8 @@ class ActionChain(object):
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 1000:
                 accelerated_speed = self.get_accelerated_base_speed(target_speed=30, acceleration_time=1.5)
-                left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
+                left_speed = accelerated_speed
+                right_speed = accelerated_speed
                 return (left_speed, right_speed), Mode.TEST
             else:
                 self._reset_acceleration_timer()
