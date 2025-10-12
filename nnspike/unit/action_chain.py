@@ -1343,8 +1343,6 @@ class ActionChain(object):
             self.initialize_action(motor_side=self.course)
             # 削除: self.et.reset_yaw()
             self.et.set_start_yaw()
-            self._testmode_phase2_time = None
-            self._testmode_phase5_time = None
             # あるべきヨー角（理想yaw）を管理
             self._ideal_yaw = self.et.get_start_yaw()
         phase = self._phase
@@ -1378,6 +1376,8 @@ class ActionChain(object):
                     self._ideal_yaw -= 90.0
                 else:
                     self._ideal_yaw += 90.0
+                # -180～180でラップ
+                self._ideal_yaw = et.wrap_angle(self._ideal_yaw)
                 et.set_start_yaw(self._ideal_yaw)
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
@@ -1423,6 +1423,7 @@ class ActionChain(object):
                     self._ideal_yaw -= 90.0
                 else:
                     self._ideal_yaw += 90.0
+                self._ideal_yaw = et.wrap_angle(self._ideal_yaw)
                 et.set_start_yaw(self._ideal_yaw)
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
