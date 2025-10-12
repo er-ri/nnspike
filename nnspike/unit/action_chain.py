@@ -1341,7 +1341,7 @@ class ActionChain(object):
     def test_mode_action(self, image=None) -> Tuple[Tuple[int, int], Mode]:
         if not self._init:
             self.initialize_action(motor_side=self.course)
-            self.et.reset_yaw()
+            # self.et.reset_yaw()
             self.et.set_start_yaw(0)
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
@@ -1358,7 +1358,7 @@ class ActionChain(object):
             else:
                 self._reset_acceleration_timer()
                 et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1000 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase1")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1000 | start_yaw={et.get_start_yaw():.2f} | current_yaw=PHASE_CHANGE | proceed to phase1")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
@@ -1371,31 +1371,32 @@ class ActionChain(object):
                 else:
                     return (20, 0), Mode.TEST
             else:
-                if self.course == "right":
-                    et.set_start_yaw(et.get_start_yaw() - 90.0)
-                else:
-                    et.set_start_yaw(et.get_start_yaw() + 90.0)
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase2 (yaw correction)")
+                # if self.course == "right":
+                #     et.set_start_yaw(et.get_start_yaw() - 90.0)
+                # else:
+                #     et.set_start_yaw(et.get_start_yaw() + 90.0)
+                et.set_start_yaw()
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw=PHASE_CHANGE | proceed to phase2")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
         # phase2: 旋回後ヨー角調整（水平方向基準）
-        if phase.get_phase() == 2:
-            in_tolerance, yaw_error = et.is_start_yaw_error_within(1.0)
-            if in_tolerance:
-                et.reset_yaw()
-                et.set_start_yaw(0)
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase3 (yaw reset after correction)")
-                phase.next_phase(current_pos)
-                return (0, 0), Mode.TEST
-            else:
-                if yaw_error < 0:
-                    return (5, 0), Mode.TEST
-                else:
-                    return (0, 5), Mode.TEST
+        # if phase.get_phase() == 2:
+        #     in_tolerance, yaw_error = et.is_start_yaw_error_within(1.0)
+        #     if in_tolerance:
+        #         et.reset_yaw()
+        #         et.set_start_yaw(0)
+        #         print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase3 (yaw reset after correction)")
+        #         phase.next_phase(current_pos)
+        #         return (0, 0), Mode.TEST
+        #     else:
+        #         if yaw_error < 0:
+        #             return (5, 0), Mode.TEST
+        #         else:
+        #             return (0, 5), Mode.TEST
 
-        # phase3: 直進（再び1000進むまで）
-        if phase.get_phase() == 3:
+        # phase2: 直進（再び1000進むまで）
+        if phase.get_phase() == 2:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 1000:
                 accelerated_speed = self.get_accelerated_base_speed(target_speed=30, acceleration_time=1.5)
@@ -1404,12 +1405,12 @@ class ActionChain(object):
             else:
                 self._reset_acceleration_timer()
                 et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1000 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase4")
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1000 | start_yaw={et.get_start_yaw():.2f} | current_yaw=PHASE_CHANGE | proceed to phase3")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.TEST
 
-        # phase4: 90度旋回（course依存で左右、距離390進むまで、速度30）
-        if phase.get_phase() == 4:
+        # phase3: 90度旋回（course依存で左右、距離390進むまで、速度30）
+        if phase.get_phase() == 3:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 380:
                 if self.course == "right":
@@ -1417,30 +1418,31 @@ class ActionChain(object):
                 else:
                     return (20, 0), Mode.TEST
             else:
-                if self.course == "right":
-                    et.set_start_yaw(et.get_start_yaw() - 90.0)
-                else:
-                    et.set_start_yaw(et.get_start_yaw() + 90.0)
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase5 (yaw correction)")
-                phase.next_phase(current_pos)
+                # if self.course == "right":
+                #     et.set_start_yaw(et.get_start_yaw() - 90.0)
+                # else:
+                #     et.set_start_yaw(et.get_start_yaw() + 90.0)
+                et.set_start_yaw()
+                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | turn position_diff={position_diff} >= 390 | start_yaw={et.get_start_yaw():.2f} | current_yaw=LOOP | proceed to phase0")
+                phase.next_phase(current_pos, skip=-3)  # 0に戻す
                 return (0, 0), Mode.TEST
 
         # phase5: 旋回後ヨー角調整（垂直方向基準）
-        if phase.get_phase() == 5:
-            in_tolerance, yaw_error = et.is_start_yaw_error_within(1.0)
-            if in_tolerance:
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase0")
-                phase.next_phase(current_pos, skip=-5)  # 0に戻す
-                et.reset_yaw()
-                et.set_start_yaw(0)
-                # [DEBUG] mode=TEST | phase=5 | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | phase0リセット
-                print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | phase0リセット")
-                return (0, 0), Mode.TEST
-            else:
-                if yaw_error < 0:
-                    return (5, 0), Mode.TEST
-                else:
-                    return (0, 5), Mode.TEST
+        # if phase.get_phase() == 5:
+        #     in_tolerance, yaw_error = et.is_start_yaw_error_within(1.0)
+        #     if in_tolerance:
+        #         print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase0")
+        #         phase.next_phase(current_pos, skip=-5)  # 0に戻す
+        #         et.reset_yaw()
+        #         et.set_start_yaw(0)
+        #         # [DEBUG] mode=TEST | phase=5 | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | phase0リセット
+        #         print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | phase0リセット")
+        #         return (0, 0), Mode.TEST
+        #     else:
+        #         if yaw_error < 0:
+        #             return (5, 0), Mode.TEST
+        #         else:
+        #             return (0, 5), Mode.TEST
 
         print("[test_mode] Unexpected state reached.")
         return (0, 0), Mode.TEST
