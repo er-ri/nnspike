@@ -382,9 +382,9 @@ class ETRobot(object):
             yaw (float, optional): 指定したヨー角。Noneなら現在値を使用。
         """
         if yaw is not None:
-            self._start_yaw = float(yaw)
+            self._start_yaw = self.wrap_angle(float(yaw))
         else:
-            self._start_yaw = self.get_yaw()
+            self._start_yaw = self.wrap_angle(self.get_yaw())
 
     def get_start_yaw(self) -> float:
         """
