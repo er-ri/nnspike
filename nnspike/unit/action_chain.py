@@ -1341,7 +1341,7 @@ class ActionChain(object):
     def test_mode_action(self, image=None) -> Tuple[Tuple[int, int], Mode]:
         if not self._init:
             self.initialize_action(motor_side=self.course)
-            # self.et.reset_yaw()
+            # 削除: self.et.reset_yaw()
             self.et.set_start_yaw()
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
@@ -1384,7 +1384,6 @@ class ActionChain(object):
         if phase.get_phase() == 2:
             in_tolerance, yaw_error = et.is_start_yaw_error_within(1.0)
             if in_tolerance:
-                et.reset_yaw()
                 et.set_start_yaw()
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase3 (yaw reset after correction)")
                 phase.next_phase(current_pos)
@@ -1434,7 +1433,7 @@ class ActionChain(object):
             if in_tolerance:
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | proceed to phase0")
                 phase.next_phase(current_pos, skip=-5)  # 0に戻す
-                et.reset_yaw()
+                # 削除: et.reset_yaw()
                 et.set_start_yaw()
                 # [DEBUG] mode=TEST | phase=5 | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | phase0リセット
                 print(f"[DEBUG] mode={Mode.TEST.value} | phase={phase.get_phase()} | start_yaw_error={yaw_error:.2f} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | phase0リセット | course switched to {self.course}")
