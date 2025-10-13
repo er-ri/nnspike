@@ -661,7 +661,7 @@ class ActionChain(object):
         # 1. 左旋回（最低回転量は必ず旋回。最低回転量超えてからターゲット検出または最大回転量到達まで旋回。条件満たせばphase2へ）
         if phase.get_phase() == 1:
             position_diff = phase.get_position_diff(current_pos)
-            threshold = 450 if self.course_type == "upper" else 300
+            threshold = 450 if self.course_type == "upper" else 200
             # 最低回転量は必ず旋回
             if position_diff < threshold:
                 if self.course == "right":
@@ -670,7 +670,7 @@ class ActionChain(object):
                     return (30, 0), Mode.BACK_AND_TURN1
             # 最低回転量超えてからターゲット検出
             red_target_detected = is_x320_on_red_target(image, x_tolerance=80)
-            max_turn = 940 if self.course_type == "upper" else 400
+            max_turn = 940 if self.course_type == "upper" else 350
             if (not red_target_detected) and (position_diff < max_turn):
                 if self.course == "right":
                     return (0, 20), Mode.BACK_AND_TURN1
@@ -686,18 +686,24 @@ class ActionChain(object):
 
         # 2. 直進400、その間にis_x320_on_red_target検知で即phase3へ
         if phase.get_phase() == 2:
-            threshold = 400
             position_diff = phase.get_position_diff(current_pos)
-            red_detected = is_x320_on_red_target(image, x_tolerance=100)
+            threshold = 300
+            max_threshold = 500
             if position_diff < threshold:
+                # 300未満は赤検知せず直進のみ
+                return (30, 30), Mode.BACK_AND_TURN1
+            elif position_diff < max_threshold:
+                # 300以上500未満で赤検知したら即phase3
+                red_detected = is_x320_on_red_target(image, x_tolerance=100)
                 if red_detected:
                     phase.next_phase(current_pos)
-                    print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | is_x320_on_red_target=True | position_diff={position_diff} < {threshold}")
+                    print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | is_x320_on_red_target=True | position_diff={position_diff} >= {threshold} and < {max_threshold}")
                     return (0, 0), Mode.BACK_AND_TURN1
                 return (30, 30), Mode.BACK_AND_TURN1
             else:
+                # 500到達でもphase3
                 phase.next_phase(current_pos)
-                print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | is_x320_on_red_target=False | position_diff={position_diff} >= {threshold}")
+                print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | is_x320_on_red_target=False | position_diff={position_diff} >= {max_threshold}")
                 return (0, 0), Mode.BACK_AND_TURN1
 
         # 3. 終了: 状態リセットしCARRY_BOTTLE2へ遷移
