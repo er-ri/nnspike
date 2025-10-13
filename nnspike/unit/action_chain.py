@@ -465,7 +465,7 @@ class ActionChain(object):
         # 7. 直進（右モーターが一定値移動まで。一定値超えたらphase8へ、右モーター位置記録）
         if phase.get_phase() == 7:
             position_diff = phase.get_position_diff(current_pos)
-            threshold = 1300 if self.course_type == "upper" else 1700
+            threshold = 1300 if self.course_type == "upper" else 1800
             if position_diff < threshold:
                 return (30, 30), Mode.CARRY_BOTTLE1
             # 一定値超えたら次フェーズへ
