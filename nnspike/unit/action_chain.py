@@ -435,7 +435,7 @@ class ActionChain(object):
         # 5. 直進（右モーターが一定値移動まで。一定値超えたらphase6へ、右モーター位置記録、pre_target_x初期化）
         if phase.get_phase() == 5:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 400:
+            if position_diff < 200:
                 accelerated_speed = self.get_accelerated_base_speed()
                 return (accelerated_speed, accelerated_speed), Mode.CARRY_BOTTLE1
             # 一定値超えたら次フェーズへ
@@ -447,7 +447,7 @@ class ActionChain(object):
         # 6. 仮想ライン直進（右モーターが一定値移動まで仮想ライン中心座標取得処理、pre_target_x更新。一定値超えたらphase7へ、右モーター位置記録）
         if phase.get_phase() == 6:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 1300:
+            if position_diff < 1500:
                 # 仮想ライン中心座標取得処理
                 temp_x = get_virtual_line_target_x(image, previous_center_x=self.pre_target_x)
                 if temp_x is not None:
@@ -810,7 +810,9 @@ class ActionChain(object):
         # 5. 左旋回（コース側モーターが所定値移動まで、courseに応じて旋回方向決定。所定値超えたらphase6へ、モーター位置記録）
         if phase.get_phase() == 5:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 350:
+            # upper以外は390まで曲がれ
+            limit = 350 if self.course_type == "upper" else 390
+            if position_diff < limit:
                 if self.course == "right":
                     return (0, 20), Mode.CARRY_BOTTLE2
                 else:
