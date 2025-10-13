@@ -269,47 +269,36 @@ def find_blue_target_center(image) -> Tuple[Optional[Tuple[int, int]], Optional[
     return None, None, 0
 
 def calc_blue_target_distance(blue_center) -> Optional[int]:
-    """
-    青ターゲットの位置から走行体が進むべき実際の距離を計算する（非線形計算）。
-    
-    パラメータ:
-        blue_center (tuple or None): find_blue_target_centerから返される(center_x, top_y)
-    
-    戻り値:
-        distance (int or None): 進むべき距離（ピクセル単位での概算距離）、blue_centerがNoneの場合はNone
-    
-    計算ロジック:
-        - カメラサイズ640×480を使用
-        - 画像下端90%位置（y=432）を目標位置として設定
-        - 非線形補正でY=182→500、Y=330→300程度を実現
-        - 実験用パラメータは関数内部で調整可能
-    """
+ # y（top_y）ごとの距離計算結果サンプル（int(CAMERA_HEIGHT*0.9)=432基準、y<=30は上限1200）
+ #   y    | distance = 432-y | practical_distance
+ # -------|-----------------|----------------
+ #   30   |     402         |   1200
+ #  100   |     332         |    697
+ #  150   |     282         |    619
+ #  200   |     232         |    541
+ #  250   |     182         |    500
+ #  300   |     132         |    420
+ #  350   |      82         |    350
+ #  400   |      32         |    216
+ #  432   |       0         |    165
+ #  450   |     -18         |    156
+ #  470   |     -38         |    172
     if blue_center is None:
         return None
-    
-    center_x, top_y = blue_center
-    
-    # シンプルな線形計算（統一的な制御）
-    # カメラサイズ定数を使用して目標位置を設定（480×0.9=432）
-    target_y = int(CAMERA_HEIGHT * 0.9)  # 432
-    
-    # 青ターゲットの上端から目標位置までの距離
+    _, top_y = blue_center
+    target_y = int(CAMERA_HEIGHT * 0.9)
     distance = target_y - top_y
-    
-    # 2点指定線形計算：Y=30で1200、Y=300で430になるよう調整
+    # slope/interceptを調整（250で500, 300で420, 350で350）
     if distance > 0:
-        # 線形計算：傾き=2.963、切片=18（調整）
-        # Y=30(distance=402)→1200、Y=300(distance=132)→410、より低めの距離計算
-        slope = 2.963
-        intercept = 18  # y=300で410になるよう調整
+        slope = 1.6
+        intercept = 165
         practical_distance = int(slope * distance + intercept)
     else:
-        # 既に目標位置を通過している場合は短距離
         practical_distance = abs(distance) // 2
-    
-    # 最小距離を保証（負の値を避ける）
+    # y<=30のときは上限1200
+    if top_y <= 30:
+        practical_distance = min(practical_distance, 1200)
     result = max(practical_distance, 0)
-    
     return result
 
 def get_is_blue_line_at_y(image, target_y=470, min_run=30) -> bool:
