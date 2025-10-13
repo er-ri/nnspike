@@ -495,6 +495,12 @@ class ActionChain(object):
                     return (20, 0), Mode.CARRY_BOTTLE1
 
             et.set_start_yaw()
+            # 青ターゲット検出時は距離計算して保存（フェーズ10で使用）
+            if blue_target_detected and blue_center is not None:
+                calculated_distance = calc_blue_target_distance(blue_center)
+                if calculated_distance is not None:
+                    self._calculated_distance = calculated_distance
+                    print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | pixels={blue_pixel_count}")
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_target_detected={blue_target_detected} or position_diff={position_diff} >= 500 | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | blue_pixel_count={blue_pixel_count} | blue_center={blue_center}")
             phase.next_phase(current_pos)
             return (0, 0), Mode.CARRY_BOTTLE1
