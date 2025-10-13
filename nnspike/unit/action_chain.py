@@ -670,18 +670,38 @@ class ActionChain(object):
                 else:
                     return (30, 0), Mode.BACK_AND_TURN1
             # 最低回転量超えてから、ターゲット検出または最大回転量到達まで継続
-            max_turn = 940 if self.course_type == "upper" else 600
+            max_turn = 940 if self.course_type == "upper" else 500
             if (not red_target_detected) and (position_diff < max_turn):
                 if self.course == "right":
                     return (0, 20), Mode.BACK_AND_TURN1
                 else:
                     return (20, 0), Mode.BACK_AND_TURN1
             print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_turn} or red_target_detected={red_target_detected}")
-            phase.next_phase(current_pos)
+            # upperのときはフェーズ3にとぶ
+            if self.course_type == "upper":
+                phase.next_phase(current_pos, skip=2)
+            else:
+                phase.next_phase(current_pos)
             return (0, 0), Mode.BACK_AND_TURN1
 
-        # 2. 終了: 状態リセットしCARRY_BOTTLE2へ遷移
+        # 2. 直進400、その間にis_x320_on_red_target検知で即phase3へ
         if phase.get_phase() == 2:
+            threshold = 400
+            position_diff = phase.get_position_diff(current_pos)
+            red_detected = is_x320_on_red_target(image, x_tolerance=100)
+            if position_diff < threshold:
+                if red_detected:
+                    phase.next_phase(current_pos)
+                    print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | is_x320_on_red_target=True | position_diff={position_diff} < {threshold}")
+                    return (0, 0), Mode.BACK_AND_TURN1
+                return (30, 30), Mode.BACK_AND_TURN1
+            else:
+                phase.next_phase(current_pos)
+                print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | is_x320_on_red_target=False | position_diff={position_diff} >= {threshold}")
+                return (0, 0), Mode.BACK_AND_TURN1
+
+        # 3. 終了: 状態リセットしCARRY_BOTTLE2へ遷移
+        if phase.get_phase() == 3:
             self.reset_action()
             return (0, 0), Mode.CARRY_BOTTLE2
 
