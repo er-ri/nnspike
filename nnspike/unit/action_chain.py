@@ -654,7 +654,12 @@ class ActionChain(object):
 
         # 1. 左旋回（最低回転量は必ず旋回。最低回転量超えてからターゲット検出または最大回転量到達まで旋回。条件満たせばphase2へ）
         if phase.get_phase() == 1:
-            red_target_detected = is_x320_on_red_target(image, x_tolerance=80)
+            blue_center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
+            # blue_pixel_count>0 かつ blue_center[0]が320±100ならターゲット検出
+            blue_target_detected = False
+            if blue_center is not None and blue_pixel_count > 0:
+                if 220 <= blue_center[0] <= 420:
+                    blue_target_detected = True
             position_diff = phase.get_position_diff(current_pos)
             # 最低回転量は必ず旋回
             if position_diff < 450:
@@ -663,12 +668,12 @@ class ActionChain(object):
                 else:
                     return (30, 0), Mode.BACK_AND_TURN1
             # 最低回転量超えてから、ターゲット検出または最大回転量到達まで継続
-            if (not red_target_detected) and (position_diff < 940):
+            if (not blue_target_detected) and (position_diff < 940):
                 if self.course == "right":
                     return (0, 20), Mode.BACK_AND_TURN1
                 else:
                     return (20, 0), Mode.BACK_AND_TURN1
-            print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 940 or red_target_detected={red_target_detected}")
+            print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 940 or blue_target_detected={blue_target_detected}")
             phase.next_phase(current_pos)
             return (0, 0), Mode.BACK_AND_TURN1
 
@@ -689,16 +694,11 @@ class ActionChain(object):
         current_pos = self.get_motor_position(self.course)
         et = self.et
 
-        # 0. 赤ターゲット中心追従（青ピクセル数が閾値未満の間は赤中心追従、閾値以上で次フェーズへ）
+        # 0. 青ターゲット中心追従（青ピクセル数が閾値未満の間はcenter_x、5000以上かつblue_centerありならblue_center[0]、閾値以上で次フェーズへ）
         if phase.get_phase() == 0:
             blue_center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
             if blue_pixel_count < 18000:
-                # 赤ターゲット中心追従
-                red_center_x = get_red_target_center_x(image)
-                # 赤センター最優先
-                if red_center_x is not None:
-                    target_x = red_center_x
-                elif blue_pixel_count >= 5000 and blue_center is not None:
+                if blue_pixel_count >= 5000 and blue_center is not None:
                     target_x = blue_center[0]
                 else:
                     target_x = self.center_x
