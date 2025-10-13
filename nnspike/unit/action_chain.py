@@ -660,16 +660,16 @@ class ActionChain(object):
 
         # 1. 左旋回（最低回転量は必ず旋回。最低回転量超えてからターゲット検出または最大回転量到達まで旋回。条件満たせばphase2へ）
         if phase.get_phase() == 1:
-            red_target_detected = is_x320_on_red_target(image, x_tolerance=80)
             position_diff = phase.get_position_diff(current_pos)
+            threshold = 450 if self.course_type == "upper" else 300
             # 最低回転量は必ず旋回
-            threshold = 450 if self.course_type == "upper" else 0
             if position_diff < threshold:
                 if self.course == "right":
                     return (0, 30), Mode.BACK_AND_TURN1
                 else:
                     return (30, 0), Mode.BACK_AND_TURN1
-            # 最低回転量超えてから、ターゲット検出または最大回転量到達まで継続
+            # 最低回転量超えてからターゲット検出
+            red_target_detected = is_x320_on_red_target(image, x_tolerance=80)
             max_turn = 940 if self.course_type == "upper" else 400
             if (not red_target_detected) and (position_diff < max_turn):
                 if self.course == "right":
