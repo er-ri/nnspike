@@ -769,7 +769,7 @@ class ActionChain(object):
 
         # 4. 直進（コース側モーターが所定値移動まで、加速度付き直進。所定値超えたらphase5へ、モーター位置記録）
         if phase.get_phase() == 4:
-            threshold = 820 if self.course_type == "upper" else 1250
+            threshold = 820 if self.course_type == "upper" else 1300
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < threshold:
                 accelerated_speed = self.get_accelerated_base_speed()
