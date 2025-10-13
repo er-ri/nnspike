@@ -663,18 +663,20 @@ class ActionChain(object):
             red_target_detected = is_x320_on_red_target(image, x_tolerance=80)
             position_diff = phase.get_position_diff(current_pos)
             # 最低回転量は必ず旋回
-            if position_diff < 450:
+            threshold = 450 if self.course_type == "upper" else 200
+            if position_diff < threshold:
                 if self.course == "right":
                     return (0, 30), Mode.BACK_AND_TURN1
                 else:
                     return (30, 0), Mode.BACK_AND_TURN1
             # 最低回転量超えてから、ターゲット検出または最大回転量到達まで継続
-            if (not red_target_detected) and (position_diff < 940):
+            max_turn = 940 if self.course_type == "upper" else 600
+            if (not red_target_detected) and (position_diff < max_turn):
                 if self.course == "right":
                     return (0, 20), Mode.BACK_AND_TURN1
                 else:
                     return (20, 0), Mode.BACK_AND_TURN1
-            print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 940 or red_target_detected={red_target_detected}")
+            print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_turn} or red_target_detected={red_target_detected}")
             phase.next_phase(current_pos)
             return (0, 0), Mode.BACK_AND_TURN1
 
