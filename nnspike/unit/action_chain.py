@@ -481,14 +481,14 @@ class ActionChain(object):
             position_diff = phase.get_position_diff(current_pos)
 
             # 最低回転量未満は強制旋回
-            if position_diff < 300:
+            if position_diff < 100:
                 if self.course == "right":
                     return (0, 30), Mode.CARRY_BOTTLE1
                 else:
                     return (30, 0), Mode.CARRY_BOTTLE1
 
             # 最低回転量以上になったら判定開始
-            if (not blue_target_detected) and (position_diff < 500):
+            if (not blue_target_detected) and (position_diff < 600):
                 if self.course == "right":
                     return (0, 20), Mode.CARRY_BOTTLE1
                 else:
