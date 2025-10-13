@@ -465,7 +465,7 @@ class ActionChain(object):
         # 7. 直進（右モーターが一定値移動まで。一定値超えたらphase8へ、右モーター位置記録）
         if phase.get_phase() == 7:
             position_diff = phase.get_position_diff(current_pos)
-            threshold = 1300 if self.course_type == "upper" else 800
+            threshold = 1300 if self.course_type == "upper" else 1700
             if position_diff < threshold:
                 return (30, 30), Mode.CARRY_BOTTLE1
             # 一定値超えたら次フェーズへ
@@ -481,14 +481,14 @@ class ActionChain(object):
             position_diff = phase.get_position_diff(current_pos)
 
             # 最低回転量未満は強制旋回
-            if position_diff < 100:
+            if position_diff < 300:
                 if self.course == "right":
                     return (0, 30), Mode.CARRY_BOTTLE1
                 else:
                     return (30, 0), Mode.CARRY_BOTTLE1
 
             # 最低回転量以上になったら判定開始
-            if (not blue_target_detected) and (position_diff < 600):
+            if (not blue_target_detected) and (position_diff < 700):
                 if self.course == "right":
                     return (0, 20), Mode.CARRY_BOTTLE1
                 else:
