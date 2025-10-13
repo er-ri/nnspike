@@ -485,7 +485,7 @@ class ActionChain(object):
 
             # 300以上で青ターゲット検出・判定
             blue_center, _, blue_pixel_count = find_blue_target_center(image)
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | find_blue_target_center | blue_center={blue_center} | blue_pixel_count={blue_pixel_count}")
+            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_center={blue_center} | blue_pixel_count={blue_pixel_count}")
             blue_target_detected = (blue_center is not None and abs(blue_center[0] - 320) <= 200)
 
             if (not blue_target_detected) and (position_diff < 600):
@@ -834,7 +834,7 @@ class ActionChain(object):
                     return (30, 0), Mode.CARRY_BOTTLE2
 
             blue_center, _, blue_pixel_count = find_blue_target_center(image)
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={{phase.get_phase()}} | find_blue_target_center | blue_center={{blue_center}} | blue_pixel_count={{blue_pixel_count}}")
+            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | blue_center={blue_center} | blue_pixel_count={blue_pixel_count}")
             blue_target_detected = (blue_center is not None and abs(blue_center[0] - 320) <= 100)
 
             if (not blue_target_detected) and (position_diff < 500):

@@ -293,11 +293,15 @@ def calc_blue_target_distance(blue_center) -> Optional[int]:
     _, top_y = blue_center
     target_y = int(CAMERA_HEIGHT * 0.9)
     distance = target_y - top_y
-    # y=250〜350はすべて線形補間（250,300,350も含む）、それ以外は直線式
+    # y<=30: 1200固定, 30<y<=250: 1200→500線形, 250<y<=350: 既存線形, それ以外: 既存直線式
     if distance > 0:
-        if 250 <= top_y <= 350:
+        if top_y <= 30:
+            practical_distance = 1200
+        elif 30 < top_y <= 250:
+            # 1200→500線形補間 (y=30で1200, y=250で500)
+            practical_distance = int(1200 + (500-1200)*(top_y-30)/(250-30))
+        elif 250 < top_y <= 350:
             # 250〜350 線形補間（250,300,350も含む）
-            # 250→500, 300→430, 350→350
             if top_y <= 300:
                 practical_distance = int(500 + (430-500)*(top_y-250)/(300-250))
             else:
