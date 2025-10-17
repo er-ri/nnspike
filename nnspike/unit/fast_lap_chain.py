@@ -276,6 +276,7 @@ class FastLapChain(object):
 
         # フェーズ6: position_startとの差分2000未満ならyaw_straight_control直進。2000以上で次フェーズ（直進区間）
         if phase.get_phase() == 6:
+            sys.exit("")
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
