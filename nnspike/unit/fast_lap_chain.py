@@ -153,6 +153,8 @@ class FastLapChain(object):
         except Exception:
             _start_s = "None"
         print(f"[DEBUG_YAW][turn_left_yaw] phase={phase.get_phase()} yaw={_yaw_s} start_yaw={_start_s} current_pos={current_pos}")
+        # 表示後に改行
+        print()
 
         # phase0: 左旋回中（yaw判定、90度到達で停止）
         if phase.get_phase() == 0:
@@ -211,6 +213,8 @@ class FastLapChain(object):
         except Exception:
             _start_s = "None"
         print(f"[DEBUG_YAW][turn_right_yaw] phase={phase.get_phase()} yaw={_yaw_s} start_yaw={_start_s} current_pos={current_pos}")
+        # 表示後に改行
+        print()
 
         # phase0: 右旋回中（yaw判定、90度到達で停止）
         if phase.get_phase() == 0:
@@ -273,6 +277,8 @@ class FastLapChain(object):
         except Exception:
             _start_s = "None"
         print(f"[DEBUG_YAW][fast_lap] phase={phase.get_phase()} yaw={_yaw_s} start_yaw_obj={_start_s} start_yaw_local={start_yaw} current_pos={current_pos}")
+        # 表示後に改行
+        print()
 
         # フェーズ0: course側モータ距離3000未満ならyaw_straight_controlで直進。3000以上で次フェーズ
         if phase.get_phase() == 0:
