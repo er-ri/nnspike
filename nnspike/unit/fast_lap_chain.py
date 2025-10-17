@@ -89,7 +89,7 @@ class FastLapChain(object):
         plan の順序は (duration_s, right, left)
         """
         demo = [
-            (5.0, 100, 100),
+            (5.0, 70, 100),
             (0.5, 0, 0),
             (2.0, 120, 120),
         ]
