@@ -40,6 +40,10 @@ class FastLapChain(object):
         # yaw masking: store yaw offset so the first observed yaw becomes 0 inside this chain
         self._yaw_offset: Optional[float] = None
 
+    def _print_debug(self, *args, **kwargs) -> None:
+        """Helper to print debug messages with flush to ensure console output appears during realtime runs."""
+        print(*args, **kwargs, flush=True)
+
     def _wrap_angle(self, angle: float) -> float:
         """Wrap angle to [-180, 180)."""
         return (angle + 180.0) % 360.0 - 180.0
@@ -49,6 +53,12 @@ class FastLapChain(object):
         if self._yaw_offset is None:
             # take the current raw yaw as offset
             self._yaw_offset = self.et.get_yaw()
+            # ensure debug info is printed immediately
+            try:
+                self._print_debug(f"[FAST_LAP][DEBUG] yaw offset initialized: {self._yaw_offset}")
+            except Exception:
+                # fallback plain print if anything unexpected occurs
+                print(f"[FAST_LAP][DEBUG] yaw offset initialized: {self._yaw_offset}", flush=True)
 
     def get_yaw(self) -> float:
         """Return masked yaw (relative to the chain start), in range [-180,180]."""
@@ -78,6 +88,11 @@ class FastLapChain(object):
         self._init = True
         # アクション開始時に加速タイマーをリセット
         self._reset_acceleration_timer()
+        # print initialization debug immediately
+        try:
+            self._print_debug(f"[FAST_LAP][DEBUG] initialize_action called | motor_side={motor_side}")
+        except Exception:
+            print(f"[FAST_LAP][DEBUG] initialize_action called | motor_side={motor_side}", flush=True)
 
     def reset_action(self) -> None:
         """アクション終了時の状態リセット処理."""
@@ -258,6 +273,12 @@ class FastLapChain(object):
         return (0, 0), Mode.TURN_RIGHT_YAW
 
     def fast_lap(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
+        # print runtime yaw info for debugging on each call
+        try:
+            self._print_debug(f"[FAST_LAP][CALL] masked_yaw={self.get_yaw():.2f} | masked_start_yaw={self.get_start_yaw():.2f} | yaw_offset={self._yaw_offset}")
+        except Exception:
+            print(f"[FAST_LAP][CALL] masked_yaw={self.get_yaw():.2f} | masked_start_yaw={self.get_start_yaw():.2f} | yaw_offset={self._yaw_offset}", flush=True)
+
         if not self._init:
             self.initialize_action(motor_side=self.course)
             # initialize yaw offset so current raw yaw becomes masked 0
