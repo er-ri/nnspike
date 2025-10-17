@@ -137,11 +137,22 @@ class FastLapChain(object):
         # ActionChain設計に厳密に合わせる: self._init判定→initialize_action→phase管理
         if not self._init:
             self.initialize_action(motor_side='right')
-        # 常に yaw の基準を現在の値にリセットする（毎回リセット）
-        self.et.set_start_yaw()
+            self.et.set_start_yaw()
         phase = self._phase
         et = self.et
         current_pos = self.get_motor_position(self.course)
+        # デバッグ: 呼び出し時の yaw と start_yaw を常に出力
+        try:
+            _yaw = et.get_yaw()
+            _yaw_s = f"{_yaw:.2f}"
+        except Exception:
+            _yaw_s = "None"
+        try:
+            _start_yaw = et.get_start_yaw()
+            _start_s = f"{_start_yaw:.2f}"
+        except Exception:
+            _start_s = "None"
+        print(f"[DEBUG_YAW][turn_left_yaw] phase={phase.get_phase()} yaw={_yaw_s} start_yaw={_start_s} current_pos={current_pos}")
 
         # phase0: 左旋回中（yaw判定、90度到達で停止）
         if phase.get_phase() == 0:
@@ -184,11 +195,22 @@ class FastLapChain(object):
         # ActionChain設計に厳密に合わせる: self._init判定→initialize_action→phase管理
         if not self._init:
             self.initialize_action(motor_side='left')
-        # 常に yaw の基準を現在の値にリセットする（毎回リセット）
-        self.et.set_start_yaw()
+            self.et.set_start_yaw()
         phase = self._phase
         et = self.et
         current_pos = self.get_motor_position(self.course)
+        # デバッグ: 呼び出し時の yaw と start_yaw を常に出力
+        try:
+            _yaw = et.get_yaw()
+            _yaw_s = f"{_yaw:.2f}"
+        except Exception:
+            _yaw_s = "None"
+        try:
+            _start_yaw = et.get_start_yaw()
+            _start_s = f"{_start_yaw:.2f}"
+        except Exception:
+            _start_s = "None"
+        print(f"[DEBUG_YAW][turn_right_yaw] phase={phase.get_phase()} yaw={_yaw_s} start_yaw={_start_s} current_pos={current_pos}")
 
         # phase0: 右旋回中（yaw判定、90度到達で停止）
         if phase.get_phase() == 0:
@@ -230,11 +252,8 @@ class FastLapChain(object):
     def fast_lap(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
         if not self._init:
             self.initialize_action(motor_side=self.course)
-        # 常に yaw の基準を現在の値にリセットする（毎回リセット）
-        self.et.set_start_yaw()
-        self.start_yaw = self.et.get_start_yaw()
-        # ラップ開始タイミング等は初回の初期化時に設定
-        if not hasattr(self, 'lap_start_time') or not self._init:
+            self.et.set_start_yaw()
+            self.start_yaw = self.et.get_start_yaw()
             self.lap_start_time = time.time()
             self._phase2_color_count = 0  # フェーズ2色検出カウンタ
             self._prev_color = None  # 前回の色値を初期化
@@ -242,6 +261,18 @@ class FastLapChain(object):
         et = self.et
         current_pos = self.get_motor_position(self.course)
         start_yaw = self.start_yaw
+        # デバッグ: 呼び出し時の yaw と start_yaw を常に出力
+        try:
+            _yaw = et.get_yaw()
+            _yaw_s = f"{_yaw:.2f}"
+        except Exception:
+            _yaw_s = "None"
+        try:
+            _start_yaw = et.get_start_yaw()
+            _start_s = f"{_start_yaw:.2f}"
+        except Exception:
+            _start_s = "None"
+        print(f"[DEBUG_YAW][fast_lap] phase={phase.get_phase()} yaw={_yaw_s} start_yaw_obj={_start_s} start_yaw_local={start_yaw} current_pos={current_pos}")
 
         # フェーズ0: course側モータ距離3000未満ならyaw_straight_controlで直進。3000以上で次フェーズ
         if phase.get_phase() == 0:
