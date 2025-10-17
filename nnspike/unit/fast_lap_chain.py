@@ -37,6 +37,35 @@ class FastLapChain(object):
         self._prev_motor_b_power = 0
         self._freeze_speed = False
         self._last_speed = 40
+        # yaw masking: store yaw offset so the first observed yaw becomes 0 inside this chain
+        self._yaw_offset: Optional[float] = None
+
+    def _wrap_angle(self, angle: float) -> float:
+        """Wrap angle to [-180, 180)."""
+        return (angle + 180.0) % 360.0 - 180.0
+
+    def _ensure_yaw_offset_set(self) -> None:
+        """Set yaw offset on first yaw access to make initial yaw == 0 inside this chain."""
+        if self._yaw_offset is None:
+            # take the current raw yaw as offset
+            self._yaw_offset = self.et.get_yaw()
+
+    def get_yaw(self) -> float:
+        """Return masked yaw (relative to the chain start), in range [-180,180]."""
+        self._ensure_yaw_offset_set()
+        return self._wrap_angle(self.et.get_yaw() - self._yaw_offset)
+
+    def get_start_yaw(self) -> float:
+        """Return masked start_yaw (relative to the chain start), in range [-180,180]."""
+        self._ensure_yaw_offset_set()
+        return self._wrap_angle(self.et.get_start_yaw() - self._yaw_offset)
+
+    def _masked_to_raw(self, masked: float) -> float:
+        """Convert a masked yaw back to raw yaw space used by ETRobot."""
+        if self._yaw_offset is None:
+            # no offset known, assume masked==raw
+            return self._wrap_angle(masked)
+        return self._wrap_angle(masked + self._yaw_offset)
 
     def initialize_action(self, motor_side: str = "right") -> None:
         """
@@ -141,40 +170,28 @@ class FastLapChain(object):
         phase = self._phase
         et = self.et
         current_pos = self.get_motor_position(self.course)
-        # デバッグ: 呼び出し時の yaw と start_yaw を常に出力
-        try:
-            _yaw = et.get_yaw()
-            _yaw_s = f"{_yaw:.2f}"
-        except Exception:
-            _yaw_s = "None"
-        try:
-            _start_yaw = et.get_start_yaw()
-            _start_s = f"{_start_yaw:.2f}"
-        except Exception:
-            _start_s = "None"
-        print(f"[DEBUG_YAW][turn_left_yaw] phase={phase.get_phase()} yaw={_yaw_s} start_yaw={_start_s} current_pos={current_pos}")
-        # 表示後に改行
-        print()
 
         # phase0: 左旋回中（yaw判定、90度到達で停止）
         if phase.get_phase() == 0:
             stop_turn = et.is_yaw_turn_finished(side="left", threshold_deg=90.0)
             if stop_turn:
                 phase.next_phase(current_pos)
-                print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
-                et.set_start_yaw(et.get_start_yaw() - 90.0)
+                print(f"[TURN_LEFT] reached -90 deg and stopped | yaw={self.get_yaw():.2f}, yaw_start={self.get_start_yaw():.2f}, diff={self.get_yaw() - self.get_start_yaw():.2f}")
+                # update raw start_yaw by converting masked start_yaw-90 back to raw
+                new_start_masked = self.get_start_yaw() - 90.0
+                et.set_start_yaw(self._masked_to_raw(new_start_masked))
                 # et.set_start_yaw_nearest_horizontal_pole()  
                 return (0, 0), Mode.TURN_LEFT_YAW
             else:
-                print(f"[TURN_LEFT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
+                print(f"[TURN_LEFT] yaw={self.get_yaw():.2f}, yaw_start={self.get_start_yaw():.2f}, diff={self.get_yaw() - self.get_start_yaw():.2f}")
                 return (0, 30), Mode.TURN_LEFT_YAW
 
         # phase1: 左旋回後の微調整（±4度以内2秒静止でPAUSE）
         if phase.get_phase() == 1:
             # carry_bottle1_relativeのphase2と完全同一ロジック
             in_tolerance, yaw_error = et.is_start_yaw_error_within(2.0)
-            start_yaw = et.get_start_yaw()
-            current_yaw = et.get_yaw()
+            start_yaw = self.get_start_yaw()
+            current_yaw = self.get_yaw()
             if in_tolerance:
                 print(f"[TURN_LEFT][ADJUST][TOLERANCE] in_tolerance={in_tolerance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
                 phase.next_phase(current_pos)
@@ -201,40 +218,27 @@ class FastLapChain(object):
         phase = self._phase
         et = self.et
         current_pos = self.get_motor_position(self.course)
-        # デバッグ: 呼び出し時の yaw と start_yaw を常に出力
-        try:
-            _yaw = et.get_yaw()
-            _yaw_s = f"{_yaw:.2f}"
-        except Exception:
-            _yaw_s = "None"
-        try:
-            _start_yaw = et.get_start_yaw()
-            _start_s = f"{_start_yaw:.2f}"
-        except Exception:
-            _start_s = "None"
-        print(f"[DEBUG_YAW][turn_right_yaw] phase={phase.get_phase()} yaw={_yaw_s} start_yaw={_start_s} current_pos={current_pos}")
-        # 表示後に改行
-        print()
 
         # phase0: 右旋回中（yaw判定、90度到達で停止）
         if phase.get_phase() == 0:
             stop_turn = et.is_yaw_turn_finished(side="right", threshold_deg=90.0)
             if stop_turn:
                 phase.next_phase(current_pos)
-                print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
-                et.set_start_yaw(et.get_start_yaw() + 90.0)
+                print(f"[TURN_RIGHT] reached +90 deg and stopped | yaw={self.get_yaw():.2f}, yaw_start={self.get_start_yaw():.2f}, diff={self.get_yaw() - self.get_start_yaw():.2f}")
+                new_start_masked = self.get_start_yaw() + 90.0
+                et.set_start_yaw(self._masked_to_raw(new_start_masked))
                 # et.set_start_yaw_nearest_horizontal_pole()  
                 return (0, 0), Mode.TURN_RIGHT_YAW
             else:
-                print(f"[TURN_RIGHT] yaw={et.get_yaw():.2f}, yaw_start={et.get_start_yaw():.2f}, diff={et.get_yaw() - et.get_start_yaw():.2f}")
+                print(f"[TURN_RIGHT] yaw={self.get_yaw():.2f}, yaw_start={self.get_start_yaw():.2f}, diff={self.get_yaw() - self.get_start_yaw():.2f}")
                 return (30, 0), Mode.TURN_RIGHT_YAW
 
         # phase1: 右旋回後の微調整（±4度以内2秒静止でPAUSE）
         if phase.get_phase() == 1:
             # carry_bottle1_relativeのphase2と完全同一ロジック
             in_tolerance, yaw_error = et.is_start_yaw_error_within(2.0)
-            start_yaw = et.get_start_yaw()
-            current_yaw = et.get_yaw()
+            start_yaw = self.get_start_yaw()
+            current_yaw = self.get_yaw()
             if in_tolerance:
                 print(f"[TURN_RIGHT][ADJUST][TOLERANCE] in_tolerance={in_tolerance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
                 phase.next_phase(current_pos)
@@ -256,8 +260,11 @@ class FastLapChain(object):
     def fast_lap(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
         if not self._init:
             self.initialize_action(motor_side=self.course)
+            # initialize yaw offset so current raw yaw becomes masked 0
             self.et.set_start_yaw()
-            self.start_yaw = self.et.get_start_yaw()
+            # ensure our offset is set and record masked start_yaw
+            self._ensure_yaw_offset_set()
+            self.start_yaw = self.get_start_yaw()
             self.lap_start_time = time.time()
             self._phase2_color_count = 0  # フェーズ2色検出カウンタ
             self._prev_color = None  # 前回の色値を初期化
@@ -265,20 +272,6 @@ class FastLapChain(object):
         et = self.et
         current_pos = self.get_motor_position(self.course)
         start_yaw = self.start_yaw
-        # デバッグ: 呼び出し時の yaw と start_yaw を常に出力
-        try:
-            _yaw = et.get_yaw()
-            _yaw_s = f"{_yaw:.2f}"
-        except Exception:
-            _yaw_s = "None"
-        try:
-            _start_yaw = et.get_start_yaw()
-            _start_s = f"{_start_yaw:.2f}"
-        except Exception:
-            _start_s = "None"
-        print(f"[DEBUG_YAW][fast_lap] phase={phase.get_phase()} yaw={_yaw_s} start_yaw_obj={_start_s} start_yaw_local={start_yaw} current_pos={current_pos}")
-        # 表示後に改行
-        print()
 
         # フェーズ0: course側モータ距離3000未満ならyaw_straight_controlで直進。3000以上で次フェーズ
         if phase.get_phase() == 0:
@@ -297,12 +290,14 @@ class FastLapChain(object):
         if phase.get_phase() == 1:
             stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=12.0)
             if stop_turn:
+                # update masked start_yaw and convert to raw for ETRobot
                 if self.course == "right":
-                    et.set_start_yaw(start_yaw - 12.0)
+                    new_masked = start_yaw - 12.0
                 else:
-                    et.set_start_yaw(start_yaw + 12.0)
+                    new_masked = start_yaw + 12.0
+                et.set_start_yaw(self._masked_to_raw(new_masked))
                 lap_elapsed = time.time() - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={self.get_start_yaw():.2f} | current_yaw={self.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
             else:
                 if self.course == "right":
@@ -353,11 +348,12 @@ class FastLapChain(object):
             stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=78.0)
             if stop_turn:
                 if self.course == "right":
-                    et.set_start_yaw(start_yaw - 90.0)
+                    new_masked = start_yaw - 90.0
                 else:
-                    et.set_start_yaw(start_yaw + 90.0)
+                    new_masked = start_yaw + 90.0
+                et.set_start_yaw(self._masked_to_raw(new_masked))
                 lap_elapsed = time.time() - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={self.get_start_yaw():.2f} | current_yaw={self.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
             else:
                 if self.course == "right":
@@ -387,11 +383,14 @@ class FastLapChain(object):
             if stop_turn:
                 phase.next_phase(current_pos)
                 lap_elapsed = time.time() - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | yaw={self.et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | yaw={self.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                # log current masked yaw for debugging
+                print(f"[DEBUG] masked_yaw={self.get_yaw():.2f} | masked_start_yaw={self.get_start_yaw():.2f}")
                 if self.course == "right":
-                    self.et.set_start_yaw(start_yaw - 180.0)
+                    new_masked = start_yaw - 180.0
                 else:
-                    self.et.set_start_yaw(start_yaw + 180.0)
+                    new_masked = start_yaw + 180.0
+                self.et.set_start_yaw(self._masked_to_raw(new_masked))
             else:
                 if self.course == "right":
                     return (75, 100), Mode.FAST_LAP
