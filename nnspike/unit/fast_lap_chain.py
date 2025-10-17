@@ -28,6 +28,8 @@ class FastLapChain(object):
             self.opposite_course = "right"
         self._init = False
         self.fast_lap_finished = False  # FAST_LAP完了フラグ
+        # fast_lap が最初に呼ばれたときだけ現在の yaw を 0 にするためのフラグ
+        self._fastlap_zeroed = False
 
     def initialize_action(self, motor_side: str = "right"):
         """
@@ -193,8 +195,22 @@ class FastLapChain(object):
         if not self._init:
             # フェーズ0: course側モータ距離1000未満ならyaw_straight_controlで直進。1000以上で次フェーズ
             self.initialize_action(motor_side=self.course)
-            self.et.set_start_yaw()
-            self.start_yaw = self.et.get_start_yaw()
+            # fast_lap が最初に呼ばれたときだけ現在の yaw を基準（0）にする
+            if not getattr(self, '_fastlap_zeroed', False):
+                samples = []
+                sample_count = 5
+                for _ in range(sample_count):
+                    samples.append(self.et.get_yaw())
+                    time.sleep(0.005)
+                avg_yaw = sum(samples) / len(samples) if samples else self.et.get_yaw()
+                self.et.set_start_yaw(avg_yaw)
+                # フラグを立てて次回以降はゼロ化しない
+                self._fastlap_zeroed = True
+            # 常に start_yaw を取得してインスタンスに保持（既存互換）
+            try:
+                self.start_yaw = self.et.get_start_yaw()
+            except Exception:
+                self.start_yaw = 0.0
             self.lap2_start_time = time.time()
         phase = self._phase
         et = self.et
@@ -207,7 +223,8 @@ class FastLapChain(object):
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
             if position_diff < 3000:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                # FAST_LAP では高速かつ安定化が必要なのでPID/調整幅を調整
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE, kp=0.6, deadband=4.0, adjust_speed=6)
                 # 戻り値は (target_x, (left,right,current), mode) の形に統一
                 return None, (left_speed, right_speed, 0), Mode.FAST_LAP
             else:
@@ -236,7 +253,7 @@ class FastLapChain(object):
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
             if position_diff < 300:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE, kp=0.5, deadband=4.0, adjust_speed=5)
                 return None, (left_speed, right_speed, 0), Mode.FAST_LAP
             else:
                 phase.next_phase()
@@ -262,7 +279,7 @@ class FastLapChain(object):
             position_diff = abs(current_pos - position_start)
             # if position_diff < 1750:
             if position_diff < 1300:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE, kp=0.6, deadband=4.0, adjust_speed=6)
                 return None, (left_speed, right_speed, 0), Mode.FAST_LAP
             else:
                 phase.next_phase()
@@ -291,7 +308,7 @@ class FastLapChain(object):
             position_diff = abs(current_pos - position_start)
             threshold = 2400 if self.course == "left" else 2000
             if position_diff < threshold:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE, kp=0.6, deadband=4.0, adjust_speed=6)
                 return None, (left_speed, right_speed, 0), Mode.FAST_LAP
             else:
                 phase.next_phase()
@@ -319,7 +336,7 @@ class FastLapChain(object):
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
             if position_diff < 100:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE, kp=0.6, deadband=4.0, adjust_speed=6)
                 return None, (left_speed, right_speed, 0), Mode.FAST_LAP
             else:
                 phase.next_phase()
