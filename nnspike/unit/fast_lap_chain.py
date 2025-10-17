@@ -51,6 +51,49 @@ class FastLapChain(object):
         self._reset_acceleration_timer()
         # フェーズ固有のタイマー変数を初期化
         self._phase1_start_time = None
+        # 時間ベースプラン関連初期化
+        self._time_plan = None
+        self._plan_idx = 0
+        self._plan_start_time = None
+        self._plan_active = False
+
+    def set_time_plan(self, plan: list) -> None:
+        """
+        時間ベースの出力プランをセットする。
+        plan は要素が (duration_seconds, right_speed, left_speed) のリスト。
+        注意: 戻り値で返す速度タプルは (left_speed, right_speed) なので、
+        plan の順序は (time, right, left) で受け取り、内部で変換して使用します。
+        """
+        # バリデーションと内部保存（duration float, right int, left int）
+        if not isinstance(plan, (list, tuple)):
+            raise ValueError("plan must be a list of tuples (duration_s, right, left)")
+        normalized = []
+        for item in plan:
+            if not (isinstance(item, (list, tuple)) and len(item) == 3):
+                raise ValueError("each plan item must be (duration_seconds, right_speed, left_speed)")
+            duration = float(item[0])
+            right = int(item[1])
+            left = int(item[2])
+            if duration <= 0:
+                raise ValueError("duration must be > 0")
+            normalized.append((duration, right, left))
+        self._time_plan = normalized
+        self._plan_idx = 0
+        self._plan_start_time = None
+        self._plan_active = True
+
+    def set_demo_time_plan(self) -> None:
+        """
+        デモ用の仮プランをセットするユーティリティ。
+        例: 1.0s 前進(100,100) -> 0.5s 停止 -> 2.0s 前進(120,120)
+        plan の順序は (duration_s, right, left)
+        """
+        demo = [
+            (5.0, 100, 100),
+            (0.5, 0, 0),
+            (2.0, 120, 120),
+        ]
+        self.set_time_plan(demo)
 
     def reset_action(self) -> None:
         """アクション終了時の状態リセット処理."""
@@ -59,6 +102,13 @@ class FastLapChain(object):
         # フェーズ1のタイマーをクリア
         try:
             self._phase1_start_time = None
+        except Exception:
+            pass
+        # 時間ベースプランの実行状態をクリア（プラン内容は保持）
+        try:
+            self._plan_idx = 0
+            self._plan_start_time = None
+            self._plan_active = False
         except Exception:
             pass
 
@@ -233,6 +283,36 @@ class FastLapChain(object):
         return (0, 0), Mode.TURN_RIGHT_YAW
 
     def fast_lap(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
+        # If a time-based plan is active, run it first.
+        if getattr(self, '_time_plan', None) and getattr(self, '_plan_active', False):
+            # initialize plan timer on first call
+            if self._plan_start_time is None:
+                self._plan_start_time = time.time()
+            # guard index
+            if self._plan_idx >= len(self._time_plan):
+                # plan finished
+                self._plan_active = False
+                self._plan_start_time = None
+            else:
+                duration, right, left = self._time_plan[self._plan_idx]
+                elapsed = time.time() - self._plan_start_time
+                # run specified outputs until duration elapsed
+                if elapsed < duration:
+                    # note: internal return type is (left, right)
+                    return (left, right), Mode.FAST_LAP
+                else:
+                    # advance to next plan item
+                    self._plan_idx += 1
+                    self._plan_start_time = time.time()
+                    # if this was last item, mark finished and fallthrough
+                    if self._plan_idx >= len(self._time_plan):
+                        self._plan_active = False
+                        self._plan_start_time = None
+                    else:
+                        # immediately start next item on next invocation
+                        next_duration, next_right, next_left = self._time_plan[self._plan_idx]
+                        return (next_left, next_right), Mode.FAST_LAP
+
         # Three-phase behavior requested:
         # phase0: keep going as before (start-dash straight) until threshold
         # phase1: stop for 2 seconds
