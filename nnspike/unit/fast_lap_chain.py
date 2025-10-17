@@ -49,11 +49,18 @@ class FastLapChain(object):
         self._init = True
         # アクション開始時に加速タイマーをリセット
         self._reset_acceleration_timer()
+        # フェーズ固有のタイマー変数を初期化
+        self._phase1_start_time = None
 
     def reset_action(self) -> None:
         """アクション終了時の状態リセット処理."""
         self._init = False
         self._reset_acceleration_timer()
+        # フェーズ1のタイマーをクリア
+        try:
+            self._phase1_start_time = None
+        except Exception:
+            pass
 
     def _reset_acceleration_timer(self) -> None:
         """加速タイマーをリセットする（プライベートメソッド）"""
@@ -226,17 +233,17 @@ class FastLapChain(object):
         return (0, 0), Mode.TURN_RIGHT_YAW
 
     def fast_lap(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
-        # Simplified 3-phase fast_lap:
-        # phase0: straight (existing start-dash behavior) until threshold
-        # phase1: small right turn (~12deg)
-        # phase2: back same distance as phase0
+        # Three-phase behavior requested:
+        # phase0: keep going as before (start-dash straight) until threshold
+        # phase1: stop for 2 seconds
+        # phase2: resume straight
         if not self._init:
             self.initialize_action(motor_side=self.course)
             self.et.set_start_yaw()
             self.start_yaw = self.et.get_start_yaw()
             self.lap_start_time = time.time()
-            self._prev_color = None
-            self._phase0_distance = 0
+            # timer for phase1 stop
+            self._phase1_start_time = None
         phase = self._phase
         et = self.et
         current_pos = self.get_motor_position(self.course)
@@ -249,39 +256,29 @@ class FastLapChain(object):
                 left_speed, right_speed = et.yaw_straight_control(base_speed=base_speed)
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
-                # record distance covered in phase0 for later backing
-                self._phase0_distance = position_diff
                 lap_elapsed = time.time() - self.lap_start_time
                 print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=0->1 | position_diff={position_diff} | time: {lap_elapsed:.3f}s")
                 phase.next_phase(current_pos)
 
-        # PHASE 1: small right turn (~12deg). drive until yaw turn finished
+        # PHASE 1: stop for 2 seconds
         if phase.get_phase() == 1:
-            stop_turn = et.is_yaw_turn_finished(side="right", threshold_deg=12.0)
-            if stop_turn:
-                # update reference yaw
-                et.set_start_yaw(et.get_start_yaw() + 12.0)
-                lap_elapsed = time.time() - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=1->2 | set_start_yaw={et.get_start_yaw():.2f} | time: {lap_elapsed:.3f}s")
-                phase.next_phase(current_pos)
-            else:
-                # gentle right turn: left slightly faster than right
-                return (100, 80), Mode.FAST_LAP
+            # set timer on first entry
+            if getattr(self, '_phase1_start_time', None) is None:
+                self._phase1_start_time = time.time()
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=1 entered | start_time={self._phase1_start_time:.3f}")
 
-        # PHASE 2: back the same distance as phase0
-        if phase.get_phase() == 2:
-            # when entering phase2, position_start is already set to current_pos by next_phase
-            back_diff = phase.get_position_diff(current_pos)
-            target = int(self._phase0_distance)
-            print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=2 | back_diff={back_diff} | target_back={target}")
-            if back_diff < target:
-                # drive backwards with moderate speed
-                return (-HIGH_SPEED_BASE, -HIGH_SPEED_BASE), Mode.FAST_LAP
+            elapsed = time.time() - self._phase1_start_time
+            if elapsed < 2.0:
+                # stop motors
+                return (0, 0), Mode.FAST_LAP
             else:
-                # finished backing
-                self.reset_action()
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=2 finished | backed {back_diff} >= {target}")
-                return (0, 0), Mode.PAUSE
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=1->2 | waited {elapsed:.3f}s")
+                phase.next_phase(current_pos)
+
+        # PHASE 2: resume straight
+        if phase.get_phase() == 2:
+            left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+            return (left_speed, right_speed), Mode.FAST_LAP
 
         # fallback
         print("[FAST_LAP] Unexpected state reached.")
