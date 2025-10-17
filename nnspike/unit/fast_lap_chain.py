@@ -202,6 +202,7 @@ class FastLapChain(object):
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return None, (left_speed, right_speed, 0), Mode.FAST_LAP
             else:
+                sys.exit("")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
 
@@ -230,7 +231,6 @@ class FastLapChain(object):
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return None, (left_speed, right_speed, 0), Mode.FAST_LAP
             else:
-                sys.exit("")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
 
