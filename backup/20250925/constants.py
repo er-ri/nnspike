@@ -47,7 +47,9 @@ class Mode(Enum):
     TURN_RIGHT = 20
     NVIDIA_FOLLOW = 21
     DOUBLE_LOOP = 22  # key1ダブルループモード
-    FAST_LAP = 23  # 高速周回モード（yキー用）
+    FAST_LAP = 50  # 最速ラップモード
+    SHORTCUT_LAP = 51  # ショートカット走行モード
+    SHORTCUT_LAP2 = 52  # ショートカット走行モード2（lキー用）
     TEST = 99  # テスト用モード
 
 # Camera and Robot Geometry Constants

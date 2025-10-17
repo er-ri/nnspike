@@ -32,11 +32,6 @@ class FastLapChain(object):
         self._init = False
         # 加速制御用プライベート変数
         self._acceleration_start_time = None
-        # パワー監視・加速制御用プライベート変数
-        self._prev_motor_a_power = 0
-        self._prev_motor_b_power = 0
-        self._freeze_speed = False
-        self._last_speed = 40
 
     def initialize_action(self, motor_side: str = "right") -> None:
         """
@@ -69,53 +64,29 @@ class FastLapChain(object):
             return 0.0
         return time.time() - self._acceleration_start_time
 
-    def get_fast_lap_start_dash_speed(self, target_speed: int = HIGH_SPEED_BASE, acceleration_time: float = 0.5) -> int:
-        """
-        ファストラップ専用スタートダッシュ加速制御。
-        action_chainの加速とは完全に独立した、より積極的な加速を提供する。
-        motor_a_power/motor_b_powerの落ち込みを監視し、落ち込んだらスピード上昇を一時停止、回復したら再加速。
-        最低パワーは40から開始。
-        """
+    def get_accelerated_base_speed(self, target_speed: int = HIGH_SPEED_BASE, acceleration_time: float = 0.5) -> int:
         # タイマーが未初期化の場合は自動開始
         if self._acceleration_start_time is None:
             self._start_acceleration_timer()
-
+            
         # 経過時間を計算
         elapsed_time = self._get_acceleration_elapsed_time()
-
-        # acceleration_time秒以降は絶対にtarget_speedを返す（余計な計算・判定なし）
+        
+        # acceleration_time秒以降は到達速度を確実に返す（無駄な計算回避）
         if elapsed_time >= acceleration_time:
             return target_speed
-
-        # --- acceleration_time未満のみ従来の加速・freeze判定を行う ---
-        left_power, right_power = self.et.get_motor_power()
-        motor_a_power = right_power  # A=right
-        motor_b_power = left_power   # B=left
-
-        # パワー落ち込み判定（絶対値で前回より下がったらfreeze、上がったら解除）
-        if (abs(motor_a_power) < abs(self._prev_motor_a_power) or
-            abs(motor_b_power) < abs(self._prev_motor_b_power)):
-            self._freeze_speed = True
-        elif (abs(motor_a_power) >= abs(self._prev_motor_a_power) or
-              abs(motor_b_power) >= abs(self._prev_motor_b_power)):
-            self._freeze_speed = False
-
+            
+        # acceleration_time秒未満のみ計算実行
+        # 2次関数による初期緩やか加速（quadratic ease-in）
         ratio = elapsed_time / acceleration_time
-        aggressive_ratio = ratio ** 1.5
-        min_speed = 40
-        calculated_speed = int(min_speed + (target_speed - min_speed) * aggressive_ratio)
-        speed = max(min_speed, min(calculated_speed, target_speed))
-
-
-        if self._freeze_speed:
-            speed = self._last_speed
-
-        # 状態更新
-        self._last_speed = speed
-        self._prev_motor_a_power = motor_a_power
-        self._prev_motor_b_power = motor_b_power
-
-        return speed
+        # 初期は非常に緩やか、その後は一定の加速度で上昇（急激な変化なし）
+        quadratic_ratio = ratio * ratio
+        
+        # 最低速度5から到達速度まで
+        min_speed = 5
+        calculated_speed = int(min_speed + (target_speed - min_speed) * quadratic_ratio)
+        
+        return max(min_speed, min(calculated_speed, target_speed))
 
     def get_motor_position(self, motor_side: str = "right") -> int:
         """
@@ -158,7 +129,7 @@ class FastLapChain(object):
         # phase1: 左旋回後の微調整（±4度以内2秒静止でPAUSE）
         if phase.get_phase() == 1:
             # carry_bottle1_relativeのphase2と完全同一ロジック
-            in_tolerance, yaw_error = et.is_start_yaw_error_within(2.0)
+            in_tolerance, yaw_error = et.is_start_yaw_error_within(1.0)
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
             if in_tolerance:
@@ -204,7 +175,7 @@ class FastLapChain(object):
         # phase1: 右旋回後の微調整（±4度以内2秒静止でPAUSE）
         if phase.get_phase() == 1:
             # carry_bottle1_relativeのphase2と完全同一ロジック
-            in_tolerance, yaw_error = et.is_start_yaw_error_within(2.0)
+            in_tolerance, yaw_error = et.is_start_yaw_error_within(1.0)
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
             if in_tolerance:
@@ -242,8 +213,8 @@ class FastLapChain(object):
         if phase.get_phase() == 0:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 3000:
-                # ファストラップ専用スタートダッシュ加速制御メソッドを使用
-                base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.5)
+                # 時間ベース段階的加速制御メソッドを使用
+                base_speed = self.get_accelerated_base_speed(HIGH_SPEED_BASE, 0.5)
                 left_speed, right_speed = et.yaw_straight_control(base_speed=base_speed)
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
@@ -356,7 +327,7 @@ class FastLapChain(object):
                 else:
                     return (100, 75), Mode.FAST_LAP
 
-        # フェーズ6: position_startとの差分200未満ならyaw_straight_control直進。200以上で次フェーズ
+        # フェーズ6: position_startとの差分2000未満ならyaw_straight_control直進。2000以上で次フェーズ
         if phase.get_phase() == 6:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 200:
@@ -366,7 +337,7 @@ class FastLapChain(object):
                 # ラップ終了タイム記録
                 self.lap_end_time = time.time()
                 lap_elapsed = self.lap_end_time - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 200 | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 300 | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.FAST_LAP
 

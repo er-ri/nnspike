@@ -17,9 +17,7 @@ class ETRobot(object):
     COMMAND_SET_MOTOR_RELATIVE_POSITION_ID = 203
     COMMAND_STOP_MOTOR_ID = 204
     COMMAND_MOVE_ARM_ID = 205
-
     COMMAND_SET_MOTOR_MIXED_SPEED_ID = 206
-    COMMAND_RESET_YAW_ID = 207  # ヨーリセット用コマンドID
 
     CMD_FLAG = b"CF:"
 
@@ -258,7 +256,7 @@ class ETRobot(object):
                 color_type = "black"
             elif color_value < 200:
                 color_type = "other"
-            elif color_value < 500:
+            elif color_value < 600:
                 color_type = "blue"
             elif color_value > 900:
                 color_type = "white"
@@ -376,6 +374,8 @@ class ETRobot(object):
         return float(val) if val is not None else 0.0
 
     def set_start_yaw(self, yaw: Optional[float] = None):
+        before = getattr(self, '_start_yaw', None)
+        print(f"[DEBUG][set_start_yaw] before={before} arg={yaw}")
         """
         現在のヨー角または指定値をstart_yawとして記録する（直線安定化・旋回開始時などで使用）
         Args:
@@ -385,6 +385,7 @@ class ETRobot(object):
             self._start_yaw = float(yaw)
         else:
             self._start_yaw = self.get_yaw()
+        print(f"[DEBUG][set_start_yaw] after={self._start_yaw}")
 
     def get_start_yaw(self) -> float:
         """
@@ -441,28 +442,6 @@ class ETRobot(object):
             within = (tolerance_deg <= error <= -tolerance_deg)
         return within, error
 
-    def is_vertical_yaw_error_within(self, tolerance_deg: float) -> tuple[bool, float]:
-        """
-        現在のyawが最も近い垂直方向（0, ±180度）から±tolerance_deg以内か判定し、誤差値も返す。
-        """
-        yaw = self.get_yaw()
-        candidates = [0, 180, -180]
-        errors = [self.wrap_angle(yaw - c) for c in candidates]
-        min_error = min(errors, key=lambda x: abs(x))
-        within = (-abs(tolerance_deg) <= min_error <= abs(tolerance_deg))
-        return within, min_error
-
-    def is_horizontal_yaw_error_within(self, tolerance_deg: float) -> tuple[bool, float]:
-        """
-        現在のyawが最も近い水平方向（±90度）から±tolerance_deg以内か判定し、誤差値も返す。
-        """
-        yaw = self.get_yaw()
-        candidates = [90, -90]
-        errors = [self.wrap_angle(yaw - c) for c in candidates]
-        min_error = min(errors, key=lambda x: abs(x))
-        within = (-abs(tolerance_deg) <= min_error <= abs(tolerance_deg))
-        return within, min_error
-
     def yaw_straight_control(self, base_speed: int = HIGH_SPEED_BASE, kp: float = 1.0, deadband: float = 3.0, adjust_speed: int = 1) -> tuple[int, int]:
         """
         ヨー角による直線安定化制御（P制御、内部start_yaw基準）。
@@ -502,37 +481,17 @@ class ETRobot(object):
         get_yawで取得した値を0, -180, +180（縦方向の基準）にラップしてself._start_yawに設定する。
         """
         yaw = self.get_yaw()
-        
-        # シンプルな条件分岐
-        if -90 <= yaw <= 90:
-            self._start_yaw = 0.0
-        elif yaw > 90:
-            self._start_yaw = 180.0
-        else:  # yaw < -90
-            self._start_yaw = -180.0
-            
+        vertical_poles = [0.0, -180.0, 180.0]
+        nearest = min(vertical_poles, key=lambda p: abs(self.wrap_angle(yaw - p)))
+        self._start_yaw = nearest
         print(f"[DEBUG][set_start_yaw_nearest_vertical_pole] set={self._start_yaw}, get_yaw={yaw}")  
 
     def set_start_yaw_nearest_horizontal_pole(self):
         """
-        get_yawで取得した値を+90, -90（横方向の基準）にラップしてself._start_yawに設定する。
+        get_yawで取得した値を+90, -90, +270, -270（横方向の基準）にラップしてself._start_yawに設定する。
         """
         yaw = self.get_yaw()
-        
-        # シンプルな条件分岐
-        if yaw >= 0:
-            self._start_yaw = 90.0
-        else:
-            self._start_yaw = -90.0
-            
-        print(f"[DEBUG][set_start_yaw_nearest_horizontal_pole] set={self._start_yaw}, get_yaw={yaw}") 
-
-    def reset_yaw(self) -> None:
-        """
-        ヨー角リセットコマンドをSpike Primeに送信する。
-        """
-        id_byte = self.COMMAND_RESET_YAW_ID.to_bytes(1, "big")
-        parameter1_byte = (0).to_bytes(1, "big")
-        parameter2_byte = (0).to_bytes(1, "big")
-        command = id_byte + parameter1_byte + parameter2_byte
-        self.__send_command(command) 
+        horizontal_poles = [90.0, -90.0, 270.0, -270.0]
+        nearest = min(horizontal_poles, key=lambda p: abs(self.wrap_angle(yaw - p)))
+        self._start_yaw = nearest
+        print(f"[DEBUG][set_start_yaw_nearest_horizontal_pole] set={self._start_yaw}, get_yaw={yaw}")

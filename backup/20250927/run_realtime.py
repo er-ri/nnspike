@@ -4,9 +4,7 @@ import argparse
 from email.mime import base
 import sys
 import time
-import socket
-import pickle
-import struct
+import math
 
 from nnspike.unit import Video, ETRobot, KeyboardController
 from nnspike.unit.fast_lap_chain import FastLapChain
@@ -15,17 +13,33 @@ from nnspike.unit.action_chain import ActionChain
 import cv2
 import numpy as np
 from nnspike.constants import BASE_SPEED, HIGH_SPEED_BASE, CAMERA_WIDTH, CAMERA_HEIGHT, OFFSET_Y, ROI_CNN, Mode, ROI_COLOR
-from nnspike.utils import PIDController, SensorRecorder
+from nnspike.utils import PIDController, SensorRecorder, draw_driving_info, get_line_edges_at_y, find_bottle_center, find_blue_target_center, get_virtual_line_target_x, get_offset_pixels
+import threading
 
-# Socket connection settings
-HOST_IP_ADDRESS = "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
-
+def handle_status_and_video(frame, status, mode, left_speed, right_speed,
+                           record_sensor_data, sensor_recorder, save_camera_video, video_writer):
+    """status取得・センサー記録・動画送信処理"""
+    if record_sensor_data and sensor_recorder is not None:
+        sensor_recorder.log_frame_data(status, mode, left_speed, right_speed)
+    if save_camera_video and video_writer is not None:
+        video_writer.write(frame)
+    
+    return True
+    
 # StateFlagsクラス（バックアップより）
 class StateFlags:
 
     def __init__(self):
         self._first_key_used = False
         self._force_sensor_mode_switch_enabled = False
+        self._fast_lap_finished = False
+    @property
+    def fast_lap_finished(self):
+        return self._fast_lap_finished
+
+    @fast_lap_finished.setter
+    def fast_lap_finished(self, value: bool):
+        self._fast_lap_finished = value
 
     @property
     def first_key_used(self):
@@ -107,24 +121,46 @@ def wait_for_start(et, keyboard, state_flags, manual_mode=False):
 
     return first_key
 
-def main(record_sensor_data=False, save_camera_video=False, course="right", course_type="upper", manual_mode=False, send_video_stream=False):
+def main(record_sensor_data=False, save_camera_video=False, course="right", course_type="upper", manual_mode=False, use_video=False):
     def unpack_action_result(result, default_mode=Mode.PAUSE):
         # Noneや不正な戻り値も吸収して安全にアンパック
         if result is None:
-            return (0, 0), default_mode
-        if len(result) == 2:
-            speeds, mode = result
+            return None, (0, 0, 0), default_mode
+        if len(result) == 3:
+            target_x, speeds, mode = result
+            # speedsが2要素なら3要素化（currentはBASE_SPEED）
             if speeds is None:
-                speeds = (0, 0)
+                speeds = (0, 0, 0)
             elif len(speeds) == 2:
                 left, right = speeds
                 left = 0 if left is None else left
                 right = 0 if right is None else right
-                speeds = (left, right)
+                speeds = (left, right, BASE_SPEED)
+            elif len(speeds) == 3:
+                left, right, current = speeds
+                left = 0 if left is None else left
+                right = 0 if right is None else right
+                current = BASE_SPEED if current is None else current
+                speeds = (left, right, current)
             if mode is None:
                 mode = default_mode
-            return speeds, mode
-        return (0, 0), default_mode
+            return target_x, speeds, mode
+        return None, (0, 0, 0), default_mode
+
+    def calc_motor_speed(target_x, left_speed=0, right_speed=0, current_base_speed=BASE_SPEED):
+        # current_base_speedがNoneまたは0ならBASE_SPEEDを使う
+        if current_base_speed is None or current_base_speed == 0:
+            current_base_speed = BASE_SPEED
+        if target_x is not None:
+            offset_pixels = get_offset_pixels(target_x, ROI_CNN)
+            theta = math.atan2(offset_pixels, CAMERA_WIDTH)
+            steering_correction = pid.update(theta)
+            left_speed = current_base_speed - steering_correction
+            right_speed = current_base_speed + steering_correction
+        # else: left_speed, right_speedは必ず0以上の値
+        left_speed = int(max(0, min(255, left_speed)))
+        right_speed = int(max(0, min(255, right_speed)))
+        return left_speed, right_speed
 
     def handle_debug_output(loop_start, loop_end, debug_state, min_interval=0.017):
         debug_state['counter'] += 1
@@ -159,23 +195,16 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
             frameSize=(CAMERA_WIDTH, CAMERA_HEIGHT),
         )
 
-    # Initialize video sending to host PC
-    client_socket = None
-    if send_video_stream:
-        try:
-            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.connect((HOST_IP_ADDRESS, 8485))
-            print(f"Connected to host PC at {HOST_IP_ADDRESS}:8485 for video streaming")
-        except Exception as e:
-            print(f"Warning: Could not connect to host PC for video streaming: {e}")
-            if client_socket:
-                client_socket.close()
-            client_socket = None
-
     # Initialize edge following preference based on the course parameter
     et = ETRobot()
 
-    pid = PIDController()  # デフォルト値を使用（内部的に適切な値が設定される）
+    pid = PIDController(
+        Kp=50,
+        Ki=0,
+        Kd=5,
+        setpoint=0,
+        output_limits=(-BASE_SPEED, BASE_SPEED),
+    )
 
     # Initialize robot, keyboard controller
     keyboard = KeyboardController()
@@ -189,31 +218,28 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     # --- 変数初期化 ---
     left_speed = None
     right_speed = None
+    dummy_frame = np.zeros((CAMERA_HEIGHT, CAMERA_WIDTH, 3), dtype=np.uint8)
 
-    # カメラを常に使用
-    print("[INFO] Initializing camera and warmup...")
-    video = Video()
-    video.warmup()
-    
-    # カメラの状態をチェック
-    actual_fps = video.cap.get(cv2.CAP_PROP_FPS)
-    frame = video.get_frame()
-    
-    if actual_fps > 0 and frame is not None:
-        h, w, c = frame.shape
-        print(f"[INFO] Camera OK. FPS: {actual_fps}, Size: {w}x{h}, Channels: {c}")
-    else:
-        print(f"[WARNING] Camera initialization failed. FPS: {actual_fps}")
-    
+    # 毎回判定する必要のないフラグを事前計算
+    need_status = (record_sensor_data and sensor_recorder is not None)
+
+    # カメラ起動条件をuse_cameraまたはuse_videoどちらかTrueで判定
+    video = None
+    if use_video:
+        video = Video()
+        video.warmup()
+        actual_fps = video.cap.get(cv2.CAP_PROP_FPS)
+        print(f"[INFO] Camera actual FPS: {actual_fps}")
     # --- スタート待ち ---
     first_key = wait_for_start(et, keyboard, state_flags, manual_mode=manual_mode)
     if first_key is None:
-        video.release()
+        if video is not None:
+            video.release()
         return
 
     # wait_for_start()の後にmodeの初期値を決定
     if state_flags.force_sensor_mode_switch_enabled:
-        mode = Mode.FAST_LAP
+        mode = Mode.SHORTCUT_LAP2
     else:
         mode = Mode.PAUSE
 
@@ -226,30 +252,15 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     try:
         while et.is_running:
             loop_start = time.time()
-            frame = video.get_frame()
-            if save_camera_video and video_writer is not None and frame is not None and isinstance(frame, np.ndarray):
-                video_writer.write(frame)
-
-            # send_video機能（シンプル版）
-            if send_video_stream and client_socket is not None and frame is not None:
-                try:
-                    # フレームをJPEGエンコード
-                    _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-                    data = pickle.dumps(buffer)
-                    # データサイズを先に送信
-                    message_size = struct.pack("L", len(data))
-                    client_socket.sendall(message_size + data)
-                except Exception as e:
-                    print(f"Video sending error: {e}")
-                    # エラー時はソケットをクローズ
-                    try:
-                        client_socket.close()
-                    except:
-                        pass
-                    client_socket = None
+            if video is not None:
+                frame = video.get_frame()
+                if save_camera_video and video_writer is not None and frame is not None and isinstance(frame, np.ndarray):
+                    video_writer.write(frame)
+            else:
+                frame = dummy_frame
 
             # status取得・センサー記録（メインスレッドで直接処理）
-            if record_sensor_data and sensor_recorder is not None:
+            if need_status:
                 status = et.get_spike_status()
                 safe_left_speed = left_speed if left_speed is not None else 0
                 safe_right_speed = right_speed if right_speed is not None else 0
@@ -278,11 +289,20 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                 mode = mode_result
                 print(msg)
 
+            # FAST_LAPが終了したら1回だけVideoを有効化
+            if fast_lap_chain.fast_lap_finished and not state_flags.fast_lap_finished:
+                state_flags.fast_lap_finished = True
+                et.set_motor_forward_speed(left_speed=0, right_speed=0)
+                print("[INFO] FAST_LAP finished. Switching to DOUBLE_LOOP after camera warmup.")
+                if video is None:
+                    video = Video()
+                    video.warmup()
+                time.sleep(2)
+                mode = Mode.DOUBLE_LOOP
+                continue
+
             # モード分岐（match-case構文）
             match mode:
-                case Mode.FAST_LAP:
-                    (left_speed, right_speed), mode = unpack_action_result(fast_lap_chain.fast_lap(frame))
-                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.FORWARD:
                     left_speed = BASE_SPEED
                     right_speed = BASE_SPEED
@@ -292,41 +312,47 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
                     right_speed = BASE_SPEED
                     et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.TURN_LEFT_YAW:
-                    (left_speed, right_speed), mode = unpack_action_result(fast_lap_chain.turn_left_yaw(frame))
-                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+                    _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.turn_left_yaw(frame))
+                    et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.TURN_RIGHT_YAW:
-                    (left_speed, right_speed), mode = unpack_action_result(fast_lap_chain.turn_right_yaw(frame))
+                    _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.turn_right_yaw(frame))
+                    et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
+                case Mode.FAST_LAP:
+                    _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.fast_lap(frame))
+                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+                case Mode.SHORTCUT_LAP:
+                    _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.shortcut_lap(frame))
+                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
+                case Mode.SHORTCUT_LAP2:
+                    _, (left_speed, right_speed, _), mode = unpack_action_result(fast_lap_chain.shortcut_lap2(frame))
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.DOUBLE_LOOP:
-                    (left_speed, right_speed), mode = unpack_action_result(action_chain.execute_double_loop(frame))
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.execute_double_loop(frame))
+                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, BASE_SPEED)
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.CARRY_BOTTLE1:
-                    (left_speed, right_speed), mode = unpack_action_result(action_chain.carry_bottle1_relative(frame))
+                    target_x, (left_speed, right_speed, current_base_speed), mode = unpack_action_result(action_chain.carry_bottle1_relative(frame))
+                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, current_base_speed)
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.BACK_AND_TURN1:
-                    (left_speed, right_speed), mode = unpack_action_result(action_chain.back_and_turn1_relative(frame))
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.back_and_turn1_relative(frame))
                     if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
                         et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
                     else:
                         et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.CARRY_BOTTLE2:
-                    (left_speed, right_speed), mode = unpack_action_result(action_chain.carry_bottle2_relative(frame))
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.carry_bottle2_relative(frame))
+                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, BASE_SPEED)
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.BACK_AND_TURN2:
-                    (left_speed, right_speed), mode = unpack_action_result(action_chain.back_and_turn2_relative(frame))
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.back_and_turn2_relative(frame))
                     if left_speed == BASE_SPEED and right_speed == BASE_SPEED:
                         et.set_motor_backward_speed(left_speed=left_speed, right_speed=right_speed)
                     else:
                         et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
                 case Mode.HEAD_GOAL:
-                    (left_speed, right_speed), mode = unpack_action_result(action_chain.heading_goal_relative(frame))
-                    et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
-                case Mode.EYE_BLUE:
-                    (left_speed, right_speed), mode = unpack_action_result(action_chain.eye_blue(frame))
-                    et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
-                case Mode.TEST:
-                    (left_speed, right_speed), mode = unpack_action_result(action_chain.test_mode_action(frame))
-                    et.set_motor_speed(left_speed=left_speed, right_speed=right_speed)
+                    target_x, (left_speed, right_speed, _), mode = unpack_action_result(action_chain.heading_goal_relative(frame))
+                    left_speed, right_speed = calc_motor_speed(target_x, left_speed, right_speed, BASE_SPEED)
                 case Mode.PAUSE:
                     left_speed, right_speed = 0, 0
                     et.set_motor_forward_speed(left_speed=left_speed, right_speed=right_speed)
@@ -339,15 +365,8 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
         print(f"Error: {e}")
     finally:
         et.stop()
-        video.release()
-
-        # ビデオストリーミングクリーンアップ
-        if send_video_stream and client_socket is not None:
-            try:
-                client_socket.close()
-                print("Video streaming connection closed")
-            except Exception as e:
-                print(f"Error closing video socket: {e}")
+        if video is not None:
+            video.release()
 
         # 録画クリーンアップ
         if save_camera_video and video_writer is not None:
@@ -366,17 +385,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the OpenCV-based line following robot with optional sensor recording and video saving")
     parser.add_argument("--record-sensor", action="store_true", help="Record sensor data to file")
     parser.add_argument("--save-video", action="store_true", help="Save camera video to file")
-    parser.add_argument("--send-video", action="store_true", help="Send video stream to host PC")
     parser.add_argument("--course", choices=["left", "right"], default="right", help="Initial course to follow: 'left' for left edge, 'right' for right edge (default: right)")
     parser.add_argument("--course-type", choices=["upper", "lower"], default="upper", help="Course type: 'upper' or 'lower' (default: upper)")
     parser.add_argument("--manual", action="store_true", help="Enable manual key input control mode")
+    parser.add_argument("--use-video", action="store_true", help="Enable camera at startup")
     args = parser.parse_args()
-    print("NNSpike Robot Starting...")
-    print(f"course: {args.course}, course-type: {args.course_type}")
-    print(f"Flags: record_sensor={args.record_sensor}, save_video={args.save_video}, send_video={args.send_video}, manual={args.manual}")
+    print("Starting OpenCV-based line following robot...")
+    print(f"Using ROI: {ROI_CNN}")
+    print(f"Base speed: {BASE_SPEED}")
+    print(f"course: {args.course}")
     print("Controls:")
-    print("  'j' - Turn left yaw")
-    print("  'k' - Turn right yaw")
+    print("  'a' - Follow left edge")
+    print("  'd' - Follow right edge")
     print("  'f' - Forward")
     print("  'b' - Backward")
     print("  'q' - Quit")
@@ -384,8 +404,8 @@ if __name__ == "__main__":
     main(
         record_sensor_data=args.record_sensor,
         save_camera_video=args.save_video,
-        send_video_stream=args.send_video,
         course=args.course,
         course_type=args.course_type,
         manual_mode=args.manual,
+        use_video=args.use_video,
     )

@@ -57,10 +57,15 @@ while True:
 
     frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-    # Write the frame to the video file
+    # Draw Y=300 reference line
+    frame_with_line = frame.copy()
+    cv2.line(frame_with_line, (0, 300), (640, 300), (0, 255, 0), 2)  # Green line at Y=300
+    cv2.putText(frame_with_line, "Y=300", (10, 295), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+    # Write the original frame to the video file (without line)
     out.write(frame)
 
-    cv2.imshow("Robot View", frame)
+    cv2.imshow("Robot View", frame_with_line)
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
