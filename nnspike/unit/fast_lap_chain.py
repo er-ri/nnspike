@@ -212,9 +212,9 @@ class FastLapChain(object):
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
                 if self.course == "right":
-                    self.et.set_start_yaw(start_yaw + 10.0)  # 右コースは+30度
+                    self.et.set_start_yaw(start_yaw + 2.0)  # 右コースは+30度
                 else:
-                    self.et.set_start_yaw(start_yaw - 10.0)  # 左コースは-30度
+                    self.et.set_start_yaw(start_yaw - 2.0)  # 左コースは-30度
             else:
                 if self.course == "right":
                     return None, (90, 100, 0), Mode.FAST_LAP
