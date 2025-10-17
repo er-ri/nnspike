@@ -49,68 +49,11 @@ class FastLapChain(object):
         self._init = True
         # アクション開始時に加速タイマーをリセット
         self._reset_acceleration_timer()
-        # フェーズ固有のタイマー変数を初期化
-        self._phase1_start_time = None
-        # 時間ベースプラン関連初期化
-        self._time_plan = None
-        self._plan_idx = 0
-        self._plan_start_time = None
-        self._plan_active = False
-
-    def set_time_plan(self, plan: list) -> None:
-        """
-        時間ベースの出力プランをセットする。
-        plan は要素が (duration_seconds, right_speed, left_speed) のリスト。
-        注意: 戻り値で返す速度タプルは (left_speed, right_speed) なので、
-        plan の順序は (time, right, left) で受け取り、内部で変換して使用します。
-        """
-        # バリデーションと内部保存（duration float, right int, left int）
-        if not isinstance(plan, (list, tuple)):
-            raise ValueError("plan must be a list of tuples (duration_s, right, left)")
-        normalized = []
-        for item in plan:
-            if not (isinstance(item, (list, tuple)) and len(item) == 3):
-                raise ValueError("each plan item must be (duration_seconds, right_speed, left_speed)")
-            duration = float(item[0])
-            right = int(item[1])
-            left = int(item[2])
-            if duration <= 0:
-                raise ValueError("duration must be > 0")
-            normalized.append((duration, right, left))
-        self._time_plan = normalized
-        self._plan_idx = 0
-        self._plan_start_time = None
-        self._plan_active = True
-
-    def set_demo_time_plan(self) -> None:
-        """
-        デモ用の仮プランをセットするユーティリティ。
-        例: 1.0s 前進(100,100) -> 0.5s 停止 -> 2.0s 前進(120,120)
-        plan の順序は (duration_s, right, left)
-        """
-        demo = [
-            (5.0, 70, 100),
-            (0.5, 0, 0),
-            (2.0, 120, 120),
-        ]
-        self.set_time_plan(demo)
 
     def reset_action(self) -> None:
         """アクション終了時の状態リセット処理."""
         self._init = False
         self._reset_acceleration_timer()
-        # フェーズ1のタイマーをクリア
-        try:
-            self._phase1_start_time = None
-        except Exception:
-            pass
-        # 時間ベースプランの実行状態をクリア（プラン内容は保持）
-        try:
-            self._plan_idx = 0
-            self._plan_start_time = None
-            self._plan_active = False
-        except Exception:
-            pass
 
     def _reset_acceleration_timer(self) -> None:
         """加速タイマーをリセットする（プライベートメソッド）"""
@@ -194,7 +137,8 @@ class FastLapChain(object):
         # ActionChain設計に厳密に合わせる: self._init判定→initialize_action→phase管理
         if not self._init:
             self.initialize_action(motor_side='right')
-            self.et.set_start_yaw()
+        # 常に yaw の基準を現在の値にリセットする（毎回リセット）
+        self.et.set_start_yaw()
         phase = self._phase
         et = self.et
         current_pos = self.get_motor_position(self.course)
@@ -240,7 +184,8 @@ class FastLapChain(object):
         # ActionChain設計に厳密に合わせる: self._init判定→initialize_action→phase管理
         if not self._init:
             self.initialize_action(motor_side='left')
-            self.et.set_start_yaw()
+        # 常に yaw の基準を現在の値にリセットする（毎回リセット）
+        self.et.set_start_yaw()
         phase = self._phase
         et = self.et
         current_pos = self.get_motor_position(self.course)
@@ -283,83 +228,158 @@ class FastLapChain(object):
         return (0, 0), Mode.TURN_RIGHT_YAW
 
     def fast_lap(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
-        # If a time-based plan is active, run it first.
-        if getattr(self, '_time_plan', None) and getattr(self, '_plan_active', False):
-            # initialize plan timer on first call
-            if self._plan_start_time is None:
-                self._plan_start_time = time.time()
-            # guard index
-            if self._plan_idx >= len(self._time_plan):
-                # plan finished
-                self._plan_active = False
-                self._plan_start_time = None
-            else:
-                duration, right, left = self._time_plan[self._plan_idx]
-                elapsed = time.time() - self._plan_start_time
-                # run specified outputs until duration elapsed
-                if elapsed < duration:
-                    # note: internal return type is (left, right)
-                    return (left, right), Mode.FAST_LAP
-                else:
-                    # advance to next plan item
-                    self._plan_idx += 1
-                    self._plan_start_time = time.time()
-                    # if this was last item, mark finished and fallthrough
-                    if self._plan_idx >= len(self._time_plan):
-                        self._plan_active = False
-                        self._plan_start_time = None
-                    else:
-                        # immediately start next item on next invocation
-                        next_duration, next_right, next_left = self._time_plan[self._plan_idx]
-                        return (next_left, next_right), Mode.FAST_LAP
-
-        # Three-phase behavior requested:
-        # phase0: keep going as before (start-dash straight) until threshold
-        # phase1: stop for 2 seconds
-        # phase2: resume straight
         if not self._init:
             self.initialize_action(motor_side=self.course)
-            self.et.set_start_yaw()
-            self.start_yaw = self.et.get_start_yaw()
+        # 常に yaw の基準を現在の値にリセットする（毎回リセット）
+        self.et.set_start_yaw()
+        self.start_yaw = self.et.get_start_yaw()
+        # ラップ開始タイミング等は初回の初期化時に設定
+        if not hasattr(self, 'lap_start_time') or not self._init:
             self.lap_start_time = time.time()
-            # timer for phase1 stop
-            self._phase1_start_time = None
+            self._phase2_color_count = 0  # フェーズ2色検出カウンタ
+            self._prev_color = None  # 前回の色値を初期化
         phase = self._phase
         et = self.et
         current_pos = self.get_motor_position(self.course)
+        start_yaw = self.start_yaw
 
-        # PHASE 0: same as before - straight until position_diff >= 3000
+        # フェーズ0: course側モータ距離3000未満ならyaw_straight_controlで直進。3000以上で次フェーズ
         if phase.get_phase() == 0:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 3000:
+                # ファストラップ専用スタートダッシュ加速制御メソッドを使用
                 base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.5)
                 left_speed, right_speed = et.yaw_straight_control(base_speed=base_speed)
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
                 lap_elapsed = time.time() - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=0->1 | position_diff={position_diff} | time: {lap_elapsed:.3f}s")
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 3000 | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
 
-        # PHASE 1: stop for 2 seconds
+        # フェーズ1: 左旋回20度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新
         if phase.get_phase() == 1:
-            # set timer on first entry
-            if getattr(self, '_phase1_start_time', None) is None:
-                self._phase1_start_time = time.time()
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=1 entered | start_time={self._phase1_start_time:.3f}")
-
-            elapsed = time.time() - self._phase1_start_time
-            if elapsed < 2.0:
-                # stop motors
-                return (0, 0), Mode.FAST_LAP
-            else:
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=1->2 | waited {elapsed:.3f}s")
+            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=12.0)
+            if stop_turn:
+                if self.course == "right":
+                    et.set_start_yaw(start_yaw - 12.0)
+                else:
+                    et.set_start_yaw(start_yaw + 12.0)
+                lap_elapsed = time.time() - self.lap_start_time
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
+            else:
+                if self.course == "right":
+                    return (80, 100), Mode.FAST_LAP
+                else:
+                    return (100, 80), Mode.FAST_LAP
 
-        # PHASE 2: resume straight
+        # フェーズ2: position_diffが1500未満なら直進、2000以上なら強制で次フェーズ、それ以外は従来通り
         if phase.get_phase() == 2:
-            left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
-            return (left_speed, right_speed), Mode.FAST_LAP
+            position_diff = phase.get_position_diff(current_pos)
+            # 1500未満は無条件で直進
+            if position_diff < 2400:
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                return (left_speed, right_speed), Mode.FAST_LAP
 
-        # fallback
+            # 2400を超えたら色差計測開始
+            color_info = self.get_color_sensor_values()
+            current_color = color_info["color"]
+            
+            # 前回の色値が記録されていない場合は初期化
+            if self._prev_color is None:
+                self._prev_color = current_color
+                self._phase2_color_count = 0
+                color_diff = 0
+            else:
+                # 色差を計算
+                color_diff = abs(current_color - self._prev_color)
+                
+                # 色差が150を超える場合にカウント
+                if color_diff > 150:
+                    self._phase2_color_count += 1
+                    self._prev_color = current_color  # 色値更新
+                
+            # 連続色差2回以上で次フェーズ
+            threshold = 2600
+            print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} | color={current_color} | color_diff={color_diff} | color_count={self._phase2_color_count} | current_pos={current_pos}")
+            if self._phase2_color_count >= 2 or position_diff >= threshold:
+                lap_elapsed = time.time() - self.lap_start_time
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | color_count={self._phase2_color_count} >= 2 or position_diff={position_diff} >= {threshold} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                phase.next_phase(current_pos)
+                self._phase2_color_count = 0
+            else:
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                return (left_speed, right_speed), Mode.FAST_LAP
+
+        # フェーズ3: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-90.0に更新
+        if phase.get_phase() == 3:
+            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=78.0)
+            if stop_turn:
+                if self.course == "right":
+                    et.set_start_yaw(start_yaw - 90.0)
+                else:
+                    et.set_start_yaw(start_yaw + 90.0)
+                lap_elapsed = time.time() - self.lap_start_time
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                phase.next_phase(current_pos)
+            else:
+                if self.course == "right":
+                    return (70, 100), Mode.FAST_LAP
+                else:
+                    return (100, 70), Mode.FAST_LAP
+
+        # フェーズ4: 最小距離未満は何も判定せず直進。最小距離以上でcorner判定・閾値判定。
+        if phase.get_phase() == 4:
+            position_diff = phase.get_position_diff(current_pos)
+            if position_diff < 500:
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                return (left_speed, right_speed), Mode.FAST_LAP
+
+            fast_corner = is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course=self.course)
+            if fast_corner or position_diff >= 1800:
+                lap_elapsed = time.time() - self.lap_start_time
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | fast_corner_detected={fast_corner} | position_diff={position_diff} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                phase.next_phase(current_pos)
+            else:
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                return (left_speed, right_speed), Mode.FAST_LAP
+
+        # フェーズ5: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-180.0に更新
+        if phase.get_phase() == 5:
+            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=90.0)
+            if stop_turn:
+                phase.next_phase(current_pos)
+                lap_elapsed = time.time() - self.lap_start_time
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | yaw={self.et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                if self.course == "right":
+                    self.et.set_start_yaw(start_yaw - 180.0)
+                else:
+                    self.et.set_start_yaw(start_yaw + 180.0)
+            else:
+                if self.course == "right":
+                    return (75, 100), Mode.FAST_LAP
+                else:
+                    return (100, 75), Mode.FAST_LAP
+
+        # フェーズ6: position_startとの差分200未満ならyaw_straight_control直進。200以上で次フェーズ
+        if phase.get_phase() == 6:
+            position_diff = phase.get_position_diff(current_pos)
+            if position_diff < 200:
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                return (left_speed, right_speed), Mode.FAST_LAP
+            else:
+                # ラップ終了タイム記録
+                self.lap_end_time = time.time()
+                lap_elapsed = self.lap_end_time - self.lap_start_time
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 200 | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                phase.next_phase(current_pos)
+                return (0, 0), Mode.FAST_LAP
+
+        # フェーズ7: reset_action()してPAUSE復帰（ラップ終了）
+        if phase.get_phase() == 7:
+            self.reset_action()
+            # return (0, 0), Mode.PAUSE
+            return (0, 0), Mode.DOUBLE_LOOP
+
         print("[FAST_LAP] Unexpected state reached.")
         return (0, 0), Mode.FAST_LAP
