@@ -190,17 +190,6 @@ class FastLapChain(object):
 
     def fast_lap(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
         # デバッグ: 呼び出し時の初期状態を出力（即終了の原因追跡用）
-        try:
-            current_phase = self._phase.get_phase() if hasattr(self, '_phase') else None
-        except Exception:
-            current_phase = None
-        current_pos_dbg = None
-        try:
-            current_pos_dbg = self.get_motor_position(self.course)
-        except Exception:
-            pass
-        print(f"[FAST_LAP] enter: _init={self._init}, phase={current_phase}, start_yaw={getattr(self,'start_yaw',None)}, motor_pos={current_pos_dbg}")
-
         if not self._init:
             # フェーズ0: course側モータ距離1000未満ならyaw_straight_controlで直進。1000以上で次フェーズ
             self.initialize_action(motor_side=self.course)
@@ -345,5 +334,4 @@ class FastLapChain(object):
             self.reset_action()
             return None, (0, 0, 0), Mode.PAUSE
         
-        print("[FAST_LAP] Unexpected state reached.")
         return None, (0, 0, 0), Mode.FAST_LAP
