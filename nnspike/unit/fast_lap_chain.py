@@ -226,155 +226,63 @@ class FastLapChain(object):
         return (0, 0), Mode.TURN_RIGHT_YAW
 
     def fast_lap(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
+        # Simplified 3-phase fast_lap:
+        # phase0: straight (existing start-dash behavior) until threshold
+        # phase1: small right turn (~12deg)
+        # phase2: back same distance as phase0
         if not self._init:
             self.initialize_action(motor_side=self.course)
             self.et.set_start_yaw()
             self.start_yaw = self.et.get_start_yaw()
             self.lap_start_time = time.time()
-            self._phase2_color_count = 0  # フェーズ2色検出カウンタ
-            self._prev_color = None  # 前回の色値を初期化
+            self._prev_color = None
+            self._phase0_distance = 0
         phase = self._phase
         et = self.et
         current_pos = self.get_motor_position(self.course)
-        start_yaw = self.start_yaw
 
-        # フェーズ0: course側モータ距離3000未満ならyaw_straight_controlで直進。3000以上で次フェーズ
+        # PHASE 0: same as before - straight until position_diff >= 3000
         if phase.get_phase() == 0:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 3000:
-                # ファストラップ専用スタートダッシュ加速制御メソッドを使用
                 base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.5)
                 left_speed, right_speed = et.yaw_straight_control(base_speed=base_speed)
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
+                # record distance covered in phase0 for later backing
+                self._phase0_distance = position_diff
                 lap_elapsed = time.time() - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 3000 | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=0->1 | position_diff={position_diff} | time: {lap_elapsed:.3f}s")
                 phase.next_phase(current_pos)
 
-        # フェーズ1: 左旋回20度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新
+        # PHASE 1: small right turn (~12deg). drive until yaw turn finished
         if phase.get_phase() == 1:
-            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=12.0)
+            stop_turn = et.is_yaw_turn_finished(side="right", threshold_deg=12.0)
             if stop_turn:
-                if self.course == "right":
-                    et.set_start_yaw(start_yaw - 12.0)
-                else:
-                    et.set_start_yaw(start_yaw + 12.0)
+                # update reference yaw
+                et.set_start_yaw(et.get_start_yaw() + 12.0)
                 lap_elapsed = time.time() - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=1->2 | set_start_yaw={et.get_start_yaw():.2f} | time: {lap_elapsed:.3f}s")
                 phase.next_phase(current_pos)
             else:
-                if self.course == "right":
-                    return (80, 100), Mode.FAST_LAP
-                else:
-                    return (100, 80), Mode.FAST_LAP
+                # gentle right turn: left slightly faster than right
+                return (100, 80), Mode.FAST_LAP
 
-        # フェーズ2: position_diffが1500未満なら直進、2000以上なら強制で次フェーズ、それ以外は従来通り
+        # PHASE 2: back the same distance as phase0
         if phase.get_phase() == 2:
-            position_diff = phase.get_position_diff(current_pos)
-            # 1500未満は無条件で直進
-            if position_diff < 2400:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
-                return (left_speed, right_speed), Mode.FAST_LAP
-
-            # 2400を超えたら色差計測開始
-            color_info = self.get_color_sensor_values()
-            current_color = color_info["color"]
-            
-            # 前回の色値が記録されていない場合は初期化
-            if self._prev_color is None:
-                self._prev_color = current_color
-                self._phase2_color_count = 0
-                color_diff = 0
+            # when entering phase2, position_start is already set to current_pos by next_phase
+            back_diff = phase.get_position_diff(current_pos)
+            target = int(self._phase0_distance)
+            print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=2 | back_diff={back_diff} | target_back={target}")
+            if back_diff < target:
+                # drive backwards with moderate speed
+                return (-HIGH_SPEED_BASE, -HIGH_SPEED_BASE), Mode.FAST_LAP
             else:
-                # 色差を計算
-                color_diff = abs(current_color - self._prev_color)
-                
-                # 色差が150を超える場合にカウント
-                if color_diff > 150:
-                    self._phase2_color_count += 1
-                    self._prev_color = current_color  # 色値更新
-                
-            # 連続色差2回以上で次フェーズ
-            threshold = 2600
-            print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} | color={current_color} | color_diff={color_diff} | color_count={self._phase2_color_count} | current_pos={current_pos}")
-            if self._phase2_color_count >= 2 or position_diff >= threshold:
-                lap_elapsed = time.time() - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | color_count={self._phase2_color_count} >= 2 or position_diff={position_diff} >= {threshold} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
-                phase.next_phase(current_pos)
-                self._phase2_color_count = 0
-            else:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
-                return (left_speed, right_speed), Mode.FAST_LAP
+                # finished backing
+                self.reset_action()
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase=2 finished | backed {back_diff} >= {target}")
+                return (0, 0), Mode.PAUSE
 
-        # フェーズ3: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-90.0に更新
-        if phase.get_phase() == 3:
-            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=78.0)
-            if stop_turn:
-                if self.course == "right":
-                    et.set_start_yaw(start_yaw - 90.0)
-                else:
-                    et.set_start_yaw(start_yaw + 90.0)
-                lap_elapsed = time.time() - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
-                phase.next_phase(current_pos)
-            else:
-                if self.course == "right":
-                    return (70, 100), Mode.FAST_LAP
-                else:
-                    return (100, 70), Mode.FAST_LAP
-
-        # フェーズ4: 最小距離未満は何も判定せず直進。最小距離以上でcorner判定・閾値判定。
-        if phase.get_phase() == 4:
-            position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 500:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
-                return (left_speed, right_speed), Mode.FAST_LAP
-
-            fast_corner = is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course=self.course)
-            if fast_corner or position_diff >= 1800:
-                lap_elapsed = time.time() - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | fast_corner_detected={fast_corner} | position_diff={position_diff} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
-                phase.next_phase(current_pos)
-            else:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
-                return (left_speed, right_speed), Mode.FAST_LAP
-
-        # フェーズ5: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-180.0に更新
-        if phase.get_phase() == 5:
-            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=90.0)
-            if stop_turn:
-                phase.next_phase(current_pos)
-                lap_elapsed = time.time() - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | yaw={self.et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
-                if self.course == "right":
-                    self.et.set_start_yaw(start_yaw - 180.0)
-                else:
-                    self.et.set_start_yaw(start_yaw + 180.0)
-            else:
-                if self.course == "right":
-                    return (75, 100), Mode.FAST_LAP
-                else:
-                    return (100, 75), Mode.FAST_LAP
-
-        # フェーズ6: position_startとの差分200未満ならyaw_straight_control直進。200以上で次フェーズ
-        if phase.get_phase() == 6:
-            position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 200:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
-                return (left_speed, right_speed), Mode.FAST_LAP
-            else:
-                # ラップ終了タイム記録
-                self.lap_end_time = time.time()
-                lap_elapsed = self.lap_end_time - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 200 | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
-                phase.next_phase(current_pos)
-                return (0, 0), Mode.FAST_LAP
-
-        # フェーズ7: reset_action()してPAUSE復帰（ラップ終了）
-        if phase.get_phase() == 7:
-            self.reset_action()
-            # return (0, 0), Mode.PAUSE
-            return (0, 0), Mode.DOUBLE_LOOP
-
+        # fallback
         print("[FAST_LAP] Unexpected state reached.")
         return (0, 0), Mode.FAST_LAP
