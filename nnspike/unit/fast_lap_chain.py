@@ -186,7 +186,7 @@ class FastLapChain(object):
         # 速度返却（NoneでOK、et.set_motor_speedで直接制御）
         return (0, 0), Mode.TURN_RIGHT_YAW
 
-    def shortcut_lap2(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
+    def fast_lap(self, image: np.ndarray) -> Tuple[Tuple[int, int], Mode]:
         if not self._init:
             # フェーズ0: course側モータ距離1000未満ならyaw_straight_controlで直進。1000以上で次フェーズ
             self.initialize_action(motor_side=self.course)
