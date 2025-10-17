@@ -53,15 +53,7 @@ class FastLapChain(object):
     def get_yaw(self) -> float:
         """Return masked yaw (relative to the chain start), in range [-180,180]."""
         self._ensure_yaw_offset_set()
-        raw = self.et.get_yaw()
-        masked = self._wrap_angle(raw - self._yaw_offset)
-        # デバッグ出力: 実行中に返却する yaw 値を表示
-        try:
-            print(f"[DEBUG] FastLapChain.get_yaw -> raw={raw:.2f} offset={self._yaw_offset:.2f} masked={masked:.2f}")
-        except Exception:
-            # printing must not break runtime
-            print(f"[DEBUG] FastLapChain.get_yaw -> raw={raw} offset={self._yaw_offset} masked={masked}")
-        return masked
+        return self._wrap_angle(self.et.get_yaw() - self._yaw_offset)
 
     def get_start_yaw(self) -> float:
         """Return masked start_yaw (relative to the chain start), in range [-180,180]."""
