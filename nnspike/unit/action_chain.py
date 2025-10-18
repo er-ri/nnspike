@@ -725,7 +725,8 @@ class ActionChain(object):
         if not self._init:
             self.initialize_action(motor_side=self.course)
             # プライベート変数の初期化
-            self._calculated_distance = 300  # デフォルト値
+            # デフォルト値。course_type が "upper" 以外のときは上限を 800 に引き上げる
+            self._calculated_distance = 800 if self.course_type != "upper" else 300
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
         et = self.et
