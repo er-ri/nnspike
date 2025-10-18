@@ -409,7 +409,7 @@ class ActionChain(object):
         # phase3: 右モーター位置差がコース種別ごとの閾値未満なら直進。閾値到達したらphase4へ。yaw基準設定。
         if phase.get_phase() == 3:
             position_diff = phase.get_position_diff(current_pos)
-            threshold = 1200 if self.course_type == "upper" else 700
+            threshold = 1150 if self.course_type == "upper" else 650
             if position_diff < threshold:
                 accelerated_speed = self.get_accelerated_base_speed()
                 left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed)
@@ -654,57 +654,64 @@ class ActionChain(object):
         if phase.get_phase() == 0:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 600:
-                return (BASE_SPEED, BASE_SPEED), Mode.BACK_AND_TURN1
+                return (-BASE_SPEED, -BASE_SPEED), Mode.BACK_AND_TURN1
             print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 600")
             phase.next_phase(current_pos)
 
         # 1. 左旋回（最低回転量は必ず旋回。最低回転量超えてからターゲット検出または最大回転量到達まで旋回。条件満たせばphase2へ）
         if phase.get_phase() == 1:
             position_diff = phase.get_position_diff(current_pos)
-            threshold = 450 if self.course_type == "upper" else 200
-            # 最低回転量は必ず旋回
+            if self.course_type != "upper":
+                limit = 350
+                if position_diff >= limit:
+                    print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {limit} (immediate next phase)")
+                    phase.next_phase(current_pos)
+                    return (0, 0), Mode.BACK_AND_TURN1
+                else:
+                    # 350未満は常に30で旋回
+                    if self.course == "right":
+                        return (0, 30), Mode.BACK_AND_TURN1
+                    else:
+                        return (30, 0), Mode.BACK_AND_TURN1
+            # upperのときは既存ロジックを一切変更しない
+            threshold = 450
+            limit = 940
             if position_diff < threshold:
                 if self.course == "right":
                     return (0, 30), Mode.BACK_AND_TURN1
                 else:
                     return (30, 0), Mode.BACK_AND_TURN1
-            # 最低回転量超えてからターゲット検出
             red_target_detected = is_x320_on_red_target(image, x_tolerance=80)
-            max_turn = 940 if self.course_type == "upper" else 350
-            if (not red_target_detected) and (position_diff < max_turn):
+            if (not red_target_detected) and (position_diff < limit):
                 if self.course == "right":
                     return (0, 20), Mode.BACK_AND_TURN1
                 else:
                     return (20, 0), Mode.BACK_AND_TURN1
-            print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_turn} or red_target_detected={red_target_detected}")
-            # upperのときはフェーズ3にとぶ
-            if self.course_type == "upper":
-                phase.next_phase(current_pos, skip=2)
-            else:
-                phase.next_phase(current_pos)
+            print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {limit} or red_target_detected={red_target_detected}")
+            phase.next_phase(current_pos, skip=2)
             return (0, 0), Mode.BACK_AND_TURN1
 
-        # 2. 直進400、その間にis_x320_on_red_target検知で即phase3へ
+        # 青ボトル検知・追従・遷移判定
         if phase.get_phase() == 2:
             position_diff = phase.get_position_diff(current_pos)
             threshold = 300
-            max_threshold = 500
+            max_threshold = 600
             if position_diff < threshold:
-                # 300未満は赤検知せず直進のみ
                 return (30, 30), Mode.BACK_AND_TURN1
             elif position_diff < max_threshold:
-                # 300以上500未満で赤検知したら即phase3
-                red_detected = is_x320_on_red_target(image, x_tolerance=100)
-                if red_detected:
+                blue_center, _, blue_pixel_count = find_bottle_center(image=image, color="blue", roi=ROI_COLOR)
+                if blue_pixel_count is None or blue_pixel_count < 500:
+                    return (30, 30), Mode.BACK_AND_TURN1
+                elif blue_pixel_count >= 3000:
                     phase.next_phase(current_pos)
-                    print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | is_x320_on_red_target=True | position_diff={position_diff} >= {threshold} and < {max_threshold}")
-                    return (0, 0), Mode.BACK_AND_TURN1
-                return (30, 30), Mode.BACK_AND_TURN1
+                    print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | blue_pixel_count={blue_pixel_count} >= 3000 | position_diff={position_diff} >= {threshold} and < {max_threshold}")
+                else:
+                    target_x = blue_center[0] if blue_center is not None else self.center_x
+                    left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
+                    return (left_speed, right_speed), Mode.BACK_AND_TURN1
             else:
-                # 500到達でもphase3
                 phase.next_phase(current_pos)
-                print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | is_x320_on_red_target=False | position_diff={position_diff} >= {max_threshold}")
-                return (0, 0), Mode.BACK_AND_TURN1
+                print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_threshold} | next phase (go straight)")
 
         # 3. 終了: 状態リセットしCARRY_BOTTLE2へ遷移
         if phase.get_phase() == 3:
@@ -1041,7 +1048,7 @@ class ActionChain(object):
         if phase.get_phase() == 0:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 570:
-                return (BASE_SPEED, BASE_SPEED), Mode.BACK_AND_TURN2
+                return (-BASE_SPEED, -BASE_SPEED), Mode.BACK_AND_TURN2
             print(f"[DEBUG] mode={Mode.BACK_AND_TURN2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 570")
             phase.next_phase(current_pos)
 
