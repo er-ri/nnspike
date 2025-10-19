@@ -1182,7 +1182,9 @@ class ActionChain(object):
                 if calculated_distance is not None:
                     self._calculated_distance = calculated_distance
                     print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | pixels={blue_pixel_count}")
-                if abs(blue_center[0] - self.center_x) <= 10:
+                diff = blue_center[0] - self.center_x
+                print(f"[DEBUG] center_x={self.center_x}, blue_center_x={blue_center[0]}, diff={diff}")
+                if abs(diff) <= 10:
                     et.set_start_yaw()
                     print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance} | proceed to phase1")
                     phase.next_phase(current_pos)
