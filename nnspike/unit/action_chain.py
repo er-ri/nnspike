@@ -1169,7 +1169,7 @@ class ActionChain(object):
         current_pos = self.get_motor_position(self.course)
         et = self.et
 
-        # phase0: 青ターゲット中心合わせ（carry_bottle2_relativeの最新ロジックに準拠）
+        # phase0: 青ターゲット中心合わせ・積極探索
         if phase.get_phase() == 0:
             blue_center, _, blue_pixel_count = find_blue_target_center(image)
             if blue_center is not None and blue_center[1] > 10:
@@ -1188,16 +1188,21 @@ class ActionChain(object):
                     else:
                         return (5, 0), Mode.EYE_BLUE
             else:
+                # 青ターゲットが見つからない場合は左右に積極的に探索
+                # まずヨー角誤差で旋回方向を決める
                 in_tolerance, yaw_error = et.is_start_yaw_error_within(2.0)
-                if in_tolerance:
-                    print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | no_blue_target | yaw_ok | proceed to phase1")
-                    phase.next_phase(current_pos)
-                    return (0, 0), Mode.EYE_BLUE
-                else:
+                if not in_tolerance:
                     if yaw_error < 0:
                         return (5, 0), Mode.EYE_BLUE
                     else:
                         return (0, 5), Mode.EYE_BLUE
+                # ヨー角OKでも見つからない場合は左右交互に旋回して探索
+                # ここでは右→左→右...のように交互に回す（例: 20フレームごとに切り替え）
+                search_cycle = (int(time.time() * 5) % 2 == 0)
+                if search_cycle:
+                    return (0, 10), Mode.EYE_BLUE
+                else:
+                    return (10, 0), Mode.EYE_BLUE
 
         # phase1: 青ターゲットy>=300で次フェーズ。未満なら中心に向けて進む。
         if phase.get_phase() == 1:
