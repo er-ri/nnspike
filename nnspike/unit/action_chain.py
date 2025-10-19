@@ -1194,8 +1194,10 @@ class ActionChain(object):
                 # ヨー角誤差判定を完全にスキップし、必ず左右交互旋回
                 search_cycle = (int(time.time() * 5) % 2 == 0)
                 if search_cycle:
+                    print("[DEBUG] EYE_BLUE search: (0, 10) 左旋回命令")
                     return (0, 10), Mode.EYE_BLUE
                 else:
+                    print("[DEBUG] EYE_BLUE search: (10, 0) 右旋回命令")
                     return (10, 0), Mode.EYE_BLUE
 
         # phase1: 青ターゲットy>=300で次フェーズ。未満なら中心に向けて進む。
