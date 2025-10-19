@@ -198,7 +198,14 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     # カメラの状態をチェック
     actual_fps = video.cap.get(cv2.CAP_PROP_FPS)
     frame = video.get_frame()
-    
+    # --- デバッグ: 最初のフレームを保存してカメラ画像を確認 ---
+    try:
+        if frame is not None:
+            cv2.imwrite("debug_camera.jpg", frame)
+            print("[DEBUG] Saved first camera frame to debug_camera.jpg")
+    except Exception as e:
+        print(f"[DEBUG] Failed to save debug_camera.jpg: {e}")
+
     if actual_fps > 0 and frame is not None:
         h, w, c = frame.shape
         print(f"[INFO] Camera OK. FPS: {actual_fps}, Size: {w}x{h}, Channels: {c}")
