@@ -1191,8 +1191,10 @@ class ActionChain(object):
                     return (0, 0), Mode.EYE_BLUE
                 else:
                     if blue_center[0] < self.center_x:
+                        print(f"[EYE_BLUE align] Blue left: turn left (0,5)")
                         return (0, 5), Mode.EYE_BLUE
                     else:
+                        print(f"[EYE_BLUE align] Blue right: turn right (5,0)")
                         return (5, 0), Mode.EYE_BLUE
             else:
                 # 青ターゲットが見つからない場合は左右交互に出力値5で10フレームずつ同じコマンドを維持
