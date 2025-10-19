@@ -244,10 +244,7 @@ def find_blue_target_center(image) -> Tuple[Optional[Tuple[int, int]], Optional[
             (cx, cy), (major, minor), angle = ellipse
             rect = cv2.boundingRect(cnt)
             x, y, w, h = rect
-            rect_area = w * h
-            rect_ratio = area / rect_area if rect_area > 0 else 0
-            if rect_ratio < 0.4:
-                continue
+
             if area > max_blue_area:
                 best_blue_ellipse = ellipse
                 max_blue_area = area
