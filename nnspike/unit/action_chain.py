@@ -1191,13 +1191,7 @@ class ActionChain(object):
             else:
                 # 青ターゲットが見つからない場合は左右に積極的に探索
                 # まずヨー角誤差で旋回方向を決める
-                in_tolerance, yaw_error = et.is_start_yaw_error_within(2.0)
-                if not in_tolerance:
-                    if yaw_error < 0:
-                        return (5, 0), Mode.EYE_BLUE
-                    else:
-                        return (0, 5), Mode.EYE_BLUE
-                # ヨー角OKでも見つからない場合は左右交互に旋回して探索
+                # ヨー角誤差判定を完全にスキップし、必ず左右交互旋回
                 search_cycle = (int(time.time() * 5) % 2 == 0)
                 if search_cycle:
                     return (0, 10), Mode.EYE_BLUE
