@@ -200,20 +200,22 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     max_retries = 100
     retry_delay = 0.05  # 50ms
     frame = None
+    ok_try = None
+    stddev = 0.0
     for i in range(max_retries):
         frame = video.get_frame()
         if frame is None:
-            print(f"[ERROR] Camera frame is None (not received) [retry {i+1}/{max_retries}]")
             time.sleep(retry_delay)
             continue
         frame_np = np.array(frame, dtype=np.uint8)
         stddev = float(np.std(frame_np))
         if stddev < 1.0:
-            print(f"[ERROR] Camera frame appears blank or frozen (stddev={stddev:.2f}) [retry {i+1}/{max_retries}]")
             time.sleep(retry_delay)
             continue
-        print(f"[DEBUG] Camera frame stddev={stddev:.2f} [OK after {i+1} tries]")
+        ok_try = i + 1
         break
+    if ok_try is not None:
+        print(f"[DEBUG] Camera frame stddev={stddev:.2f} [OK after {ok_try} tries]")
     else:
         print(f"[FATAL] Camera did not return valid image after {max_retries} retries. Please check hardware.")
         frame = None
