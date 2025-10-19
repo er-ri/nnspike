@@ -1165,6 +1165,10 @@ class ActionChain(object):
             self.initialize_action(motor_side=self.course)
             self.et.set_start_yaw()
             self._calculated_distance = 800 if self.course_type != "upper" else 300
+            # phase0交互探索用の状態変数を初期化
+            self._blue_search_cycle = 0
+            self._blue_search_hold_count = 0
+            self._blue_search_last_cmd = (0, 5)
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
         et = self.et
@@ -1189,16 +1193,19 @@ class ActionChain(object):
                     else:
                         return (5, 0), Mode.EYE_BLUE
             else:
-                # 青ターゲットが見つからない場合は左右に積極的に探索
-                # まずヨー角誤差で旋回方向を決める
-                # ヨー角誤差判定を完全にスキップし、必ず左右交互旋回
-                search_cycle = (int(time.time() * 5) % 2 == 0)
-                if search_cycle:
-                    print("[DEBUG] EYE_BLUE search: (0, 10) 左旋回命令")
-                    return (0, 10), Mode.EYE_BLUE
-                else:
-                    print("[DEBUG] EYE_BLUE search: (10, 0) 右旋回命令")
-                    return (10, 0), Mode.EYE_BLUE
+                # 青ターゲットが見つからない場合は左右交互に出力値5で10フレームずつ同じコマンドを維持
+                N = 10  # コマンドを維持するフレーム数
+                if self._blue_search_hold_count == 0:
+                    self._blue_search_cycle += 1
+                    if self._blue_search_cycle % 2 == 0:
+                        self._blue_search_last_cmd = (0, 5)
+                        print(f"[EYE_BLUE search] Blue not found: turn left (0,5) [hold {N} frames]")
+                    else:
+                        self._blue_search_last_cmd = (5, 0)
+                        print(f"[EYE_BLUE search] Blue not found: turn right (5,0) [hold {N} frames]")
+                    self._blue_search_hold_count = N
+                self._blue_search_hold_count -= 1
+                return self._blue_search_last_cmd, Mode.EYE_BLUE
 
         # phase1: 青ターゲットy>=300で次フェーズ。未満なら中心に向けて進む。
         if phase.get_phase() == 1:
