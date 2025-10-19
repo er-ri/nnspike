@@ -1194,16 +1194,15 @@ class ActionChain(object):
                 in_tolerance, yaw_error = et.is_start_yaw_error_within(2.0)
                 if not in_tolerance:
                     if yaw_error < 0:
-                        return (30, 0), Mode.EYE_BLUE  # 速度UP
+                        return (5, 0), Mode.EYE_BLUE
                     else:
-                        return (0, 30), Mode.EYE_BLUE  # 速度UP
+                        return (0, 5), Mode.EYE_BLUE
                 # ヨー角OKでも見つからない場合は左右交互に旋回して探索
-                # 周期も短縮し、速度もUP
-                search_cycle = (int(time.time() * 2) % 2 == 0)
+                search_cycle = (int(time.time() * 5) % 2 == 0)
                 if search_cycle:
-                    return (0, 50), Mode.EYE_BLUE  # 速度UP
+                    return (0, 10), Mode.EYE_BLUE
                 else:
-                    return (50, 0), Mode.EYE_BLUE  # 速度UP
+                    return (10, 0), Mode.EYE_BLUE
 
         # phase1: 青ターゲットy>=300で次フェーズ。未満なら中心に向けて進む。
         if phase.get_phase() == 1:
