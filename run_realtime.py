@@ -197,18 +197,26 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     
     # カメラの状態をチェック（ウォームアップ直後に必ず正常動作を保証、書き出し禁止）
     actual_fps = video.cap.get(cv2.CAP_PROP_FPS)
-    frame = video.get_frame()
-    try:
+    max_retries = 100
+    retry_delay = 0.05  # 50ms
+    frame = None
+    for i in range(max_retries):
+        frame = video.get_frame()
         if frame is None:
-            raise RuntimeError("Camera frame is None (not received)")
+            print(f"[ERROR] Camera frame is None (not received) [retry {i+1}/{max_retries}]")
+            time.sleep(retry_delay)
+            continue
         frame_np = np.array(frame, dtype=np.uint8)
         stddev = float(np.std(frame_np))
         if stddev < 1.0:
-            raise RuntimeError(f"Camera frame appears blank or frozen (stddev={stddev:.2f})")
-        print(f"[DEBUG] Camera frame stddev={stddev:.2f}")
-    except Exception as e:
-        print(f"[ERROR] Camera check failed: {e}")
-        sys.exit(1)
+            print(f"[ERROR] Camera frame appears blank or frozen (stddev={stddev:.2f}) [retry {i+1}/{max_retries}]")
+            time.sleep(retry_delay)
+            continue
+        print(f"[DEBUG] Camera frame stddev={stddev:.2f} [OK after {i+1} tries]")
+        break
+    else:
+        print(f"[FATAL] Camera did not return valid image after {max_retries} retries. Please check hardware.")
+        frame = None
 
     if actual_fps > 0 and frame is not None:
         h, w, c = frame.shape
