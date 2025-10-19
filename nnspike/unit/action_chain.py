@@ -1194,7 +1194,7 @@ class ActionChain(object):
                         return (5, 0), Mode.EYE_BLUE
             else:
                 # 青ターゲットが見つからない場合は左右交互に出力値5で10フレームずつ同じコマンドを維持
-                N = 10  # コマンドを維持するフレーム数
+                N = 50  # コマンドを維持するフレーム数
                 if self._blue_search_hold_count == 0:
                     self._blue_search_cycle += 1
                     if self._blue_search_cycle % 2 == 0:
