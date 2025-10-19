@@ -195,16 +195,20 @@ def main(record_sensor_data=False, save_camera_video=False, course="right", cour
     video = Video()
     video.warmup()
     
-    # カメラの状態をチェック
+    # カメラの状態をチェック（ウォームアップ直後に必ず正常動作を保証、書き出し禁止）
     actual_fps = video.cap.get(cv2.CAP_PROP_FPS)
     frame = video.get_frame()
-    # --- デバッグ: 最初のフレームを保存してカメラ画像を確認 ---
     try:
-        if frame is not None:
-            cv2.imwrite("debug_camera.jpg", frame)
-            print("[DEBUG] Saved first camera frame to debug_camera.jpg")
+        if frame is None:
+            raise RuntimeError("Camera frame is None (not received)")
+        frame_np = np.array(frame, dtype=np.uint8)
+        stddev = float(np.std(frame_np))
+        if stddev < 1.0:
+            raise RuntimeError(f"Camera frame appears blank or frozen (stddev={stddev:.2f})")
+        print(f"[DEBUG] Camera frame stddev={stddev:.2f}")
     except Exception as e:
-        print(f"[DEBUG] Failed to save debug_camera.jpg: {e}")
+        print(f"[ERROR] Camera check failed: {e}")
+        sys.exit(1)
 
     if actual_fps > 0 and frame is not None:
         h, w, c = frame.shape
