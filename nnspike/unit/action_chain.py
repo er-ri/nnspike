@@ -1172,6 +1172,7 @@ class ActionChain(object):
         # phase0: 青ターゲット中心合わせ・積極探索
         if phase.get_phase() == 0:
             blue_center, _, blue_pixel_count = find_blue_target_center(image)
+            print(f"[DEBUG] find_blue_target_center: blue_center={blue_center}, blue_pixel_count={blue_pixel_count}")
             if blue_center is not None and blue_center[1] > 10:
                 calculated_distance = calc_blue_target_distance(blue_center)
                 if calculated_distance is not None:
