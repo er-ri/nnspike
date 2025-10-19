@@ -79,10 +79,10 @@ class Video:
             # self.__prev_camera_update = last_update  # デバッグ用途のみなのでコメントアウト（後で完全復元可能）
             if not ret or frame is None:
                 if self.__prev_frame is not None:
-                    print("[WARN] Camera frame not received. Using previous frame.")
+                    # print("[WARN] Camera frame not received. Using previous frame.")
                     frame = self.__prev_frame
                 else:
-                    print("[WARN] Camera frame not received. Using blank image.")
+                    # print("[WARN] Camera frame not received. Using blank image.")
                     frame = self.dummy_frame
             else:
                 self.__prev_frame = frame
