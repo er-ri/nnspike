@@ -200,7 +200,7 @@ class FastLapChain(object):
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
             if position_diff < 5000:
-                return None, (90, 90, 0), Mode.FAST_LAP
+                return None, (100, 70, 0), Mode.FAST_LAP
             else:
                 sys.exit("")
                 phase.next_phase()
