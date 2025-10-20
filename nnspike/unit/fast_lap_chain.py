@@ -200,7 +200,8 @@ class FastLapChain(object):
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
             if position_diff < 5000:
-                return None, (100, 100, 0), Mode.FAST_LAP
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                return None, (left_speed, right_speed, 0), Mode.FAST_LAP
             else:
                 sys.exit("")
                 phase.next_phase()
@@ -545,7 +546,7 @@ class FastLapChain(object):
 
         # フェーズ5: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-90.0に更新
         if phase.get_phase() == 5:
-            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=90.0)
+            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=60.0)
             if stop_turn:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
@@ -555,9 +556,9 @@ class FastLapChain(object):
                     self.et.set_start_yaw(start_yaw + 90.0)
             else:
                 if self.course == "right":
-                    return None, (80, 100, 0), Mode.SHORTCUT_LAP2
+                    return None, (70, 100, 0), Mode.SHORTCUT_LAP2
                 else:
-                    return None, (100, 80, 0), Mode.SHORTCUT_LAP2
+                    return None, (100, 70, 0), Mode.SHORTCUT_LAP2
 
         # フェーズ6: position_startとの差分1000未満ならyaw_straight_control直進。1000以上で次フェーズ
         if phase.get_phase() == 6:
@@ -583,9 +584,9 @@ class FastLapChain(object):
                     self.et.set_start_yaw(start_yaw + 180.0)
             else:
                 if self.course == "right":
-                    return None, (80, 100, 0), Mode.SHORTCUT_LAP2
+                    return None, (70, 100, 0), Mode.SHORTCUT_LAP2
                 else:
-                    return None, (100, 80, 0), Mode.SHORTCUT_LAP2
+                    return None, (100, 70, 0), Mode.SHORTCUT_LAP2
 
         # フェーズ8: position_startとの差分2000未満ならyaw_straight_control直進。2000以上で次フェーズ
         if phase.get_phase() == 8:
