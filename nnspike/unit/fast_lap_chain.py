@@ -182,7 +182,7 @@ class FastLapChain(object):
         # 速度返却（NoneでOK、et.set_motor_speedで直接制御）
         return None, None, Mode.TURN_RIGHT_YAW
 
-    def fast_lap(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def inner_lap(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
         # Replace fast_lap logic with the shortcut_lap2 flow adapted for FAST_LAP mode
         if not self._init:
             # フェーズ0: course側モータ距離1000未満ならyaw_straight_controlで直進。1000以上で次フェーズ
@@ -270,7 +270,7 @@ class FastLapChain(object):
         print("[FAST_LAP] Unexpected state reached.")
         return None, None, Mode.FAST_LAP
 
-    def shortcut_lap(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def fast_lap(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
         if not self._init:
             # フェーズ0: course側モータ距離1000未満ならyaw_straight_controlで直進。1000以上で次フェーズ
             self.initialize_action(motor_side=self.course)
@@ -286,7 +286,7 @@ class FastLapChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
-            if position_diff < 1000:
+            if position_diff < 3500:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return None, (left_speed, right_speed, 0), Mode.SHORTCUT_LAP
             else:
@@ -295,19 +295,20 @@ class FastLapChain(object):
 
         # フェーズ1: 右旋回30度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新（右旋回区間）
         if phase.get_phase() == 1:
-            stop_turn = et.is_yaw_turn_finished(side=self.course, threshold_deg=30.0)
+            stop_turn = et.is_yaw_turn_finished(side=self.course, threshold_deg=80.0)
             if stop_turn:
+                sys.exit("")
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
                 if self.course == "right":
-                    self.et.set_start_yaw(start_yaw + 30.0)  # 右コースは+30度
+                    self.et.set_start_yaw(start_yaw - 80.0)  # 右コースは+30度
                 else:
-                    self.et.set_start_yaw(start_yaw - 30.0)  # 左コースは-30度
+                    self.et.set_start_yaw(start_yaw + 80.0)  # 左コースは-30度
             else:
                 if self.course == "right":
-                    return None, (100, 70, 0), Mode.SHORTCUT_LAP
+                    return None, (95, 100, 0), Mode.SHORTCUT_LAP
                 else:
-                    return None, (70, 100, 0), Mode.SHORTCUT_LAP
+                    return None, (100, 95, 0), Mode.SHORTCUT_LAP
 
         # フェーズ2: position_startとの差分500未満ならyaw_straight_control直進。500以上で次フェーズ、基準yaw更新（直進区間）
         if phase.get_phase() == 2:
