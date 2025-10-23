@@ -196,7 +196,6 @@ class FastLapChain(object):
 
         # フェーズ0: 右モータ距離1000未満ならyaw_straight_controlで直進。1000以上で次フェーズ（直進区間）
         if phase.get_phase() == 0:
-            self.et.set_start_yaw(start_yaw + 00.0)
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
@@ -206,10 +205,6 @@ class FastLapChain(object):
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
-                if self.course == "right":
-                    self.et.set_start_yaw(start_yaw + 00.0)
-                else:
-                    self.et.set_start_yaw(start_yaw + 00.0)
 
         # フェーズ1: 右旋回30度判定（ここでは20度基準）。到達で次フェーズ、基準yaw更新（右旋回区間）
         if phase.get_phase() == 1:
