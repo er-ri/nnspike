@@ -205,6 +205,10 @@ class FastLapChain(object):
             else:
                 phase.next_phase()
                 phase.set_position_start("position_start", self.get_motor_position(self.course))
+                if self.course == "right":
+                    self.et.set_start_yaw(start_yaw + 00.0)
+                else:
+                    self.et.set_start_yaw(start_yaw + 00.0)
 
         # フェーズ1: 右旋回30度判定（ここでは20度基準）。到達で次フェーズ、基準yaw更新（右旋回区間）
         if phase.get_phase() == 1:
