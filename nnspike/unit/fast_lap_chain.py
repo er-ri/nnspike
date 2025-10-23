@@ -199,7 +199,7 @@ class FastLapChain(object):
             position_start = phase.get_position_start("position_start")
             current_pos = self.get_motor_position(self.course)
             position_diff = abs(current_pos - position_start)
-            if position_diff < 5000:
+            if position_diff < 5500:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return None, (left_speed, right_speed, 0), Mode.FAST_LAP
             else:
@@ -219,9 +219,9 @@ class FastLapChain(object):
                     self.et.set_start_yaw(start_yaw + 45.0)
             else:
                 if self.course == "right":
-                    return None, (95, 100, 0), Mode.FAST_LAP
+                    return None, (80, 100, 0), Mode.FAST_LAP
                 else:
-                    return None, (100, 95, 0), Mode.FAST_LAP
+                    return None, (100, 80, 0), Mode.FAST_LAP
 
         # フェーズ2: position_startとの差分500未満ならyaw_straight_control直進。500以上で次フェーズ、基準yaw更新（直進区間）
         if phase.get_phase() == 2:
@@ -245,9 +245,9 @@ class FastLapChain(object):
                 self.et.set_start_yaw(start_yaw)
             else:
                 if self.course == "right":
-                    return None, (100, 90, 0), Mode.FAST_LAP
+                    return None, (100, 80, 0), Mode.FAST_LAP
                 else:
-                    return None, (90, 100, 0), Mode.FAST_LAP
+                    return None, (80, 100, 0), Mode.FAST_LAP
 
         # フェーズ4: position_startとの差分2000未満ならyaw_straight_control直進。2000以上で次フェーズ、基準yaw更新（直進区間）
         if phase.get_phase() == 4:
