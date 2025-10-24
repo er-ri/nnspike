@@ -272,7 +272,7 @@ class FastLapChain(object):
         # フェーズ0: course側モータ距離3000未満ならyaw_straight_controlで直進。3000以上で次フェーズ
         if phase.get_phase() == 2:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 2000:
+            if position_diff < 1700:
                 # ファストラップ専用スタートダッシュ加速制御メソッドを使用
                 base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.5)
                 left_speed, right_speed = self.et.yaw_straight_control(base_speed=base_speed) #
