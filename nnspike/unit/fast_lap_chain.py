@@ -244,8 +244,8 @@ class FastLapChain(object):
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 5500:
                 # ファストラップ専用スタートダッシュ加速制御メソッドを使用
-                # base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.5)
-                left_speed, right_speed = self.et.yaw_straight_control(base_speed=HIGH_SPEED_BASE) #
+                base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.5)
+                left_speed, right_speed = self.et.yaw_straight_control(base_speed=base_speed) #
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
                 lap_elapsed = time.time() - self.lap_start_time
@@ -275,7 +275,7 @@ class FastLapChain(object):
             if position_diff < 1600:
                 # ファストラップ専用スタートダッシュ加速制御メソッドを使用
                 base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.5)
-                left_speed, right_speed = self.et.yaw_straight_control(base_speed=HIGH_SPEED_BASE) #
+                left_speed, right_speed = self.et.yaw_straight_control(base_speed=base_speed) #
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
                 lap_elapsed = time.time() - self.lap_start_time
@@ -336,6 +336,19 @@ class FastLapChain(object):
                     return (70, 100), Mode.FAST_LAP
                 else:
                     return (100, 70), Mode.FAST_LAP
+                
+        # フェーズ0: course側モータ距離3000未満ならyaw_straight_controlで直進。3000以上で次フェーズ
+        if phase.get_phase() == 4:
+            position_diff = phase.get_position_diff(current_pos)
+            if position_diff < 500:
+                # ファストラップ専用スタートダッシュ加速制御メソッドを使用
+                base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.5)
+                left_speed, right_speed = self.et.yaw_straight_control(base_speed=base_speed) #
+                return (left_speed, right_speed), Mode.FAST_LAP
+            else:
+                lap_elapsed = time.time() - self.lap_start_time
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 3000 | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                phase.next_phase(current_pos)
 
         # # フェーズ4: 最小距離未満は何も判定せず直進。最小距離以上でcorner判定・閾値判定。
         # if phase.get_phase() == 4:
