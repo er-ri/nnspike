@@ -254,12 +254,12 @@ class FastLapChain(object):
 
         # フェーズ1: 左旋回20度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新
         if phase.get_phase() == 1:
-            stop_turn = self.et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=40.0)#
+            stop_turn = self.et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=50.0)#
             if stop_turn:
                 if self.course == "right":
-                    self.et.set_start_yaw(start_yaw - 40.0)#
+                    self.et.set_start_yaw(start_yaw - 50.0)#
                 else:
-                    self.et.set_start_yaw(start_yaw + 40.0)#
+                    self.et.set_start_yaw(start_yaw + 50.0)#
                 lap_elapsed = time.time() - self.lap_start_time
                 print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
@@ -268,6 +268,19 @@ class FastLapChain(object):
                     return (80, 100), Mode.FAST_LAP
                 else:
                     return (100, 80), Mode.FAST_LAP
+        
+        # フェーズ0: course側モータ距離3000未満ならyaw_straight_controlで直進。3000以上で次フェーズ
+        if phase.get_phase() == 0:
+            position_diff = phase.get_position_diff(current_pos)
+            if position_diff < 3000:
+                # ファストラップ専用スタートダッシュ加速制御メソッドを使用
+                base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.5)
+                left_speed, right_speed = self.et.yaw_straight_control(base_speed=base_speed) #
+                return (left_speed, right_speed), Mode.FAST_LAP
+            else:
+                lap_elapsed = time.time() - self.lap_start_time
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 3000 | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                phase.next_phase(current_pos)
 
         # # フェーズ2: position_diffが1500未満なら直進、2000以上なら強制で次フェーズ、それ以外は従来通り
         # if phase.get_phase() == 2:
