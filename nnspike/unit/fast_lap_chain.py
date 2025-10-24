@@ -244,8 +244,8 @@ class FastLapChain(object):
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 5000:
                 # ファストラップ専用スタートダッシュ加速制御メソッドを使用
-                base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.5)
-                left_speed, right_speed = self.et.yaw_straight_control(base_speed=base_speed) #
+                # base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.5)
+                left_speed, right_speed = self.et.yaw_straight_control(base_speed=HIGH_SPEED_BASE) #
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
                 lap_elapsed = time.time() - self.lap_start_time
