@@ -320,22 +320,22 @@ class FastLapChain(object):
         #         left_speed, right_speed = self.et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
         #         return (left_speed, right_speed), Mode.FAST_LAP
 
-        # # フェーズ3: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-90.0に更新
-        # if phase.get_phase() == 3:
-        #     stop_turn = self.et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=78.0)
-        #     if stop_turn:
-        #         if self.course == "right":
-        #             self.et.set_start_yaw(start_yaw - 90.0)
-        #         else:
-        #             self.et.set_start_yaw(start_yaw + 90.0)
-        #         lap_elapsed = time.time() - self.lap_start_time
-        #         print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
-        #         phase.next_phase(current_pos)
-        #     else:
-        #         if self.course == "right":
-        #             return (70, 100), Mode.FAST_LAP
-        #         else:
-        #             return (100, 70), Mode.FAST_LAP
+        # フェーズ3: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-90.0に更新
+        if phase.get_phase() == 3:
+            stop_turn = self.et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=78.0)
+            if stop_turn:
+                if self.course == "right":
+                    self.et.set_start_yaw(start_yaw - 90.0)
+                else:
+                    self.et.set_start_yaw(start_yaw + 90.0)
+                lap_elapsed = time.time() - self.lap_start_time
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                phase.next_phase(current_pos)
+            else:
+                if self.course == "right":
+                    return (70, 100), Mode.FAST_LAP
+                else:
+                    return (100, 70), Mode.FAST_LAP
 
         # # フェーズ4: 最小距離未満は何も判定せず直進。最小距離以上でcorner判定・閾値判定。
         # if phase.get_phase() == 4:
