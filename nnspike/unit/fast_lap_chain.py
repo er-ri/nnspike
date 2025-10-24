@@ -23,6 +23,7 @@ class FastLapChain(object):
     def __init__(self, et: ETRobot, course: str) -> None:
         """ActionChainの初期化処理."""
         self.et = et  # ロボット本体
+        self.et.set_start_yaw()#
         self.course = course  # コース種別
         # コース種別の逆コースを定義
         if course == "right":
@@ -244,7 +245,7 @@ class FastLapChain(object):
             if position_diff < 6000:
                 # ファストラップ専用スタートダッシュ加速制御メソッドを使用
                 base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.5)
-                left_speed, right_speed = et.yaw_straight_control(base_speed=base_speed)
+                left_speed, right_speed = self.et.yaw_straight_control(base_speed=base_speed) #
                 return (left_speed, right_speed), Mode.FAST_LAP
             else:
                 lap_elapsed = time.time() - self.lap_start_time
@@ -253,14 +254,14 @@ class FastLapChain(object):
 
         # フェーズ1: 左旋回20度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新
         if phase.get_phase() == 1:
-            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=40.0)
+            stop_turn = self.et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=40.0)#
             if stop_turn:
                 if self.course == "right":
-                    et.set_start_yaw(start_yaw - 40.0)
+                    self.et.set_start_yaw(start_yaw - 40.0)#
                 else:
-                    et.set_start_yaw(start_yaw + 40.0)
+                    self.et.set_start_yaw(start_yaw + 40.0)#
                 lap_elapsed = time.time() - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={self.et.get_start_yaw():.2f} | current_yaw={self.et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
             else:
                 if self.course == "right":
@@ -273,7 +274,7 @@ class FastLapChain(object):
         #     position_diff = phase.get_position_diff(current_pos)
         #     # 1500未満は無条件で直進
         #     if position_diff < 2400:
-        #         left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+        #         left_speed, right_speed = self.yaw_straight_control(base_speed=HIGH_SPEED_BASE)#
         #         return (left_speed, right_speed), Mode.FAST_LAP
 
         #     # 2400を超えたら色差計測開始
@@ -303,17 +304,17 @@ class FastLapChain(object):
         #         phase.next_phase(current_pos)
         #         self._phase2_color_count = 0
         #     else:
-        #         left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+        #         left_speed, right_speed = self.et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
         #         return (left_speed, right_speed), Mode.FAST_LAP
 
         # # フェーズ3: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-90.0に更新
         # if phase.get_phase() == 3:
-        #     stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=78.0)
+        #     stop_turn = self.et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=78.0)
         #     if stop_turn:
         #         if self.course == "right":
-        #             et.set_start_yaw(start_yaw - 90.0)
+        #             self.et.set_start_yaw(start_yaw - 90.0)
         #         else:
-        #             et.set_start_yaw(start_yaw + 90.0)
+        #             self.et.set_start_yaw(start_yaw + 90.0)
         #         lap_elapsed = time.time() - self.lap_start_time
         #         print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
         #         phase.next_phase(current_pos)
@@ -327,7 +328,7 @@ class FastLapChain(object):
         # if phase.get_phase() == 4:
         #     position_diff = phase.get_position_diff(current_pos)
         #     if position_diff < 500:
-        #         left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+        #         left_speed, right_speed = self.et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
         #         return (left_speed, right_speed), Mode.FAST_LAP
 
         #     fast_corner = is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course=self.course)
@@ -336,12 +337,12 @@ class FastLapChain(object):
         #         print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | fast_corner_detected={fast_corner} | position_diff={position_diff} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
         #         phase.next_phase(current_pos)
         #     else:
-        #         left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+        #         left_speed, right_speed = self.et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
         #         return (left_speed, right_speed), Mode.FAST_LAP
 
         # # フェーズ5: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-180.0に更新
         # if phase.get_phase() == 5:
-        #     stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=90.0)
+        #     stop_turn = self.et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=90.0)
         #     if stop_turn:
         #         phase.next_phase(current_pos)
         #         lap_elapsed = time.time() - self.lap_start_time
@@ -360,7 +361,7 @@ class FastLapChain(object):
         # if phase.get_phase() == 6:
         #     position_diff = phase.get_position_diff(current_pos)
         #     if position_diff < 200:
-        #         left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+        #         left_speed, right_speed = self.et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
         #         return (left_speed, right_speed), Mode.FAST_LAP
         #     else:
         #         # ラップ終了タイム記録
