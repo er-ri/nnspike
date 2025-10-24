@@ -251,22 +251,22 @@ class FastLapChain(object):
                 print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 3000 | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
 
-        # # フェーズ1: 左旋回20度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新
-        # if phase.get_phase() == 1:
-        #     stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=12.0)
-        #     if stop_turn:
-        #         if self.course == "right":
-        #             et.set_start_yaw(start_yaw - 12.0)
-        #         else:
-        #             et.set_start_yaw(start_yaw + 12.0)
-        #         lap_elapsed = time.time() - self.lap_start_time
-        #         print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
-        #         phase.next_phase(current_pos)
-        #     else:
-        #         if self.course == "right":
-        #             return (80, 100), Mode.FAST_LAP
-        #         else:
-        #             return (100, 80), Mode.FAST_LAP
+        # フェーズ1: 左旋回20度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新
+        if phase.get_phase() == 1:
+            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=40.0)
+            if stop_turn:
+                if self.course == "right":
+                    et.set_start_yaw(start_yaw - 40.0)
+                else:
+                    et.set_start_yaw(start_yaw + 40.0)
+                lap_elapsed = time.time() - self.lap_start_time
+                print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                phase.next_phase(current_pos)
+            else:
+                if self.course == "right":
+                    return (80, 100), Mode.FAST_LAP
+                else:
+                    return (100, 80), Mode.FAST_LAP
 
         # # フェーズ2: position_diffが1500未満なら直進、2000以上なら強制で次フェーズ、それ以外は従来通り
         # if phase.get_phase() == 2:
@@ -371,7 +371,7 @@ class FastLapChain(object):
         #         return (0, 0), Mode.FAST_LAP
 
         # フェーズ7: reset_action()してPAUSE復帰（ラップ終了）
-        if phase.get_phase() == 1:
+        if phase.get_phase() == 2:
             self.reset_action()
             # return (0, 0), Mode.PAUSE
             return (0, 0), Mode.DOUBLE_LOOP
