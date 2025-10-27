@@ -334,9 +334,9 @@ class FastLapChain(object):
                     self.et.set_start_yaw(start_yaw + 65.0)  # 左コースは+30度
             else:
                 if self.course == "right":
-                    return None, (95, 100, 0), Mode.FAST_LAP
+                    return None, (85, 100, 0), Mode.FAST_LAP
                 else:
-                    return None, (100, 95, 0), Mode.FAST_LAP
+                    return None, (100, 85, 0), Mode.FAST_LAP
 
         # フェーズ4: position_startとの差分2000未満ならyaw_straight_control直進。2000以上で次フェーズ、基準yaw更新（直進区間）
         if phase.get_phase() == 4:
