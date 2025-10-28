@@ -675,7 +675,7 @@ class ActionChain(object):
                         return (30, 0), Mode.BACK_AND_TURN1
             # upperのときは既存ロジックを一切変更しない
             threshold = 450
-            limit = 800
+            limit = 700
             if position_diff < threshold:
                 if self.course == "right":
                     return (0, 30), Mode.BACK_AND_TURN1
