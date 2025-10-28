@@ -409,7 +409,7 @@ class ActionChain(object):
         # phase3: 右モーター位置差がコース種別ごとの閾値未満なら直進。閾値到達したらphase4へ。yaw基準設定。
         if phase.get_phase() == 3:
             position_diff = phase.get_position_diff(current_pos)
-            threshold = 1150 if self.course_type == "upper" else 700
+            threshold = 1170 if self.course_type == "upper" else 700
             if position_diff < threshold:
                 accelerated_speed = self.get_accelerated_base_speed()
                 left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed)
