@@ -266,24 +266,24 @@ def find_blue_target_center(image) -> Tuple[Optional[Tuple[int, int]], Optional[
     return None, None, 0
 
 def calc_blue_target_distance(blue_center) -> Optional[int]:
- # y（top_y）ごとの距離計算サンプル（int(CAMERA_HEIGHT*0.9)=432基準、y<=30は上限1200）
-#   y    | distance = 432-y | practical_distance
+ # y（top_y）ごとの距離計算サンプル（int(CAMERA_HEIGHT*0.9)=430基準、y<=30は上限1200, distance=target_y-top_y）
+#   y    | distance = 430-y | practical_distance
 # -------|-----------------|----------------
-#    30  |     402         |    808
-#   100  |     332         |    694
-#   150  |     282         |    616
-#   200  |     232         |    538
-#   250  |     182         |    500
-#   260  |     172         |    482
-#   275  |     157         |    457
-#   290  |     142         |    441
-#   300  |     132         |    430
-#   310  |     122         |    421
-#   325  |     107         |    390
-#   340  |      92         |    361
-#   350  |      82         |    350
-#   400  |      32         |    216
-#   432  |       0         |    165
+#    30  |     400         |   1200
+#   100  |     330         |    994
+#   150  |     280         |    818
+#   200  |     230         |    642
+#   250  |     180         |    500
+#   260  |     170         |    482
+#   275  |     155         |    457
+#   290  |     140         |    441
+#   300  |     130         |    420
+#   310  |     120         |    412
+#   325  |     105         |    381
+#   340  |      90         |    361
+#   350  |      80         |    350
+#   400  |      30         |    216
+#   430  |       0         |    165
 # ※y=250〜350はすべて線形補間（250,300,350も含む）、それ以外は practical_distance = int(1.6*distance+165)
     if blue_center is None:
         return None
@@ -300,9 +300,9 @@ def calc_blue_target_distance(blue_center) -> Optional[int]:
         elif 250 < top_y <= 350:
             # 250〜350 線形補間（250,300,350も含む）
             if top_y <= 300:
-                practical_distance = int(500 + (430-500)*(top_y-250)/(300-250))
+                practical_distance = int(500 + (420-500)*(top_y-250)/(300-250))
             else:
-                practical_distance = int(430 + (350-430)*(top_y-300)/(350-300))
+                practical_distance = int(420 + (350-420)*(top_y-300)/(350-300))
         else:
             slope = 1.6
             intercept = 165
