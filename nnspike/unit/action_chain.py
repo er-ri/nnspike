@@ -500,8 +500,8 @@ class ActionChain(object):
                 calculated_distance = calc_blue_target_distance(blue_center)
                 if calculated_distance is not None:
                     self._calculated_distance = calculated_distance
-                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | calc_blue_target_distance: X={blue_center[0]}, Y={blue_center[1]}, distance={calculated_distance}, pixels={blue_pixel_count}")
-            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_target_detected={blue_target_detected} or position_diff={position_diff} >= 500 | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | blue_pixel_count={blue_pixel_count} | blue_center={blue_center}")
+                    # print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | calc_blue_target_distance: X={blue_center[0]}, Y={blue_center[1]}, distance={calculated_distance}, pixels={blue_pixel_count}")
+            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_target_detected={blue_target_detected} or position_diff={position_diff} >= 500 | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | blue_pixel_count={blue_pixel_count} | blue_center={blue_center} | _calculated_distance={self._calculated_distance}")
             phase.next_phase(current_pos)
             return (0, 0), Mode.CARRY_BOTTLE1
 
@@ -513,7 +513,7 @@ class ActionChain(object):
                 calculated_distance = calc_blue_target_distance(blue_center)
                 if calculated_distance is not None:
                     self._calculated_distance = calculated_distance
-                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | calc_blue_target_distance: X={blue_center[0]}, Y={blue_center[1]}, distance={calculated_distance}, pixels={blue_pixel_count}")
+                    # print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | calc_blue_target_distance: X={blue_center[0]}, Y={blue_center[1]}, distance={calculated_distance}, pixels={blue_pixel_count}")
                 if abs(blue_center[0] - self.center_x) <= 10:
                     et.set_start_yaw()
                     print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance} | proceed to phase10")
@@ -550,7 +550,7 @@ class ActionChain(object):
             if blue_center is not None and blue_center[1] > 10:
                 calculated_distance = calc_blue_target_distance(blue_center)
                 # --- print出し方統一 ---
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_center=({blue_center[0]}, {blue_center[1]}) | blue_pixel_count={blue_pixel_count} | calc_blue_target_distance={calculated_distance} | _calculated_distance={self._calculated_distance}")
+                # print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_center=({blue_center[0]}, {blue_center[1]}) | blue_pixel_count={blue_pixel_count} | calc_blue_target_distance={calculated_distance} | _calculated_distance={self._calculated_distance}")
                 if blue_center[1] >= 300:
                     if calculated_distance is not None:
                         self._calculated_distance = calculated_distance
@@ -890,7 +890,7 @@ class ActionChain(object):
                 calculated_distance = calc_blue_target_distance(blue_center)
                 if calculated_distance is not None:
                     self._calculated_distance = calculated_distance
-                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | calc_blue_target_distance: X={blue_center[0]}, Y={blue_center[1]}, distance={calculated_distance}, pixels={blue_pixel_count}")
+                    # print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | calc_blue_target_distance: X={blue_center[0]}, Y={blue_center[1]}, distance={calculated_distance}, pixels={blue_pixel_count}")
                 
                 # 中心に合わせる判定（±10ピクセル以内）
                 if abs(blue_center[0] - self.center_x) <= 10:
@@ -972,7 +972,7 @@ class ActionChain(object):
                 calculated_distance = calc_blue_target_distance(blue_center)
                 if calculated_distance is not None:
                     self._calculated_distance = calculated_distance
-                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | calc_blue_target_distance: X={blue_center[0]}, Y={blue_center[1]}, distance={calculated_distance}, pixels={blue_pixel_count}")
+                    # print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | calc_blue_target_distance: X={blue_center[0]}, Y={blue_center[1]}, distance={calculated_distance}, pixels={blue_pixel_count}")
                 
                 # 中心に合わせる判定（±5ピクセル以内）
                 if abs(blue_center[0] - self.center_x) <= 5:
