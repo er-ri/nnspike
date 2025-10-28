@@ -968,11 +968,11 @@ class ActionChain(object):
                     left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=accelerated_speed)
                     return (left_speed, right_speed), Mode.CARRY_BOTTLE2
             else:
-                # 青ターゲットが検出されない場合、基準ヨー設定して追跡フェーズに移行
-                et.set_start_yaw()
-                print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | no_blue_target | set_start_yaw | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
-                phase.next_phase(current_pos)
-                return (0, 0), Mode.CARRY_BOTTLE2
+                # 青ターゲットが検出されない場合はyaw維持で直進
+                accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
+                # yaw維持直進コマンドを返す
+                return (left_speed, right_speed), Mode.CARRY_BOTTLE2
 
         # phase12: もう一度青ターゲットを中心に合わせる（EYE_BLUEのフェーズ2と同じ処理）
         if phase.get_phase() == 12:
