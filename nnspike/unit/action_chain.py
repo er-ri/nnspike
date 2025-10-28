@@ -1052,15 +1052,15 @@ class ActionChain(object):
                     return (30, 0), Mode.BACK_AND_TURN2
                 else:
                     return (0, 30), Mode.BACK_AND_TURN2
-            # 基準位置到達後、ライン検出または別基準位置到達まで継続
+            # ライン検出またはposition_diff>=400で次フェーズ、他は継続
             if (not horizontal_line_detected) and (position_diff < 400):
                 if self.course == "right":
                     return (20, 0), Mode.BACK_AND_TURN2
                 else:
                     return (0, 20), Mode.BACK_AND_TURN2
-            print(f"[DEBUG] mode={Mode.BACK_AND_TURN2.value} | phase={phase.get_phase()} | horizontal_line_detected={horizontal_line_detected} | position_diff={position_diff} >= 500")
-            # 条件を満たしたので次のフェーズへ
+            print(f"[DEBUG] mode={Mode.BACK_AND_TURN2.value} | phase={phase.get_phase()} | horizontal_line_detected={horizontal_line_detected} | position_diff={position_diff} >= 400 | proceed to next phase")
             phase.next_phase(current_pos)
+            return (0, 0), Mode.BACK_AND_TURN2
 
         # 2. 終了: 状態リセットし目標モードへ遷移（抽象化）
         if phase.get_phase() == 2:
