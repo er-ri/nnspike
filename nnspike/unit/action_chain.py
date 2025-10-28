@@ -1096,7 +1096,7 @@ class ActionChain(object):
         # 1. コース側モーターの移動距離が所定値未満なら中央追従、所定値以上で次フェーズへ遷移。到達でモーター位置記録。
         if phase.get_phase() == 1:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff >= 350:
+            if position_diff >= 250:
                 print(f"[DEBUG] mode={Mode.HEAD_GOAL.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 350")
                 phase.next_phase(current_pos)
             else:
