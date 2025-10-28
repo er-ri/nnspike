@@ -1033,8 +1033,9 @@ class ActionChain(object):
             self.initialize_action(motor_side=self.opposite_course)
         phase = self._phase
         current_pos = self.get_motor_position(self.opposite_course)
+        position_start = phase.get_position_start("position_start")
         position_diff = phase.get_position_diff(current_pos)
-        print(f"[DEBUG] back_and_turn2_relative: current_pos={current_pos} | position_diff={position_diff}")
+        print(f"[DEBUG] back_and_turn2_relative: current_pos={current_pos} | position_start={position_start} | position_diff={position_diff}")
 
         # 0. 左モーターが抽象的な基準位置まで後退（両輪定速）。条件成立で次フェーズへ、モーター位置記録。
         if phase.get_phase() == 0:
