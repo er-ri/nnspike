@@ -1090,7 +1090,7 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
             else:
                 target_x = self.center_x
-                left_speed, right_speed = self.calc_motor_speed(target_x)
+                left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
                 return (left_speed, right_speed), Mode.HEAD_GOAL
 
         # 1. コース側モーターの移動距離が所定値未満なら中央追従、所定値以上で次フェーズへ遷移。到達でモーター位置記録。
