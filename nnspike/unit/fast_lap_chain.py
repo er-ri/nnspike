@@ -253,12 +253,12 @@ class FastLapChain(object):
 
         # フェーズ1: 左旋回20度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新
         if phase.get_phase() == 1:
-            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=15.0)
+            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=13.0)
             if stop_turn:
                 if self.course == "right":
-                    et.set_start_yaw(start_yaw - 15.0)
+                    et.set_start_yaw(start_yaw - 13.0)
                 else:
-                    et.set_start_yaw(start_yaw + 15.0)
+                    et.set_start_yaw(start_yaw + 13.0)
                 lap_elapsed = time.time() - self.lap_start_time
                 print(f"[DEBUG] mode={Mode.FAST_LAP.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
@@ -308,7 +308,7 @@ class FastLapChain(object):
 
         # フェーズ3: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-90.0に更新
         if phase.get_phase() == 3:
-            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=75.0)
+            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=77.0)
             if stop_turn:
                 if self.course == "right":
                     et.set_start_yaw(start_yaw - 90.0)
