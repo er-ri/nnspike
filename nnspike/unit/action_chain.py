@@ -1100,7 +1100,7 @@ class ActionChain(object):
                 print(f"[DEBUG] mode={Mode.HEAD_GOAL.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 350")
                 phase.next_phase(current_pos)
             else:
-                return (BASE_SPEED, BASE_SPEED), Mode.HEAD_GOAL
+                return (30, 30), Mode.HEAD_GOAL
 
         # 2. 左旋回（courseに応じて左旋回。垂直黒ライン検出または移動距離上限到達でphase3へ）
         if phase.get_phase() == 2:
@@ -1123,7 +1123,7 @@ class ActionChain(object):
                 print(f"[DEBUG] mode={Mode.HEAD_GOAL.value} | phase={phase.get_phase()} | blue_line={blue_line}")
                 phase.next_phase(current_pos)
             else:
-                left_speed, right_speed = self.calc_motor_speed(target_x)
+                left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
                 return (left_speed, right_speed), Mode.HEAD_GOAL
 
         # 4. 青ライン検出後、コース側モーターの移動距離が所定値未満の間は左エッジトレース、到達でPAUSE（状態リセット）
@@ -1134,7 +1134,7 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
             else:
                 target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
-                left_speed, right_speed = self.calc_motor_speed(target_x)
+                left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
                 return (left_speed, right_speed), Mode.HEAD_GOAL
 
         # 5. 青ライン検出後、コース側モーターの移動距離が所定値未満の間は直進、到達で次のフェーズへ
