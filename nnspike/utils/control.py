@@ -267,7 +267,7 @@ def find_blue_target_center(image) -> Tuple[Optional[Tuple[int, int]], Optional[
 
 def calc_blue_target_distance(blue_center) -> Optional[int]:
  # y（top_y）ごとの距離計算サンプル（int(CAMERA_HEIGHT*0.9)=430基準、y<=30は上限1200, distance=target_y-top_y）
-#   y    | distance = 430-y | practical_distance
+## y    | distance = 430-y | practical_distance
 # -------|-----------------|----------------
 #    30  |     400         |   1200
 #   100  |     330         |    994
@@ -276,12 +276,12 @@ def calc_blue_target_distance(blue_center) -> Optional[int]:
 #   250  |     180         |    500
 #   260  |     170         |    482
 #   275  |     155         |    457
-#   290  |     140         |    441
-#   300  |     130         |    420
-#   310  |     120         |    412
-#   325  |     105         |    381
-#   340  |      90         |    361
-#   350  |      80         |    350
+#   290  |     140         |    434
+#   300  |     130         |    410
+#   310  |     120         |    394
+#   325  |     105         |    370
+#   340  |      90         |    346
+#   350  |      80         |    330
 #   400  |      30         |    216
 #   430  |       0         |    165
 # ※y=250〜350はすべて線形補間（250,300,350も含む）、それ以外は practical_distance = int(1.6*distance+165)
@@ -300,9 +300,9 @@ def calc_blue_target_distance(blue_center) -> Optional[int]:
         elif 250 < top_y <= 350:
             # 250〜350 線形補間（250,300,350も含む）
             if top_y <= 300:
-                practical_distance = int(500 + (420-500)*(top_y-250)/(300-250))
+                practical_distance = int(500 + (410-500)*(top_y-250)/(300-250))
             else:
-                practical_distance = int(420 + (350-420)*(top_y-300)/(350-300))
+                practical_distance = int(410 + (370-410)*(top_y-300)/25)
         else:
             slope = 1.6
             intercept = 165
