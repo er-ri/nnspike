@@ -1044,6 +1044,7 @@ class ActionChain(object):
                 return (-BASE_SPEED, -BASE_SPEED), Mode.BACK_AND_TURN2
             print(f"[DEBUG] mode={Mode.BACK_AND_TURN2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 570")
             phase.next_phase(current_pos)
+            return (0, 0), Mode.BACK_AND_TURN2
 
         # 1. 右旋回（抽象的な基準位置までは必ず旋回。条件成立後、ライン検出または基準位置到達まで所定速度で継続。条件成立で次フェーズへ）
         if phase.get_phase() == 1:
