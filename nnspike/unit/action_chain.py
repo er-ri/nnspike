@@ -636,6 +636,7 @@ class ActionChain(object):
     def back_and_turn1_relative(self, image: np.ndarray) -> Tuple[SpeedTuple, Mode]:
         if not self._init:
             self.initialize_action(motor_side=self.course)
+            self._wait_start_time = None
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
 
@@ -646,9 +647,22 @@ class ActionChain(object):
                 return (-30, -30), Mode.BACK_AND_TURN1
             print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 600")
             phase.next_phase(current_pos)
+            self._wait_start_time = None
 
-        # 1. 左旋回（最低回転量は必ず旋回。最低回転量超えてからターゲット検出または最大回転量到達まで旋回。条件満たせばphase2へ）
+        # 1. 2秒待機フェーズ
         if phase.get_phase() == 1:
+            if self._wait_start_time is None:
+                self._wait_start_time = time.time()
+            elapsed = time.time() - self._wait_start_time
+            if elapsed >= 2.0:
+                phase.next_phase(current_pos)
+                self._wait_start_time = None
+                return (0, 0), Mode.BACK_AND_TURN1
+            # 待機中は停止
+            return (0, 0), Mode.BACK_AND_TURN1
+
+        # 2. 左旋回（最低回転量は必ず旋回。最低回転量超えてからターゲット検出または最大回転量到達まで旋回。条件満たせばphase3へ）
+        if phase.get_phase() == 2:
             position_diff = phase.get_position_diff(current_pos)
             if self.course_type != "upper":
                 limit = 350
@@ -681,7 +695,7 @@ class ActionChain(object):
             return (0, 0), Mode.BACK_AND_TURN1
 
         # 青ボトル検知・追従・遷移判定
-        if phase.get_phase() == 2:
+        if phase.get_phase() == 3:
             position_diff = phase.get_position_diff(current_pos)
             threshold = 300
             max_threshold = 600
@@ -702,8 +716,8 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_threshold} | next phase (go straight)")
 
-        # 3. 終了: 状態リセットしCARRY_BOTTLE2へ遷移
-        if phase.get_phase() == 3:
+        # 4. 終了: 状態リセットしCARRY_BOTTLE2へ遷移
+        if phase.get_phase() == 4:
             self.reset_action()
             return (0, 0), Mode.CARRY_BOTTLE2
 
@@ -1028,9 +1042,11 @@ class ActionChain(object):
         print("[carry_bottle2_relative] Unexpected state reached.")
         return (0, 0), Mode.CARRY_BOTTLE2
 
+
     def back_and_turn2_relative(self, image: np.ndarray) -> Tuple[SpeedTuple, Mode]:
         if not self._init:
             self.initialize_action(motor_side=self.opposite_course)
+            self._wait_start_time = None
         phase = self._phase
         current_pos = self.get_motor_position(self.opposite_course)
 
@@ -1041,10 +1057,23 @@ class ActionChain(object):
                 return (-30, -30), Mode.BACK_AND_TURN2
             print(f"[DEBUG] mode={Mode.BACK_AND_TURN2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 570")
             phase.next_phase(current_pos)
+            self._wait_start_time = time.time()
             return (0, 0), Mode.BACK_AND_TURN2
 
-        # 1. 右旋回（抽象的な基準位置までは必ず旋回。条件成立後、ライン検出または基準位置到達まで所定速度で継続。条件成立で次フェーズへ）
+        # 1. 1秒待機フェーズ
         if phase.get_phase() == 1:
+            if self._wait_start_time is None:
+                self._wait_start_time = time.time()
+            elapsed = time.time() - self._wait_start_time
+            if elapsed >= 2.0:
+                phase.next_phase(current_pos)
+                self._wait_start_time = None
+                return (0, 0), Mode.BACK_AND_TURN2
+            # 待機中は停止
+            return (0, 0), Mode.BACK_AND_TURN2
+
+        # 2. 右旋回（抽象的な基準位置までは必ず旋回。条件成立後、ライン検出または基準位置到達まで所定速度で継続。条件成立で次フェーズへ）
+        if phase.get_phase() == 2:
             position_diff = phase.get_position_diff(current_pos)
             horizontal_line_detected = is_upper_horizontal_line_detected(image)
             # 抽象的な基準位置までは必ず旋回
@@ -1066,8 +1095,8 @@ class ActionChain(object):
             else:
                 return (0, 20), Mode.BACK_AND_TURN2
 
-        # 2. 終了: 状態リセットし目標モードへ遷移（抽象化）
-        if phase.get_phase() == 2:
+        # 3. 終了: 状態リセットし目標モードへ遷移（抽象化）
+        if phase.get_phase() == 3:
             self.reset_action()
             return (0, 0), Mode.HEAD_GOAL
 
