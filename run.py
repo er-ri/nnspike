@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Neural Network Spike Robot Control - Simplified Speed Control
+"""Neural Network Spike Robot Control - Simplified Speed Control.
 
 This script controls a line-following robot using neural network predictions
 with a simplified speed control algorithm for easier tuning:
@@ -13,26 +12,24 @@ PID Tuning Parameters:
 """
 
 import argparse
-import math
 import pickle
 import socket
 import struct
 import time
+from collections.abc import Callable
+from functools import wraps
 from typing import Any
 
 import cv2
 import numpy as np
-import onnxruntime as ort
 
 from nnspike.constants import (
     CAMERA_FOCAL_LENGTH_PIXELS,
     CAMERA_HEIGHT,
     OFFSET_Y,
-    RELATIVE_POSITION_SCALE,
-    ROI_CNN,
-    Mode,
+    PhaseConfig,
 )
-from nnspike.unit import ActionChain, ETRobot, ModeManager, WebcamVideoStream
+from nnspike.unit import ETRobot, WebcamVideoStream
 from nnspike.utils import (
     PIDController,
     SensorRecorder,
@@ -40,14 +37,164 @@ from nnspike.utils import (
     draw_driving_info,
 )
 
-# User defined constants
-x1, y1, x2, y2 = ROI_CNN  # Region of Interest
-
 # Simplified Speed Control Parameters (Easy to tune)
 BASE_SPEED = 45  # Base speed for straight lines (adjust this first)
 HOST_IP_ADDRESS = (
     "192.168.137.1"  # The destination IP(PC) that the Raspberry Pi will send to
 )
+
+
+def initialize_phase(func: Callable[..., Any]) -> Callable[..., Any]:
+    """Decorator to automatically initialize a phase if it hasn't been initiated yet."""
+
+    @wraps(func)
+    def wrapper(action_chain: ActionChain, *args: Any, **kwargs: Any) -> Any:
+        phase_conf = action_chain.phases_mapper[action_chain.active_phase]
+
+        if phase_conf["initiated"] is False:
+            # Capture starting encoder position for distance-based logic
+            action_chain.start_position = (
+                action_chain.et.retrieve_motors_relative_position()
+            )
+
+            # Update PID controller with phase-specific parameters if provided
+            pid_params = phase_conf["pid_params"]
+            action_chain.pid = PIDController(
+                kp=pid_params[0],
+                ki=pid_params[1],
+                kd=pid_params[2],
+                setpoint=0,
+                output_limits=(-100, 100),
+            )
+
+            phase_conf["initiated"] = True
+        return func(action_chain, *args, **kwargs)
+
+    return wrapper
+
+
+class ActionChain:
+    """A class to manage a sequence of actions for an ETRobot.
+
+    This class allows you to define a chain of actions, each consisting of
+    setting left and right motor speeds for a specified duration.
+    """
+
+    def __init__(self, et: ETRobot, initial_phase: int, course: str) -> None:
+        """Initialize the ActionChain with an ETRobot instance and initial phase."""
+        self.et = et
+        self.course = course
+        self.active_phase = initial_phase
+
+        # Action with specific positioning
+        self.start_position = 0
+        self.current_position = 0
+        self.mark_position = 0
+
+        # fmt: off
+        self.phases_mapper: dict[int, PhaseConfig] = {
+            # phase_index: configuration
+                0: {
+                    "initiated": False,
+                    "base_speed": 80,
+                    "pid_params": (50.0, 0.0, 2.0),
+                    "roi": (0, 0, 640, 480),
+                    "method_name": "perform_phase0"
+                },  # Phase 0
+                1: {
+                    "initiated": False,
+                    "base_speed": 80,
+                    "pid_params": (50.0, 0.0, 2.0),
+                    "roi": (0, 0, 640, 480),
+                    "method_name": "perform_phase1"
+                },  # Phase 1
+        }
+        # fmt: on
+
+        pid_params = self.phases_mapper[initial_phase]["pid_params"]
+        self.pid = PIDController(
+            kp=pid_params[0],
+            ki=pid_params[1],
+            kd=pid_params[2],
+            setpoint=0,
+            output_limits=(-100, 100),
+        )
+
+    def reset(self) -> None:
+        """Reset the action chain by setting the start position to 0."""
+        self.start_position = 0
+        self.current_position = 0
+        self.mark_position = 0
+
+    def get_moved_distance(self) -> int:
+        """Get the distance moved since the start of the current phase.
+
+        Returns:
+            int: The distance moved since the start of the current phase.
+        """
+        if self.start_position == 0:
+            return 0
+        self.current_position = self.et.retrieve_motors_relative_position()
+        return self.current_position - self.start_position
+
+    def perform_action_chain(self, image: np.ndarray) -> tuple[int, int]:
+        """Execute the current phase and return its (target_x, speed) result."""
+        if self.active_phase not in self.phases_mapper:
+            raise ValueError(
+                f"phase '{self.active_phase}' not defined in phases_mapper."
+            )
+
+        phase_conf = self.phases_mapper[self.active_phase]
+        method_name = str(phase_conf["method_name"])
+
+        method = getattr(self, method_name, None)
+        if not callable(method):
+            raise ValueError(f"Method '{method_name}' not found in ActionChain.")
+
+        result = method(image=image)
+        # Ensure result is a tuple of expected structure
+        return result  # type: ignore[no-any-return]
+
+    def __wrap_pid_calculation(self, target_x: float) -> tuple[int, int]:
+        x1, y1, x2, y2 = self.phases_mapper[self.active_phase]["roi"]
+        roi_center_x = (x1 + x2) / 2
+        offset_pixels = target_x - roi_center_x
+        theta = calculate_attitude_angle(
+            offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS
+        )
+        steering_correction = self.pid.update(theta)
+        left_speed = int(
+            self.phases_mapper[self.active_phase]["base_speed"] - steering_correction
+        )
+        right_speed = int(
+            self.phases_mapper[self.active_phase]["base_speed"] + steering_correction
+        )
+        return left_speed, right_speed
+
+    @initialize_phase
+    def perform_phase0(self, image: np.ndarray) -> tuple[int, int]:
+        print("Performing phase 0")
+
+        target_x = 0.0
+        left_speed, right_speed = self.__wrap_pid_calculation(target_x=target_x)
+
+        if 1 == 1:  # Placeholder for actual condition
+            print("Switching to phase 1")
+            self.active_phase = 1
+            return 0, 0  # Stop before switching
+
+        return left_speed, right_speed
+
+    @initialize_phase
+    def perform_phase1(self, image: np.ndarray) -> tuple[int, int]:
+        print("Performing phase 1")
+
+        if 2 == 2:  # Placeholder for actual condition
+            print("Switching to phase 2")
+            self.active_phase = 2
+            return 0, 0  # Stop before switching
+
+        return 0, 0
 
 
 def main(
@@ -57,9 +204,6 @@ def main(
     send_video_stream: bool = False,
     course: str = "left",
 ) -> None:
-    # Initialize model
-    session = ort.InferenceSession(model_path)
-
     # Generate timestamp for consistent naming if recording is enabled
     timestamp = (
         time.strftime("%Y%m%d%H%M%S", time.localtime())
@@ -91,168 +235,21 @@ def main(
             client_socket = None  # Initialization
 
     et = ETRobot()
-    action_chain = ActionChain(
-        et,
-        course=course,
-    )
-    mode_manager = ModeManager(course=course)
-    pid = PIDController(
-        kp=50,
-        ki=0,
-        kd=5,
-        setpoint=0,
-        output_limits=(-100, 100),  # Direct radian limits for steering correction
-    )
+    action_chain = ActionChain(et, initial_phase=0, course=course)
 
     time.sleep(0.5)
 
     et.set_motor_relative_position(left_positon=0, right_position=0)
 
-    mode = Mode.FOLLOW_LEFT_EDGE if course == "left" else Mode.FOLLOW_RIGHT_EDGE
-
     try:
         while et.is_running == True:
-            inf_start_time = time.time()
-
             ret, frame = vs.read()
             if not ret or frame is None:
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
 
-            motors_relative_position = et.retrieve_motors_relative_position()
-            # roi_area = process_image(image=frame.copy(), roi=(x1, y1, x2, y2), device=device)
-            scaled_relative_position = (
-                motors_relative_position / RELATIVE_POSITION_SCALE
-            )
-            # tensor_relative_position = torch.tensor(scaled_relative_position, dtype=torch.float32).unsqueeze(0).to(device)
-            image = cv2.resize(frame, (200, 66))  # Resize to model input size
-            image = image.astype(np.float32) / 255.0  # Normalize
-            image = np.transpose(image, (2, 0, 1))  # HWC to CHW
-            image = np.expand_dims(image, axis=0)  # Add batch dimension
-            # Prepare relative position
-            relative_pos = np.array([[scaled_relative_position]], dtype=np.float32)
-
-            # Run inference
-            inputs = {"image": image, "relative_position": relative_pos}
-            outputs = session.run(None, inputs)
-
-            predicted_x = x1 + (outputs[0][0] * (x2 - x1))
-
-            # Mode decision
-            mode_manager.set_current_mode(mode)
-            mode, init_flag = mode_manager.decide_next_mode(frame, et)
-
-            # Initialize
-            target_x = None
-            speed = None
-
-            match mode:
-                case Mode.FOLLOW_LEFT_EDGE:
-                    target_x, _, mode = action_chain.follow_left_edge(
-                        image=frame, predicted_x=predicted_x
-                    )
-                case Mode.FOLLOW_RIGHT_EDGE:
-                    target_x, _, mode = action_chain.follow_right_edge(
-                        image=frame, predicted_x=predicted_x
-                    )
-                case Mode.AVOID_OBSTACLE:
-                    _, speed, mode = action_chain.avoid_obstacle(init_flag=init_flag)
-                case Mode.CARRY_BOTTLE_PHASE1:
-                    target_x, speed, mode = action_chain.carry_bottle_phase1(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE2:
-                    target_x, speed, mode = action_chain.carry_bottle_phase2(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE3:
-                    target_x, speed, mode = action_chain.carry_bottle_phase3(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE4:
-                    target_x, speed, mode = action_chain.carry_bottle_phase4(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE5:
-                    target_x, speed, mode = action_chain.carry_bottle_phase5(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE6:
-                    target_x, speed, mode = action_chain.carry_bottle_phase6(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE7:
-                    target_x, speed, mode = action_chain.carry_bottle_phase7(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE8:
-                    target_x, speed, mode = action_chain.carry_bottle_phase8(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE9:
-                    target_x, speed, mode = action_chain.carry_bottle_phase9(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE10:
-                    target_x, speed, mode = action_chain.carry_bottle_phase10(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE11:
-                    target_x, speed, mode = action_chain.carry_bottle_phase11(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE12:
-                    target_x, speed, mode = action_chain.carry_bottle_phase12(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE13:
-                    target_x, speed, mode = action_chain.carry_bottle_phase13(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE14:
-                    target_x, speed, mode = action_chain.carry_bottle_phase14(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE15:
-                    target_x, speed, mode = action_chain.carry_bottle_phase15(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE16:
-                    target_x, speed, mode = action_chain.carry_bottle_phase16(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE17:
-                    target_x, speed, mode = action_chain.carry_bottle_phase17(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE18:
-                    target_x, speed, mode = action_chain.carry_bottle_phase18(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.CARRY_BOTTLE_PHASE18:
-                    target_x, speed, mode = action_chain.carry_bottle_phase18(
-                        image=frame, predicted_x=predicted_x, init_flag=init_flag
-                    )
-                case Mode.GOAL:
-                    break
-
-            if target_x is not None:
-                roi_center_x = (x1 + x2) / 2
-
-                offset_pixels = (
-                    target_x - roi_center_x
-                )  # Calculate attitude angle using camera geometry
-                theta = calculate_attitude_angle(
-                    offset_pixels, OFFSET_Y, CAMERA_HEIGHT, CAMERA_FOCAL_LENGTH_PIXELS
-                )
-                steering_correction = pid.update(theta)
-
-                left_speed = BASE_SPEED - steering_correction
-                right_speed = BASE_SPEED + steering_correction
-            elif speed is not None:
-                left_speed, right_speed = speed
-            else:
-                left_speed, right_speed = (0, 0)
+            # Execute phase and get control outputs
+            left_speed, right_speed = action_chain.perform_action_chain(image=frame)
 
             et.set_motor_speed(left_speed=int(left_speed), right_speed=int(right_speed))
 
@@ -263,18 +260,20 @@ def main(
                 )  # Send driving information for the real-time inspection
 
             if send_video_stream and client_socket is not None:
-                info: dict[str, Any] = {}
-                info["target_x"], info["offset_y"] = target_x, OFFSET_Y
-
-                info["text"] = {
-                    "theta_deg": math.degrees(theta),
-                    "steering_correction": steering_correction,
-                    "left_speed": int(left_speed),
-                    "right_speed": int(right_speed),
+                info: dict[str, Any] = {
+                    "offset_y": OFFSET_Y,
+                    "text": {
+                        "left_speed": int(left_speed),
+                        "right_speed": int(right_speed),
+                    },
                 }
 
                 gray = cv2.cvtColor(frame.copy(), cv2.COLOR_BGR2GRAY)
-                gray = draw_driving_info(gray, info, (x1, y1, x2, y2))
+                gray = draw_driving_info(
+                    gray,
+                    info,
+                    action_chain.phases_mapper[action_chain.active_phase]["roi"],
+                )
 
                 try:
                     ret, buffer = cv2.imencode(".jpg", gray)
@@ -284,9 +283,6 @@ def main(
                 except Exception as e:
                     print(f"Socket error: {e}")
                     break
-
-            inf_time = time.time() - inf_start_time
-            print(f"Inference time is: {inf_time}")
 
     finally:
         vs.stop()

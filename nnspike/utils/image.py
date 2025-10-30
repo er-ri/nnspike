@@ -1,5 +1,4 @@
-"""
-This module provides utility functions for image and video processing using OpenCV and NumPy.
+"""This module provides utility functions for image and video processing using OpenCV and NumPy.
 
 Functions:
     normalize_image(image: np.ndarray) -> np.ndarray:
@@ -19,9 +18,7 @@ import numpy as np
 
 
 def normalize_image(image: np.ndarray) -> np.ndarray:
-    """
-    Normalize an input image by converting its color space, applying Gaussian blur,
-    resizing, and scaling pixel values.
+    """Normalize an input image by converting its color space, applying Gaussian blur, resizing, and scaling pixel values.
 
     This function performs the following steps:
     1. Converts the image from RGB to YUV color space.

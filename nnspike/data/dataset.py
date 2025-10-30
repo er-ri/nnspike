@@ -1,5 +1,4 @@
-"""
-This module defines custom PyTorch Datasets for driving records, including image preprocessing and augmentation.
+"""This module defines custom PyTorch Datasets for driving records, including image preprocessing and augmentation.
 
 This module provides dataset classes for different machine learning tasks including regression,
 classification, and multi-task learning. All datasets support data augmentation through
@@ -30,7 +29,7 @@ Classes:
 RegressionDataset Class:
     Designed for predicting continuous values from images and relative position data.
 
-    Methods:
+Methods:
         - __init__(self, inputs, outputs, roi, train_course, position_variation=0.00625):
             Initializes the dataset with input data, target values, region of interest, training course, and position variation.
 
@@ -43,7 +42,7 @@ RegressionDataset Class:
 ClassificationDataset Class:
     Designed for predicting discrete modes/classes from images and relative position data.
 
-    Methods:
+Methods:
         - __init__(self, inputs, outputs, roi, train_course, position_variation=0.00625, transform=None):
             Initializes the dataset with input data, class labels, region of interest, training course, position variation, and optional transforms.
 
@@ -56,7 +55,7 @@ ClassificationDataset Class:
 MultiTaskDataset Class:
     Designed for simultaneous regression and classification tasks from the same input data.
 
-    Methods:
+Methods:
         - __init__(self, inputs, outputs, roi, train_course, position_variation=0.00625):
             Initializes the dataset with input data, combined outputs (mode, target), region of interest, training course, and position variation.
 
@@ -115,7 +114,6 @@ import torch
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 
-from nnspike.constants import Mode
 from nnspike.utils import normalize_image
 
 transform_bright_shift = A.ReplayCompose(
@@ -338,11 +336,6 @@ class MultiTaskDataset(Dataset):
         if course != self.train_course:
             roi_area = transform_flip(image=roi_area)["image"]
             target_x = (self.roi[2] - self.roi[0]) - target_x
-            mode = (
-                Mode.FOLLOW_LEFT_EDGE.value
-                if mode == Mode.FOLLOW_RIGHT_EDGE.value
-                else Mode.FOLLOW_RIGHT_EDGE.value
-            )
 
         roi_area = normalize_image(image=roi_area)
         tensor_roi_area = self.preprocess(roi_area)  # Convert to pytorch tensor
@@ -359,3 +352,95 @@ class MultiTaskDataset(Dataset):
         target_x = torch.tensor(target_x, dtype=torch.float32).unsqueeze(-1)
 
         return (tensor_roi_area, relative_position), (mode, target_x)
+
+
+class UNetDataset(Dataset):
+    """Dataset for brightness adjustment tasks using image pairs.
+
+    This dataset handles loading pairs of original and brightness-adjusted images,
+    automatically resizing them to the model's expected dimensions (640, 480) and
+    converting them to the proper format for the UNet model.
+
+    Args:
+        inputs (list[str]): List of paths to original images.
+        outputs (list[str]): List of paths to brightness-adjusted target images.
+        gamma_adjust (tuple[float, float]): Gamma adjustment range (unused in current implementation).
+
+    Returns:
+        tuple[torch.Tensor, torch.Tensor]: Pair of (original_image, adjusted_image) tensors
+            with shape (3, 480, 640) each, normalized to [0, 1] range.
+    """
+
+    preprocess = transforms.ToTensor()
+
+    def __init__(self, inputs: list[str], outputs: list[str]) -> None:
+        self.inputs = inputs
+        self.outputs = outputs
+
+    def __len__(self) -> int:
+        return len(self.inputs)
+
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+        original_path = self.inputs[idx]
+        original_image = cv2.imread(original_path, cv2.IMREAD_COLOR)
+        adjusted_path = self.outputs[idx]
+        adjusted_image = cv2.imread(adjusted_path, cv2.IMREAD_COLOR)
+
+        # Convert BGR to RGB
+        original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+        adjusted_image = cv2.cvtColor(adjusted_image, cv2.COLOR_BGR2RGB)
+
+        # Resize to model's expected size (640, 480)
+        original_image = cv2.resize(original_image, (640, 480))
+        adjusted_image = cv2.resize(adjusted_image, (640, 480))
+
+        # Convert to float and normalize to [0, 1] range
+        original_image = original_image.astype(np.float32) / 255.0
+        adjusted_image = adjusted_image.astype(np.float32) / 255.0
+
+        # Convert to PyTorch tensors: (H, W, C) -> (C, H, W)
+        original_tensor = torch.from_numpy(original_image).permute(2, 0, 1)
+        adjusted_tensor = torch.from_numpy(adjusted_image).permute(2, 0, 1)
+
+        # DataLoader will handle batching - don't add extra dimensions here
+        original_tensor = original_tensor.to(torch.float32)
+        adjusted_tensor = adjusted_tensor.to(torch.float32)
+
+        return original_tensor, adjusted_tensor
+
+
+class BrightnessAdjustDataset(Dataset):
+    """Dataset for brightness adjustment tasks using single images.
+
+    This dataset handles loading images, applying random brightness and beta adjustments,
+    and preparing them for training a brightness adjustment model.
+    """
+
+    preprocess = transforms.ToTensor()
+
+    def __init__(self, inputs: list[str], outputs: list[float]) -> None:
+        self.inputs = inputs
+        self.outputs = outputs
+
+    def __len__(self) -> int:
+        return len(self.inputs)
+
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+        image_path = self.inputs[idx]
+        image = cv2.imread(image_path, cv2.IMREAD_COLOR)
+
+        # Convert BGR to RGB
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        # Normalize to [0, 1] range
+        image = image.astype(np.float32) / 255.0
+
+        # Convert to PyTorch tensor: (H, W, C) -> (C, H, W)
+        tensor_image = torch.from_numpy(image).permute(2, 0, 1)
+        tensor_image = tensor_image.to(torch.float32)
+
+        beta = self.outputs[idx]
+        tensor_beta = torch.tensor(beta, dtype=torch.float32).unsqueeze(-1)
+
+        # DataLoader will handle batching - don't add extra dimensions here
+        return tensor_image, tensor_beta

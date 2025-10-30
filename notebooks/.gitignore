@@ -3,5 +3,7 @@
 !train_regression.ipynb
 !train_classification.ipynb
 !train_multi_task.ipynb
+!train_img2img.ipynb
+!train_beta.ipynb
 !prepare.ipynb
 !utils.py

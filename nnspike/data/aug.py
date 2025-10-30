@@ -256,3 +256,32 @@ def augment_dataset(df: pd.DataFrame, p: float, export_path: str) -> pd.DataFram
     aug_df = pd.DataFrame(results)
 
     return aug_df
+
+
+def adjust_brightness_contrast(
+    image: np.ndarray, alpha: float, beta: float
+) -> np.ndarray:
+    adjusted = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
+    return adjusted  # type: ignore[no-any-return]
+
+
+def revert_brightness_contrast(
+    adjusted_image: np.ndarray, alpha: float, beta: float
+) -> np.ndarray:
+    """Revert an image that was adjusted with alpha (contrast) and beta (brightness).
+
+    Parameters:
+    - adjusted_image: The modified image
+    - alpha: The contrast factor that was applied
+    - beta: The brightness offset that was applied
+
+    Returns:
+    - reverted_image: The original image (approximately)
+    """
+    # Apply inverse transformation: (pixel - beta) / alpha
+    reverted = (adjusted_image.astype(np.float32) - beta) / alpha
+
+    # Clip values to valid range [0, 255] and convert back to uint8
+    reverted = np.clip(reverted, 0, 255).astype(np.uint8)
+
+    return reverted

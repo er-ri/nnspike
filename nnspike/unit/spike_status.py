@@ -119,16 +119,14 @@ class SensorStatus:
 
 
 class SpikeStatus:
-    """
-    Class to represent and access the status of a Lego Spike Prime hub.
+    """Class to represent and access the status of a Lego Spike Prime hub.
 
     This class provides a structured way to access the data received from the
     Spike Prime, including sensor readings, motor positions, and battery status.
     """
 
     def __init__(self, raw_data: str | bytes | dict | None = None):
-        """
-        Initialize the SpikeStatus object.
+        """Initialize the SpikeStatus object.
 
         Args:
             raw_data: Optional raw data from the Spike Prime to parse
@@ -148,8 +146,7 @@ class SpikeStatus:
             self.update(raw_data)
 
     def update(self, data: str | bytes | dict) -> None:
-        """
-        Update the status with new data from the Spike Prime.
+        """Update the status with new data from the Spike Prime.
 
         Args:
             data: Raw data from the Spike Prime (string, bytes, or dictionary)
@@ -177,8 +174,7 @@ class SpikeStatus:
 
     @staticmethod
     def _parse_data(data: str | bytes | dict) -> dict:
-        """
-        Parse raw data from Spike Prime into a dictionary.
+        """Parse raw data from Spike Prime into a dictionary.
 
         Args:
             data: Raw data from the Spike Prime (string, bytes, or dictionary)

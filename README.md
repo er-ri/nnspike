@@ -90,7 +90,7 @@ This project combines a LEGO SPIKE Prime Hub with a Raspberry Pi to create an ro
 
 1. Install development dependencies:
    ```bash
-   uv sync --extra dev
+   uv sync --group dev --group doc
    ```
 
 2. Install pre-commit hooks:

@@ -21,8 +21,19 @@ Example:
         augmented_data = augment_dataset(dataset, factor=2)
 """
 
-from .aug import augment_dataset, random_shift_scale_rotate
-from .dataset import ClassificationDataset, MultiTaskDataset, RegressionDataset
+from .aug import (
+    adjust_brightness_contrast,
+    augment_dataset,
+    random_shift_scale_rotate,
+    revert_brightness_contrast,
+)
+from .dataset import (
+    BrightnessAdjustDataset,
+    ClassificationDataset,
+    MultiTaskDataset,
+    RegressionDataset,
+    UNetDataset,
+)
 from .preprocess import (
     balance_dataset,
     create_label_dataframe,
@@ -31,6 +42,8 @@ from .preprocess import (
 )
 
 __all__ = [
+    "adjust_brightness_contrast",
+    "revert_brightness_contrast",
     # Augmentation
     "random_shift_scale_rotate",
     "augment_dataset",
@@ -38,6 +51,8 @@ __all__ = [
     "RegressionDataset",
     "ClassificationDataset",
     "MultiTaskDataset",
+    "BrightnessAdjustDataset",
+    "UNetDataset",
     # Preprocessing
     "balance_dataset",
     "sort_by_frames_number",

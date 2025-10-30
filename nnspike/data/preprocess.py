@@ -1,5 +1,4 @@
-"""
-This module provides functions for preprocessing and preparing datasets of image frames with sensor data.
+"""This module provides functions for preprocessing and preparing datasets of image frames with sensor data.
 
 The module contains utilities for creating labeled datasets from image files, balancing data distributions,
 sorting by frame numbers, and merging sensor status data with image metadata. It's designed to work with
@@ -37,8 +36,7 @@ from nnspike.constants import OFFSET_Y
 def balance_dataset(
     df: pd.DataFrame, col_name: str, max_samples: int, num_bins: int
 ) -> pd.DataFrame:
-    """
-    Balances the dataset by limiting the number of samples in each bin of a specified column.
+    """Balances the dataset by limiting the number of samples in each bin of a specified column.
 
     This function creates a histogram of the specified column and ensures that no bin has more than
     `max_samples` samples. If a bin exceeds this limit, excess samples are randomly removed to balance
@@ -59,7 +57,6 @@ def balance_dataset(
             2. empty string
         Otherwise, `ValueError: autodetected range of [nan, nan] is not finite` may raise
     """
-
     # Reset index to ensure clean 0,1,2,3... sequence
     df = df.reset_index(drop=True)
 
@@ -82,8 +79,7 @@ def balance_dataset(
 
 
 def sort_by_frames_number(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Sorts a DataFrame by the frame number extracted from the 'image_path' column.
+    """Sorts a DataFrame by the frame number extracted from the 'image_path' column.
 
     This function extracts the frame number from the 'image_path' column of the
     DataFrame, sorts the DataFrame based on these frame numbers, and keeps
@@ -117,8 +113,7 @@ def sort_by_frames_number(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def create_label_dataframe(path_pattern: str, course: str) -> pd.DataFrame:
-    """
-    Creates a comprehensive DataFrame with image paths and associated metadata for labeling tasks.
+    """Creates a comprehensive DataFrame with image paths and associated metadata for labeling tasks.
 
     This function searches for image files matching the given path pattern and constructs
     a DataFrame containing the paths to these images along with multiple columns for sensor
@@ -166,8 +161,7 @@ def create_label_dataframe(path_pattern: str, course: str) -> pd.DataFrame:
 
 
 def set_spike_status(label_df: pd.DataFrame, status_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Merges comprehensive sensor and motor data from status_df into label_df based on matching frame numbers.
+    """Merges comprehensive sensor and motor data from status_df into label_df based on matching frame numbers.
 
     This function performs a comprehensive merge of robot sensor and control data from status_df
     into label_df by matching frame_number values. It updates multiple columns including:

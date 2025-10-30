@@ -23,6 +23,7 @@ Example:
         steering = pid.update(error)
 """
 
+from .checkpoint import load_checkpoint, save_checkpoint
 from .control import (
     calculate_attitude_angle,
     find_bottle_center,
@@ -35,6 +36,8 @@ from .pid import PIDController
 from .recorder import SensorRecorder
 
 __all__ = [
+    "save_checkpoint",
+    "load_checkpoint",
     "find_line_edges_at_y",
     "find_gate_virtual_line",
     "find_bottle_center",

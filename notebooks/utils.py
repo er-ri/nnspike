@@ -13,8 +13,8 @@ import seaborn as sns
 def view_data_distribution(
     df: pd.DataFrame, cols: list, bins_list: list | None = None
 ) -> None:
-    """
-    Plots the distribution for each column provided in 'cols', with adjustable bins for each column.
+    """Plots the distribution for each column provided in 'cols', with adjustable bins for each column.
+
     Args:
         df (pd.DataFrame): The dataframe containing the data.
         cols (list): List of column names to plot.
@@ -42,8 +42,7 @@ def view_data_distribution(
 
 
 def extract_video_frames(video_path: str, frame_path: str) -> None:
-    """
-    Extracts frames from a video file and saves them as individual image files.
+    """Extracts frames from a video file and saves them as individual image files.
 
     Args:
         video_path (str): The path to the input video file.
@@ -58,7 +57,6 @@ def extract_video_frames(video_path: str, frame_path: str) -> None:
         This will save frames from 'input_video.mp4' into the 'output_frames/' directory
         with filenames like 'frame_1.png', 'frame_2.png', etc.
     """
-
     cap = cv2.VideoCapture(video_path)  # type: ignore[call-arg]
 
     path = Path(frame_path)
@@ -84,8 +82,7 @@ def extract_video_frames(video_path: str, frame_path: str) -> None:
 def get_all_avi_files(
     directory_path: str = "../storage/videos/", filter_timestamp: str | None = None
 ) -> list[tuple[str, str]]:
-    """
-    Get all AVI files from the specified directory with their timestamps.
+    """Get all AVI files from the specified directory with their timestamps.
 
     Args:
         directory_path (str): Path to the directory containing AVI files
@@ -94,7 +91,6 @@ def get_all_avi_files(
     Returns:
         list: List of tuples containing (file_path, timestamp)
     """
-
     # Use glob to find all .avi files in the directory
     avi_files = glob.glob(os.path.join(directory_path, "*.avi"))
     avi_files = [path.replace("\\", "/") for path in avi_files]
@@ -125,8 +121,7 @@ def extract_frames_from_avi_files(
     avi_files_with_timestamps: list[tuple[str, str]],
     base_output_dir: str = "../storage/frames/",
 ) -> list[tuple[str, str]]:
-    """
-    Extract frames from all AVI files and save them to folders named by timestamp.
+    """Extract frames from all AVI files and save them to folders named by timestamp.
 
     Args:
         avi_files_with_timestamps (list): List of tuples containing (file_path, timestamp)

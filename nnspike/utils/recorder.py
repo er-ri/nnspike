@@ -1,5 +1,4 @@
-"""
-Sensor Data Recorder Module
+"""Sensor Data Recorder Module.
 
 This module provides a class for recording ETRobot sensor status and control data to CSV files.
 It's designed for high-performance logging during robot operation without impacting frame rates.
@@ -19,8 +18,8 @@ from ..unit import SpikeStatus
 
 
 class SensorRecorder:
-    """
-    High-performance CSV recorder for ETRobot sensor data and control information.
+    """High-performance CSV recorder for ETRobot sensor data and control information.
+
       This class manages CSV file creation, writing, and cleanup with optimizations for
     real-time robot operation at high frame rates (30fps+).
 
@@ -35,8 +34,7 @@ class SensorRecorder:
     def __init__(
         self, output_dir: str = "storage/sensor_data", timestamp: str | None = None
     ):
-        """
-        Initialize the sensor recorder.
+        """Initialize the sensor recorder.
 
         Args:
             output_dir: Directory to store CSV files
@@ -87,8 +85,7 @@ class SensorRecorder:
         ]
 
     def start_recording(self) -> None:
-        """
-        Start CSV recording session.
+        """Start CSV recording session.
 
         Creates output directory, opens CSV file, writes headers, and sets up cleanup.
         """
@@ -111,8 +108,7 @@ class SensorRecorder:
     def log_frame_data(
         self, spike_status: SpikeStatus, mode: Mode | None = None
     ) -> None:
-        """
-        Log sensor data for a single frame.
+        """Log sensor data for a single frame.
 
         Args:
             spike_status: SpikeStatus object with sensor data
@@ -176,9 +172,7 @@ class SensorRecorder:
             self.logger.error(f"Error writing to CSV: {e}")
 
     def stop_recording(self) -> None:
-        """
-        Stop CSV recording session and close file properly.
-        """
+        """Stop CSV recording session and close file properly."""
         if not self.is_recording:
             return
 
@@ -194,8 +188,7 @@ class SensorRecorder:
         self.csv_writer = None
 
     def get_filename(self) -> str:
-        """
-        Get the current CSV filename.
+        """Get the current CSV filename.
 
         Returns:
             str: Full path to the CSV file
@@ -203,8 +196,7 @@ class SensorRecorder:
         return self.csv_filename
 
     def get_frame_count(self) -> int:
-        """
-        Get the current frame count.
+        """Get the current frame count.
 
         Returns:
             int: Number of frames recorded
@@ -213,8 +205,7 @@ class SensorRecorder:
 
     @staticmethod
     def _safe_get(value: Any, default: Any = 0) -> Any:
-        """
-        Safely extract value, returning default if None.
+        """Safely extract value, returning default if None.
 
         Args:
             value: Any value that might be None

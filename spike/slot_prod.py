@@ -1,4 +1,4 @@
-"""Main controlling program for LEGO Spike Prime Hub"""
+"""Main controlling program for LEGO Spike Prime Hub."""
 
 import gc
 import time
@@ -27,13 +27,14 @@ PORT_MAP = {
 
 class LegoSpike:
     """Class to control LEGO Spike Prime Hub.
+
     This class initializes the hub, sets up motors and sensors, and provides methods to read commands
     from USB and execute them.
     It also includes methods to control the motors and arm, and to handle the command execution logic.
     """
 
     def __init__(self) -> None:
-        # Initialization
+        """Initialize the LEGO Spike Prime Hub and its components."""
         hub.display.show(
             hub.Image.ALL_CLOCKS, delay=400, clear=True, wait=False, loop=True, fade=0
         )
