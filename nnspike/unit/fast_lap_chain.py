@@ -183,7 +183,7 @@ class FastLapChain(object):
         return None, None, Mode.TURN_RIGHT_YAW
     
     #内側走り1
-    def fast_lap(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def fast_lap1(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
         # Replace fast_lap logic with the FAST_LAP2 flow adapted for FAST_LAP mode
         if not self._init:
             # フェーズ0: course側モータ距離1000未満ならyaw_straight_controlで直進。1000以上で次フェーズ
@@ -272,7 +272,7 @@ class FastLapChain(object):
         return None, None, Mode.FAST_LAP
     
 
-    def fast_lap2(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def fast_lap(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
         # Replace fast_lap logic with the FAST_LAP2 flow adapted for FAST_LAP mode
         if not self._init:
             # フェーズ0: course側モータ距離1000未満ならyaw_straight_controlで直進。1000以上で次フェーズ
