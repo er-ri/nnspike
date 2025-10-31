@@ -272,7 +272,7 @@ class FastLapChain(object):
         return None, None, Mode.FAST_LAP
     
 
-    def fast_lap(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def fast_lap2(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
         # Replace fast_lap logic with the FAST_LAP2 flow adapted for FAST_LAP mode
         if not self._init:
             # フェーズ0: course側モータ距離1000未満ならyaw_straight_controlで直進。1000以上で次フェーズ
@@ -361,7 +361,7 @@ class FastLapChain(object):
         return None, None, Mode.FAST_LAP
     
     #外側走り2
-    def fast_lap3(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
+    def fast_lap(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
         if not self._init:
             # フェーズ0: course側モータ距離1000未満ならyaw_straight_controlで直進。1000以上で次フェーズ
             self.initialize_action(motor_side=self.course)
@@ -436,143 +436,3 @@ class FastLapChain(object):
         
         print("[FAST_LAP] Unexpected state reached.")
         return None, None, Mode.FAST_LAP
-
-    def FAST_LAP2(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
-        if not self._init:
-            # フェーズ0: course側モータ距離1000未満ならyaw_straight_controlで直進。1000以上で次フェーズ
-            self.initialize_action(motor_side=self.course)
-            self.et.set_start_yaw()
-            self.start_yaw = self.et.get_start_yaw()
-        phase = self._phase
-        et = self.et
-        # start_yawはインスタンス変数として常に参照
-        start_yaw = self.start_yaw
-
-        # フェーズ0: 右モータ距離1000未満ならyaw_straight_controlで直進。1000以上で次フェーズ（直進区間）
-        if phase.get_phase() == 0:
-            position_start = phase.get_position_start("position_start")
-            current_pos = self.get_motor_position(self.course)
-            position_diff = abs(current_pos - position_start)
-            if position_diff < 1000:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
-                return None, (left_speed, right_speed, 0), Mode.FAST_LAP2
-            else:
-                phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
-
-        # フェーズ1: 右旋回30度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新（右旋回区間）
-        if phase.get_phase() == 1:
-            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=20.0)
-            if stop_turn:
-                phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
-                if self.course == "right":
-                    self.et.set_start_yaw(start_yaw - 20.0)  # 右コースは-20度
-                else:
-                    self.et.set_start_yaw(start_yaw + 20.0)  # 左コースは+20度
-            else:
-                if self.course == "right":
-                    return None, (90, 100, 0), Mode.FAST_LAP2
-                else:
-                    return None, (100, 90, 0), Mode.FAST_LAP2
-
-        # フェーズ2: position_startとの差分500未満ならyaw_straight_control直進。500以上で次フェーズ、基準yaw更新（直進区間）
-        if phase.get_phase() == 2:
-            position_start = phase.get_position_start("position_start")
-            current_pos = self.get_motor_position(self.course)
-            position_diff = abs(current_pos - position_start)
-            if position_diff < 500:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
-                return None, (left_speed, right_speed, 0), Mode.FAST_LAP2
-            else:
-                phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
-
-        # フェーズ3: 左旋回60度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新（左旋回区間）
-        if phase.get_phase() == 3:
-            stop_turn = et.is_yaw_turn_finished(side=self.course, threshold_deg=20.0)
-            if stop_turn:
-                phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
-                self.et.set_start_yaw(start_yaw)
-            else:
-                if self.course == "right":
-                    return None, (100, 90, 0), Mode.FAST_LAP2
-                else:
-                    return None, (90, 100, 0), Mode.FAST_LAP2
-
-        # フェーズ4: position_startとの差分2000未満ならyaw_straight_control直進。2000以上で次フェーズ、基準yaw更新（直進区間）
-        if phase.get_phase() == 4:
-            position_start = phase.get_position_start("position_start")
-            current_pos = self.get_motor_position(self.course)
-            position_diff = abs(current_pos - position_start)
-            if position_diff < 2000:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
-                return None, (left_speed, right_speed, 0), Mode.FAST_LAP2
-            else:
-                phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
-
-        # フェーズ5: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-90.0に更新
-        if phase.get_phase() == 5:
-            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=60.0)
-            if stop_turn:
-                phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
-                if self.course == "right":
-                    self.et.set_start_yaw(start_yaw - 90.0)
-                else:
-                    self.et.set_start_yaw(start_yaw + 90.0)
-            else:
-                if self.course == "right":
-                    return None, (70, 100, 0), Mode.FAST_LAP2
-                else:
-                    return None, (100, 70, 0), Mode.FAST_LAP2
-
-        # フェーズ6: position_startとの差分1000未満ならyaw_straight_control直進。1000以上で次フェーズ
-        if phase.get_phase() == 6:
-            position_start = phase.get_position_start("position_start")
-            current_pos = self.get_motor_position(self.course)
-            position_diff = abs(current_pos - position_start)
-            if position_diff < 1000:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
-                return None, (left_speed, right_speed, 0), Mode.FAST_LAP2
-            else:
-                phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
-
-        # フェーズ7: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-180.0に更新
-        if phase.get_phase() == 7:
-            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=90.0)
-            if stop_turn:
-                phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
-                if self.course == "right":
-                    self.et.set_start_yaw(start_yaw - 180.0)
-                else:
-                    self.et.set_start_yaw(start_yaw + 180.0)
-            else:
-                if self.course == "right":
-                    return None, (70, 100, 0), Mode.FAST_LAP2
-                else:
-                    return None, (100, 70, 0), Mode.FAST_LAP2
-
-        # フェーズ8: position_startとの差分2000未満ならyaw_straight_control直進。2000以上で次フェーズ
-        if phase.get_phase() == 8:
-            position_start = phase.get_position_start("position_start")
-            current_pos = self.get_motor_position(self.course)
-            position_diff = abs(current_pos - position_start)
-            if position_diff < 2000:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
-                return None, (left_speed, right_speed, 0), Mode.FAST_LAP2
-            else:
-                phase.next_phase()
-                phase.set_position_start("position_start", self.get_motor_position(self.course))
-
-        # フェーズ9: reset_action()してPAUSE復帰（ラップ終了）
-        if phase.get_phase() == 9:
-            self.reset_action()
-            return None, None, Mode.PAUSE
-        
-        print("[FAST_LAP2] Unexpected state reached.")
-        return None, None, Mode.FAST_LAP2
