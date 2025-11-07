@@ -697,8 +697,8 @@ class ActionChain(object):
         # 青ボトル検知・追従・遷移判定
         if phase.get_phase() == 3:
             position_diff = phase.get_position_diff(current_pos)
-            threshold = 300
-            max_threshold = 600
+            threshold = 200
+            max_threshold = 500
             if position_diff < threshold:
                 return (30, 30), Mode.BACK_AND_TURN1
             elif position_diff < max_threshold:
@@ -713,8 +713,8 @@ class ActionChain(object):
                     left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
                     return (left_speed, right_speed), Mode.BACK_AND_TURN1
             else:
-                phase.next_phase(current_pos)
                 print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_threshold} | next phase (go straight)")
+                phase.next_phase(current_pos)
 
         # 4. 終了: 状態リセットしCARRY_BOTTLE2へ遷移
         if phase.get_phase() == 4:
