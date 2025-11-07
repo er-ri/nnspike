@@ -874,7 +874,7 @@ class ActionChain(object):
         # carry_bottle1のphase8に相当
         if phase.get_phase() == 9:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 300:
+            if position_diff < 350:
                 if self.course == "right":
                     return (0, 30), Mode.CARRY_BOTTLE2
                 else:
