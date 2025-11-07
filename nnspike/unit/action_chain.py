@@ -665,7 +665,7 @@ class ActionChain(object):
         if phase.get_phase() == 2:
             position_diff = phase.get_position_diff(current_pos)
             if self.course_type != "upper":
-                limit = 350
+                limit = 390
                 if position_diff >= limit:
                     print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {limit} (immediate next phase)")
                     phase.next_phase(current_pos)
