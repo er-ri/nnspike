@@ -697,8 +697,8 @@ class ActionChain(object):
         # 青ボトル検知・追従・遷移判定
         if phase.get_phase() == 3:
             position_diff = phase.get_position_diff(current_pos)
-            threshold = 200
-            max_threshold = 500
+            threshold = 300
+            max_threshold = 600
             if position_diff < threshold:
                 return (30, 30), Mode.BACK_AND_TURN1
             elif position_diff < max_threshold:
