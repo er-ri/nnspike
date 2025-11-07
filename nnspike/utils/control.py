@@ -274,17 +274,17 @@ def calc_blue_target_distance(blue_center) -> Optional[int]:
 #   150  |     280         |    682
 #   200  |     230         |    591
 #   250  |     180         |    500
-#   260  |     170         |    483
-#   275  |     155         |    457
-#   290  |     140         |    432
-#   300  |     130         |    415
-#   310  |     120         |    395
-#   325  |     105         |    365
-#   340  |      90         |    335
+#   260  |     170         |    484
+#   275  |     155         |    460
+#   290  |     140         |    436
+#   300  |     130         |    420
+#   310  |     120         |    400
+#   325  |     105         |    370
+#   340  |      90         |    340
 #   350  |      80         |    320
 #   400  |      30         |    213
 #   430  |       0         |    165
-# ※y<=30: 1200固定, 30<y<=250: 線形補間(1200→500), 250<y<=350: 線形補間(500→415→370→320), それ以外: int(1.6*distance+165)
+# ※y<=30: 1200固定, 30<y<=250: 線形補間(1200→500), 250<y<=350: 線形補間(500→420→320), それ以外: int(1.6*distance+165)
     if blue_center is None:
         return None
     _, top_y = blue_center
@@ -300,9 +300,9 @@ def calc_blue_target_distance(blue_center) -> Optional[int]:
         elif 250 < top_y <= 350:
             # 250〜350 線形補間（250,300,350も含む）
             if top_y <= 300:
-                practical_distance = int(500 + (415-500)*(top_y-250)/(300-250))
+                practical_distance = int(500 + (420-500)*(top_y-250)/(300-250))
             else:
-                practical_distance = int(415 + (320-415)*(top_y-300)/50)
+                practical_distance = int(420 + (320-420)*(top_y-300)/50)
         else:
             slope = 1.6
             intercept = 165
