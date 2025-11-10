@@ -12,7 +12,7 @@ class KeyboardController:
         tty.setraw(sys.stdin.fileno())  # type: ignore
         # 有効なモードキーリスト（run_manual.pyから移動）
         self._mode_keys = set([
-            "a", "d", "h", "f", "j", "k", "i", "o", "b", "g", "e", "u",
+            "a", "d", "h", "f", "j", "k", "i", "o", "b", "g", "e", "u", "m",
             "1", "2", "3", "4", "5", "6", "7", "8", "p", "n", "q", "t", "y"
         ])
 
@@ -59,6 +59,7 @@ class KeyboardController:
             "7": (Mode.HEAD_GOAL, "Switched to heading goal mode"),
             "8": (Mode.PAUSE, "Pausing robot"),
             "y": (Mode.FAST_LAP, "Switched to FAST_LAP mode"),
+            "m": (Mode.FAST_LAP2, "Switched to FAST_LAP2 mode"),
             "p": (Mode.PAUSE, "Pausing robot"),
             "t": (Mode.TEST, "Switched to TEST mode"),
         }
