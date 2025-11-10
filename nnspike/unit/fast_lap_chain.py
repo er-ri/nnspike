@@ -383,9 +383,6 @@ class FastLapChain(object):
             self.initialize_action(motor_side=self.course)
             self.et.set_start_yaw()
             self.start_yaw = self.et.get_start_yaw()
-            # 右コースなら+5度、左コースなら-5度のオフセットをstart_yawに加える
-            target_offset = 5.0 if self.course == "right" else -5.0
-            self.et.set_start_yaw(self.start_yaw - target_offset)  # errorを正にするため逆符号
             self.lap_start_time = time.time()
             self._phase2_color_count = 0  # フェーズ2色検出カウンタ
             self._prev_color = None  # 前回の色値を初期化
@@ -394,21 +391,49 @@ class FastLapChain(object):
         current_pos = self.get_motor_position(self.course)
         start_yaw = self.start_yaw
 
-        # フェーズ0: course側モータ距離3000未満ならyaw_straight_controlで直進（右コースなら+5度、左コースなら-5度に自然調整）。3000以上で次フェーズ
+        # フェーズ0-0: 1000まで直進
         if phase.get_phase() == 0:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 3800:
+            if position_diff < 1000:
                 # ファストラップ専用スタートダッシュ加速制御メソッドを使用
                 base_speed = self.get_fast_lap_start_dash_speed(HIGH_SPEED_BASE, 0.5)
-                left_speed, right_speed = et.yaw_straight_control(base_speed=base_speed, deadband=1.0, adjust_speed=2)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=base_speed)
                 return (left_speed, right_speed), Mode.FAST_LAP2
             else:
                 lap_elapsed = time.time() - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 3000 | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                print(f"[DEBUG] mode={Mode.FAST_LAP2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1000 | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
 
-        # フェーズ1: 左旋回20度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新
+        # フェーズ0-1: 5度旋回（右コースなら右、左コースなら左）
         if phase.get_phase() == 1:
+            stop_turn = et.is_yaw_turn_finished(side=self.course, threshold_deg=5.0)
+            if stop_turn:
+                if self.course == "right":
+                    et.set_start_yaw(start_yaw + 5.0)
+                else:
+                    et.set_start_yaw(start_yaw - 5.0)
+                lap_elapsed = time.time() - self.lap_start_time
+                print(f"[DEBUG] mode={Mode.FAST_LAP2.value} | phase={phase.get_phase()} | turned 5deg | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                phase.next_phase(current_pos)
+            else:
+                if self.course == "right":
+                    return (100, 80), Mode.FAST_LAP2
+                else:
+                    return (80, 100), Mode.FAST_LAP2
+
+        # フェーズ0-2: 残り距離を直進（3800まで）
+        if phase.get_phase() == 2:
+            position_diff = phase.get_position_diff(current_pos)
+            if position_diff < 2800:
+                left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
+                return (left_speed, right_speed), Mode.FAST_LAP2
+            else:
+                lap_elapsed = time.time() - self.lap_start_time
+                print(f"[DEBUG] mode={Mode.FAST_LAP2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 3800 | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                phase.next_phase(current_pos)
+
+        # フェーズ3: 左旋回20度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新
+        if phase.get_phase() == 3:
             stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=20.0)
             if stop_turn:
                 if self.course == "right":
@@ -424,8 +449,8 @@ class FastLapChain(object):
                 else:
                     return (100, 80), Mode.FAST_LAP2
 
-        # フェーズ2: position_diffが閾値未満なら直進、閾値以上で次フェーズ
-        if phase.get_phase() == 2:
+        # フェーズ4: position_diffが閾値未満なら直進、閾値以上で次フェーズ
+        if phase.get_phase() == 4:
             position_diff = phase.get_position_diff(current_pos)
             threshold = 1500
             
@@ -437,8 +462,8 @@ class FastLapChain(object):
                 print(f"[DEBUG] mode={Mode.FAST_LAP2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
 
-        # フェーズ3: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-90.0に更新
-        if phase.get_phase() == 3:
+        # フェーズ5: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-90.0に更新
+        if phase.get_phase() == 5:
             stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=75.0)
             if stop_turn:
                 if self.course == "right":
@@ -454,8 +479,8 @@ class FastLapChain(object):
                 else:
                     return (100, 70), Mode.FAST_LAP2
 
-        # フェーズ4: 最小距離未満は何も判定せず直進。最小距離以上でcorner判定・閾値判定。
-        if phase.get_phase() == 4:
+        # フェーズ6: 最小距離未満は何も判定せず直進。最小距離以上でcorner判定・閾値判定。
+        if phase.get_phase() == 6:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 500:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
@@ -470,8 +495,8 @@ class FastLapChain(object):
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP2
 
-        # フェーズ5: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-180.0に更新
-        if phase.get_phase() == 5:
+        # フェーズ7: 左旋回90度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yawをstart_yaw-180.0に更新
+        if phase.get_phase() == 7:
             stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=90.0)
             if stop_turn:
                 phase.next_phase(current_pos)
@@ -487,8 +512,8 @@ class FastLapChain(object):
                 else:
                     return (100, 75), Mode.FAST_LAP2
 
-        # フェーズ6: position_startとの差分200未満ならyaw_straight_control直進。200以上で次フェーズ
-        if phase.get_phase() == 6:
+        # フェーズ8: position_startとの差分200未満ならyaw_straight_control直進。200以上で次フェーズ
+        if phase.get_phase() == 8:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 200:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
@@ -501,8 +526,8 @@ class FastLapChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.FAST_LAP2
 
-        # フェーズ7: reset_action()してPAUSE復帰（ラップ終了）
-        if phase.get_phase() == 7:
+        # フェーズ9: reset_action()してPAUSE復帰（ラップ終了）
+        if phase.get_phase() == 9:
             self.reset_action()
             # return (0, 0), Mode.PAUSE
             return (0, 0), Mode.DOUBLE_LOOP
