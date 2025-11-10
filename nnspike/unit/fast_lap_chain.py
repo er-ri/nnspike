@@ -424,7 +424,7 @@ class FastLapChain(object):
         # フェーズ0-2: 残り距離を直進（3800まで）
         if phase.get_phase() == 2:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 2800:
+            if position_diff < 2600:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP2
             else:
