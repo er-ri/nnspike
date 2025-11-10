@@ -383,8 +383,8 @@ class FastLapChain(object):
             self.initialize_action(motor_side=self.course)
             self.et.set_start_yaw()
             self.start_yaw = self.et.get_start_yaw()
-            # 右コースなら+3度、左コースなら-3度のオフセットをstart_yawに加える
-            target_offset = 3.0 if self.course == "right" else -3.0
+            # 右コースなら+5度、左コースなら-5度のオフセットをstart_yawに加える
+            target_offset = 5.0 if self.course == "right" else -5.0
             self.et.set_start_yaw(self.start_yaw - target_offset)  # errorを正にするため逆符号
             self.lap_start_time = time.time()
             self._phase2_color_count = 0  # フェーズ2色検出カウンタ
@@ -409,12 +409,12 @@ class FastLapChain(object):
 
         # フェーズ1: 左旋回20度（is_yaw_turn_finished判定）。到達で次フェーズ、基準yaw更新
         if phase.get_phase() == 1:
-            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=18.0)
+            stop_turn = et.is_yaw_turn_finished(side=self.opposite_course, threshold_deg=20.0)
             if stop_turn:
                 if self.course == "right":
-                    et.set_start_yaw(start_yaw - 18.0)
+                    et.set_start_yaw(start_yaw - 20.0)
                 else:
-                    et.set_start_yaw(start_yaw + 18.0)
+                    et.set_start_yaw(start_yaw + 20.0)
                 lap_elapsed = time.time() - self.lap_start_time
                 print(f"[DEBUG] mode={Mode.FAST_LAP2.value} | phase={phase.get_phase()} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
