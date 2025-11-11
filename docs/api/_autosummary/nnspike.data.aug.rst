@@ -8,6 +8,8 @@ nnspike.data.aug
 
    .. autosummary::
 
+      adjust_brightness_contrast
       augment_dataset
       perspective_transform
       random_shift_scale_rotate
+      revert_brightness_contrast

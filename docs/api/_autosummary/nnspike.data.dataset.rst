@@ -8,6 +8,8 @@ nnspike.data.dataset
 
    .. autosummary::
 
+      BrightnessAdjustDataset
       ClassificationDataset
       MultiTaskDataset
       RegressionDataset
+      UNetDataset

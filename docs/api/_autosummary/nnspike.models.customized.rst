@@ -8,4 +8,5 @@ nnspike.models.customized
 
    .. autosummary::
 
+      BetaPredictorLite
       SimpleNetClassification25

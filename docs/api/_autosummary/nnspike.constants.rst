@@ -9,3 +9,4 @@ nnspike.constants
    .. autosummary::
 
       Mode
+      PhaseConfig

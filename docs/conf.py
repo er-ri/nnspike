@@ -70,6 +70,10 @@ autodoc_mock_imports = [
     "seaborn",
     "tqdm",
     "tensorboard",
+    "sklearn",
+    "onnx",
+    "onnxruntime",
+    "onnxscript",
 ]
 
 # Suppress warnings for missing references

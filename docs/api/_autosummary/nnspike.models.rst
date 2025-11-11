@@ -13,3 +13,4 @@ nnspike.models
    customized
    loss
    nvidia
+   unet

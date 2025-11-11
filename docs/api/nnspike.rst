@@ -81,6 +81,14 @@ nnspike.models.nvidia module
    :undoc-members:
    :show-inheritance:
 
+nnspike.models.unet module
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: nnspike.models.unet
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 nnspike.unit package
 --------------------
 
@@ -89,26 +97,10 @@ nnspike.unit package
    :undoc-members:
    :show-inheritance:
 
-nnspike.unit.action_chain module
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: nnspike.unit.action_chain
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 nnspike.unit.etrobot module
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: nnspike.unit.etrobot
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-nnspike.unit.mode_manager module
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: nnspike.unit.mode_manager
    :members:
    :undoc-members:
    :show-inheritance:
@@ -133,6 +125,14 @@ nnspike.utils package
 ---------------------
 
 .. automodule:: nnspike.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+nnspike.utils.checkpoint module
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: nnspike.utils.checkpoint
    :members:
    :undoc-members:
    :show-inheritance:

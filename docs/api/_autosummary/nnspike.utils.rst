@@ -10,6 +10,7 @@ nnspike.utils
    :toctree:
    :recursive:
 
+   checkpoint
    control
    image
    pid

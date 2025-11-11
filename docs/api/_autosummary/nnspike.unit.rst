@@ -10,8 +10,6 @@ nnspike.unit
    :toctree:
    :recursive:
 
-   action_chain
    etrobot
-   mode_manager
    spike_status
    webcam_video_stream
