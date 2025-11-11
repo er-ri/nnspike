@@ -9,8 +9,10 @@ sys.path.insert(0, parent_dir)
 import cv2
 import pandas as pd
 
-from nnspike.constants import OFFSET_Y, ROI_CNN
+from nnspike.constants import OFFSET_Y
 from nnspike.utils import draw_driving_info
+
+roi = (0, 0, 640, 480)
 
 
 def read_label_data(
@@ -84,7 +86,7 @@ def main() -> None:
             "use": row["use"],
             "target_x": target_x,
         }
-        clone_image = draw_driving_info(clone_image, info, ROI_CNN)
+        clone_image = draw_driving_info(clone_image, info, roi)
 
         # Darken the image if not in use
         clone_image = (

@@ -77,3 +77,40 @@ class SimpleNetClassification25(nn.Module):
         x = self.fc2(x)  # Output logits
 
         return x
+
+
+class BetaPredictorLite(nn.Module):
+    """Lightweight beta predictor using MobileNet-style architecture."""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        # Multiple downsampling blocks to reduce spatial dimensions
+        self.features = nn.Sequential(
+            # Block 1: 3x480x640 -> 16x240x320
+            nn.Conv2d(3, 16, 3, stride=2, padding=1),
+            nn.ReLU(inplace=True),
+            # Block 2: 16x240x320 -> 32x120x160
+            nn.Conv2d(16, 32, 3, stride=2, padding=1),
+            nn.ReLU(inplace=True),
+            # Block 3: 32x120x160 -> 64x60x80
+            nn.Conv2d(32, 64, 3, stride=2, padding=1),
+            nn.ReLU(inplace=True),
+            # Global average pooling: 64x60x80 -> 64x1x1
+            nn.AdaptiveAvgPool2d(1),
+        )
+
+        # Two linear layers with dropout
+        self.fc1 = nn.Linear(64, 32)
+        self.fc2 = nn.Linear(32, 1)
+        self.dropout = nn.Dropout(0.2)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.features(x)
+        x = x.view(x.size(0), -1)
+        x = F.relu(self.fc1(x))
+        x = self.dropout(x)
+        x = self.fc2(x)
+        beta = torch.sigmoid(x)
+
+        return beta

@@ -15,6 +15,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Education",
@@ -32,6 +33,11 @@ dependencies = [
     "seaborn>=0.13.2",
     "numpy==1.26.4",
     "jupyterlab>=4.2.4",
+    "scikit-learn>=1.7.2",
+    "pyserial==3.5",
+    "onnx==1.18.0",
+    "onnxruntime==1.22.1",
+    "onnxscript==0.4.0",
 ]
 
 [dependency-groups]
@@ -81,6 +87,7 @@ exclude = [
 [tool.ruff.lint]
 # Enable specific rule categories
 select = [
+    "D",   # pydocstyle
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
     "F",   # pyflakes
@@ -94,6 +101,13 @@ select = [
 
 # Ignore specific rules (equivalent to flake8 extend-ignore)
 ignore = [
+    "D100",  # missing docstring in public module
+    "D101",  # missing docstring in public class
+    "D102",  # missing docstring in public method
+    "D103",  # missing docstring in public function
+    "D105",  # missing docstring in magic method
+    "D107",  # missing docstring in __init__
+    "D417",  # requires documentation for every function parameter
     "E201",  # whitespace after '('
     "E203",  # whitespace before ':'
     "E402",  # module level import not at top of file
@@ -115,6 +129,9 @@ docstring-code-format = true
 # Ruff import sorting replaces isort
 force-single-line = false
 combine-as-imports = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.mypy]
 python_version = "3.11"

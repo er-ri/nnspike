@@ -2,8 +2,7 @@ import cv2
 
 
 def test_camera(camera_id: int = 0) -> bool:
-    """
-    Test camera connection and display the image to the user
+    """Test camera connection and display the image to the user.
 
     Args:
         camera_id (int): Camera device ID (default: 0 for primary camera)

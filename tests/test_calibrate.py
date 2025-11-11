@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Camera Angle Calibration Test
+"""Camera Angle Calibration Test.
 
 This script is used to calibrate and test the attitude angle calculation of the front camera.
 It captures video frames, detects line edges using OpenCV, and calculates the attitude angle
@@ -41,11 +40,12 @@ from typing import Optional
 
 import cv2
 
-from nnspike.constants import OFFSET_Y, ROI_CNN
+from nnspike.constants import OFFSET_Y
 from nnspike.utils import find_line_edges_at_y
 
 # User defined constants
-x1, y1, x2, y2 = ROI_CNN  # Region of Interest for OpenCV processing
+roi = (0, 0, 640, 480)
+x1, y1, x2, y2 = roi  # Region of Interest for OpenCV processing
 
 # Simplified Speed Control Parameters (Easy to tune)
 BASE_SPEED = 45  # Base speed for straight lines (adjust this first)
@@ -83,7 +83,7 @@ def main() -> None:
                 print("Can't receive frame (stream end?). Exiting ...")
                 break
 
-            left_x, _ = find_line_edges_at_y(frame, ROI_CNN, OFFSET_Y, 80)
+            left_x, _ = find_line_edges_at_y(frame, roi, OFFSET_Y, 80)
             target_x = left_x
 
             if target_x is not None:

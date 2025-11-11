@@ -39,7 +39,7 @@ class WebcamVideoStream:
         resolution: tuple = (640, 320),
         fps: int = 30,
     ):
-        # initialize the video camera stream and read the first frame from the stream
+        """Initialize the video camera stream and read the first frame from the stream."""
         self.stream = cv2.VideoCapture(src)
 
         self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, resolution[0])

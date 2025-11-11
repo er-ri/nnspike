@@ -60,7 +60,6 @@ def find_line_edges_at_y(
             - left_x: X coordinate of left edge (None if not found)
             - right_x: X coordinate of right edge (None if not found)
     """
-
     # Extract ROI coordinates
     x, y, w, h = roi
 
@@ -110,7 +109,7 @@ def find_line_edges_at_y(
 
 def find_bottle_center(
     image: np.ndarray, color: str, min_area: int = 500
-) -> tuple[tuple[float, float] | None, np.ndarray | None, float | None]:
+) -> tuple[tuple[float, float] | None, np.ndarray | None, int | None]:
     """Find the center coordinates and color pixel count of a colored object in an image using OpenCV.
 
     This function detects objects of a specified color in an image and returns information about
@@ -380,8 +379,7 @@ def calculate_attitude_angle(
     camera_height: float = 0.20,
     focal_length_pixels: float = 640,
 ) -> float:
-    """
-    Calculate attitude angle (theta) from pixel offset using camera geometry.
+    """Calculate attitude angle (theta) from pixel offset using camera geometry.
 
     This function converts the pixel-based offset detected in the camera image
     to a real-world attitude angle that represents the robot's deviation from

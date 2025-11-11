@@ -64,8 +64,7 @@ class ETRobot:
             self.receive()
 
     def receive(self) -> None:
-        """
-        Update ETRobot motor and sensor status by the received data from the GPIO port.
+        """Update ETRobot motor and sensor status by the received data from the GPIO port.
 
         Note:
             The update rate should be less than the rate of sending sensor data in LEGO Prime Hub (0.0005 seconds).
@@ -86,8 +85,8 @@ class ETRobot:
         time.sleep(0.01)
 
     def __update_last_spike_status(self) -> None:
-        """
-        Update last_spike_status with current valid sensor readings.
+        """Update last_spike_status with current valid sensor readings.
+
         Only updates values that are not None to preserve last known good values.
         """
         current = self.spike_status
@@ -166,8 +165,7 @@ class ETRobot:
                 last.motors[motor_id].power = current.motors[motor_id].power
 
     def get_spike_status(self) -> SpikeStatus:
-        """
-        Get the spike status with last known good sensor values.
+        """Get the spike status with last known good sensor values.
 
         Returns:
             SpikeStatus: Spike status object with consistent sensor data
@@ -189,8 +187,7 @@ class ETRobot:
             time.sleep(0.05)
 
     def retrieve_motors_relative_position(self) -> int:
-        """
-        Retrieve the relative positions of the motors.
+        """Retrieve the relative positions of the motors.
 
         Returns:
             int: The sum of the absolute values of the relative positions of both motors.
@@ -212,8 +209,7 @@ class ETRobot:
         return motor_a_position + motor_b_position
 
     def set_motor_speed(self, left_speed: int, right_speed: int) -> None:
-        """
-        Set the ETRobot motor's speed.
+        """Set the ETRobot motor's speed.
 
         Args:
             left_speed (int): Left motor speed (-100-100).
@@ -233,8 +229,7 @@ class ETRobot:
             self._set_motor_forward_speed(left_speed, right_speed)
 
     def _set_motor_forward_speed(self, left_speed: int, right_speed: int) -> None:
-        """
-        Set the ETRobot motor's speed.
+        """Set the ETRobot motor's speed.
 
         Args:
             left_speed (int): Left motor speed (0-100).
@@ -249,8 +244,7 @@ class ETRobot:
         self.__send_command(command)
 
     def _set_motor_backward_speed(self, left_speed: int, right_speed: int) -> None:
-        """
-        Set the ETRobot motor's speed in reverse direction.
+        """Set the ETRobot motor's speed in reverse direction.
 
         Args:
             left_speed (int): Left motor speed (0-100).
@@ -279,8 +273,7 @@ class ETRobot:
             time.sleep(0.05)
 
     def move_arm(self, action: int, duration: float = 0.5) -> None:
-        """
-        Move the arm up or down.
+        """Move the arm up or down.
 
         Args:
             action (int): Action to perform (0 = move up, 1 = move down, 2 = stop arm).

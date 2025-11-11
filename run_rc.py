@@ -22,6 +22,7 @@ SMOOTH_TURN_SPEED = 40  # For smoother turning
 
 class KeyboardController:
     def __init__(self) -> None:
+        """Initialize keyboard controller for non-blocking key capture."""
         self.running = True
         self.current_key = None
 
@@ -30,14 +31,14 @@ class KeyboardController:
         tty.setraw(sys.stdin.fileno())  # type: ignore
 
     def get_key(self) -> str | None:
-        """Get a single keypress"""
+        """Get a single keypress."""
         if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
             key = sys.stdin.read(1).lower()
             return key
         return None
 
     def cleanup(self) -> None:
-        """Restore terminal settings"""
+        """Restore terminal settings."""
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old_settings)  # type: ignore
 
 

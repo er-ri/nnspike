@@ -3,8 +3,7 @@ import torch.nn as nn
 
 
 class NvidiaModelRegression(nn.Module):
-    """
-    A neural network model based on the NVIDIA architecture for end-to-end learning of self-driving cars.
+    """A neural network model based on the NVIDIA architecture for end-to-end learning of self-driving cars.
 
     This model consists of five convolutional layers followed by four fully connected layers. The ELU activation
     function is used after each layer except the final output layer. Additionally, an interval input is concatenated
@@ -88,8 +87,7 @@ class NvidiaModelRegression(nn.Module):
 
 
 class NvidiaModelMultiTask(nn.Module):
-    """
-    A neural network model based on the NVIDIA architecture for end-to-end learning of self-driving cars.
+    """A neural network model based on the NVIDIA architecture for end-to-end learning of self-driving cars.
 
     This model consists of five convolutional layers followed by four fully connected layers. The ELU activation
     function is used after each layer except the final output layer. Additionally, an interval input is concatenated

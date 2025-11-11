@@ -21,13 +21,19 @@ Example:
         prediction = model(input_tensor)
 """
 
-from .customized import SimpleNetClassification25
+from .customized import (
+    BetaPredictorLite,
+    SimpleNetClassification25,
+)
 from .loss import MultiTaskLoss
 from .nvidia import NvidiaModelMultiTask, NvidiaModelRegression
+from .unet import UNet
 
 __all__ = [
+    "BetaPredictorLite",
     "SimpleNetClassification25",
     "NvidiaModelMultiTask",
     "NvidiaModelRegression",
     "MultiTaskLoss",
+    "UNet",
 ]
