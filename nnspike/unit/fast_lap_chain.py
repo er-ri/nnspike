@@ -360,7 +360,7 @@ class FastLapChain(object):
         print("[FAST_LAP] Unexpected state reached.")
         return None, None, Mode.FAST_LAP
     
-    #外側走り2
+    #外側走り
     def fast_lap(self, image: np.ndarray) -> Tuple[Optional[float], Optional[SpeedTuple], Mode]:
         if not self._init:
             # フェーズ0: course側モータ距離1000未満ならyaw_straight_controlで直進。1000以上で次フェーズ
