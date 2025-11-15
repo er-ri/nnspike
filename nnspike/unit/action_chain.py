@@ -474,9 +474,9 @@ class ActionChain(object):
                 if self.course_type == "upper" or position_diff < 1300:
                     return (30, 30), Mode.CARRY_BOTTLE1
                 elif self.course == "right":
-                    return (35, 30), Mode.CARRY_BOTTLE1
+                    return (32, 30), Mode.CARRY_BOTTLE1
                 else:
-                    return (30, 35), Mode.CARRY_BOTTLE1
+                    return (30, 32), Mode.CARRY_BOTTLE1
             # 一定値超えたら次フェーズへ
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold}")
             phase.next_phase(current_pos)
@@ -497,7 +497,7 @@ class ActionChain(object):
             # print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_center={blue_center} | blue_pixel_count={blue_pixel_count}")
             blue_target_detected = (blue_center is not None and abs(blue_center[0] - 320) <= 200)
 
-            if (not blue_target_detected) and (position_diff < 600):
+            if (not blue_target_detected) and (position_diff < 700):
                 if self.course == "right":
                     return (0, 20), Mode.CARRY_BOTTLE1
                 else:
