@@ -374,9 +374,9 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
             if red_center is not None:
                 target_x = red_center[0]
-                left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
+                left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=35)
             else:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=30)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=35)
             return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
         # phase2: 右モーター位置差がコース種別ごとの閾値未満なら直進。閾値到達したらphase3へ。yaw基準設定。
@@ -384,7 +384,7 @@ class ActionChain(object):
             position_diff = phase.get_position_diff(current_pos)
             threshold = 1170 if self.course_type == "upper" else 700
             if position_diff < threshold:
-                left_speed, right_speed = et.yaw_straight_control(base_speed=30)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=35)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
             phase.next_phase(current_pos)
@@ -597,7 +597,7 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE1
             # 青ターゲットの中心追従は行わず、常にyaw_straight_controlで直進
-            accelerated_speed = self.get_accelerated_base_speed(target_speed=20)
+            accelerated_speed = self.get_accelerated_base_speed(target_speed=15)
             left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
@@ -1006,7 +1006,7 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE2
             # 青ターゲットの中心追従は行わず、常にyaw_straight_controlで直進
-            accelerated_speed = self.get_accelerated_base_speed(target_speed=20)
+            accelerated_speed = self.get_accelerated_base_speed(target_speed=15)
             left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
