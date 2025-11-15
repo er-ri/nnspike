@@ -372,14 +372,11 @@ class ActionChain(object):
             if (red_pixel_count is not None and red_pixel_count < 500) and (distance > 0 and distance <= 10):
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | red_pixel_count={red_pixel_count} < 500 and distance={distance} > 0 and <= 10 | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
-                self._reset_acceleration_timer()
             if red_center is not None:
                 target_x = red_center[0]
-                accelerated_speed = self.get_accelerated_base_speed()
-                left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=accelerated_speed)
+                left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=30)
             else:
-                accelerated_speed = self.get_accelerated_base_speed()
-                left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=30)
             return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
         # phase2: 右モーター位置差がコース種別ごとの閾値未満なら直進。閾値到達したらphase3へ。yaw基準設定。
@@ -387,12 +384,10 @@ class ActionChain(object):
             position_diff = phase.get_position_diff(current_pos)
             threshold = 1170 if self.course_type == "upper" else 700
             if position_diff < threshold:
-                accelerated_speed = self.get_accelerated_base_speed()
-                left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed)
+                left_speed, right_speed = et.yaw_straight_control(base_speed=30)
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE1
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold} | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
             phase.next_phase(current_pos)
-            self._reset_acceleration_timer()
             return (0, 0), Mode.CARRY_BOTTLE1
 
         # 3. 左旋回（右モーター相対位置差分が一定値未満の間旋回。一定値超えたらphase4へ、右モーター位置記録）
