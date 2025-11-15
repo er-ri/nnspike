@@ -464,12 +464,19 @@ class ActionChain(object):
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 1500")
             phase.next_phase(current_pos)
 
-        # 7. 直進（右モーターが一定値移動まで。一定値超えたらphase8へ、右モーター位置記録）
+        # 7. 直進(右モーターが一定値移動まで。一定値超えたらphase8へ、右モーター位置記録)
         if phase.get_phase() == 7:
             position_diff = phase.get_position_diff(current_pos)
             threshold = 1300 if self.course_type == "upper" else 1900
             if position_diff < threshold:
-                return (30, 30), Mode.CARRY_BOTTLE1
+                # upper区間(1300まで): 左30/右30均等
+                # lower区間(1300~1900): 右コースなら左35/右30で右寄せ、左コースなら左30/右35で左寄せ
+                if self.course_type == "upper" or position_diff < 1300:
+                    return (30, 30), Mode.CARRY_BOTTLE1
+                elif self.course == "right":
+                    return (35, 30), Mode.CARRY_BOTTLE1
+                else:
+                    return (30, 35), Mode.CARRY_BOTTLE1
             # 一定値超えたら次フェーズへ
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {threshold}")
             phase.next_phase(current_pos)
