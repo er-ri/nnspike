@@ -546,7 +546,7 @@ class ActionChain(object):
                     return (0, 0), Mode.CARRY_BOTTLE1
                 else:
                     target_x = blue_center[0]
-                    accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
+                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
                     left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=accelerated_speed)
                     return (left_speed, right_speed), Mode.CARRY_BOTTLE1
             else:
@@ -604,7 +604,7 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE1
             # 青ターゲットの中心追従は行わず、常にyaw_straight_controlで直進
-            accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
+            accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
             left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
@@ -954,12 +954,12 @@ class ActionChain(object):
                 else:
                     # Y<300の場合は青ターゲットの中心に向けてcalc_motor_speedで進む（確立されたパターン）
                     target_x = blue_center[0]
-                    accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
+                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
                     left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=accelerated_speed)
                     return (left_speed, right_speed), Mode.CARRY_BOTTLE2
             else:
                 # 青ターゲットが検出されない場合はyaw維持で直進
-                accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
+                accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
                 left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
                 # yaw維持直進コマンドを返す
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
@@ -1013,7 +1013,7 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE2
             # 青ターゲットの中心追従は行わず、常にyaw_straight_controlで直進
-            accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
+            accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
             left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
@@ -1240,7 +1240,7 @@ class ActionChain(object):
                     return (0, 0), Mode.EYE_BLUE
                 else:
                     target_x = blue_center[0]
-                    accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
+                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
                     left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=accelerated_speed)
                     return (left_speed, right_speed), Mode.EYE_BLUE
             else:
@@ -1291,14 +1291,14 @@ class ActionChain(object):
             if blue_pixel_count > 2000:
                 if blue_center is not None:
                     et.set_start_yaw()
-                    accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
+                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
                     left_speed, right_speed = self.calc_motor_speed(blue_center[0], base_speed=accelerated_speed)
                 else:
-                    accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
+                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
                     left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, adjust_speed=2, deadband=1)
                 return (left_speed, right_speed), Mode.EYE_BLUE
             else:
-                accelerated_speed = self.get_accelerated_base_speed(target_speed=10, acceleration_time=1.5)
+                accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
                 left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
                 return (left_speed, right_speed), Mode.EYE_BLUE
 
