@@ -200,7 +200,9 @@ class ActionChain(object):
                 print(f"[DEBUG] mode={Mode.DOUBLE_LOOP.value} | phase0->phase1: blue_area={blue_area} > {BLUE_AREA_MAX_THRESHOLD} | dist_start={dist_start}")
                 phase.next_phase(current_pos)
             elif dist_start < FIRST_INTERSECTION_LIMIT:
-                target_x = self.get_target_x_by_course(image, OFFSET_Y, self.course)
+                # この分岐だけ画像を緑→白で前処理してからターゲットを取得する
+                proc_img = fill_green_with_white(image.copy())
+                target_x = self.get_target_x_by_course(proc_img, OFFSET_Y, self.course)
                 left_speed, right_speed = self.calc_motor_speed(target_x)
                 return (left_speed, right_speed), Mode.DOUBLE_LOOP
             elif dist_start >= FIRST_INTERSECTION_LIMIT:
@@ -611,7 +613,7 @@ class ActionChain(object):
             # 標準的な距離計算を使用
             distance_from_start = phase.get_position_diff(current_pos)
             # 計算距離到達で停止
-            if distance_from_start >= (self._calculated_distance + 15):
+            if distance_from_start >= (self._calculated_distance + 10):
 
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= _calculated_distance={self._calculated_distance} | STOP | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
