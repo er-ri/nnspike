@@ -121,7 +121,7 @@ class ActionChain(object):
             return 0.0
         return time.time() - self._acceleration_start_time
 
-    def get_accelerated_base_speed(self, target_speed: int = 30, acceleration_time: float = 1.5) -> int:
+    def get_accelerated_base_speed(self, target_speed: int = 35, acceleration_time: float = 1.0) -> int:
         # タイマーが未初期化の場合は自動開始
         if self._acceleration_start_time is None:
             self._start_acceleration_timer()
@@ -360,7 +360,6 @@ class ActionChain(object):
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | red_pixel_count={red_pixel_count} > 3000")
                 phase.next_phase(current_pos)
                 self._reset_acceleration_timer()
-                return (0, 0), Mode.CARRY_BOTTLE1
             else:
                 accelerated_speed = self.get_accelerated_base_speed()
                 left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=accelerated_speed)
@@ -374,7 +373,6 @@ class ActionChain(object):
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | red_pixel_count={red_pixel_count} < 500 and distance={distance} > 0 and <= 10 | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 self._reset_acceleration_timer()
-                return (0, 0), Mode.CARRY_BOTTLE1
             if red_center is not None:
                 target_x = red_center[0]
                 accelerated_speed = self.get_accelerated_base_speed()
@@ -546,7 +544,7 @@ class ActionChain(object):
                     return (0, 0), Mode.CARRY_BOTTLE1
                 else:
                     target_x = blue_center[0]
-                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
+                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20)
                     left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=accelerated_speed)
                     return (left_speed, right_speed), Mode.CARRY_BOTTLE1
             else:
@@ -598,13 +596,13 @@ class ActionChain(object):
             # 標準的な距離計算を使用
             distance_from_start = phase.get_position_diff(current_pos)
             # 計算距離到達で停止
-            if distance_from_start >= (self._calculated_distance + 10):
+            if distance_from_start >= self._calculated_distance:
 
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= _calculated_distance={self._calculated_distance} | STOP | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE1
             # 青ターゲットの中心追従は行わず、常にyaw_straight_controlで直進
-            accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
+            accelerated_speed = self.get_accelerated_base_speed(target_speed=20)
             left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
@@ -636,12 +634,12 @@ class ActionChain(object):
             phase.next_phase(current_pos)
             self._wait_start_time = None
 
-        # 1. 1秒待機フェーズ
+        # 1. 0.5秒待機フェーズ
         if phase.get_phase() == 1:
             if self._wait_start_time is None:
                 self._wait_start_time = time.time()
             elapsed = time.time() - self._wait_start_time
-            if elapsed >= 1.0:
+            if elapsed >= 0.5:
                 phase.next_phase(current_pos)
                 self._wait_start_time = None
                 return (0, 0), Mode.BACK_AND_TURN1
@@ -954,12 +952,12 @@ class ActionChain(object):
                 else:
                     # Y<300の場合は青ターゲットの中心に向けてcalc_motor_speedで進む（確立されたパターン）
                     target_x = blue_center[0]
-                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
+                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20)
                     left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=accelerated_speed)
                     return (left_speed, right_speed), Mode.CARRY_BOTTLE2
             else:
                 # 青ターゲットが検出されない場合はyaw維持で直進
-                accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
+                accelerated_speed = self.get_accelerated_base_speed(target_speed=20)
                 left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
                 # yaw維持直進コマンドを返す
                 return (left_speed, right_speed), Mode.CARRY_BOTTLE2
@@ -1013,7 +1011,7 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE2
             # 青ターゲットの中心追従は行わず、常にyaw_straight_controlで直進
-            accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
+            accelerated_speed = self.get_accelerated_base_speed(target_speed=20)
             left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
@@ -1047,12 +1045,12 @@ class ActionChain(object):
             self._wait_start_time = time.time()
             return (0, 0), Mode.BACK_AND_TURN2
 
-        # 1. 1秒待機フェーズ
+        # 1. 0.5秒待機フェーズ
         if phase.get_phase() == 1:
             if self._wait_start_time is None:
                 self._wait_start_time = time.time()
             elapsed = time.time() - self._wait_start_time
-            if elapsed >= 1.0:
+            if elapsed >= 0.5:
                 phase.next_phase(current_pos)
                 self._wait_start_time = None
                 return (0, 0), Mode.BACK_AND_TURN2
@@ -1240,7 +1238,7 @@ class ActionChain(object):
                     return (0, 0), Mode.EYE_BLUE
                 else:
                     target_x = blue_center[0]
-                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
+                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20)
                     left_speed, right_speed = self.calc_motor_speed(target_x, base_speed=accelerated_speed)
                     return (left_speed, right_speed), Mode.EYE_BLUE
             else:
@@ -1291,10 +1289,10 @@ class ActionChain(object):
             if blue_pixel_count > 2000:
                 if blue_center is not None:
                     et.set_start_yaw()
-                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
+                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20)
                     left_speed, right_speed = self.calc_motor_speed(blue_center[0], base_speed=accelerated_speed)
                 else:
-                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
+                    accelerated_speed = self.get_accelerated_base_speed(target_speed=20)
                     left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, adjust_speed=2, deadband=1)
                 return (left_speed, right_speed), Mode.EYE_BLUE
             else:
@@ -1327,7 +1325,7 @@ class ActionChain(object):
         if phase.get_phase() == 0:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 500:
-                accelerated_speed = self.get_accelerated_base_speed(target_speed=30, acceleration_time=1.5)
+                accelerated_speed = self.get_accelerated_base_speed()
                 left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
                 return (left_speed, right_speed), Mode.TEST
             else:
@@ -1375,7 +1373,7 @@ class ActionChain(object):
         if phase.get_phase() == 3:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 500:
-                accelerated_speed = self.get_accelerated_base_speed(target_speed=30, acceleration_time=1.5)
+                accelerated_speed = self.get_accelerated_base_speed()
                 left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
                 return (left_speed, right_speed), Mode.TEST
             else:
