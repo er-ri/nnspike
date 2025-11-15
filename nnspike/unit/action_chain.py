@@ -512,7 +512,7 @@ class ActionChain(object):
             if blue_center is not None and blue_center[1] > 10:
                 calculated_distance = calc_blue_target_distance(blue_center)
                 if calculated_distance is not None:
-                    self._calculated_distance = calculated_distance
+                    self._calculated_distance = calculated_distance + 15
                     # print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | calc_blue_target_distance: X={blue_center[0]}, Y={blue_center[1]}, distance={calculated_distance}, pixels={blue_pixel_count}")
                 if abs(blue_center[0] - self.center_x) <= 10:
                     et.set_start_yaw()
