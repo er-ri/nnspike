@@ -512,7 +512,7 @@ class ActionChain(object):
             if blue_center is not None and blue_center[1] > 10:
                 calculated_distance = calc_blue_target_distance(blue_center)
                 if calculated_distance is not None:
-                    self._calculated_distance = calculated_distance + 15
+                    self._calculated_distance = calculated_distance
                     # print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | calc_blue_target_distance: X={blue_center[0]}, Y={blue_center[1]}, distance={calculated_distance}, pixels={blue_pixel_count}")
                 if abs(blue_center[0] - self.center_x) <= 10:
                     et.set_start_yaw()
@@ -611,7 +611,7 @@ class ActionChain(object):
             # 標準的な距離計算を使用
             distance_from_start = phase.get_position_diff(current_pos)
             # 計算距離到達で停止
-            if distance_from_start >= self._calculated_distance:
+            if distance_from_start >= (self._calculated_distance + 15):
 
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= _calculated_distance={self._calculated_distance} | STOP | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
