@@ -536,6 +536,7 @@ class ActionChain(object):
                         self._calculated_distance = calculated_distance
                     print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_y={blue_center[1]} >= 300 | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                     phase.next_phase(current_pos)
+                    self._reset_acceleration_timer()
                     return (0, 0), Mode.CARRY_BOTTLE1
                 else:
                     target_x = blue_center[0]
@@ -595,9 +596,10 @@ class ActionChain(object):
 
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= _calculated_distance={self._calculated_distance} | STOP | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
+                self._reset_acceleration_timer()
                 return (0, 0), Mode.CARRY_BOTTLE1
             # 青ターゲットの中心追従は行わず、常にyaw_straight_controlで直進
-            accelerated_speed = self.get_accelerated_base_speed(target_speed=13, acceleration_time=1.5)
+            accelerated_speed = self.get_accelerated_base_speed(target_speed=13)
             left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
@@ -943,6 +945,7 @@ class ActionChain(object):
                     # Noneの場合も既存の_calculated_distanceをそのまま使用（300または前回計算値）
                     print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | blue_y={blue_center[1]} >= 300 | pixels={blue_pixel_count} | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                     phase.next_phase(current_pos)
+                    self._reset_acceleration_timer()
                     return (0, 0), Mode.CARRY_BOTTLE2
                 else:
                     # Y<300の場合は青ターゲットの中心に向けてcalc_motor_speedで進む（確立されたパターン）
@@ -1004,9 +1007,10 @@ class ActionChain(object):
             if distance_from_start >= self._calculated_distance:
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= _calculated_distance={self._calculated_distance} | STOP | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
+                self._reset_acceleration_timer()
                 return (0, 0), Mode.CARRY_BOTTLE2
             # 青ターゲットの中心追従は行わず、常にyaw_straight_controlで直進
-            accelerated_speed = self.get_accelerated_base_speed(target_speed=13, acceleration_time=1.5)
+            accelerated_speed = self.get_accelerated_base_speed(target_speed=13)
             left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
@@ -1230,6 +1234,7 @@ class ActionChain(object):
                         self._calculated_distance = calculated_distance
                     print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | blue_y={blue_center[1]} >= 300 | pixels={blue_pixel_count} | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                     phase.next_phase(current_pos)
+                    self._reset_acceleration_timer()
                     return (0, 0), Mode.EYE_BLUE
                 else:
                     target_x = blue_center[0]
@@ -1240,6 +1245,7 @@ class ActionChain(object):
                 et.set_start_yaw()
                 print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | no_blue_target | set_start_yaw | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
+                self._reset_acceleration_timer()
                 return (0, 0), Mode.EYE_BLUE
 
         # phase2: もう一度青ターゲット中心合わせ（carry_bottle2_relativeの最新ロジックに準拠）
@@ -1278,6 +1284,7 @@ class ActionChain(object):
             if distance_from_start >= self._calculated_distance:
                 print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= _calculated_distance={self._calculated_distance} | STOP | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
+                self._reset_acceleration_timer()
                 return (0, 0), Mode.EYE_BLUE
             blue_center, _, blue_pixel_count = find_blue_target_center(image)
             print(f"[DEBUG] mode={Mode.EYE_BLUE.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} < {self._calculated_distance} | blue_center={blue_center} | pixels={blue_pixel_count}")
@@ -1291,7 +1298,7 @@ class ActionChain(object):
                     left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, adjust_speed=2, deadband=1)
                 return (left_speed, right_speed), Mode.EYE_BLUE
             else:
-                accelerated_speed = self.get_accelerated_base_speed(target_speed=20, acceleration_time=1.5)
+                accelerated_speed = self.get_accelerated_base_speed(target_speed=20)
                 left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
                 return (left_speed, right_speed), Mode.EYE_BLUE
 
