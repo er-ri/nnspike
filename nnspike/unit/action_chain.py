@@ -602,7 +602,7 @@ class ActionChain(object):
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
             yaw_error = current_yaw - start_yaw
-            # print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
+            print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} < _calculated_distance={self._calculated_distance} | start_yaw={start_yaw:.2f} | current_yaw={current_yaw:.2f} | yaw_error={yaw_error:.2f}")
             return (left_speed, right_speed), Mode.CARRY_BOTTLE1
 
         # phase12: 状態リセットしBACK_AND_TURN1へ遷移。
