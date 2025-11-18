@@ -562,7 +562,7 @@ class ActionChain(object):
                 if abs(blue_center[0] - self.center_x) <= 5:
                     # 中心に合った→次フェーズへ
                     et.set_start_yaw()
-                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance} | proceed to phase12")
+                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance} | proceed to phase11")
                     phase.next_phase(current_pos)
                     return (0, 0), Mode.CARRY_BOTTLE1
                 else:
@@ -575,8 +575,8 @@ class ActionChain(object):
                 # 青ターゲットが見つからない→ヨー角調整
                 in_tolerance, yaw_error = et.is_start_yaw_error_within(2.0)
                 if in_tolerance:
-                    # ヨー角OK→フェーズ12へ
-                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | no_blue_target | yaw_ok | proceed to phase12")
+                    # ヨー角OK→フェーズ11へ
+                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | no_blue_target | yaw_ok | proceed to phase11")
                     phase.next_phase(current_pos)
                     return (0, 0), Mode.CARRY_BOTTLE1
                 else:
@@ -591,7 +591,7 @@ class ActionChain(object):
             # 標準的な距離計算を使用
             distance_from_start = phase.get_position_diff(current_pos)
             # 計算距離到達で停止
-            if distance_from_start >= self._calculated_distance + 10:
+            if distance_from_start >= self._calculated_distance:
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= _calculated_distance={self._calculated_distance} | STOP | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE1
@@ -999,8 +999,8 @@ class ActionChain(object):
         if phase.get_phase() == 13:
             # 標準的な距離計算を使用
             distance_from_start = phase.get_position_diff(current_pos)
-            # 計算距離到達で停止（マージン+10を追加）
-            if distance_from_start >= self._calculated_distance + 10:
+            # 計算距離到達で停止
+            if distance_from_start >= self._calculated_distance:
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= _calculated_distance={self._calculated_distance} | STOP | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE2
