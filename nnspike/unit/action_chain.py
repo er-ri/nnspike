@@ -562,7 +562,7 @@ class ActionChain(object):
                 if abs(blue_center[0] - self.center_x) <= 5:
                     # 中心に合った→次フェーズへ
                     et.set_start_yaw()
-                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance} | proceed to phase11")
+                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance} | proceed to phase12")
                     phase.next_phase(current_pos)
                     return (0, 0), Mode.CARRY_BOTTLE1
                 else:
@@ -575,8 +575,8 @@ class ActionChain(object):
                 # 青ターゲットが見つからない→ヨー角調整
                 in_tolerance, yaw_error = et.is_start_yaw_error_within(2.0)
                 if in_tolerance:
-                    # ヨー角OK→フェーズ11へ
-                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | no_blue_target | yaw_ok | proceed to phase11")
+                    # ヨー角OK→フェーズ12へ
+                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | no_blue_target | yaw_ok | proceed to phase12")
                     phase.next_phase(current_pos)
                     return (0, 0), Mode.CARRY_BOTTLE1
                 else:
@@ -592,11 +592,12 @@ class ActionChain(object):
             distance_from_start = phase.get_position_diff(current_pos)
             # 計算距離到達で停止
             if distance_from_start >= self._calculated_distance:
+
                 print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | distance_from_start={distance_from_start} >= _calculated_distance={self._calculated_distance} | STOP | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE1
             # 青ターゲットの中心追従は行わず、常にyaw_straight_controlで直進
-            accelerated_speed = self.get_accelerated_base_speed(target_speed=13, acceleration_time=1.5)
+            accelerated_speed = self.get_accelerated_base_speed(target_speed=15, acceleration_time=1.5)
             left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
@@ -1005,7 +1006,7 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
                 return (0, 0), Mode.CARRY_BOTTLE2
             # 青ターゲットの中心追従は行わず、常にyaw_straight_controlで直進
-            accelerated_speed = self.get_accelerated_base_speed(target_speed=13, acceleration_time=1.5)
+            accelerated_speed = self.get_accelerated_base_speed(target_speed=15, acceleration_time=1.5)
             left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
