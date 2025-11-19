@@ -1147,7 +1147,7 @@ class ActionChain(object):
                 phase.next_phase(current_pos)
             else:
                 return (BASE_SPEED, BASE_SPEED), Mode.HEAD_GOAL
-
+            
         # 2. 左旋回（courseに応じて左旋回。垂直黒ライン検出または移動距離上限到達でphase3へ）
         if phase.get_phase() == 2:
             position_diff = phase.get_position_diff(current_pos)
