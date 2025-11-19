@@ -1072,7 +1072,7 @@ class ActionChain(object):
         # 0. 左モーターが抽象的な基準位置まで後退（両輪定速）。条件成立で次フェーズへ、モーター位置記録。
         if phase.get_phase() == 0:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 570:
+            if position_diff < 650:
                 return (-BASE_SPEED, -BASE_SPEED), Mode.BACK_AND_TURN2
             print(f"[DEBUG] mode={Mode.BACK_AND_TURN2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 570")
             phase.next_phase(current_pos)
@@ -1153,7 +1153,7 @@ class ActionChain(object):
             position_diff = phase.get_position_diff(current_pos)
             vertical_line_detected = is_vertical_black_line_detected(image)
             # Continue turning left. If vertical black line detected or position limit reached, go to phase3
-            if (not vertical_line_detected) and (position_diff < 500):
+            if (not vertical_line_detected) and (position_diff < 450):
                 if self.course == "right":
                     return (0, 30), Mode.HEAD_GOAL
                 else:
