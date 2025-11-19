@@ -1154,12 +1154,12 @@ class ActionChain(object):
             position_diff = phase.get_position_diff(current_pos)
             vertical_line_detected = is_vertical_black_line_detected(image)
             # Continue turning left. If vertical black line detected or position limit reached, go to phase3
-            if (not vertical_line_detected) and (position_diff < 450):
+            if (not vertical_line_detected) and (position_diff < 420):
                 if self.course == "right":
                     return (0, 30), Mode.HEAD_GOAL
                 else:
                     return (30, 0), Mode.HEAD_GOAL
-            print(f"[DEBUG] mode={Mode.HEAD_GOAL.value} | phase={phase.get_phase()} | vertical_line_detected={vertical_line_detected} position_diff={position_diff} >= 500")
+            print(f"[DEBUG] mode={Mode.HEAD_GOAL.value} | phase={phase.get_phase()} | vertical_line_detected={vertical_line_detected} position_diff={position_diff} >= 420")
             phase.next_phase(current_pos)
 
         # 3. 左エッジトレース（青ライン検出でphase4へ。左エッジがなければ中央。青ライン検出時に右モーター位置記録）
