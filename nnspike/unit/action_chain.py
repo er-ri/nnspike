@@ -532,10 +532,10 @@ class ActionChain(object):
                 calculated_distance = calc_blue_target_distance(blue_center)
                 # --- print出し方統一 ---
                 # print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_center=({blue_center[0]}, {blue_center[1]}) | blue_pixel_count={blue_pixel_count} | calc_blue_target_distance={calculated_distance} | _calculated_distance={self._calculated_distance}")
-                if blue_center[1] >= 300:
+                if blue_center[1] >= 280:
                     if calculated_distance is not None:
                         self._calculated_distance = calculated_distance
-                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_y={blue_center[1]} >= 300 | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | blue_y={blue_center[1]} >= 280 | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                     phase.next_phase(current_pos)
                     self._reset_acceleration_timer()
                     return (0, 0), Mode.CARRY_BOTTLE1
@@ -983,13 +983,13 @@ class ActionChain(object):
                 calculated_distance = calc_blue_target_distance(blue_center)
                 # print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | pixels={blue_pixel_count}")
                 
-                # y座標が300以上になったら次フェーズへ（フェーズ11独立の距離計算）
-                if blue_center[1] >= 300:
+                # y座標が280以上になったら次フェーズへ（フェーズ11独立の距離計算）
+                if blue_center[1] >= 280:
                     # _calculated_distanceは絶対にNoneにならない（デフォルト300保証済み）
                     if calculated_distance is not None:
                         self._calculated_distance = calculated_distance
                     # Noneの場合も既存の_calculated_distanceをそのまま使用（300または前回計算値）
-                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | blue_y={blue_center[1]} >= 300 | pixels={blue_pixel_count} | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
+                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | blue_y={blue_center[1]} >= 280 | pixels={blue_pixel_count} | proceed to tracking phase | _calculated_distance={self._calculated_distance} | start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f}")
                     phase.next_phase(current_pos)
                     self._reset_acceleration_timer()
                     return (0, 0), Mode.CARRY_BOTTLE2
