@@ -869,9 +869,9 @@ class ActionChain(object):
                 if self.course_type == "upper":
                     return (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
                 elif self.course == "right":
-                    return (BASE_SPEED + 2, BASE_SPEED), Mode.CARRY_BOTTLE2
+                    return (BASE_SPEED + 3, BASE_SPEED), Mode.CARRY_BOTTLE2
                 else:
-                    return (BASE_SPEED, BASE_SPEED + 2), Mode.CARRY_BOTTLE2
+                    return (BASE_SPEED, BASE_SPEED + 3), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 400")
             phase.next_phase(current_pos)
             return (0, 0), Mode.CARRY_BOTTLE2
