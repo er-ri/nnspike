@@ -867,7 +867,10 @@ class ActionChain(object):
         if phase.get_phase() == 8:
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 400:
-                return (BASE_SPEED, BASE_SPEED), Mode.CARRY_BOTTLE2
+                if self.course == "right":
+                    return (BASE_SPEED + 2, BASE_SPEED), Mode.CARRY_BOTTLE2
+                else:
+                    return (BASE_SPEED, BASE_SPEED + 2), Mode.CARRY_BOTTLE2
             print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 400")
             phase.next_phase(current_pos)
             return (0, 0), Mode.CARRY_BOTTLE2
