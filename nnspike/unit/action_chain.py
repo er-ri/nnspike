@@ -618,7 +618,7 @@ class ActionChain(object):
                 self._reset_acceleration_timer()
                 return (0, 0), Mode.CARRY_BOTTLE1
             # 青ターゲットの中心追従は行わず、常にyaw_straight_controlで直進
-            accelerated_speed = self.get_accelerated_base_speed(target_speed=10)
+            accelerated_speed = self.get_accelerated_base_speed(target_speed=15)
             left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
@@ -1046,7 +1046,7 @@ class ActionChain(object):
                 self._reset_acceleration_timer()
                 return (0, 0), Mode.CARRY_BOTTLE2
             # 青ターゲットの中心追従は行わず、常にyaw_straight_controlで直進
-            accelerated_speed = self.get_accelerated_base_speed(target_speed=10)
+            accelerated_speed = self.get_accelerated_base_speed(target_speed=15)
             left_speed, right_speed = et.yaw_straight_control(base_speed=accelerated_speed, deadband=1)
             start_yaw = et.get_start_yaw()
             current_yaw = et.get_yaw()
