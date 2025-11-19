@@ -654,7 +654,7 @@ class ActionChain(object):
             if self._wait_start_time is None:
                 self._wait_start_time = time.time()
             elapsed = time.time() - self._wait_start_time
-            if elapsed >= 0.5:
+            if elapsed >= 1.0:
                 phase.next_phase(current_pos)
                 self._wait_start_time = None
                 return (0, 0), Mode.BACK_AND_TURN1
@@ -665,7 +665,7 @@ class ActionChain(object):
         if phase.get_phase() == 2:
             position_diff = phase.get_position_diff(current_pos)
             if self.course_type != "upper":
-                limit = 420
+                limit = 400
                 if position_diff >= limit:
                     print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {limit} (immediate next phase)")
                     phase.next_phase(current_pos)
