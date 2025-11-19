@@ -301,8 +301,8 @@ def calc_blue_target_distance(blue_center) -> Optional[int]:
             # 1200→500線形補間 (y=30で1200, y=250で500)
             practical_distance = int(1200 + (500-1200)*(top_y-30)/(250-30))
         elif 250 < top_y <= 350:
-            # 250〜350 線形補間（傾き調整: 300で550, 350で490）全体+130
-            practical_distance = int(550 + (490-550)*(top_y-300)/50)
+            # 250〜350 線形補間（傾き調整: 300で580, 350で520）全体+160
+            practical_distance = int(580 + (520-580)*(top_y-300)/50)
         else:
             slope = 1.6
             intercept = 165
