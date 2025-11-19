@@ -266,28 +266,28 @@ def find_blue_target_center(image) -> Tuple[Optional[Tuple[int, int]], Optional[
     return None, None, 0
 
 def calc_blue_target_distance(blue_center) -> Optional[int]:
-# y（top_y）ごとの距離計算サンプル（int(CAMERA_HEIGHT*0.9)=430基準、y<=30は上限1200, distance=target_y-top_y）
-## y    | distance = 430-y | practical_distance
+# y（top_y）ごとの距離計算サンプル（int(CAMERA_HEIGHT*0.9)=432基準、y<=30は上限1200, distance=target_y-top_y）
+## y    | distance = 432-y | practical_distance
 # -------|-----------------|----------------
-#    30  |     400         |   1200
-#   100  |     330         |    864
-#   150  |     280         |    682
-#   200  |     230         |    591
-#   250  |     180         |    500
-#   260  |     170         |    488
-#   275  |     155         |    470
-#   280  |     150         |    464
-#   290  |     140         |    452
-#   300  |     130         |    460
-#   310  |     120         |    448
-#   320  |     110         |    436
-#   325  |     105         |    430
-#   330  |     100         |    424
-#   340  |      90         |    412
-#   350  |      80         |    400
-#   400  |      30         |    213
-#   430  |       0         |    165
-# ※y<=30: 1200固定, 30<y<=250: 線形補間(1200→500), 250<y<=350: 線形補間(460→400), それ以外: int(1.6*distance+165)
+#    30  |     402         |   1200
+#   100  |     332         |    922
+#   150  |     282         |    727
+#   200  |     232         |    591
+#   250  |     182         |    500
+#   260  |     172         |    490
+#   275  |     157         |    475
+#   280  |     152         |    470
+#   290  |     142         |    460
+#   300  |     132         |    450
+#   310  |     122         |    440
+#   320  |     112         |    430
+#   325  |     107         |    425
+#   330  |     102         |    420
+#   340  |      92         |    410
+#   350  |      82         |    400
+#   400  |      32         |    216
+#   432  |       0         |    165
+# ※y<=30: 1200固定, 30<y<=250: 線形補間(1200→500), 250<y<=350: 線形補間(500→400), それ以降: int(1.6*distance+165)
     if blue_center is None:
         return None
     _, top_y = blue_center
@@ -301,8 +301,8 @@ def calc_blue_target_distance(blue_center) -> Optional[int]:
             # 1200→500線形補間 (y=30で1200, y=250で500)
             practical_distance = int(1200 + (500-1200)*(top_y-30)/(250-30))
         elif 250 < top_y <= 350:
-            # 250〜350 線形補間 (y=250で500, y=350で490)
-            practical_distance = int(500 + (490-500)*(top_y-250)/(350-250))
+            # 250〜350 線形補間 (y=250で500, y=350で400)
+            practical_distance = int(500 + (400-500)*(top_y-250)/(350-250))
         else:
             slope = 1.6
             intercept = 165
