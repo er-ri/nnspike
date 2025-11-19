@@ -625,7 +625,7 @@ class ActionChain(object):
         # 0. 後退（コース側モーターが所定値移動まで。所定値超えたらphase1へ、モーター位置記録）
         if phase.get_phase() == 0:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 600:
+            if position_diff < 650:
                 return (-BASE_SPEED, -BASE_SPEED), Mode.BACK_AND_TURN1
             print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 600")
             phase.next_phase(current_pos)
