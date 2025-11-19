@@ -400,7 +400,7 @@ class FastLapChain(object):
                 else:
                     et.set_start_yaw(start_yaw - 3.0)
                 lap_elapsed = time.time() - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP2.value} | phase={phase.get_phase()} | turned 5deg | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                print(f"[DEBUG] mode={Mode.FAST_LAP2.value} | phase={phase.get_phase()} | turned 3deg | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
             else:
                 if self.course == "right":
@@ -411,7 +411,7 @@ class FastLapChain(object):
         # フェーズ1: 直進（3800まで）
         if phase.get_phase() == 1:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 3800:
+            if position_diff < 3900:
                 # ファストラップ専用スタートダッシュ加速制御メソッドを使用
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP2
