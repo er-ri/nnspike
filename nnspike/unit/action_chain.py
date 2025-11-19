@@ -580,25 +580,12 @@ class ActionChain(object):
                     # print(f"[calc_blue_target_distance] X={blue_center[0]}, Y={blue_center[1]} → distance={calculated_distance} | pixels={blue_pixel_count}")
                 # 中心に合わせる判定（±5ピクセル以内）
                 if abs(blue_center[0] - self.center_x) <= 5:
-                    # 中心に合った→0.5秒維持を確認
-                    if self._wait_start_time is None:
-                        # タイマー開始
-                        self._wait_start_time = time.time()
-                    
-                    elapsed = time.time() - self._wait_start_time
-                    if elapsed >= 0.5:
-                        # 0.5秒維持確認→次フェーズへ
-                        et.set_start_yaw()
-                        print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | centered for 0.5s | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance}")
-                        phase.next_phase(current_pos)
-                        self._wait_start_time = None
-                        return (0, 0), Mode.CARRY_BOTTLE1
-                    else:
-                        # 維持確認中→停止
-                        return (0, 0), Mode.CARRY_BOTTLE1
+                    # 中心に合った→次フェーズへ
+                    et.set_start_yaw()
+                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE1.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance}")
+                    phase.next_phase(current_pos)
+                    return (0, 0), Mode.CARRY_BOTTLE1
                 else:
-                    # 中心から外れた→タイマーリセット
-                    self._wait_start_time = None
                     # 中心に向けて旋回
                     if blue_center[0] < self.center_x:
                         return (0, 5), Mode.CARRY_BOTTLE1  # 左旋回
@@ -923,26 +910,12 @@ class ActionChain(object):
                 
                 # 中心に合わせる判定（±10ピクセル以内）
                 if abs(blue_center[0] - self.center_x) <= 10:
-                    # 中心に合った→0.5秒維持を確認
-                    if self._wait_start_time is None:
-                        # タイマー開始
-                        self._wait_start_time = time.time()
-                    
-                    elapsed = time.time() - self._wait_start_time
-                    if elapsed >= 0.5:
-                        # 0.5秒維持確認→次フェーズへ
-                        et.set_start_yaw()
-                        # フェーズ14開始位置を設定
-                        print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | centered for 0.5s | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance}")
-                        phase.next_phase(current_pos)
-                        self._wait_start_time = None
-                        return (0, 0), Mode.CARRY_BOTTLE2
-                    else:
-                        # 維持確認中→停止
-                        return (0, 0), Mode.CARRY_BOTTLE2
+                    # 中心に合った→次フェーズへ
+                    et.set_start_yaw()
+                    print(f"[DEBUG] mode={Mode.CARRY_BOTTLE2.value} | phase={phase.get_phase()} | centered | blue_center=({blue_center[0]}, {blue_center[1]}) | pixels={blue_pixel_count} | _calculated_distance={self._calculated_distance}")
+                    phase.next_phase(current_pos)
+                    return (0, 0), Mode.CARRY_BOTTLE2
                 else:
-                    # 中心から外れた→タイマーリセット
-                    self._wait_start_time = None
                     # 中心に向けて旋回
                     if blue_center[0] < self.center_x:
                         return (0, 5), Mode.CARRY_BOTTLE2  # 左旋回
