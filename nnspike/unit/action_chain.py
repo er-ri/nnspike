@@ -661,7 +661,7 @@ class ActionChain(object):
             if self._wait_start_time is None:
                 self._wait_start_time = time.time()
             elapsed = time.time() - self._wait_start_time
-            if elapsed >= 1.0:
+            if elapsed >= 5.0:
                 print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase=1→2 | wait completed")
                 # Phase 2のposition_start基準を0に設定（リセット後なので必ず0）
                 phase.next_phase(0)
