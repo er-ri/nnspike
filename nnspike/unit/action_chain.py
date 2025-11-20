@@ -671,13 +671,16 @@ class ActionChain(object):
         if phase.get_phase() == 2:
             # 現在の差分を取得
             position_diff = phase.get_position_diff(current_pos)
+            # 生のrelative_position値も取得
+            status = self.et.get_spike_status()
+            raw_right_pos = status.motors["A"].relative_position if status.motors["A"].relative_position is not None else 0
             # 累積距離を記録（デバッグ用）
             delta = abs(position_diff - self._prev_position_diff)
             self._accumulated_distance += delta
             self._prev_position_diff = position_diff
 
-            # デバッグ出力: position_diffと累積距離を比較
-            print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} | accumulated_distance={self._accumulated_distance} | delta={delta}")
+            # デバッグ出力: position_diffと累積距離と生の値を比較
+            print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} | raw_right_pos={raw_right_pos} | accumulated_distance={self._accumulated_distance} | delta={delta}")
             
             if self.course_type != "upper":
                 limit = 400
