@@ -739,6 +739,7 @@ class ActionChain(object):
             else:
                 print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {max_threshold} | next phase (go straight)")
                 phase.next_phase(current_pos)
+                return (BASE_SPEED, BASE_SPEED), Mode.BACK_AND_TURN1
 
         # 4. 終了: 状態リセットしCARRY_BOTTLE2へ遷移
         if phase.get_phase() == 4:
