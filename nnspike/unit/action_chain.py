@@ -654,7 +654,7 @@ class ActionChain(object):
             self._wait_start_time = None
             return (0, 0), Mode.BACK_AND_TURN1
 
-        # 1. 5秒待機フェーズ（エンコーダーリセット後の安定化待ち）
+        # 1. 1秒待機フェーズ（エンコーダーリセット後の安定化待ち）
         if phase.get_phase() == 1:
             if self._wait_start_time is None:
                 # Phase 1開始時にエンコーダーをリセット
@@ -662,8 +662,8 @@ class ActionChain(object):
                 print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase=1 | relative_position RESET")
                 self._wait_start_time = time.time()
             elapsed = time.time() - self._wait_start_time
-            if elapsed >= 5.0:
-                # 5秒待機完了後、Phase 2へ遷移
+            if elapsed >= 1.0:
+                # 1秒待機完了後、Phase 2へ遷移
                 print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase=1→2 | wait completed | current_pos={current_pos}")
                 phase.next_phase(current_pos)
                 self._wait_start_time = None
