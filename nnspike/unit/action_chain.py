@@ -637,6 +637,8 @@ class ActionChain(object):
         if not self._init:
             self.initialize_action(motor_side=self.course)
             self._wait_start_time = None
+            self._accumulated_distance = 0  # 累積移動量
+            self._prev_position_diff = 0  # 前回のposition_diff
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
 
@@ -663,12 +665,20 @@ class ActionChain(object):
 
         # 2. 左旋回（最低回転量は必ず旋回。最低回転量超えてからターゲット検出または最大回転量到達まで旋回。条件満たせばphase3へ）
         if phase.get_phase() == 2:
-            position_diff = phase.get_position_diff(current_pos)
+            # 現在の差分を取得し、前回との差分を累積
+            current_diff = phase.get_position_diff(current_pos)
+            delta = abs(current_diff - self._prev_position_diff)
+            self._accumulated_distance += delta
+            self._prev_position_diff = current_diff
+            position_diff = self._accumulated_distance  # 累積値を使用
+            
             if self.course_type != "upper":
                 limit = 400
                 if position_diff >= limit:
                     print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {limit} (immediate next phase)")
                     phase.next_phase(current_pos)
+                    self._accumulated_distance = 0  # リセット
+                    self._prev_position_diff = 0
                     return (0, 0), Mode.BACK_AND_TURN1
                 else:
                     # 350未満は常に30で旋回
@@ -692,6 +702,8 @@ class ActionChain(object):
                     return (20, 0), Mode.BACK_AND_TURN1
             print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {limit} or red_target_detected={red_target_detected}")
             phase.next_phase(current_pos, skip=2)
+            self._accumulated_distance = 0  # リセット
+            self._prev_position_diff = 0
             return (0, 0), Mode.BACK_AND_TURN1
 
         # 青ボトル検知・追従・遷移判定
