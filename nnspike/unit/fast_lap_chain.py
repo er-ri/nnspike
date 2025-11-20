@@ -475,7 +475,7 @@ class FastLapChain(object):
                 return (left_speed, right_speed), Mode.FAST_LAP2
 
             fast_corner = is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course=self.course)
-            if fast_corner or position_diff >= 2800:
+            if fast_corner or position_diff >= 2700:
                 lap_elapsed = time.time() - self.lap_start_time
                 print(f"[DEBUG] mode={Mode.FAST_LAP2.value} | phase={phase.get_phase()} | fast_corner_detected={fast_corner} | position_diff={position_diff} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
