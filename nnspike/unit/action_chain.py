@@ -637,15 +637,16 @@ class ActionChain(object):
         if not self._init:
             self.initialize_action(motor_side=self.course)
             self._wait_start_time = None
-            self._accumulated_distance = 0  # 累積移動量
-            self._prev_position_diff = 0  # 前回のposition_diff
+            # self._accumulated_distance = 0  # 累積移動量
+            # self._prev_position_diff = 0  # 前回のposition_diff
+        et = self.et
         phase = self._phase
         current_pos = self.get_motor_position(self.course)
 
         # 0. 後退（コース側モーターが所定値移動まで。所定値超えたらphase1へ、モーター位置記録）
         if phase.get_phase() == 0:
             position_diff = phase.get_position_diff(current_pos)
-            print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} | current_pos={current_pos}")
+            # print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} | current_pos={current_pos}")
             if position_diff < 650:
                 return (-BASE_SPEED, -BASE_SPEED), Mode.BACK_AND_TURN1
             print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 650")
@@ -658,13 +659,12 @@ class ActionChain(object):
         if phase.get_phase() == 1:
             if self._wait_start_time is None:
                 # Phase 1開始時にエンコーダーをリセット
-                self.et.set_motor_relative_position(0, 0)
-                print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase=1 | relative_position RESET")
+                et.set_motor_relative_position(0, 0)
                 self._wait_start_time = time.time()
             elapsed = time.time() - self._wait_start_time
             if elapsed >= 1.0:
                 # 1秒待機完了後、Phase 2へ遷移
-                print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase=1→2 | wait completed | current_pos={current_pos}")
+                print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | wait completed | current_pos={current_pos}")
                 phase.next_phase(current_pos)
                 self._wait_start_time = None
                 return (0, 0), Mode.BACK_AND_TURN1
@@ -675,24 +675,24 @@ class ActionChain(object):
         if phase.get_phase() == 2:
             # 現在の差分を取得
             position_diff = phase.get_position_diff(current_pos)
-            # 生のrelative_position値も取得
-            status = self.et.get_spike_status()
-            raw_right_pos = status.motors["A"].relative_position if status.motors["A"].relative_position is not None else 0
-            # 累積距離を記録（デバッグ用）
-            delta = abs(position_diff - self._prev_position_diff)
-            self._accumulated_distance += delta
-            self._prev_position_diff = position_diff
+            # # 生のrelative_position値も取得
+            # status = et.get_spike_status()
+            # raw_right_pos = status.motors["A"].relative_position if status.motors["A"].relative_position is not None else 0
+            # # 累積距離を記録（デバッグ用）
+            # delta = abs(position_diff - self._prev_position_diff)
+            # self._accumulated_distance += delta
+            # self._prev_position_diff = position_diff
 
-            # デバッグ出力: position_diffと累積距離と生の値を比較
-            print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} | raw_right_pos={raw_right_pos} | accumulated_distance={self._accumulated_distance} | delta={delta}")
+            # # デバッグ出力: position_diffと累積距離と生の値を比較
+            # print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} | raw_right_pos={raw_right_pos} | accumulated_distance={self._accumulated_distance} | delta={delta}")
             
             if self.course_type != "upper":
                 limit = 400
                 if position_diff >= limit:
                     print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {limit} (immediate next phase)")
                     phase.next_phase(current_pos)
-                    self._accumulated_distance = 0  # リセット
-                    self._prev_position_diff = 0
+                    # self._accumulated_distance = 0  # リセット
+                    # self._prev_position_diff = 0
                     return (0, 0), Mode.BACK_AND_TURN1
                 else:
                     # 350未満は常に30で旋回
@@ -716,8 +716,8 @@ class ActionChain(object):
                     return (20, 0), Mode.BACK_AND_TURN1
             print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= {limit} or red_target_detected={red_target_detected}")
             phase.next_phase(current_pos, skip=2)
-            self._accumulated_distance = 0  # リセット
-            self._prev_position_diff = 0
+            # self._accumulated_distance = 0  # リセット
+            # self._prev_position_diff = 0
             return (0, 0), Mode.BACK_AND_TURN1
 
         # 青ボトル検知・追従・遷移判定
@@ -1094,6 +1094,7 @@ class ActionChain(object):
         if not self._init:
             self.initialize_action(motor_side=self.opposite_course)
             self._wait_start_time = None
+        et = self.et
         phase = self._phase
         current_pos = self.get_motor_position(self.opposite_course)
 
@@ -1102,17 +1103,22 @@ class ActionChain(object):
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 650:
                 return (-BASE_SPEED, -BASE_SPEED), Mode.BACK_AND_TURN2
-            print(f"[DEBUG] mode={Mode.BACK_AND_TURN2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 570")
+            print(f"[DEBUG] mode={Mode.BACK_AND_TURN2.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 650")
+            # Phase 1へ遷移（リセットはPhase 1で実行）
             phase.next_phase(current_pos)
-            self._wait_start_time = time.time()
+            self._wait_start_time = None
             return (0, 0), Mode.BACK_AND_TURN2
 
-        # 1. 0.5秒待機フェーズ
+        # 1. 1秒待機フェーズ（エンコーダーリセット後の安定化待ち）
         if phase.get_phase() == 1:
             if self._wait_start_time is None:
+                # Phase 1開始時にエンコーダーをリセット
+                et.set_motor_relative_position(0, 0)
                 self._wait_start_time = time.time()
             elapsed = time.time() - self._wait_start_time
-            if elapsed >= 0.5:
+            if elapsed >= 1.0:
+                # 1秒待機完了後、Phase 2へ遷移
+                print(f"[DEBUG] mode={Mode.BACK_AND_TURN2.value} | phase={phase.get_phase()} | wait completed | current_pos={current_pos}")
                 phase.next_phase(current_pos)
                 self._wait_start_time = None
                 return (0, 0), Mode.BACK_AND_TURN2
