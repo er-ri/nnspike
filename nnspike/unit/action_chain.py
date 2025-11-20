@@ -647,7 +647,7 @@ class ActionChain(object):
             position_diff = phase.get_position_diff(current_pos)
             if position_diff < 650:
                 return (-BASE_SPEED, -BASE_SPEED), Mode.BACK_AND_TURN1
-            print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 600")
+            print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 650")
             phase.next_phase(current_pos)
             self._wait_start_time = None
 
@@ -665,12 +665,15 @@ class ActionChain(object):
 
         # 2. 左旋回（最低回転量は必ず旋回。最低回転量超えてからターゲット検出または最大回転量到達まで旋回。条件満たせばphase3へ）
         if phase.get_phase() == 2:
-            # 現在の差分を取得し、前回との差分を累積
-            current_diff = phase.get_position_diff(current_pos)
-            delta = abs(current_diff - self._prev_position_diff)
+            # 現在の差分を取得
+            position_diff = phase.get_position_diff(current_pos)
+            # 累積距離を記録（デバッグ用）
+            delta = abs(position_diff - self._prev_position_diff)
             self._accumulated_distance += delta
-            self._prev_position_diff = current_diff
-            position_diff = self._accumulated_distance  # 累積値を使用
+            self._prev_position_diff = position_diff
+
+            # デバッグ出力: position_diffと累積距離を比較
+            print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} | accumulated_distance={self._accumulated_distance} | delta={delta}")
             
             if self.course_type != "upper":
                 limit = 400
