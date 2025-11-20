@@ -649,19 +649,20 @@ class ActionChain(object):
             if position_diff < 650:
                 return (-BASE_SPEED, -BASE_SPEED), Mode.BACK_AND_TURN1
             print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 650")
+            # Phase 0終了直後にrelative_positionをリセット（慣性の影響を最小化）
+            self.et.set_motor_relative_position(0, 0)
+            print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase=0 | relative_position RESET")
             phase.next_phase(current_pos)
             self._wait_start_time = None
+            return (0, 0), Mode.BACK_AND_TURN1
 
         # 1. 0.5秒待機フェーズ
         if phase.get_phase() == 1:
             if self._wait_start_time is None:
                 self._wait_start_time = time.time()
-                # Phase 1開始時に1回だけrelative_positionをリセット
-                self.et.set_motor_relative_position(0, 0)
-                print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase=1 | relative_position RESET started")
             elapsed = time.time() - self._wait_start_time
             if elapsed >= 1.0:
-                print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase=1→2 | relative_position RESET completed")
+                print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase=1→2 | wait completed")
                 # Phase 2のposition_start基準を0に設定（リセット後なので必ず0）
                 phase.next_phase(0)
                 self._wait_start_time = None
