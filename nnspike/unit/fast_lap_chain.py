@@ -440,7 +440,7 @@ class FastLapChain(object):
         # フェーズ3: position_diffが閾値未満なら直進、閾値以上で次フェーズ
         if phase.get_phase() == 3:
             position_diff = phase.get_position_diff(current_pos)
-            threshold = 1350
+            threshold = 1400
             
             if position_diff < threshold:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
