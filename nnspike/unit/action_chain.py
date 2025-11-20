@@ -656,8 +656,9 @@ class ActionChain(object):
         if phase.get_phase() == 1:
             if self._wait_start_time is None:
                 self._wait_start_time = time.time()
-            # 待機中は常にrelative_positionをリセット（Phase 0の負の値をクリア）
-            self.et.set_motor_relative_position(0, 0)
+                # Phase 1開始時に1回だけrelative_positionをリセット
+                self.et.set_motor_relative_position(0, 0)
+                print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase=1 | relative_position RESET started")
             elapsed = time.time() - self._wait_start_time
             if elapsed >= 1.0:
                 print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase=1→2 | relative_position RESET completed")
