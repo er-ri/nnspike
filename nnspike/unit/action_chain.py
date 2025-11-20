@@ -649,21 +649,22 @@ class ActionChain(object):
             if position_diff < 650:
                 return (-BASE_SPEED, -BASE_SPEED), Mode.BACK_AND_TURN1
             print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase={phase.get_phase()} | position_diff={position_diff} >= 650")
-            # Phase 0終了直後にrelative_positionをリセット（慣性の影響を最小化）
-            self.et.set_motor_relative_position(0, 0)
-            print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase=0 | relative_position RESET")
+            # Phase 1へ遷移（リセットはPhase 1で実行）
             phase.next_phase(current_pos)
             self._wait_start_time = None
             return (0, 0), Mode.BACK_AND_TURN1
 
-        # 1. 0.5秒待機フェーズ
+        # 1. 5秒待機フェーズ（エンコーダーリセット後の安定化待ち）
         if phase.get_phase() == 1:
             if self._wait_start_time is None:
+                # Phase 1開始時にエンコーダーをリセット
+                self.et.set_motor_relative_position(0, 0)
+                print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase=1 | relative_position RESET")
                 self._wait_start_time = time.time()
             elapsed = time.time() - self._wait_start_time
             if elapsed >= 5.0:
+                # 5秒待機完了後、Phase 2へ遷移
                 print(f"[DEBUG] mode={Mode.BACK_AND_TURN1.value} | phase=1→2 | wait completed | current_pos={current_pos}")
-                # Phase 2のposition_start基準を現在位置に設定（慣性による後退を吸収）
                 phase.next_phase(current_pos)
                 self._wait_start_time = None
                 return (0, 0), Mode.BACK_AND_TURN1
