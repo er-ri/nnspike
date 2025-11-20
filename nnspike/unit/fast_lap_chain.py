@@ -393,14 +393,14 @@ class FastLapChain(object):
 
         # フェーズ0: 5度旋回（右コースなら右、左コースなら左）
         if phase.get_phase() == 0:
-            stop_turn = et.is_yaw_turn_finished(side=self.course, threshold_deg=3.0)
+            stop_turn = et.is_yaw_turn_finished(side=self.course, threshold_deg=4.0)
             if stop_turn:
                 if self.course == "right":
-                    et.set_start_yaw(start_yaw + 3.0)
+                    et.set_start_yaw(start_yaw + 4.0)
                 else:
-                    et.set_start_yaw(start_yaw - 3.0)
+                    et.set_start_yaw(start_yaw - 4.0)
                 lap_elapsed = time.time() - self.lap_start_time
-                print(f"[DEBUG] mode={Mode.FAST_LAP2.value} | phase={phase.get_phase()} | turned 3deg | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
+                print(f"[DEBUG] mode={Mode.FAST_LAP2.value} | phase={phase.get_phase()} | turned 4deg | set_start_yaw={et.get_start_yaw():.2f} | current_yaw={et.get_yaw():.2f} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
             else:
                 if self.course == "right":
