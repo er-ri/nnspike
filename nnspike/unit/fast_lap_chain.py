@@ -470,12 +470,12 @@ class FastLapChain(object):
         # フェーズ5: 最小距離未満は何も判定せず直進。最小距離以上でcorner判定・閾値判定。
         if phase.get_phase() == 5:
             position_diff = phase.get_position_diff(current_pos)
-            if position_diff < 2300:
+            if position_diff < 2600:
                 left_speed, right_speed = et.yaw_straight_control(base_speed=HIGH_SPEED_BASE)
                 return (left_speed, right_speed), Mode.FAST_LAP2
 
             fast_corner = is_fast_corner_detected(image, roi=ROI_LINE_CORNER, course=self.course)
-            if fast_corner or position_diff >= 2800:
+            if fast_corner or position_diff >= 2900:
                 lap_elapsed = time.time() - self.lap_start_time
                 print(f"[DEBUG] mode={Mode.FAST_LAP2.value} | phase={phase.get_phase()} | fast_corner_detected={fast_corner} | position_diff={position_diff} | current_pos={current_pos} | time: {lap_elapsed:.3f}秒")
                 phase.next_phase(current_pos)
