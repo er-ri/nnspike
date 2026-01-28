@@ -356,6 +356,10 @@ def main():
             df, index = read_label_data(label_path, image_path=image_path)
         elif key == ord("n"):
             index += 1
+        elif key == ord("m"):
+            index += 10
+        elif key == ord("j"):
+            index -= 10
         elif key == ord("."):
             index = min(index + 100, len(df) - 1)
         elif key == ord(","):
